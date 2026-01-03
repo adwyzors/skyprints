@@ -1,16 +1,14 @@
-# Backend Dockerfile
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies
-COPY apps/backend/package*.json ./apps/backend/
-COPY packages/shared-types ./packages/shared-types
+# Copy root files for workspaces
+COPY package*.json ./
+COPY apps ./apps
+COPY packages ./packages
 
-RUN npm install --prefix apps/backend
-
-# Copy source
-COPY apps/backend ./apps/backend
+# Install ALL workspace dependencies
+RUN npm install
 
 WORKDIR /app/apps/backend
 

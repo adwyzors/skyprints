@@ -1,14 +1,14 @@
-# Frontend Dockerfile
 FROM node:20-alpine
 
 WORKDIR /app
 
-COPY apps/frontend/package*.json ./apps/frontend/
-COPY packages/shared-types ./packages/shared-types
+# Copy root workspace files
+COPY package*.json ./
+COPY apps ./apps
+COPY packages ./packages
 
-RUN npm install --prefix apps/frontend
-
-COPY apps/frontend ./apps/frontend
+# Install ALL workspace dependencies
+RUN npm install
 
 WORKDIR /app/apps/frontend
 
