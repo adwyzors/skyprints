@@ -9,7 +9,12 @@ export declare class AuthController {
     status(req: express.Request): {
         authenticated: boolean;
     };
-    callback(code: string, state: string, res: express.Response): Promise<void>;
+    me(req: express.Request): Promise<{
+        id: string;
+        email: string;
+        permissions: string[];
+    }>;
+    callback(code: string, state: string, req: express.Request, res: express.Response): Promise<void>;
     logout(req: express.Request, res: express.Response): {
         success: boolean;
     };

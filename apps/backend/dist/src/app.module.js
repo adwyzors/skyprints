@@ -15,12 +15,15 @@ const user_module_1 = require("./user/user.module");
 const health_module_1 = require("./health/health.module");
 const auth_guard_1 = require("./common/guards/auth.guard");
 const permissions_guard_1 = require("./common/guards/permissions.guard");
+const config_1 = require("@nestjs/config");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, user_module_1.UserModule, health_module_1.HealthModule],
+        imports: [auth_module_1.AuthModule, user_module_1.UserModule, health_module_1.HealthModule, config_1.ConfigModule.forRoot({
+                isGlobal: true,
+            }),],
         providers: [
             app_service_1.AppService,
             {

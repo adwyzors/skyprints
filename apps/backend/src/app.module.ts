@@ -9,9 +9,12 @@ import { HealthModule } from './health/health.module';
 
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { PermissionsGuard } from 'src/common/guards/permissions.guard';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [AuthModule, UserModule, HealthModule],
+  imports: [AuthModule, UserModule, HealthModule,ConfigModule.forRoot({
+      isGlobal: true, // VERY IMPORTANT
+    }),],
   providers: [
     AppService,
     {

@@ -20,6 +20,8 @@ const common_1 = require("@nestjs/common");
 const express_1 = __importDefault(require("express"));
 const auth_service_1 = require("./auth.service");
 const keycloak_service_1 = require("./keycloak/keycloak.service");
+const cookie_domain_util_1 = require("./utils/cookie-domain.util");
+const public_decorator_1 = require("./decorators/public.decorator");
 let AuthController = class AuthController {
     auth;
     keycloak;
@@ -34,31 +36,43 @@ let AuthController = class AuthController {
     }
     status(req) {
         const sessionId = req.cookies?.['SESSION_ID'];
-        if (!sessionId) {
-            return {
-                authenticated: false
-            };
-        }
-        return { authenticated: true };
+        return { authenticated: !!sessionId };
     }
-    async callback(code, state, res) {
+    async me(req) {
+        const sessionId = req.cookies?.['SESSION_ID'];
+        if (!sessionId) {
+            throw new common_1.UnauthorizedException();
+        }
+        const user = await this.auth.getSessionUser(sessionId);
+        if (!user) {
+            throw new common_1.UnauthorizedException();
+        }
+        return {
+            id: user.id,
+            email: user.email,
+            permissions: user.permissions,
+        };
+    }
+    async callback(code, state, req, res) {
+        if (!code) {
+            throw new common_1.UnauthorizedException('Missing authorization code');
+        }
         const sessionId = await this.auth.login(code);
         res.cookie('SESSION_ID', sessionId, {
             httpOnly: true,
             sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            domain: (0, cookie_domain_util_1.resolveCookieDomain)(req),
         });
         let redirectTo = '/board';
         if (state) {
             try {
                 const parsed = JSON.parse(Buffer.from(state, 'base64').toString());
-                const allowedPaths = ['/board', '/profile', '/settings'];
-                if (allowedPaths.includes(parsed.redirectTo)) {
-                    redirectTo = parsed.redirectTo;
-                }
+                redirectTo = parsed.redirectTo;
             }
             catch { }
         }
-        res.redirect(redirectTo);
+        return res.redirect(`${process.env.FRONT_END_BASE_URL}${redirectTo}`);
     }
     logout(req, res) {
         const sessionId = req.cookies?.['SESSION_ID'];
@@ -72,6 +86,7 @@ let AuthController = class AuthController {
 exports.AuthController = AuthController;
 __decorate([
     (0, common_1.Get)('login'),
+    (0, public_decorator_1.Public)(),
     __param(0, (0, common_1.Query)('redirectTo')),
     __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
@@ -86,12 +101,21 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AuthController.prototype, "status", null);
 __decorate([
-    (0, common_1.Post)('callback'),
-    __param(0, (0, common_1.Body)('code')),
-    __param(1, (0, common_1.Query)('state')),
-    __param(2, (0, common_1.Res)({ passthrough: true })),
+    (0, common_1.Get)('me'),
+    __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "me", null);
+__decorate([
+    (0, common_1.Get)('callback'),
+    (0, public_decorator_1.Public)(),
+    __param(0, (0, common_1.Query)('code')),
+    __param(1, (0, common_1.Query)('state')),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "callback", null);
 __decorate([

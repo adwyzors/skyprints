@@ -1,17 +1,31 @@
 // auth/session/memory-session.store.ts
-import { randomUUID } from "crypto";
-import { SessionData } from "./session.types";
-import { SessionStore } from "./session.store";
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { randomUUID } from 'crypto';
+import { SessionData } from './session.types';
+import { SessionStore } from './session.store';
 
-export class MemorySessionStore implements SessionStore {
-  private store = new Map<string, SessionData>();
+@Injectable()
+export class MemorySessionStore
+  implements SessionStore, OnModuleDestroy
+{
+  private readonly store = new Map<string, SessionData>();
+  private readonly cleanupInterval: NodeJS.Timeout;
 
   constructor() {
     // Cleanup expired sessions every 5 minutes
-    setInterval(() => this.cleanup(), 5 * 60 * 1000).unref();
+    this.cleanupInterval = setInterval(
+      () => this.cleanup(),
+      5 * 60 * 1000,
+    );
+
+    this.cleanupInterval.unref();
   }
 
   create(session: SessionData): string {
+    if (session.expiresAt <= Date.now()) {
+      throw new Error('Session expiry must be in the future');
+    }
+
     const sessionId = randomUUID();
     this.store.set(sessionId, session);
     return sessionId;
@@ -33,10 +47,14 @@ export class MemorySessionStore implements SessionStore {
     this.store.delete(sessionId);
   }
 
+  onModuleDestroy() {
+    clearInterval(this.cleanupInterval);
+  }
+
   private cleanup() {
     const now = Date.now();
     for (const [id, session] of this.store.entries()) {
-      if (session.expiresAt < now) {
+      if (session.expiresAt <= now) {
         this.store.delete(id);
       }
     }

@@ -1,8 +1,20 @@
-import { Controller, Get, Post, Req, Res, Body, Query } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    Post,
+    Req,
+    Res,
+    Body,
+    Query,
+    UnauthorizedException,
+} from '@nestjs/common';
 import express from 'express';
 
 import { AuthService } from './auth.service';
 import { KeycloakService } from './keycloak/keycloak.service';
+import { resolveCookieDomain } from './utils/cookie-domain.util';
+import { Public } from './decorators/public.decorator';
+
 
 @Controller('auth')
 export class AuthController {
@@ -12,44 +24,61 @@ export class AuthController {
     ) { }
 
     @Get('login')
+    @Public()
     login(
         @Query('redirectTo') redirectTo = '/board',
         @Res() res: express.Response,
     ) {
-        const state = Buffer.from(JSON.stringify({ redirectTo })).toString(
-            'base64',
-        );
-
+        const state = Buffer.from(JSON.stringify({ redirectTo })).toString('base64');
         const loginUrl = this.keycloak.getLoginUrl(state);
-
         return res.redirect(loginUrl);
     }
 
     @Get('status')
     status(@Req() req: express.Request) {
         const sessionId = req.cookies?.['SESSION_ID'];
-
-        if (!sessionId) {
-            return {
-                authenticated: false
-                //loginUrl: this.keycloak.getLoginUrl(),
-            };
-        }
-
-        return { authenticated: true };
+        return { authenticated: !!sessionId };
     }
 
-    @Post('callback')
+    // 🔐 REQUIRED BY FRONTEND
+    @Get('me')
+    async me(@Req() req: express.Request) {
+        const sessionId = req.cookies?.['SESSION_ID'];
+        if (!sessionId) {
+            throw new UnauthorizedException();
+        }
+
+        const user = await this.auth.getSessionUser(sessionId);
+        if (!user) {
+            throw new UnauthorizedException();
+        }
+
+        return {
+            id: user.id,
+            email: user.email,
+            permissions: user.permissions,
+        };
+    }
+
+    @Get('callback')
+    @Public()
     async callback(
-        @Body('code') code: string,
+        @Query('code') code: string,        // ✅ FIX
         @Query('state') state: string,
+        @Req() req: express.Request,
         @Res({ passthrough: true }) res: express.Response,
     ) {
+        if (!code) {
+            throw new UnauthorizedException('Missing authorization code');
+        }
+
         const sessionId = await this.auth.login(code);
 
         res.cookie('SESSION_ID', sessionId, {
             httpOnly: true,
             sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            domain: resolveCookieDomain(req),
         });
 
         let redirectTo = '/board';
@@ -57,17 +86,13 @@ export class AuthController {
         if (state) {
             try {
                 const parsed = JSON.parse(Buffer.from(state, 'base64').toString());
-
-                const allowedPaths = ['/board', '/profile', '/settings'];
-
-                if (allowedPaths.includes(parsed.redirectTo)) {
-                    redirectTo = parsed.redirectTo;
-                }
+                redirectTo = parsed.redirectTo;
             } catch { }
         }
 
-        res.redirect(redirectTo);
+        return res.redirect(`${process.env.FRONT_END_BASE_URL}${redirectTo}`);
     }
+
 
     @Post('logout')
     logout(

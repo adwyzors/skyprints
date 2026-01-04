@@ -13,6 +13,7 @@ exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
 const keycloak_service_1 = require("./keycloak/keycloak.service");
 const memory_session_store_1 = require("./session/memory-session.store");
+const jwt_decode_1 = require("jwt-decode");
 let AuthService = class AuthService {
     keycloak;
     sessionStore;
@@ -22,15 +23,34 @@ let AuthService = class AuthService {
     }
     async login(code) {
         const tokens = await this.keycloak.exchangeCode(code);
+        const userInfo = (0, jwt_decode_1.jwtDecode)(tokens.access_token);
+        const permissions = this.mapPermissions(userInfo);
         return this.sessionStore.create({
-            userId: tokens.id_token,
+            user: {
+                id: userInfo.sub,
+                email: userInfo.email,
+                permissions,
+            },
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token,
             expiresAt: Date.now() + tokens.expires_in * 1000,
         });
     }
+    async getSessionUser(sessionId) {
+        const session = this.sessionStore.get(sessionId);
+        if (!session || session.expiresAt < Date.now()) {
+            if (session)
+                this.sessionStore.delete(sessionId);
+            return null;
+        }
+        return session.user;
+    }
     logout(sessionId) {
         this.sessionStore.delete(sessionId);
+    }
+    mapPermissions(userInfo) {
+        const permissions = userInfo.permissions ?? [];
+        return Array.from(new Set([...permissions]));
     }
 };
 exports.AuthService = AuthService;

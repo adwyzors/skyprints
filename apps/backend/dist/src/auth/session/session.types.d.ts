@@ -1,5 +1,6 @@
+import { SessionUser } from "./session-user";
 export interface SessionData {
-    userId: string;
+    user: SessionUser;
     accessToken: string;
     refreshToken: string;
     expiresAt: number;
