@@ -1,6 +1,10 @@
+// src/app/dashboard/board/page.tsx
 "use client";
 
 import { useState } from "react";
+import { withAuth } from "@/auth/withAuth";
+import { Permission } from "@/auth/permissions";
+
 import AppHeader from "@/components/layout/AppHeader";
 import BoardTabs, { BoardTab } from "@/components/board/BoardTabs";
 import OrdersSidebar from "@/components/board/OrdersSidebar";
@@ -8,12 +12,11 @@ import KanbanBoard from "@/components/board/KanbanBoard";
 import ProcessRunModal from "@/components/modals/ProcessRunModal";
 import { Order, ProcessRun } from "@/types/domain";
 
-export default function BoardPage() {
+function BoardPage() {
   const [activeTab, setActiveTab] = useState<BoardTab>("BOARD");
   const [selectedOrderId, setSelectedOrderId] = useState<string>();
   const [selectedRun, setSelectedRun] = useState<ProcessRun | null>(null);
 
-  // MOCK DATA (replace later)
   const orders: Order[] = [];
   const runs: ProcessRun[] = [];
 
@@ -24,11 +27,8 @@ export default function BoardPage() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       <AppHeader />
-
-      {/* Tabs */}
       <BoardTabs active={activeTab} onChange={setActiveTab} />
 
-      {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {activeTab === "BOARD" && (
           <>
@@ -37,11 +37,7 @@ export default function BoardPage() {
               selectedOrderId={selectedOrderId}
               onSelect={setSelectedOrderId}
             />
-
-            <KanbanBoard
-              runs={filteredRuns}
-              onSelectRun={setSelectedRun}
-            />
+            <KanbanBoard runs={filteredRuns} onSelectRun={setSelectedRun} />
           </>
         )}
 
@@ -65,3 +61,7 @@ export default function BoardPage() {
     </div>
   );
 }
+
+export default withAuth(BoardPage, {
+  permission: Permission.VIEW_BOARD,
+});
