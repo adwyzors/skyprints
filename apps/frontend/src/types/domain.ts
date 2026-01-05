@@ -3,9 +3,11 @@ export type OrderStatus = "PENDING" | "PRODUCTION_READY" | "COMPLETED";
 
 export type ProcessRunStatus =
   | "TODO"
+  | "ASSIGNED"
   | "IN_PROGRESS"
   | "HALTED"
   | "COMPLETED";
+
 
 export interface Order {
   id: string;
