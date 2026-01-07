@@ -1,40 +1,28 @@
-// types/domain.ts
-export type OrderStatus = "PENDING" | "PRODUCTION_READY" | "COMPLETED";
-
-export type ProcessRunStatus =
-  | "TODO"
-  | "ASSIGNED"
-  | "IN_PROGRESS"
-  | "HALTED"
-  | "COMPLETED";
-
-
-export interface Order {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  quantity: number;
-  productionReady: boolean;
-  completed: boolean;
-}
+// @/types/domain.ts
 
 export interface ProcessRun {
   id: string;
-  orderId: string;
-  orderNumber: string;
-  processName: string; // eg: Screen Printing
-  runNumber: number;   // 1, 2, 3
-  status: ProcessRunStatus;
+  runNumber: number;
+  status: string;
+  fields: Record<string, any>;
+  location?: string; // New: location field for each run
+}
+
+export interface Process {
+  id: string;
+  name: string;
+  quantity: number;
+  runs: ProcessRun[];
+}
+
+export interface Order {
+  id: string;
+  orderCode: string;
+  customerId: string;
+  customerName: string;
+  customerCode: string;
+  quantity: number;
+  status: string;
   createdAt: string;
-  assignedManager?: {
-    name: string;
-    location: string;
-    assignedAt: string;
-  };
-  details: {
-    printType: string;
-    fabricColor: string;
-    colors: number;
-    quantity: number;
-  };
+  processes: Process[];
 }

@@ -1,0 +1,94 @@
+{
+  "orders": [
+    {
+      "id": "a1b2c3d4-1111-2222-3333-000000000001",
+      "orderCode": "ORDER-001",
+      "customerId": "c1",
+      "customerName": "Sky Prints",
+      "customerCode": "SKY",
+      "quantity": 150,
+      "status": "CONFIGURE",
+      "createdAt": "2026-01-01T10:00:00Z",
+      "processes": [
+        {
+          "id": "p1-order1",
+          "name": "Screen Printing",
+          "quantity": 150,
+          "runs": [
+            {
+              "id": "sp1-r1",
+              "runNumber": 1,
+              "status": "NOT_CONFIGURED",
+              "fields": {
+                "printType": null,
+                "colors": null,
+                "area": null,
+                "frameSize": null,
+                "colors2": null,
+                "fabricColor": null,
+                "design": null,
+                "rate": null,
+                "totalAmount": null,
+                "quantity": null
+              }
+            },
+            {
+              "id": "sp1-r2",
+              "runNumber": 2,
+              "status": "NOT_CONFIGURED",
+              "fields": {
+                "printType": null,
+                "colors": null,
+                "area": null,
+                "frameSize": null,
+                "colors2": null,
+                "fabricColor": null,
+                "design": null,
+                "rate": null,
+                "totalAmount": null,
+                "quantity": null
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "a1b2c3d4-1111-2222-3333-000000000002",
+      "orderCode": "ORDER-002",
+      "customerId": "c2",
+      "customerName": "Urban Wear",
+      "customerCode": "URB",
+      "quantity": 80,
+      "status": "CONFIGURE",
+      "createdAt": "2026-01-03T14:30:00Z",
+      "processes": [
+        {
+          "id": "p1-order2",
+          "name": "Screen Printing",
+          "quantity": 80,
+          "runs": [
+            {
+              "id": "sp2-r1",
+              "runNumber": 1,
+              "status": "NOT_CONFIGURED",
+              "fields": {
+                "printType": null,
+                "colors": null,
+                "area": null,
+                "frameSize": null,
+                "colors2": null,
+                "fabricColor": null,
+                "design": null,
+                "rate": null,
+                "totalAmount": null,
+                "quantity": null
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
