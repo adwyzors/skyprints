@@ -1,5 +1,5 @@
 "use client";
-
+//apps\frontend\src\app\admin\orders\page.tsx
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { 
@@ -18,7 +18,9 @@ import {
   BarChart3,
   Download,
   MoreVertical,
-  X
+  X,
+  EyeOff,
+  Eye as EyeIcon
 } from "lucide-react";
 
 import { Order } from "@/types/domain";
@@ -38,9 +40,10 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>(getOrders());
   const [openCreate, setOpenCreate] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("hide_completed");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   /* ================= CREATE ================= */
 
@@ -62,13 +65,16 @@ export default function AdminOrdersPage() {
       order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customerCode.toLowerCase().includes(searchQuery.toLowerCase());
     
-    // Status filter
-    const matchesStatus = 
-      statusFilter === "all" || 
-      order.status.toLowerCase() === statusFilter.toLowerCase();
+    // Status filter logic
+    let matchesStatus = true;
+    if (statusFilter === "hide_completed") {
+      matchesStatus = order.status !== "COMPLETED" && order.status !== "BILLED";
+    } else if (statusFilter !== "all") {
+      matchesStatus = order.status.toLowerCase() === statusFilter.toLowerCase();
+    }
     
-    // Date filter (simple implementation)
-    const matchesDate = dateFilter === "all" || true; // Add actual date filtering logic
+    // Date filter
+    const matchesDate = dateFilter === "all" || true;
     
     return matchesSearch && matchesStatus && matchesDate;
   });
@@ -80,42 +86,48 @@ export default function AdminOrdersPage() {
           color: "bg-green-100 text-green-800 border-green-200",
           icon: <CheckCircle className="w-4 h-4" />,
           label: "Completed",
-          bgColor: "bg-green-50"
+          bgColor: "bg-green-50",
+          priority: 1
         };
       case "IN_PRODUCTION":
         return {
           color: "bg-blue-100 text-blue-800 border-blue-200",
           icon: <Settings className="w-4 h-4" />,
           label: "In Production",
-          bgColor: "bg-blue-50"
+          bgColor: "bg-blue-50",
+          priority: 2
         };
       case "PRODUCTION_READY":
         return {
           color: "bg-yellow-100 text-yellow-800 border-yellow-200",
           icon: <Clock className="w-4 h-4" />,
           label: "Ready",
-          bgColor: "bg-yellow-50"
+          bgColor: "bg-yellow-50",
+          priority: 3
         };
       case "CONFIGURE":
         return {
           color: "bg-purple-100 text-purple-800 border-purple-200",
           icon: <Package className="w-4 h-4" />,
           label: "Configure",
-          bgColor: "bg-purple-50"
+          bgColor: "bg-purple-50",
+          priority: 4
         };
       case "BILLED":
         return {
           color: "bg-indigo-100 text-indigo-800 border-indigo-200",
           icon: <FileText className="w-4 h-4" />,
           label: "Billed",
-          bgColor: "bg-indigo-50"
+          bgColor: "bg-indigo-50",
+          priority: 5
         };
       default:
         return {
           color: "bg-gray-100 text-gray-800 border-gray-200",
           icon: <Clock className="w-4 h-4" />,
           label: status,
-          bgColor: "bg-gray-50"
+          bgColor: "bg-gray-50",
+          priority: 6
         };
     }
   };
@@ -138,8 +150,35 @@ export default function AdminOrdersPage() {
 
   const clearFilters = () => {
     setSearchQuery("");
-    setStatusFilter("all");
+    setStatusFilter("hide_completed");
     setDateFilter("all");
+  };
+
+  const toggleShowCompleted = () => {
+    setShowCompleted(!showCompleted);
+    setStatusFilter(showCompleted ? "hide_completed" : "all");
+  };
+
+  const getCompletionProgress = (order: Order) => {
+    if (order.status === "COMPLETED" || order.status === "BILLED") return 100;
+    
+    let totalSteps = 0;
+    let completedSteps = 0;
+    
+    order.processes.forEach(process => {
+      process.runs.forEach(run => {
+        if (run.status === "CONFIGURED") {
+          totalSteps += 9; // 9 status steps
+          completedSteps += 1; // CONFIGURED is step 1
+        } else if (run.status !== "NOT_CONFIGURED") {
+          totalSteps += 9;
+          const statusIndex = ["CONFIGURED", "DESIGN", "SIZE_COLOR", "TRACING", "EXPOSING", "SAMPLE", "PRODUCTION", "FUSING", "CARTING", "COMPLETED"].indexOf(run.status);
+          completedSteps += statusIndex;
+        }
+      });
+    });
+    
+    return totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
   };
 
   /* ================= UI ================= */
@@ -158,6 +197,22 @@ export default function AdminOrdersPage() {
             <button className="hidden md:flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors">
               <Download className="w-4 h-4" />
               <span>Export</span>
+            </button>
+            <button
+              onClick={toggleShowCompleted}
+              className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              {showCompleted ? (
+                <>
+                  <EyeOff className="w-4 h-4" />
+                  <span className="hidden sm:inline">Hide Completed</span>
+                </>
+              ) : (
+                <>
+                  <EyeIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Show All</span>
+                </>
+              )}
             </button>
             <button
               onClick={() => setOpenCreate(true)}
@@ -204,7 +259,7 @@ export default function AdminOrdersPage() {
                 <span className="hidden sm:inline">Filters</span>
               </button>
               
-              {(searchQuery || statusFilter !== "all" || dateFilter !== "all") && (
+              {(searchQuery || statusFilter !== "hide_completed" || dateFilter !== "all") && (
                 <button
                   onClick={clearFilters}
                   className="flex items-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
@@ -228,6 +283,7 @@ export default function AdminOrdersPage() {
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
+                    <option value="hide_completed">Hide Completed & Billed</option>
                     <option value="all">All Statuses</option>
                     <option value="CONFIGURE">To Configure</option>
                     <option value="PRODUCTION_READY">Ready for Production</option>
@@ -262,6 +318,10 @@ export default function AdminOrdersPage() {
                     <option value="all">All Customers</option>
                     <option value="sky">Sky Prints</option>
                     <option value="urban">Urban Wear</option>
+                    <option value="fashion">Fashion Hub</option>
+                    <option value="trendy">Trendy Tees</option>
+                    <option value="elite">Elite Apparel</option>
+                    <option value="sporty">Sporty Gear</option>
                   </select>
                 </div>
               </div>
@@ -270,10 +330,17 @@ export default function AdminOrdersPage() {
 
           {/* RESULTS SUMMARY */}
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-            <p className="text-sm text-gray-600">
-              Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span> of{" "}
-              <span className="font-semibold text-gray-800">{orders.length}</span> orders
-            </p>
+            <div className="flex items-center gap-4">
+              <p className="text-sm text-gray-600">
+                Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span> of{" "}
+                <span className="font-semibold text-gray-800">{orders.length}</span> orders
+              </p>
+              {statusFilter === "hide_completed" && (
+                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                  Completed orders hidden
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <Calendar className="w-5 h-5 text-gray-600" />
@@ -290,7 +357,10 @@ export default function AdminOrdersPage() {
           {filteredOrders.map(order => {
             const statusConfig = getStatusConfig(order.status);
             const processSummary = getProcessSummary(order);
-            const progressPercentage = (processSummary.configuredRuns / processSummary.totalRuns) * 100;
+            const progressPercentage = getCompletionProgress(order);
+            const progressColor = progressPercentage < 30 ? 'from-red-500 to-red-600' : 
+                                progressPercentage < 70 ? 'from-yellow-500 to-yellow-600' : 
+                                'from-green-500 to-green-600';
             
             return (
               <div
@@ -348,12 +418,12 @@ export default function AdminOrdersPage() {
                   {/* PROGRESS BAR */}
                   <div>
                     <div className="flex justify-between text-xs text-gray-600 mb-1.5">
-                      <span>Configuration Progress</span>
-                      <span className="font-medium">{processSummary.configuredRuns}/{processSummary.totalRuns} runs</span>
+                      <span>Production Progress</span>
+                      <span className="font-medium">{progressPercentage}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div 
-                        className="bg-linear-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-700"
+                        className={`bg-linear-to-r ${progressColor} h-2 rounded-full transition-all duration-700`}
                         style={{ width: `${progressPercentage}%` }}
                       />
                     </div>
@@ -374,6 +444,27 @@ export default function AdminOrdersPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* CARD FOOTER */}
+                <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">
+                      {processSummary.configuredRuns}/{processSummary.totalRuns} runs configured
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/admin/orders/${order.id}`);
+                        }}
+                        className="px-3 py-1.5 text-xs bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Configure
+                      </button>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -387,12 +478,12 @@ export default function AdminOrdersPage() {
             </div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              {searchQuery || statusFilter !== "all" || dateFilter !== "all"
+              {searchQuery || statusFilter !== "hide_completed" || dateFilter !== "all"
                 ? "No orders match your current filters. Try adjusting your search criteria."
                 : "Get started by creating your first production order for Sky Prints manufacturing."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              {(searchQuery || statusFilter !== "all" || dateFilter !== "all") && (
+              {(searchQuery || statusFilter !== "hide_completed" || dateFilter !== "all") && (
                 <button
                   onClick={clearFilters}
                   className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"

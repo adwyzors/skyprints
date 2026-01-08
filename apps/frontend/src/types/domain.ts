@@ -5,7 +5,7 @@ export interface ProcessRun {
   runNumber: number;
   status: string;
   fields: Record<string, any>;
-  location?: string; // New: location field for each run
+  location?: string;
 }
 
 export interface Process {
@@ -24,5 +24,8 @@ export interface Order {
   quantity: number;
   status: string;
   createdAt: string;
+  billedAt?: string;
+  billingTotal?: number;
+  originalTotal?: number;
   processes: Process[];
 }

@@ -1,5 +1,5 @@
 "use client";
-
+//apps\frontend\src\components\modals\ViewOrderModal.tsx
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -11,7 +11,7 @@ import {
   canStartRun,
 } from "@/services/orders.service";
 import processesData from "@/data/processes.json";
-import { CheckCircle, ChevronRight, Circle, Settings, Lock, MapPin } from "lucide-react";
+import { CheckCircle, ChevronRight, Circle, Settings, Lock, MapPin, Save } from "lucide-react";
 
 /* =================================================
    PROPS
@@ -34,6 +34,7 @@ export default function ViewOrderModal({
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [expandedProcesses, setExpandedProcesses] = useState<Set<string>>(new Set());
   const [locationInput, setLocationInput] = useState<{[key: string]: string}>({});
+  const [editingLocation, setEditingLocation] = useState<string | null>(null);
   const router = useRouter();
 
   const processMaster = processesData.processes[0];
@@ -165,8 +166,9 @@ export default function ViewOrderModal({
     const updatedOrder = updateRunLocation(order.id, processId, runId, newLocation);
     if (updatedOrder) {
       setOrder(updatedOrder);
-      // Clear input
+      // Clear input and exit edit mode
       setLocationInput(prev => ({ ...prev, [locationKey]: "" }));
+      setEditingLocation(null);
     }
   };
 
@@ -206,6 +208,18 @@ export default function ViewOrderModal({
   const canOpenRun = (runStatus: string): boolean => {
     // Can open any run that is not "NOT_CONFIGURED"
     return runStatus !== "NOT_CONFIGURED";
+  };
+
+  const startEditingLocation = (processId: string, runId: string, currentLocation?: string) => {
+    setEditingLocation(`${processId}-${runId}`);
+    setLocationInput(prev => ({ 
+      ...prev, 
+      [`${processId}-${runId}`]: currentLocation || "" 
+    }));
+  };
+
+  const cancelEditingLocation = () => {
+    setEditingLocation(null);
   };
 
   /* =================================================
@@ -268,39 +282,84 @@ export default function ViewOrderModal({
                     {expandedProcesses.has(process.id) && (
                       <div className="px-4 pb-3 pt-1 border-t border-gray-200">
                         <div className="space-y-2">
-                          {process.runs.map((run) => (
-                            <div key={run.id} className="text-sm">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-gray-600">Run {run.runNumber}</span>
+                          {process.runs.map((run) => {
+                            const isEditing = editingLocation === `${process.id}-${run.id}`;
+                            
+                            return (
+                              <div key={run.id} className="text-sm">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-600">Run {run.runNumber}</span>
+                                  </div>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    run.status === "COMPLETED"
+                                      ? "bg-green-100 text-green-800"
+                                      : run.status === "CONFIGURED"
+                                      ? "bg-gray-100 text-gray-800"
+                                      : run.status === "NOT_CONFIGURED"
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-blue-100 text-blue-800"
+                                  }`}>
+                                    {run.status === "COMPLETED" 
+                                      ? "Completed" 
+                                      : run.status === "CONFIGURED"
+                                      ? "Configured"
+                                      : run.status === "NOT_CONFIGURED"
+                                      ? "Not Configured"
+                                      : "Active"
+                                    }
+                                  </span>
                                 </div>
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  run.status === "COMPLETED"
-                                    ? "bg-green-100 text-green-800"
-                                    : run.status === "CONFIGURED"
-                                    ? "bg-gray-100 text-gray-800"
-                                    : run.status === "NOT_CONFIGURED"
-                                    ? "bg-red-100 text-red-800"
-                                    : "bg-blue-100 text-blue-800"
-                                }`}>
-                                  {run.status === "COMPLETED" 
-                                    ? "Completed" 
-                                    : run.status === "CONFIGURED"
-                                    ? "Configured"
-                                    : run.status === "NOT_CONFIGURED"
-                                    ? "Not Configured"
-                                    : "Active"
-                                  }
-                                </span>
+                                
+                                {/* Location Display/Edit */}
+                                {isEditing ? (
+                                  <div className="mt-2 flex gap-1">
+                                    <input
+                                      type="text"
+                                      value={locationInput[`${process.id}-${run.id}`] || ""}
+                                      onChange={(e) => setLocationInput(prev => ({
+                                        ...prev,
+                                        [`${process.id}-${run.id}`]: e.target.value
+                                      }))}
+                                      placeholder="Enter location..."
+                                      className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                    <button
+                                      onClick={() => handleLocationUpdate(process.id, run.id)}
+                                      className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                                    >
+                                      <Save className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      onClick={cancelEditingLocation}
+                                      className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-between mt-1">
+                                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                                      {run.location ? (
+                                        <>
+                                          <MapPin className="w-3 h-3" />
+                                          <span>{run.location}</span>
+                                        </>
+                                      ) : (
+                                        <span className="text-gray-400">No location set</span>
+                                      )}
+                                    </div>
+                                    <button
+                                      onClick={() => startEditingLocation(process.id, run.id, run.location)}
+                                      className="text-xs text-blue-600 hover:text-blue-800"
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                              {run.location && (
-                                <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                                  <MapPin className="w-3 h-3" />
-                                  <span>Location: {run.location}</span>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -356,6 +415,7 @@ export default function ViewOrderModal({
                   const isOpen = activeRunId === run.id;
                   const canOpen = canOpenRun(run.status);
                   const isActive = isRunActive(run.status);
+                  const isEditingLocation = editingLocation === `${process.id}-${run.id}`;
 
                   return (
                     <div
@@ -440,7 +500,7 @@ export default function ViewOrderModal({
                             <div className="flex gap-2">
                               <input
                                 type="text"
-                                value={locationInput[`${process.id}-${run.id}`] || ""}
+                                value={locationInput[`${process.id}-${run.id}`] || run.location || ""}
                                 onChange={(e) => setLocationInput(prev => ({
                                   ...prev,
                                   [`${process.id}-${run.id}`]: e.target.value
@@ -450,12 +510,13 @@ export default function ViewOrderModal({
                               />
                               <button
                                 onClick={() => handleLocationUpdate(process.id, run.id)}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                               >
+                                <Save className="w-4 h-4" />
                                 Update
                               </button>
                             </div>
-                            {run.location && (
+                            {run.location && !isEditingLocation && (
                               <div className="mt-2 text-sm text-gray-600">
                                 Current: {run.location}
                               </div>
@@ -552,6 +613,11 @@ export default function ViewOrderModal({
                                 <CheckCircle className="w-5 h-5" />
                                 <span className="font-medium">This run has been completed</span>
                               </div>
+                              {run.location && (
+                                <div className="text-center text-green-700 text-sm mt-2">
+                                  Location: {run.location}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

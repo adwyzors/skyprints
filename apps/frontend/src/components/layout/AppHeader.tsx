@@ -1,5 +1,5 @@
 "use client";
-
+//apps\frontend\src\components\layout\AppHeader.tsx
 import { useState, useRef, useEffect } from "react";
 import { 
   LogOut, 
