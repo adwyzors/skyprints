@@ -11,19 +11,36 @@ const common_1 = require("@nestjs/common");
 const core_1 = require("@nestjs/core");
 const app_service_1 = require("./app.service");
 const auth_module_1 = require("./auth/auth.module");
-const user_module_1 = require("./user/user.module");
 const health_module_1 = require("./health/health.module");
-const auth_guard_1 = require("./common/guards/auth.guard");
-const permissions_guard_1 = require("./common/guards/permissions.guard");
+const user_module_1 = require("./user/user.module");
 const config_1 = require("@nestjs/config");
+const prisma_module_1 = require("../prisma/prisma.module");
+const permissions_guard_1 = require("./auth/guards/permissions.guard");
+const auth_guard_1 = require("./auth/guards/auth.guard");
+const orders_module_1 = require("./orders/orders.module");
+const outbox_module_1 = require("./outbox/outbox.module");
+const processes_module_1 = require("./processes/processes.module");
+const run_templates_module_1 = require("./run-templates/run-templates.module");
+const runs_module_1 = require("./runs/runs.module");
+const workflow_module_1 = require("./workflow/workflow.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, user_module_1.UserModule, health_module_1.HealthModule, config_1.ConfigModule.forRoot({
+        imports: [config_1.ConfigModule.forRoot({
                 isGlobal: true,
-            }),],
+                envFilePath: 'apps/backend/.env',
+            }), prisma_module_1.PrismaModule,
+            outbox_module_1.OutboxModule,
+            workflow_module_1.WorkflowModule,
+            orders_module_1.OrdersModule,
+            runs_module_1.RunsModule,
+            auth_module_1.AuthModule,
+            user_module_1.UserModule,
+            processes_module_1.ProcessesModule,
+            run_templates_module_1.RunTemplatesModule,
+            health_module_1.HealthModule,],
         providers: [
             app_service_1.AppService,
             {

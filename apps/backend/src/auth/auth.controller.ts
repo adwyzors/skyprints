@@ -79,6 +79,7 @@ export class AuthController {
             sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production',
             domain: resolveCookieDomain(req),
+            maxAge: 1000 * 60 * 60 * 24,
         });
 
         let redirectTo = '/board';

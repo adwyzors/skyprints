@@ -6,16 +6,17 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces",
-    "build": "npm run build --workspaces"
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "dev:backend": "npm run dev --workspace apps/backend",
+    "dev:frontend": "npm run dev --workspace apps/frontend",
+    "start:backend": "npm run start --workspace apps/backend",
+    "start:frontend": "npm run start --workspace apps/frontend",
+    "start:all": "npm run dev:backend & npm run dev:frontend"
   },
   "devDependencies": {
     "eslint": "^9.39.2",
     "prettier": "^3.7.4",
-    "prisma": "^7.2.0"
-  },
-  "dependencies": {
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.3"
+    "prisma": "^6.19.1"
   }
 }
