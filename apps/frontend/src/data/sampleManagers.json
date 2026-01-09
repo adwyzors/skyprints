@@ -1,0 +1,19 @@
+{
+  "managers": [
+    {
+      "id": "mgr-1",
+      "name": "Rohit Sharma",
+      "location": "Printing Unit A"
+    },
+    {
+      "id": "mgr-2",
+      "name": "Amit Verma",
+      "location": "Unit B"
+    },
+    {
+      "id": "mgr-3",
+      "name": "Neha Singh",
+      "location": "Main Unit"
+    }
+  ]
+}

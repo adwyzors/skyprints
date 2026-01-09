@@ -8,6 +8,7 @@ interface Props {
 
 const COLUMNS: { key: ProcessRunStatus; title: string }[] = [
   { key: "TODO", title: "To Do" },
+  { key: "ASSIGNED", title: "Assigned" },
   { key: "IN_PROGRESS", title: "In Progress" },
   { key: "HALTED", title: "Halted" },
   { key: "COMPLETED", title: "Completed" },

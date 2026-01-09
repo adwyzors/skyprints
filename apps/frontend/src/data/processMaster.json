@@ -1,0 +1,16 @@
+{
+  "processes": [
+    {
+      "name": "Screen Printing",
+      "requiredFields": ["printType", "fabricColor", "colors", "quantity"]
+    },
+    {
+      "name": "Heat Press",
+      "requiredFields": ["printType", "fabricColor", "quantity"]
+    },
+    {
+      "name": "Embroidery",
+      "requiredFields": ["threadColor", "quantity"]
+    }
+  ]
+}
