@@ -19,6 +19,8 @@ model WorkflowType {
 
   statuses    WorkflowStatus[]
   transitions WorkflowTransition[]
+
+  auditLogs   WorkflowAuditLog[]
 }
 
 model WorkflowStatus {
@@ -129,6 +131,8 @@ model ProcessRun {
   runTemplateId  String
   runNumber      Int
   statusCode     String
+  statusVersion  Int      @default(0) //optimistic lock
+
   fields         Json
   location       String?
 
@@ -155,4 +159,20 @@ model OutboxEvent {
   createdAt     DateTime @default(now())
 
   @@index([processed, createdAt])
+}
+
+model WorkflowAuditLog {
+  id             String   @id @default(uuid())
+  workflowTypeId String
+  aggregateType  String
+  aggregateId    String
+  fromStatus     String?
+  toStatus       String
+  transitionId   String?
+  payload        Json?
+  createdAt      DateTime @default(now())
+
+  workflowType WorkflowType @relation(fields: [workflowTypeId], references: [id])
+
+  @@index([aggregateId, createdAt])
 }

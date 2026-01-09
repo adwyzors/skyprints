@@ -8,6 +8,7 @@ import {
     Put,
 } from '@nestjs/common';
 import { AdminProcessService } from './admin-process.service';
+import { ConfigureProcessRunDto } from './dto/configure-process-run.dto';
 import { CreateProcessDto } from './dto/create-process.dto';
 
 @Controller('process')
@@ -46,5 +47,11 @@ export class AdminProcessController {
     async disable(@Param('processId') id: string) {
         this.logger.log(`Disabling process ${id}`);
         return this.service.disable(id);
+    }
+
+    @Post(':orderProcessId/runs/:processRunId/configure')
+    async configure(@Param('orderProcessId') orderProcessId: string, @Param('processRunId') processRunId: string, @Body() dto: ConfigureProcessRunDto) {
+        this.logger.log(`Configuring process ${orderProcessId} with processRun ${processRunId}`);
+        return this.service.configure(orderProcessId, processRunId, dto);
     }
 }
