@@ -19,17 +19,7 @@ export class OrdersService {
     /* -------------------- QUERIES -------------------- */
 
     async getAll() {
-        return this.prisma.order.findMany({
-            include: {
-                processes: {
-                    include: {
-                        runs: {
-                            include: { runTemplate: true },
-                        },
-                    },
-                },
-            },
-        });
+        return this.prisma.order.findMany();
     }
 
     async getById(orderId: string) {
@@ -38,9 +28,7 @@ export class OrdersService {
             include: {
                 processes: {
                     include: {
-                        runs: {
-                            include: { runTemplate: true },
-                        },
+                        runs: {},
                     },
                 },
             },

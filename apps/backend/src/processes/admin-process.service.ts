@@ -2,6 +2,7 @@ import {
     BadRequestException,
     Injectable,
     Logger,
+    NotFoundException,
 } from '@nestjs/common';
 import { TemplateField } from 'src/workflow/types/template-field.type';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -88,6 +89,36 @@ export class AdminProcessService {
             where: { id: processId },
             data: { isEnabled: false },
         });
+    }
+
+    async getProcessRun(
+        orderProcessId: string,
+        processRunId: string,
+    ) {
+        const run = await this.prisma.processRun.findFirst({
+            where: {
+                id: processRunId,
+                orderProcessId,
+            },
+            include: {
+                runTemplate: {
+                    select: {
+                        fields: true,
+                    },
+                },
+            },
+        });
+
+        if (!run) {
+            throw new NotFoundException('Process run not found');
+        }
+
+        return {
+            id: run.id,
+            statusCode: run.statusCode,
+            fields: run.fields,
+            fieldSchema: run.runTemplate.fields,
+        };
     }
 
     async configure(

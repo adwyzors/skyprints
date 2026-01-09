@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import jsonLogic from 'json-logic-js';
+import { TemplateField } from 'src/workflow/types/template-field.type';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -72,7 +73,13 @@ export class OutboxHandlers {
 
         const processes = await this.prisma.process.findMany({
             where: { id: { in: processIds } },
-            include: { runDefs: true },
+            include: {
+                runDefs: {
+                    include: {
+                        runTemplate: true,
+                    },
+                }
+            },
         });
 
         for (const process of processes) {
@@ -95,8 +102,13 @@ export class OutboxHandlers {
                 },
             });
 
+
+
             let runNo = 1;
             for (const def of process.runDefs) {
+                const initialFields = this.buildInitialFields(
+                    def.runTemplate.fields as TemplateField[],
+                );
                 const run = await this.prisma.processRun.create({
                     data: {
                         displayName: def.displayName,
@@ -104,7 +116,7 @@ export class OutboxHandlers {
                         runTemplateId: def.runTemplateId,
                         runNumber: runNo++,
                         statusCode: runStatus.code,
-                        fields: {},
+                        fields: initialFields, //TODO: add fields from runTemplate
                     },
                 });
 
@@ -120,6 +132,15 @@ export class OutboxHandlers {
                 });
             }
         }
+    }
+
+    private buildInitialFields(
+        templateFields: TemplateField[],
+    ): Record<string, any> {
+        return templateFields.reduce((acc, field) => {
+            acc[field.key] = null;
+            return acc;
+        }, {} as Record<string, any>);
     }
 
     /* ---------------------------------------------------------

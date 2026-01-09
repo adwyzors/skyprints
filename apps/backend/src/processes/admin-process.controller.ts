@@ -54,4 +54,10 @@ export class AdminProcessController {
         this.logger.log(`Configuring process ${orderProcessId} with processRun ${processRunId}`);
         return this.service.configure(orderProcessId, processRunId, dto);
     }
+
+    @Get(':orderProcessId/runs/:processRunId')
+    async getProcessRun(@Param('orderProcessId') orderProcessId: string, @Param('processRunId') processRunId: string) {
+        this.logger.log(`Fetching process ${orderProcessId} with processRun ${processRunId}`);
+        return this.service.getProcessRun(orderProcessId, processRunId);
+    }
 }
