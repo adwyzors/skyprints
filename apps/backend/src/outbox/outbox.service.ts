@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class OutboxService {//TODO: make transactions
     //add permissions to routes
     //add pagination to get all apis
+    //only change from init status if configured
     private readonly logger = new Logger(OutboxService.name);
 
     constructor(private readonly prisma: PrismaService) { }

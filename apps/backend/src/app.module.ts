@@ -18,6 +18,7 @@ import { ProcessesModule } from './processes/processes.module';
 import { RunTemplatesModule } from './run-templates/run-templates.module';
 import { RunsModule } from './runs/runs.module';
 import { WorkflowModule } from './workflow/workflow.module';
+import { CustomersModule } from './customers/customers.module';
 
 @Module({
     imports: [ConfigModule.forRoot({
@@ -33,6 +34,7 @@ import { WorkflowModule } from './workflow/workflow.module';
         UserModule,
         ProcessesModule,
         RunTemplatesModule,
+        CustomersModule,
         HealthModule,],
     providers: [
         AppService,

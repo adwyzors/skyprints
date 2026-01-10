@@ -23,6 +23,12 @@ export class OrdersService {
             include: {
                 processes: {
                     include: {
+                        process: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
                         runs: {},
                     },
                 }
@@ -34,14 +40,32 @@ export class OrdersService {
         return this.prisma.order.findUnique({
             where: { id: orderId },
             include: {
+                customer: true,
                 processes: {
                     include: {
-                        runs: {},
+                        process: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
+                        runs: {
+                            include: {
+                                runTemplate: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        fields: true, // ✅ validation config
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
             },
         });
     }
+
 
     /* -------------------- CREATE ORDER -------------------- */
 

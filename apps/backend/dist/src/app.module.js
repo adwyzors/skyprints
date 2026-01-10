@@ -24,6 +24,7 @@ const processes_module_1 = require("./processes/processes.module");
 const run_templates_module_1 = require("./run-templates/run-templates.module");
 const runs_module_1 = require("./runs/runs.module");
 const workflow_module_1 = require("./workflow/workflow.module");
+const customers_module_1 = require("./customers/customers.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -42,6 +43,7 @@ exports.AppModule = AppModule = __decorate([
             user_module_1.UserModule,
             processes_module_1.ProcessesModule,
             run_templates_module_1.RunTemplatesModule,
+            customers_module_1.CustomersModule,
             health_module_1.HealthModule,],
         providers: [
             app_service_1.AppService,
