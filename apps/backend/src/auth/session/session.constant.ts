@@ -1,2 +1,2 @@
-// auth/session/session.constants.ts
-export const SESSION_STORE = Symbol('SESSION_STORE');
+// auth/session/session.constant.ts
+export const SESSION_STORE = 'SESSION_STORE';

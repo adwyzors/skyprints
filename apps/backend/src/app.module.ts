@@ -11,6 +11,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from 'prisma/prisma.module';
 import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
 import { AuthGuard } from './auth/guards/auth.guard';
+import { SessionModule } from './auth/session/session.module';
 import { OrdersModule } from './orders/orders.module';
 import { OutboxModule } from './outbox/outbox.module';
 import { ProcessesModule } from './processes/processes.module';
@@ -27,6 +28,7 @@ import { WorkflowModule } from './workflow/workflow.module';
         WorkflowModule,
         OrdersModule,
         RunsModule,
+        SessionModule,
         AuthModule,
         UserModule,
         ProcessesModule,

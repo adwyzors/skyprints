@@ -17,6 +17,7 @@ const config_1 = require("@nestjs/config");
 const prisma_module_1 = require("../prisma/prisma.module");
 const permissions_guard_1 = require("./auth/guards/permissions.guard");
 const auth_guard_1 = require("./auth/guards/auth.guard");
+const session_module_1 = require("./auth/session/session.module");
 const orders_module_1 = require("./orders/orders.module");
 const outbox_module_1 = require("./outbox/outbox.module");
 const processes_module_1 = require("./processes/processes.module");
@@ -36,6 +37,7 @@ exports.AppModule = AppModule = __decorate([
             workflow_module_1.WorkflowModule,
             orders_module_1.OrdersModule,
             runs_module_1.RunsModule,
+            session_module_1.SessionModule,
             auth_module_1.AuthModule,
             user_module_1.UserModule,
             processes_module_1.ProcessesModule,

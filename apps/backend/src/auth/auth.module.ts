@@ -9,11 +9,11 @@ import { SessionAuthGuard } from './guards/session-auth.guard';
 import { TokenAuthGuard } from './guards/token-auth.guard';
 import { jwksProvider } from './jwt/jwks.provider';
 import { KeycloakService } from './keycloak/keycloak.service';
-import { MemorySessionStore } from './session/memory-session.store';
-import { SESSION_STORE } from './session/session.constant';
+import { SessionModule } from './session/session.module';
 
 @Module({
     imports: [
+        SessionModule,
         JwtModule.registerAsync({
             useFactory: () => ({
                 publicKey: process.env.JWT_PUBLIC_KEY,
@@ -23,18 +23,12 @@ import { SESSION_STORE } from './session/session.constant';
                     audience: process.env.TOKEN_AUDIENCE,
                 },
             }),
-        })
+        }),
     ],
     controllers: [AuthController],
     providers: [
         AuthService,
         KeycloakService,
-        MemorySessionStore,
-        {
-            provide: SESSION_STORE,
-            useClass: MemorySessionStore,
-        },
-
         PublicAuthGuard,
         SessionAuthGuard,
         TokenAuthGuard,
@@ -42,11 +36,10 @@ import { SESSION_STORE } from './session/session.constant';
     ],
     exports: [
         AuthService,
-        MemorySessionStore,
         PublicAuthGuard,
         SessionAuthGuard,
         TokenAuthGuard,
-        jwksProvider
+        jwksProvider,
     ],
 })
 export class AuthModule { }

@@ -16,14 +16,14 @@ const session_auth_guard_1 = require("./guards/session-auth.guard");
 const token_auth_guard_1 = require("./guards/token-auth.guard");
 const jwks_provider_1 = require("./jwt/jwks.provider");
 const keycloak_service_1 = require("./keycloak/keycloak.service");
-const memory_session_store_1 = require("./session/memory-session.store");
-const session_constant_1 = require("./session/session.constant");
+const session_module_1 = require("./session/session.module");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
 exports.AuthModule = AuthModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            session_module_1.SessionModule,
             jwt_1.JwtModule.registerAsync({
                 useFactory: () => ({
                     publicKey: process.env.JWT_PUBLIC_KEY,
@@ -33,17 +33,12 @@ exports.AuthModule = AuthModule = __decorate([
                         audience: process.env.TOKEN_AUDIENCE,
                     },
                 }),
-            })
+            }),
         ],
         controllers: [auth_controller_1.AuthController],
         providers: [
             auth_service_1.AuthService,
             keycloak_service_1.KeycloakService,
-            memory_session_store_1.MemorySessionStore,
-            {
-                provide: session_constant_1.SESSION_STORE,
-                useClass: memory_session_store_1.MemorySessionStore,
-            },
             public_auth_guard_1.PublicAuthGuard,
             session_auth_guard_1.SessionAuthGuard,
             token_auth_guard_1.TokenAuthGuard,
@@ -51,11 +46,10 @@ exports.AuthModule = AuthModule = __decorate([
         ],
         exports: [
             auth_service_1.AuthService,
-            memory_session_store_1.MemorySessionStore,
             public_auth_guard_1.PublicAuthGuard,
             session_auth_guard_1.SessionAuthGuard,
             token_auth_guard_1.TokenAuthGuard,
-            jwks_provider_1.jwksProvider
+            jwks_provider_1.jwksProvider,
         ],
     })
 ], AuthModule);
