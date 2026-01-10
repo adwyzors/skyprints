@@ -1,8 +1,15 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { Customer } from "@/model/customer.model";
+import { Process } from "@/model/process.model";
+import { getCustomers } from "@/services/customer.service";
+import { createOrder, getOrders } from "@/services/orders.service";
+
+import { getProcesses } from "@/services/process.service";
 import { NewOrderPayload } from "@/types/planning";
-import { getCustomers, getProcesses } from "@/services/orders.service";
+import { useEffect, useMemo, useState } from "react";
+
+/* ================= TYPES ================= */
 
 interface Props {
   open: boolean;
@@ -15,85 +22,105 @@ interface ProcessRow {
   runs: number;
 }
 
-interface Customer {
-  id: string;
-  code: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  isActive?: boolean;
-}
-
-interface Process {
-  id: string;
-  name: string;
-  description?: string;
-  isEnabled?: boolean;
-  fields?: Record<string, any>;
-}
+/* ================= COMPONENT ================= */
 
 export default function CreateOrderModal({
   open,
   onClose,
   onCreate,
 }: Props) {
-  if (!open) return null;
+  /* ================= STATE (ALWAYS CALLED) ================= */
 
-  /* ================= ORDER STATE ================= */
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState<number>(0);
   const [processRows, setProcessRows] = useState<ProcessRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  /* ================= DATA STATE ================= */
-  const [customers, setCustomers] = useState<Customer[] | undefined>([]);
+
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [processes, setProcesses] = useState<Process[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
 
   /* ================= FETCH DATA ================= */
+
   useEffect(() => {
-    if (open) {
-      fetchData();
-    }
+    if (!open) return;
+
+    let cancelled = false;
+
+    const fetchData = async () => {
+      try {
+        setDataLoading(true);
+        const [customersData, processesData] = await Promise.all([
+          getCustomers(),
+          getProcesses(),
+        ]);
+
+        if (!cancelled) {
+          setCustomers(customersData);
+          setProcesses(processesData);
+        }
+      } catch {
+        if (!cancelled) setError("Failed to load data");
+      } finally {
+        if (!cancelled) setDataLoading(false);
+      }
+    };
+
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
-  const fetchData = async () => {
-    try {
-      setDataLoading(true);
-      setError(null);
-      
-      // Fetch customers and processes from API
-      const [customersData, processesData] = await Promise.all([
-        getCustomers(),
-        getProcesses()
-      ]);
-      
-      setCustomers(customersData);
-      setProcesses(processesData);
-      
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setError("Failed to load data. Please try again.");
-    } finally {
-      setDataLoading(false);
-    }
-  };
-
   /* ================= DERIVED ================= */
-  const filteredCustomers = useMemo(
-    () =>
-      customers?.filter(c =>
-        c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-        c.code.toLowerCase().includes(customerSearch.toLowerCase())
-      ),
-    [customerSearch, customers]
+
+  const filteredCustomers = useMemo(() => {
+    const s = customerSearch.toLowerCase().trim();
+    if (!s) return [];
+    return customers.filter(
+      c =>
+        c.name.toLowerCase().includes(s) ||
+        c.code?.toLowerCase().includes(s)
+    );
+  }, [customerSearch, customers]);
+
+  const selectedCustomer = useMemo(
+    () => customers.find(c => c.id === selectedCustomerId),
+    [customers, selectedCustomerId]
   );
 
-  const selectedCustomer = customers?.find(c => c.id === selectedCustomerId);
+  /* ================= CREATE ================= */
 
+  const handleCreate = async () => {
+    if (!selectedCustomer) {
+      setError("Please select a customer");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload: NewOrderPayload = {
+        customerId: selectedCustomer.id,
+        quantity,
+        processes: processRows.map(r => ({
+          processId: r.processId,
+          count: r.runs,
+        })),
+      };
+
+      await createOrder(payload);
+      onCreate(payload);
+      onClose();
+      getOrders();
+    } catch {
+      setError("Failed to create order");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   /* ================= PROCESS ROWS ================= */
   const addProcessRow = () => {
     setProcessRows(prev => [
@@ -114,66 +141,10 @@ export default function CreateOrderModal({
     setProcessRows(prev => prev.filter((_, i) => i !== index));
   };
 
-  /* ================= CREATE ================= */
-  const handleCreate = async () => {
-    if (!selectedCustomer) {
-      setError("Please select a customer");
-      return;
-    }
+  /* ================= RENDER ================= */
 
-    if (quantity <= 0) {
-      setError("Please enter a valid quantity");
-      return;
-    }
+  if (!open) return null;
 
-    if (processRows.length === 0) {
-      setError("Please add at least one process");
-      return;
-    }
-
-    // Validate all process rows have a selected process
-    const hasEmptyProcess = processRows.some(row => !row.processId);
-    if (hasEmptyProcess) {
-      setError("Please select a process for all rows");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const payload: NewOrderPayload = {
-        customerId: selectedCustomer?.id,
-        quantity,
-        processes: processRows.map(row => {
-          const process = processes.find(p => p.id === row.processId);
-          if (!process) {
-            throw new Error(`Process not found for ID: ${row.processId}`);
-          }
-          return {
-            processId: process.id,
-            count:row.runs,
-          };
-        }),
-      };
-
-      onCreate(payload);
-      onClose();
-      
-      // Reset form
-      setCustomerSearch("");
-      setSelectedCustomerId(null);
-      setQuantity(0);
-      setProcessRows([]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create order");
-      console.error("Error creating order:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* ================= UI ================= */
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
@@ -372,7 +343,7 @@ export default function CreateOrderModal({
                             >
                               <option value="">Select process...</option>
                               {processes.map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
+                                <option key={p.id} value={p.id}>{p.processName}</option>
                               ))}
                             </select>
                           </div>

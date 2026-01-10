@@ -1,117 +1,180 @@
 "use client";
-//apps\frontend\src\app\admin\orders\page.tsx
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Calendar, 
-  User, 
-  Package, 
-  CheckCircle, 
-  Clock, 
-  Settings,
-  ChevronRight,
-  Eye,
-  FileText,
-  BarChart3,
-  Download,
-  MoreVertical,
-  X,
-  EyeOff,
-  Eye as EyeIcon,
-  Loader2
-} from "lucide-react";
+// apps/frontend/src/app/admin/orders/page.tsx
 
-import { Order } from "@/types/domain";
 import {
-  getOrders,
-  createOrder,
-} from "@/services/orders.service";
+    Calendar,
+    CheckCircle,
+    ChevronRight,
+    Clock,
+    Download,
+    Eye as EyeIcon,
+    EyeOff,
+    FileText,
+    Filter,
+    Loader2,
+    MoreVertical,
+    Package,
+    Plus,
+    Search,
+    Settings,
+    User,
+    X,
+} from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import CreateOrderModal from "@/components/modals/CreateOrderModal";
 import ViewOrderModal from "@/components/modals/ViewOrderModal";
+import { Order } from "@/model/order.model";
+import { getOrders } from "@/services/orders.service";
+
+/* =================================================
+   COMPONENT
+   ================================================= */
 
 export default function AdminOrdersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedOrderId = searchParams.get("selectedOrder");
 
-  const [orders, setOrders] = useState<Order[] | undefined>([]);
+  /* ================= STATE ================= */
+
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [openCreate, setOpenCreate] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("hide_completed");
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
 
-  // Fetch orders on component mount and when filters change
+  /* ================= FETCH ORDERS ================= */
+
   useEffect(() => {
+    let cancelled = false;
+
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        const filters = {
-          search: searchQuery,
-          status: statusFilter === "hide_completed" ? undefined : statusFilter,
-          dateFilter: dateFilter !== "all" ? dateFilter : undefined,
-          hideCompleted: statusFilter === "hide_completed",
-        };
-        console.log("Fetching orders with filters:", filters);
-        const fetchedOrders = await getOrders(filters);
-        console.log("Fetched orders:", fetchedOrders);
-        setOrders(fetchedOrders);
+        const fetchedOrders = await getOrders();
+        if (!cancelled) {
+          setOrders(fetchedOrders);
+        }
       } catch (error) {
         console.error("Error fetching orders:", error);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    // Add debounce to prevent too many API calls
     const timeoutId = setTimeout(fetchOrders, 300);
-    return () => clearTimeout(timeoutId);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
   }, [searchQuery, statusFilter, dateFilter]);
 
-  /* ================= CREATE ================= */
+  /* ================= FILTERED ORDERS ================= */
 
-  const handleCreate = async (payload: any) => {
-    try {
-      await createOrder(payload);
-      
-      // Refresh orders list
-      const filters = {
-        hideCompleted: statusFilter === "hide_completed",
-      };
-      const updatedOrders = await getOrders(filters);
-      setOrders(updatedOrders);
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      const matchesSearch =
+        !searchQuery ||
+        order.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customer?.name
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        order.customer?.code
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase());
 
-      setOpenCreate(false);
-    } catch (error) {
-      console.error("Error creating order:", error);
-      alert("Failed to create order. Please try again.");
-    }
+      let matchesStatus = true;
+      if (statusFilter !== "hide_completed" && statusFilter !== "all") {
+        matchesStatus = order.status === statusFilter;
+      }
+
+      if (statusFilter === "hide_completed") {
+        matchesStatus =
+          order.status !== "COMPLETED" &&
+          order.status !== "BILLED";
+      }
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [orders, searchQuery, statusFilter]);
+
+  /* ================= HELPERS ================= */
+
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  const toggleShowCompleted = () => {
+    setShowCompleted(prev => !prev);
+    setStatusFilter(showCompleted ? "hide_completed" : "all");
   };
 
-  /* ================= FILTERS & SEARCH ================= */
+  const clearFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("hide_completed");
+    setDateFilter("all");
+  };
 
-  const filteredOrders = orders?.filter(order => {
-    // Search filter (already done by API, but keep for client-side fallback)
-    const matchesSearch = 
-      searchQuery === "" ||
-      order.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customer.code.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Status filter logic (already done by API for hide_completed, but keep for other filters)
-    let matchesStatus = true;
-    if (statusFilter !== "hide_completed" && statusFilter !== "all") {
-      matchesStatus = order.statusCode.toLowerCase() === statusFilter.toLowerCase();
+  const getProcessSummary = (order: Order) => {
+    const totalRuns = order.processes.reduce(
+      (sum, p) => sum + p.runs.length,
+      0
+    );
+    const configuredRuns = order.processes.reduce(
+      (sum, p) =>
+        sum +
+        p.runs.filter(r => r.status === "CONFIGURED").length,
+      0
+    );
+    return { configuredRuns, totalRuns };
+  };
+
+  const getCompletionProgress = (order: Order) => {
+    if (
+      order.status === "COMPLETED" ||
+      order.status === "BILLED"
+    ) {
+      return 100;
     }
-    
-    return matchesSearch && matchesStatus;
-  });
+
+    const steps = [
+      "CONFIGURED",
+      "DESIGN",
+      "SIZE_COLOR",
+      "TRACING",
+      "EXPOSING",
+      "SAMPLE",
+      "PRODUCTION",
+      "FUSING",
+      "CARTING",
+      "COMPLETED",
+    ];
+
+    let total = 0;
+    let completed = 0;
+
+    order.processes.forEach(process => {
+      process.runs.forEach(run => {
+        if (run.status === "NOT_CONFIGURED") return;
+        total += steps.length - 1;
+        const idx = steps.indexOf(run.status);
+        completed += idx >= 0 ? idx : 0;
+      });
+    });
+
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
+  };
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -121,7 +184,6 @@ export default function AdminOrdersPage() {
           icon: <CheckCircle className="w-4 h-4" />,
           label: "Completed",
           bgColor: "bg-green-50",
-          priority: 1
         };
       case "IN_PRODUCTION":
         return {
@@ -129,7 +191,6 @@ export default function AdminOrdersPage() {
           icon: <Settings className="w-4 h-4" />,
           label: "In Production",
           bgColor: "bg-blue-50",
-          priority: 2
         };
       case "PRODUCTION_READY":
         return {
@@ -137,7 +198,6 @@ export default function AdminOrdersPage() {
           icon: <Clock className="w-4 h-4" />,
           label: "Ready",
           bgColor: "bg-yellow-50",
-          priority: 3
         };
       case "CONFIGURE":
         return {
@@ -145,7 +205,6 @@ export default function AdminOrdersPage() {
           icon: <Package className="w-4 h-4" />,
           label: "Configure",
           bgColor: "bg-purple-50",
-          priority: 4
         };
       case "BILLED":
         return {
@@ -153,7 +212,6 @@ export default function AdminOrdersPage() {
           icon: <FileText className="w-4 h-4" />,
           label: "Billed",
           bgColor: "bg-indigo-50",
-          priority: 5
         };
       default:
         return {
@@ -161,58 +219,8 @@ export default function AdminOrdersPage() {
           icon: <Clock className="w-4 h-4" />,
           label: status,
           bgColor: "bg-gray-50",
-          priority: 6
         };
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const getProcessSummary = (order: Order) => {
-    const totalRuns = order.processes.reduce((sum, process) => sum + process.runs.length, 0);
-    const configuredRuns = order.processes.reduce((sum, process) => 
-      sum + process.runs.filter(run => run.statusCode === "CONFIGURED").length, 0);
-    return { configuredRuns, totalRuns };
-  };
-
-  const clearFilters = () => {
-    setSearchQuery("");
-    setStatusFilter("hide_completed");
-    setDateFilter("all");
-  };
-
-  const toggleShowCompleted = () => {
-    setShowCompleted(!showCompleted);
-    setStatusFilter(showCompleted ? "hide_completed" : "all");
-  };
-
-  const getCompletionProgress = (order: Order) => {
-    if (order.statusCode === "COMPLETED" || order.statusCode === "BILLED") return 100;
-    
-    let totalSteps = 0;
-    let completedSteps = 0;
-    
-    order.processes.forEach(process => {
-      process.runs.forEach(run => {
-        if (run.statusCode === "CONFIGURED") {
-          totalSteps += 9; // 9 status steps
-          completedSteps += 1; // CONFIGURED is step 1
-        } else if (run.statusCode !== "NOT_CONFIGURED") {
-          totalSteps += 9;
-          const statusIndex = ["CONFIGURED", "DESIGN", "SIZE_COLOR", "TRACING", "EXPOSING", "SAMPLE", "PRODUCTION", "FUSING", "CARTING", "COMPLETED"].indexOf(run.statusCode);
-          completedSteps += statusIndex;
-        }
-      });
-    });
-    
-    return totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
   };
 
   /* ================= UI ================= */
@@ -398,7 +406,7 @@ export default function AdminOrdersPage() {
         {!loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {filteredOrders?.map(order => {
-              const statusConfig = getStatusConfig(order.statusCode);
+              const statusConfig = getStatusConfig(order.status);
               const processSummary = getProcessSummary(order);
               const progressPercentage = getCompletionProgress(order);
               const progressColor = progressPercentage < 30 ? 'from-red-500 to-red-600' : 
@@ -416,13 +424,13 @@ export default function AdminOrdersPage() {
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition-colors">
-                          {order.orderCode}
+                          {order.code}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
                           <User className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm text-gray-700">{order.customer.name}</span>
+                          <span className="text-sm text-gray-700">{order.customer?.name}</span>
                           <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full">
-                            {order.customer.code}
+                            {order.customer?.code}
                           </span>
                         </div>
                       </div>
@@ -432,7 +440,7 @@ export default function AdminOrdersPage() {
                           {statusConfig.icon}
                           {statusConfig.label}
                         </span>
-                        <span className="text-xs text-gray-500">{formatDate(order.createdAt)}</span>
+                        <span className="text-xs text-gray-500">{formatDate(order.createdAt.toString())}</span>
                       </div>
                     </div>
                   </div>
@@ -478,7 +486,7 @@ export default function AdminOrdersPage() {
                       <div className="space-y-2">
                         {order.processes.map(process => (
                           <div key={process.id} className="flex items-center justify-between">
-                            <span className="text-sm text-gray-700 truncate">{process.name}</span>
+                            <span className="text-sm text-gray-700 truncate">{process.processName}</span>
                             <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
                               {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
                             </span>
@@ -550,7 +558,7 @@ export default function AdminOrdersPage() {
         <CreateOrderModal
           open={openCreate}
           onClose={() => setOpenCreate(false)}
-          onCreate={handleCreate}
+          onCreate={() => {}}
         />
 
         {selectedOrderId && (
