@@ -2,18 +2,17 @@ import {
     Controller,
     Get,
     Post,
+    Query,
     Req,
     Res,
-    Body,
-    Query,
-    UnauthorizedException,
+    UnauthorizedException
 } from '@nestjs/common';
 import express from 'express';
 
 import { AuthService } from './auth.service';
+import { Public } from './decorators/public.decorator';
 import { KeycloakService } from './keycloak/keycloak.service';
 import { resolveCookieDomain } from './utils/cookie-domain.util';
-import { Public } from './decorators/public.decorator';
 
 
 @Controller('auth')
@@ -80,6 +79,7 @@ export class AuthController {
             secure: process.env.NODE_ENV === 'production',
             domain: resolveCookieDomain(req),
             maxAge: 1000 * 60 * 60 * 24,
+            expires: new Date(Date.now() + 60 * 60 * 1000),
         });
 
         let redirectTo = '/board';

@@ -1,12 +1,11 @@
 import {
+    BadRequestException,
     Injectable,
     Logger,
-    BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OutboxService } from '../outbox/outbox.service';
-import { CreateRunDto } from './dto/create-run.dto';
 import { ConfigureRunDto } from './dto/configure-run.dto';
 import { RunFieldsValidator } from './run-fields.validator';
 
@@ -125,7 +124,7 @@ export class RunsService {
 
     //    const run = await this.prisma.processRun.create({
     //        data: {
-                
+
     //            orderProcessId,
     //            runTemplateId: template.id,
     //            runNumber,
@@ -201,7 +200,9 @@ export class RunsService {
 
         await this.prisma.processRun.update({
             where: { id: runId },
-            data: { location },
+            data: {
+                locationId: location, // string UUID
+            },
         });
 
         await this.outbox.add({

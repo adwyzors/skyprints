@@ -37,9 +37,16 @@ export class OutboxHandlers {
      * --------------------------------------------------------- */
 
     private async handleOrderCreated(event: {
-        payload: { orderId: string; processIds: string[] };
+        payload: {
+            orderId: string;
+            processes: { processId: string; count: number }[];
+        };
     }) {
-        const { orderId, processIds } = event.payload;
+        const { orderId, processes } = event.payload;
+
+        const processCountMap = new Map(
+            processes.map(p => [p.processId, p.count]),
+        );
 
         const [orderStatus, processStatus, runStatus] = await Promise.all([
             this.prisma.workflowStatus.findFirstOrThrow({
@@ -53,6 +60,7 @@ export class OutboxHandlers {
             }),
         ]);
 
+        /* ---- update order workflow ---- */
         await this.prisma.$transaction(async tx => {
             await tx.order.update({
                 where: { id: orderId },
@@ -71,23 +79,31 @@ export class OutboxHandlers {
             });
         });
 
-        const processes = await this.prisma.process.findMany({
-            where: { id: { in: processIds } },
+        /* ---- load processes + runDefs ---- */
+        const processEntities = await this.prisma.process.findMany({
+            where: { id: { in: processes.map(p => p.processId) } },
             include: {
                 runDefs: {
-                    include: {
-                        runTemplate: true,
-                    },
-                }
+                    include: { runTemplate: true },
+                },
             },
         });
 
-        for (const process of processes) {
+        for (const process of processEntities) {
+            const count = processCountMap.get(process.id)!;
+
+            if (count < 1) {
+                throw new Error(`Invalid run count for process ${process.id}`);
+            }
+
+            /* ---- create OrderProcess ---- */
             const op = await this.prisma.orderProcess.create({
                 data: {
                     orderId,
                     processId: process.id,
                     statusCode: processStatus.code,
+                    minRuns: count,
+                    maxRuns: count,
                 },
             });
 
@@ -102,37 +118,41 @@ export class OutboxHandlers {
                 },
             });
 
-
-
+            /* ---- create runs (count × runDefs) ---- */
             let runNo = 1;
-            for (const def of process.runDefs) {
-                const initialFields = this.buildInitialFields(
-                    def.runTemplate.fields as TemplateField[],
-                );
-                const run = await this.prisma.processRun.create({
-                    data: {
-                        displayName: def.displayName,
-                        orderProcessId: op.id,
-                        runTemplateId: def.runTemplateId,
-                        runNumber: runNo++,
-                        statusCode: runStatus.code,
-                        fields: initialFields, //TODO: add fields from runTemplate
-                    },
-                });
 
-                await this.prisma.workflowAuditLog.create({
-                    data: {
-                        workflowTypeId: runStatus.workflowTypeId,
-                        aggregateType: 'Run',
-                        aggregateId: run.id,
-                        fromStatus: null,
-                        toStatus: runStatus.code,
-                        payload: { event: 'PROCESS_RUN_CREATED' },
-                    },
-                });
+            for (let batch = 0; batch < count; batch++) {
+                for (const def of process.runDefs) {
+                    const initialFields = this.buildInitialFields(
+                        def.runTemplate.fields as TemplateField[],
+                    );
+
+                    const run = await this.prisma.processRun.create({
+                        data: {
+                            displayName: `${def.displayName} (${batch + 1})`,
+                            orderProcessId: op.id,
+                            runTemplateId: def.runTemplateId,
+                            runNumber: runNo++,
+                            statusCode: runStatus.code,
+                            fields: initialFields,
+                        },
+                    });
+
+                    await this.prisma.workflowAuditLog.create({
+                        data: {
+                            workflowTypeId: runStatus.workflowTypeId,
+                            aggregateType: 'Run',
+                            aggregateId: run.id,
+                            fromStatus: null,
+                            toStatus: runStatus.code,
+                            payload: { event: 'PROCESS_RUN_CREATED' },
+                        },
+                    });
+                }
             }
         }
     }
+
 
     private buildInitialFields(
         templateFields: TemplateField[],

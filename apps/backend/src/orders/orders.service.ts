@@ -19,7 +19,15 @@ export class OrdersService {
     /* -------------------- QUERIES -------------------- */
 
     async getAll() {
-        return this.prisma.order.findMany();
+        return this.prisma.order.findMany({
+            include: {
+                processes: {
+                    include: {
+                        runs: {},
+                    },
+                }
+            }
+        });
     }
 
     async getById(orderId: string) {
@@ -38,48 +46,49 @@ export class OrdersService {
     /* -------------------- CREATE ORDER -------------------- */
 
     async create(dto: CreateOrderDto) {
-        return this.prisma.$transaction(async (tx) => {
-            /* ---- validate process IDs ---- */
+        return this.prisma.$transaction(async tx => {
+            const processIds = dto.processes.map(p => p.processId);
+
+            /* ---- validate processes ---- */
             const validCount = await tx.process.count({
                 where: {
-                    id: { in: dto.processIds },
+                    id: { in: processIds },
                     isEnabled: true,
                 },
             });
 
-            if (validCount !== dto.processIds.length) {
+            if (validCount !== processIds.length) {
                 throw new BadRequestException(
                     'One or more processes are disabled or invalid',
                 );
             }
 
-            /* ---- get initial ORDER status ---- */
-            const orderStatus =
-                await tx.workflowStatus.findFirstOrThrow({
-                    where: {
-                        workflowType: { code: 'ORDER' },
-                        isInitial: true,
-                    },
-                });
+            /* ---- initial ORDER status ---- */
+            const orderStatus = await tx.workflowStatus.findFirstOrThrow({
+                where: {
+                    workflowType: { code: 'ORDER' },
+                    isInitial: true,
+                },
+            });
 
             /* ---- create order ---- */
             const order = await tx.order.create({
                 data: {
                     orderCode: `ORD-${Date.now()}`,
-                    customerName: dto.customerName,
+                    customerId: dto.customerId,
                     quantity: dto.quantity,
                     statusCode: orderStatus.code,
                 },
             });
 
-            /* ---- outbox event (atomic with order) ---- */
+            /* ---- outbox event ---- */
             await this.outbox.add({
                 aggregateType: 'ORDER',
                 aggregateId: order.id,
-                eventType: 'ORDER_CREATED', // CREATE ENUMS
+                eventType: 'ORDER_CREATED',
                 payload: {
                     orderId: order.id,
-                    processIds: dto.processIds,
+                    processes: dto.processes,
                 },
             });
 

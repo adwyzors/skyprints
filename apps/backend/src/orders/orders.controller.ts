@@ -1,13 +1,13 @@
 import {
-    Controller,
-    Post,
-    Get,
-    Param,
     Body,
+    Controller,
+    Get,
     Logger,
+    Param,
+    Post,
 } from '@nestjs/common';
-import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { OrdersService } from './orders.service';
 
 @Controller('orders')
 export class OrdersController {
@@ -25,7 +25,7 @@ export class OrdersController {
     @Post()
     async create(@Body() dto: CreateOrderDto) {
         this.logger.log(
-            `Creating order for ${dto.customerName}`,
+            `Creating order for ${dto.customerId}`,
         );
         return this.service.create(dto);
     }

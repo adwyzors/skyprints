@@ -19,9 +19,9 @@ exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const express_1 = __importDefault(require("express"));
 const auth_service_1 = require("./auth.service");
+const public_decorator_1 = require("./decorators/public.decorator");
 const keycloak_service_1 = require("./keycloak/keycloak.service");
 const cookie_domain_util_1 = require("./utils/cookie-domain.util");
-const public_decorator_1 = require("./decorators/public.decorator");
 let AuthController = class AuthController {
     auth;
     keycloak;
@@ -64,6 +64,7 @@ let AuthController = class AuthController {
             secure: process.env.NODE_ENV === 'production',
             domain: (0, cookie_domain_util_1.resolveCookieDomain)(req),
             maxAge: 1000 * 60 * 60 * 24,
+            expires: new Date(Date.now() + 60 * 60 * 1000),
         });
         let redirectTo = '/board';
         if (state) {
