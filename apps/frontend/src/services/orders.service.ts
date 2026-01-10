@@ -1,111 +1,226 @@
 // @/services/orders.service.ts
 
-import ordersData from "@/data/orders.json";
-import customersData from "@/data/customers.json";
-import processesData from "@/data/processes.json";
-
-import { Order, ProcessRun } from "@/types/domain";
+import { Order, ProcessRun, Process } from "@/types/domain";
 import { NewOrderPayload } from "@/types/planning";
 
-/**
- * INTERNAL IN-MEMORY STORE
- * -------------------------------------------------
- * Mimics backend storage.
- */
-let ORDERS_STORE: Order[] = ordersData.orders as Order[];
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
 
-/* =================================================
-   READ
-   ================================================= */
+// Local stores for offline fallback
+let ORDERS_STORE: Order[] = [];
+let CUSTOMERS_STORE: any[] = [];
+let PROCESSES_STORE: any[] = [];
 
-export function getOrders(): Order[] {
-  return [...ORDERS_STORE];
+// Helper function for API calls
+async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      "ngrok-skip-browser-warning": "69420",
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`API Error (${response.status}): ${error}`);
+  }
+
+  return response.json();
 }
 
-export function getOrderById(orderId: string): Order | undefined {
-  return ORDERS_STORE.find(o => o.id === orderId);
+/* =================================================
+   CUSTOMERS
+   ================================================= */
+
+export async function getCustomers() {
+  try {
+    const customers = await apiRequest<any[]>('/customers');
+    
+    // Update local store with API data
+    return customers.map(customer => ({
+      id: customer.id,
+      code: customer.code,
+      name: customer.name,
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address: customer.address || '',
+      isActive: customer.isActive !== undefined ? customer.isActive : true,
+    }));
+    
+  } catch (error) {
+    console.error('Error fetching customers from API:', error);
+  }
 }
 
 /* =================================================
-   CREATE
+   PROCESSES
    ================================================= */
 
-export function createOrder(payload: NewOrderPayload): Order {
-  const customer = customersData.customers.find(
-    c =>
-      c.name === payload.customerName ||
-      c.code === payload.customerCode
-  );
-  if (!customer) throw new Error("Customer not found");
+export async function getProcesses() {
+  try {
+    const processes = await apiRequest<any[]>('/process');
+    PROCESSES_STORE = processes;
+    return PROCESSES_STORE;
+  } catch (error) {
+    console.error('Error fetching processes from API:', error);
+    return PROCESSES_STORE;
+  }
+}
 
-  const newOrder: Order = {
-    id: crypto.randomUUID(),
-    orderCode: `ORDER-${ORDERS_STORE.length + 1}`,
-    customerId: customer.id,
-    customerName: customer.name,
-    customerCode: customer.code,
-    quantity: payload.quantity,
+/* =================================================
+   ORDERS
+   ================================================= */
 
-    // ✅ ORDER LIFECYCLE
-    status: "CONFIGURE",
-
-    createdAt: new Date().toISOString(),
-
-    processes: payload.processes.map(p => {
-      const processDef = processesData.processes.find(
-        x => x.name === p.processName
+export async function getOrders(filters?: {
+  search?: string;
+  statusCode?: string;
+  dateFilter?: string;
+  hideCompleted?: boolean;
+}){
+  try {
+    // Fetch orders from API
+    const orders = await apiRequest<any[]>('/orders');
+    
+    // Transform API response to match Order type exactly
+    const transformedOrders: Order[] = orders.map(order => ({
+      id: order.id,
+      orderCode: order.orderCode,
+      customer:{
+id:order.customerId,
+name: order.customerName,
+    code: order.customerCode,
+      },
+      customerId: order.customerId,
+      quantity: order.quantity,
+      statusCode: order.statusCode,
+      createdAt: order.createdAt,
+      billedAt: order.billedAt,
+      billingTotal: order.billingTotal,
+      originalTotal: order.originalTotal,
+      processes: order.processes.map((process: any) => ({
+        id: process.id,
+        quantity: process.quantity,
+        runs: process.runs.map((run: any) => ({
+          id: run.id,
+          runNumber: run.runNumber,
+          status: run.statusCode,
+          fields: run.fields || {},
+          location: run.location || '',
+        }))
+      }))
+    }));
+    // Apply filters
+    let filtered = transformedOrders;
+    
+    if (filters?.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.orderCode.toLowerCase().includes(searchLower) ||
+        order.customer.name.toLowerCase().includes(searchLower) ||
+        order.customer.code.toLowerCase().includes(searchLower)
       );
-      if (!processDef) throw new Error("Process not found");
+    }
+    
+    if (filters?.statusCode && filters.statusCode !== 'all' && filters.statusCode !== 'hide_completed') {
+      filtered = filtered.filter(order => order.statusCode === filters.statusCode);
+    }
+    
+    if (filters?.hideCompleted) {
+      filtered = filtered.filter(order => 
+        order.statusCode !== 'COMPLETED' && order.statusCode !== 'BILLED'
+      );
+    }
+    
+    return filtered;
+    
+  } catch (error) {
+    console.error('Error fetching orders from API:', error); 
+    alert("Error fetching orders from API")
+  }
+}
 
-      return {
-        id: crypto.randomUUID(),
-        name: processDef.name,
-        quantity: payload.quantity,
-
-        runs: Array.from({ length: typeof p.runs === 'number' ? p.runs : p.runs.length }).map(
-          (_, index) => ({
-            id: crypto.randomUUID(),
-            runNumber: index + 1,
-
-            // ✅ RUN STARTS UNCONFIGURED
-            status: "NOT_CONFIGURED",
-
-            // ✅ PRE-CREATE ALL FIELDS AS NULL
-            fields: Object.fromEntries(
-              Object.keys(processDef.fields).map(
-                f => [f, null]
-              )
-            ),
-            
-            // ✅ ADD LOCATION FIELD (initially empty)
-            location: "",
-          })
-        ),
-      };
-    }),
-  };
-
-  ORDERS_STORE.push(newOrder);
-  return newOrder;
+export async function getOrderById(orderId: string): Promise<Order | undefined> {
+  try {
+    // Fetch single order from API
+    const order = await apiRequest<any>(`/orders/${orderId}`);
+    
+    // Transform to Order type
+    return {
+      id: order.id,
+      orderCode: order.orderCode,
+      customerId: order.customerId,
+      customer:{
+        id:order.customerId,
+name: order.customer.name,
+      code: order.customer.code,
+      },
+      quantity: order.quantity,
+      statusCode: order.statusCode,
+      createdAt: order.createdAt,
+      billedAt: order.billedAt,
+      billingTotal: order.billingTotal,
+      originalTotal: order.originalTotal,
+      processes: order.processes.map((process: any) => ({
+        id: process.id,
+        name: process.name,
+        process:{
+name:process.process.name
+        },
+        quantity: process.quantity,
+        runs: process.runs.map((run: any) => ({
+          id: run.id,
+          runNumber: run.runNumber,
+          status: run.statusCode,
+          fields: run.fields || {},
+          location: run.location || '',
+        }))
+      }))
+    };
+    
+  } catch (error) {
+    console.error(`Error fetching order ${orderId} from API:`, error);
+    return ORDERS_STORE.find(o => o.id === orderId);
+  }
 }
 
 /* =================================================
-   UPDATE
+   CREATE ORDER
+   ================================================= */
+
+export async function createOrder(payload: NewOrderPayload) {
+  try {
+    // Prepare API payload exactly as expected by your API
+    const apiPayload = {
+      customerId: payload.customerId,
+      quantity: payload.quantity,
+      processes: payload.processes
+    };
+    
+    // Call API to create order
+    const createdOrder = await apiRequest<any>('/orders', {
+      method: 'POST',
+      body: JSON.stringify(apiPayload),
+    })
+    
+  } catch (error) {
+    console.error('Error creating order via API:', error);
+    alert('API unavailable');
+  }
+}
+
+/* =================================================
+   UPDATE ORDER
    ================================================= */
 
 export function updateOrder(updated: Order): void {
-  ORDERS_STORE = ORDERS_STORE.map(o =>
-    o.id === updated.id ? updated : o
-  );
+  ORDERS_STORE = ORDERS_STORE.map(o => o.id === updated.id ? updated : o);
 }
 
 /* =================================================
-   RUN MANAGEMENT - PARALLEL EXECUTION
+   RUN MANAGEMENT
    ================================================= */
 
-/**
- * Update run status (parallel execution - runs can be updated independently)
- */
 export function updateRunStatus(
   orderId: string, 
   processId: string, 
@@ -117,32 +232,27 @@ export function updateRunStatus(
 
   const order = { ...ORDERS_STORE[orderIndex] };
   
-  // Find and update the specific run
   const process = order.processes.find(p => p.id === processId);
   if (!process) return undefined;
 
   const runIndex = process.runs.findIndex(r => r.id === runId);
   if (runIndex === -1) return undefined;
 
-  // Update the run status (no dependency check for parallel execution)
-  process.runs[runIndex].status = newStatus;
+  process.runs[runIndex].statusCode = newStatus;
 
-  // Check if all runs in all processes are completed
   const allRunsCompleted = order.processes.every(p =>
-    p.runs.every(r => r.status === "COMPLETED")
+    p.runs.every(r => r.statusCode === "COMPLETED")
   );
 
-  // Update order status based on run statuses
   if (allRunsCompleted) {
-    order.status = "COMPLETED";
-  } else if (order.status === "CONFIGURE") {
-    // If order was in CONFIGURE and any run is now configured or beyond
+    order.statusCode = "COMPLETED";
+  } else if (order.statusCode === "CONFIGURE") {
     const hasActiveRuns = order.processes.some(p =>
-      p.runs.some(r => r.status !== "NOT_CONFIGURED" && r.status !== "CONFIGURED")
+      p.runs.some(r => r.statusCode !== "NOT_CONFIGURED" && r.statusCode !== "CONFIGURED")
     );
     
     if (hasActiveRuns) {
-      order.status = "IN_PRODUCTION";
+      order.statusCode = "IN_PRODUCTION";
     }
   }
 
@@ -150,9 +260,6 @@ export function updateRunStatus(
   return order;
 }
 
-/**
- * Update run location
- */
 export function updateRunLocation(
   orderId: string, 
   processId: string, 
@@ -176,9 +283,6 @@ export function updateRunLocation(
   return order;
 }
 
-/**
- * Configure a run (move from NOT_CONFIGURED to CONFIGURED)
- */
 export function configureRun(
   orderId: string, 
   processId: string, 
@@ -196,23 +300,21 @@ export function configureRun(
   const runIndex = process.runs.findIndex(r => r.id === runId);
   if (runIndex === -1) return undefined;
 
-  // Update run configuration
   process.runs[runIndex] = {
     ...process.runs[runIndex],
-    status: "CONFIGURED",
+    statusCode: "CONFIGURED",
     fields: {
       ...process.runs[runIndex].fields,
       ...configuration
     }
   };
 
-  // Check if all runs are configured to move order to PRODUCTION_READY
   const allRunsConfigured = order.processes.every(p =>
-    p.runs.every(r => r.status !== "NOT_CONFIGURED")
+    p.runs.every(r => r.statusCode !== "NOT_CONFIGURED")
   );
 
-  if (allRunsConfigured && order.status === "CONFIGURE") {
-    order.status = "PRODUCTION_READY";
+  if (allRunsConfigured && order.statusCode === "CONFIGURE") {
+    order.statusCode = "PRODUCTION_READY";
   }
 
   ORDERS_STORE[orderIndex] = order;
@@ -224,24 +326,21 @@ export function configureRun(
    ================================================= */
 
 export function getCompletedOrders(): Order[] {
-  return ORDERS_STORE.filter(o => o.status === "COMPLETED");
+  return ORDERS_STORE.filter(o => o.statusCode === "COMPLETED");
 }
 
 export function markOrderBilled(orderId: string): void {
   ORDERS_STORE = ORDERS_STORE.map(o =>
-    o.id === orderId ? { ...o, status: "BILLED" } : o
+    o.id === orderId ? { ...o, statusCode: "BILLED" } : o
   );
 }
 
-/**
- * Check if run can be started (parallel execution - always true)
- */
 export function canStartRun(
   orderId: string, 
   processId: string, 
   runId: string
 ): boolean {
-  const order = getOrderById(orderId);
+  const order = ORDERS_STORE.find(o => o.id === orderId);
   if (!order) return false;
 
   const process = order.processes.find(p => p.id === processId);
@@ -250,6 +349,5 @@ export function canStartRun(
   const run = process.runs.find(r => r.id === runId);
   if (!run) return false;
 
-  // For parallel execution, any run can be started as long as it's configured
-  return run.status === "CONFIGURED";
+  return run.statusCode === "CONFIGURED";
 }

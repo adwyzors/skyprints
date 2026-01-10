@@ -20,7 +20,8 @@ import {
   MoreVertical,
   X,
   EyeOff,
-  Eye as EyeIcon
+  Eye as EyeIcon,
+  Loader2
 } from "lucide-react";
 
 import { Order } from "@/types/domain";
@@ -37,7 +38,8 @@ export default function AdminOrdersPage() {
   const searchParams = useSearchParams();
   const selectedOrderId = searchParams.get("selectedOrder");
 
-  const [orders, setOrders] = useState<Order[]>(getOrders());
+  const [orders, setOrders] = useState<Order[] | undefined>([]);
+  const [loading, setLoading] = useState(true);
   const [openCreate, setOpenCreate] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("hide_completed");
@@ -45,38 +47,70 @@ export default function AdminOrdersPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
 
+  // Fetch orders on component mount and when filters change
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const filters = {
+          search: searchQuery,
+          status: statusFilter === "hide_completed" ? undefined : statusFilter,
+          dateFilter: dateFilter !== "all" ? dateFilter : undefined,
+          hideCompleted: statusFilter === "hide_completed",
+        };
+        console.log("Fetching orders with filters:", filters);
+        const fetchedOrders = await getOrders(filters);
+        console.log("Fetched orders:", fetchedOrders);
+        setOrders(fetchedOrders);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Add debounce to prevent too many API calls
+    const timeoutId = setTimeout(fetchOrders, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, statusFilter, dateFilter]);
+
   /* ================= CREATE ================= */
 
-  const handleCreate = (payload: any) => {
-    const order = createOrder(payload);
-    setOrders(prev => [...prev, order]);
+  const handleCreate = async (payload: any) => {
+    try {
+      await createOrder(payload);
+      
+      // Refresh orders list
+      const filters = {
+        hideCompleted: statusFilter === "hide_completed",
+      };
+      const updatedOrders = await getOrders(filters);
+      setOrders(updatedOrders);
 
-    router.push(`/admin/orders?selectedOrder=${order.id}`);
-    setOpenCreate(false);
+      setOpenCreate(false);
+    } catch (error) {
+      console.error("Error creating order:", error);
+      alert("Failed to create order. Please try again.");
+    }
   };
 
   /* ================= FILTERS & SEARCH ================= */
 
-  const filteredOrders = orders.filter(order => {
-    // Search filter
+  const filteredOrders = orders?.filter(order => {
+    // Search filter (already done by API, but keep for client-side fallback)
     const matchesSearch = 
       searchQuery === "" ||
       order.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerCode.toLowerCase().includes(searchQuery.toLowerCase());
+      order.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customer.code.toLowerCase().includes(searchQuery.toLowerCase());
     
-    // Status filter logic
+    // Status filter logic (already done by API for hide_completed, but keep for other filters)
     let matchesStatus = true;
-    if (statusFilter === "hide_completed") {
-      matchesStatus = order.status !== "COMPLETED" && order.status !== "BILLED";
-    } else if (statusFilter !== "all") {
-      matchesStatus = order.status.toLowerCase() === statusFilter.toLowerCase();
+    if (statusFilter !== "hide_completed" && statusFilter !== "all") {
+      matchesStatus = order.statusCode.toLowerCase() === statusFilter.toLowerCase();
     }
     
-    // Date filter
-    const matchesDate = dateFilter === "all" || true;
-    
-    return matchesSearch && matchesStatus && matchesDate;
+    return matchesSearch && matchesStatus;
   });
 
   const getStatusConfig = (status: string) => {
@@ -144,7 +178,7 @@ export default function AdminOrdersPage() {
   const getProcessSummary = (order: Order) => {
     const totalRuns = order.processes.reduce((sum, process) => sum + process.runs.length, 0);
     const configuredRuns = order.processes.reduce((sum, process) => 
-      sum + process.runs.filter(run => run.status === "CONFIGURED").length, 0);
+      sum + process.runs.filter(run => run.statusCode === "CONFIGURED").length, 0);
     return { configuredRuns, totalRuns };
   };
 
@@ -160,19 +194,19 @@ export default function AdminOrdersPage() {
   };
 
   const getCompletionProgress = (order: Order) => {
-    if (order.status === "COMPLETED" || order.status === "BILLED") return 100;
+    if (order.statusCode === "COMPLETED" || order.statusCode === "BILLED") return 100;
     
     let totalSteps = 0;
     let completedSteps = 0;
     
     order.processes.forEach(process => {
       process.runs.forEach(run => {
-        if (run.status === "CONFIGURED") {
+        if (run.statusCode === "CONFIGURED") {
           totalSteps += 9; // 9 status steps
           completedSteps += 1; // CONFIGURED is step 1
-        } else if (run.status !== "NOT_CONFIGURED") {
+        } else if (run.statusCode !== "NOT_CONFIGURED") {
           totalSteps += 9;
-          const statusIndex = ["CONFIGURED", "DESIGN", "SIZE_COLOR", "TRACING", "EXPOSING", "SAMPLE", "PRODUCTION", "FUSING", "CARTING", "COMPLETED"].indexOf(run.status);
+          const statusIndex = ["CONFIGURED", "DESIGN", "SIZE_COLOR", "TRACING", "EXPOSING", "SAMPLE", "PRODUCTION", "FUSING", "CARTING", "COMPLETED"].indexOf(run.statusCode);
           completedSteps += statusIndex;
         }
       });
@@ -332,8 +366,8 @@ export default function AdminOrdersPage() {
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
             <div className="flex items-center gap-4">
               <p className="text-sm text-gray-600">
-                Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span> of{" "}
-                <span className="font-semibold text-gray-800">{orders.length}</span> orders
+                Showing <span className="font-semibold text-gray-800">{filteredOrders?.length}</span> of{" "}
+                <span className="font-semibold text-gray-800">{orders?.length}</span> orders
               </p>
               {statusFilter === "hide_completed" && (
                 <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
@@ -352,126 +386,136 @@ export default function AdminOrdersPage() {
           </div>
         </div>
 
+        {/* LOADING STATE */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            <span className="ml-3 text-gray-600">Loading orders...</span>
+          </div>
+        )}
+
         {/* ORDERS GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filteredOrders.map(order => {
-            const statusConfig = getStatusConfig(order.status);
-            const processSummary = getProcessSummary(order);
-            const progressPercentage = getCompletionProgress(order);
-            const progressColor = progressPercentage < 30 ? 'from-red-500 to-red-600' : 
-                                progressPercentage < 70 ? 'from-yellow-500 to-yellow-600' : 
-                                'from-green-500 to-green-600';
-            
-            return (
-              <div
-                key={order.id}
-                onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
-                className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1"
-              >
-                {/* CARD HEADER */}
-                <div className={`p-5 ${statusConfig.bgColor}`}>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition-colors">
-                        {order.orderCode}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <User className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-700">{order.customerName}</span>
-                        <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full">
-                          {order.customerCode}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col items-end gap-1">
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}>
-                        {statusConfig.icon}
-                        {statusConfig.label}
-                      </span>
-                      <span className="text-xs text-gray-500">{formatDate(order.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CARD BODY */}
-                <div className="p-5 space-y-4">
-                  {/* QUANTITY & PROCESS INFO */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Package className="w-4 h-4 text-gray-400" />
-                        <span className="text-xs text-gray-500">Quantity</span>
-                      </div>
-                      <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Settings className="w-4 h-4 text-gray-400" />
-                        <span className="text-xs text-gray-500">Processes</span>
-                      </div>
-                      <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
-                    </div>
-                  </div>
-
-                  {/* PROGRESS BAR */}
-                  <div>
-                    <div className="flex justify-between text-xs text-gray-600 mb-1.5">
-                      <span>Production Progress</span>
-                      <span className="font-medium">{progressPercentage}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                      <div 
-                        className={`bg-linear-to-r ${progressColor} h-2 rounded-full transition-all duration-700`}
-                        style={{ width: `${progressPercentage}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* RUNS OVERVIEW */}
-                  <div className="pt-3 border-t border-gray-100">
-                    <div className="text-xs text-gray-500 mb-2">Runs by Process:</div>
-                    <div className="space-y-2">
-                      {order.processes.map(process => (
-                        <div key={process.id} className="flex items-center justify-between">
-                          <span className="text-sm text-gray-700 truncate">{process.name}</span>
-                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                            {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {filteredOrders?.map(order => {
+              const statusConfig = getStatusConfig(order.statusCode);
+              const processSummary = getProcessSummary(order);
+              const progressPercentage = getCompletionProgress(order);
+              const progressColor = progressPercentage < 30 ? 'from-red-500 to-red-600' : 
+                                  progressPercentage < 70 ? 'from-yellow-500 to-yellow-600' : 
+                                  'from-green-500 to-green-600';
+              
+              return (
+                <div
+                  key={order.id}
+                  onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
+                  className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1"
+                >
+                  {/* CARD HEADER */}
+                  <div className={`p-5 ${statusConfig.bgColor}`}>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition-colors">
+                          {order.orderCode}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <User className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-700">{order.customer.name}</span>
+                          <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full">
+                            {order.customer.code}
                           </span>
                         </div>
-                      ))}
+                      </div>
+                      
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}>
+                          {statusConfig.icon}
+                          {statusConfig.label}
+                        </span>
+                        <span className="text-xs text-gray-500">{formatDate(order.createdAt)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* CARD FOOTER */}
-                <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">
-                      {processSummary.configuredRuns}/{processSummary.totalRuns} runs configured
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/admin/orders/${order.id}`);
-                        }}
-                        className="px-3 py-1.5 text-xs bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        Configure
-                      </button>
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                  {/* CARD BODY */}
+                  <div className="p-5 space-y-4">
+                    {/* QUANTITY & PROCESS INFO */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4 text-gray-400" />
+                          <span className="text-xs text-gray-500">Quantity</span>
+                        </div>
+                        <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Settings className="w-4 h-4 text-gray-400" />
+                          <span className="text-xs text-gray-500">Processes</span>
+                        </div>
+                        <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
+                      </div>
+                    </div>
+
+                    {/* PROGRESS BAR */}
+                    <div>
+                      <div className="flex justify-between text-xs text-gray-600 mb-1.5">
+                        <span>Production Progress</span>
+                        <span className="font-medium">{progressPercentage}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className={`bg-linear-to-r ${progressColor} h-2 rounded-full transition-all duration-700`}
+                          style={{ width: `${progressPercentage}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* RUNS OVERVIEW */}
+                    <div className="pt-3 border-t border-gray-100">
+                      <div className="text-xs text-gray-500 mb-2">Runs by Process:</div>
+                      <div className="space-y-2">
+                        {order.processes.map(process => (
+                          <div key={process.id} className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700 truncate">{process.name}</span>
+                            <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
+                              {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CARD FOOTER */}
+                  <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        {processSummary.configuredRuns}/{processSummary.totalRuns} runs configured
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/admin/orders/${order.id}`);
+                          }}
+                          className="px-3 py-1.5 text-xs bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Configure
+                        </button>
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* EMPTY STATE */}
-        {filteredOrders.length === 0 && (
+        {!loading && filteredOrders?.length === 0 && (
           <div className="bg-white rounded-2xl p-12 border border-gray-200 text-center">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Package className="w-12 h-12 text-gray-400" />
@@ -480,7 +524,7 @@ export default function AdminOrdersPage() {
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
               {searchQuery || statusFilter !== "hide_completed" || dateFilter !== "all"
                 ? "No orders match your current filters. Try adjusting your search criteria."
-                : "Get started by creating your first production order for Sky Prints manufacturing."}
+                : "Get started by creating your first production order."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               {(searchQuery || statusFilter !== "hide_completed" || dateFilter !== "all") && (

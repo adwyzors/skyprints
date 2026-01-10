@@ -9,9 +9,10 @@ import {
   updateRunStatus,
   updateRunLocation,
   canStartRun,
+  configureRun,
 } from "@/services/orders.service";
-import processesData from "@/data/processes.json";
-import { CheckCircle, ChevronRight, Circle, Settings, Lock, MapPin, Save } from "lucide-react";
+import { Process } from "@/types/domain";
+import { CheckCircle, ChevronRight, Circle, MapPin, Save, Settings } from "lucide-react";
 
 /* =================================================
    PROPS
@@ -22,6 +23,19 @@ export interface ViewOrderModalProps {
   onClose: () => void;
 }
 
+// Define process master statuses locally since we're not using JSON file
+const PROCESS_MASTER_STATUSES = [
+  "DESIGN",
+  "SIZE_COLOR", 
+  "TRACING",
+  "EXPOSING",
+  "SAMPLE",
+  "PRODUCTION",
+  "FUSING",
+  "CARTING",
+  "COMPLETED"
+];
+
 /* =================================================
    COMPONENT
    ================================================= */
@@ -31,64 +45,78 @@ export default function ViewOrderModal({
   onClose,
 }: ViewOrderModalProps) {
   const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [expandedProcesses, setExpandedProcesses] = useState<Set<string>>(new Set());
   const [locationInput, setLocationInput] = useState<{[key: string]: string}>({});
   const [editingLocation, setEditingLocation] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
   const router = useRouter();
-
-  const processMaster = processesData.processes[0];
 
   /* =================================================
      INIT
      ================================================= */
 
   useEffect(() => {
-    const fetched = getOrderById(orderId);
-    if (!fetched) return;
+    const fetchOrder = async () => {
+      setLoading(true);
+      try {
+        const fetched = await getOrderById(orderId);
+        if (!fetched) {
+          console.error("Order not found");
+          return;
+        }
 
-    setOrder(fetched);
+        setOrder(fetched);
 
-    // Auto-open first run if order is ready for execution
-    if (
-      fetched.status === "PRODUCTION_READY" ||
-      fetched.status === "IN_PRODUCTION"
-    ) {
-      // Find first configured but not completed run
-      let firstActiveRunId: string | null = null;
-      outer: for (const p of fetched.processes) {
-        for (const r of p.runs) {
-          if (r.status === "CONFIGURED" || (r.status !== "COMPLETED" && r.status !== "NOT_CONFIGURED")) {
-            firstActiveRunId = r.id;
-            break outer;
+        // Auto-open first run if order is ready for execution
+        if (
+          fetched.statusCode === "PRODUCTION_READY" ||
+          fetched.statusCode === "IN_PRODUCTION"
+        ) {
+          // Find first configured but not completed run
+          let firstActiveRunId: string | null = null;
+          outer: for (const p of fetched.processes) {
+            for (const r of p.runs) {
+              if (r.statusCode === "CONFIGURED" || (r.statusCode !== "COMPLETED" && r.statusCode !== "NOT_CONFIGURED")) {
+                firstActiveRunId = r.id;
+                break outer;
+              }
+            }
+          }
+          setActiveRunId(firstActiveRunId ?? fetched.processes[0]?.runs[0]?.id ?? null);
+          
+          // Expand first process by default
+          if (fetched.processes[0]) {
+            setExpandedProcesses(new Set([fetched.processes[0].id]));
           }
         }
+      } catch (error) {
+        console.error("Error fetching order:", error);
+      } finally {
+        setLoading(false);
       }
-      setActiveRunId(firstActiveRunId ?? fetched.processes[0]?.runs[0]?.id ?? null);
-      
-      // Expand first process by default
-      setExpandedProcesses(new Set([fetched.processes[0]?.id]));
-    }
-  }, [orderId]);
+    };
 
-  if (!order) return null;
+    fetchOrder();
+  }, [orderId]);
 
   /* =================================================
      HELPERS
      ================================================= */
 
   const getNextStatus = (run: ProcessRun) => {
-    if (run.status === "CONFIGURED") {
+    if (run.statusCode === "CONFIGURED") {
       return "DESIGN"; // First step after configuration
     }
     
-    const idx = processMaster.statuses.indexOf(run.status);
-    return idx < processMaster.statuses.length - 1 ? processMaster.statuses[idx + 1] : null;
+    const idx = PROCESS_MASTER_STATUSES.indexOf(run.statusCode);
+    return idx < PROCESS_MASTER_STATUSES.length - 1 ? PROCESS_MASTER_STATUSES[idx + 1] : null;
   };
 
   const getStatusIndex = (status: string): number => {
     if (status === "CONFIGURED") return -1;
-    return processMaster.statuses.indexOf(status);
+    return PROCESS_MASTER_STATUSES.indexOf(status);
   };
 
   const getStatusDisplayName = (status: string): string => {
@@ -109,7 +137,7 @@ export default function ViewOrderModal({
 
   const isStepCompleted = (runStatus: string, stepStatus: string): boolean => {
     const runIndex = getStatusIndex(runStatus);
-    const stepIndex = processMaster.statuses.indexOf(stepStatus);
+    const stepIndex = PROCESS_MASTER_STATUSES.indexOf(stepStatus);
     
     // If run is CONFIGURED, no steps are completed
     if (runStatus === "CONFIGURED") return false;
@@ -136,7 +164,9 @@ export default function ViewOrderModal({
     });
   };
 
-  const advanceRunStatus = (processId: string, runId: string) => {
+  const advanceRunStatus = async (processId: string, runId: string) => {
+    if (!order) return;
+    
     const process = order.processes.find(p => p.id === processId);
     const run = process?.runs.find(r => r.id === runId);
     
@@ -146,29 +176,47 @@ export default function ViewOrderModal({
     
     if (!nextStatus) return;
 
-    // Update run status through service
-    const updatedOrder = updateRunStatus(order.id, processId, runId, nextStatus);
-    if (updatedOrder) {
-      setOrder(updatedOrder);
+    setUpdating(true);
+    try {
+      // Update run status through API
+      const updatedOrder = await updateRunStatus(order.id, processId, runId, nextStatus);
+      if (updatedOrder) {
+        setOrder(updatedOrder);
+      }
+    } catch (error) {
+      console.error("Error updating run status:", error);
+      alert("Failed to update run status. Please try again.");
+    } finally {
+      setUpdating(false);
     }
 
     // Stay on same run
     setActiveRunId(runId);
   };
 
-  const handleLocationUpdate = (processId: string, runId: string) => {
+  const handleLocationUpdate = async (processId: string, runId: string) => {
+    if (!order) return;
+    
     const locationKey = `${processId}-${runId}`;
     const newLocation = locationInput[locationKey];
     
     if (!newLocation?.trim()) return;
 
-    // Update run location through service
-    const updatedOrder = updateRunLocation(order.id, processId, runId, newLocation);
-    if (updatedOrder) {
-      setOrder(updatedOrder);
-      // Clear input and exit edit mode
-      setLocationInput(prev => ({ ...prev, [locationKey]: "" }));
-      setEditingLocation(null);
+    setUpdating(true);
+    try {
+      // Update run location through API
+      const updatedOrder = await updateRunLocation(order.id, processId, runId, newLocation);
+      if (updatedOrder) {
+        setOrder(updatedOrder);
+        // Clear input and exit edit mode
+        setLocationInput(prev => ({ ...prev, [locationKey]: "" }));
+        setEditingLocation(null);
+      }
+    } catch (error) {
+      console.error("Error updating location:", error);
+      alert("Failed to update location. Please try again.");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -196,8 +244,8 @@ export default function ViewOrderModal({
 
   const shouldShowNextButton = (run: ProcessRun, stepStatus: string): boolean => {
     // Show Next button if this step is current and run is not completed
-    const isCurrent = isCurrentStep(run.status, stepStatus);
-    const isNotCompleted = run.status !== "COMPLETED";
+    const isCurrent = isCurrentStep(run.statusCode, stepStatus);
+    const isNotCompleted = run.statusCode !== "COMPLETED";
     return isCurrent && isNotCompleted;
   };
 
@@ -226,6 +274,41 @@ export default function ViewOrderModal({
      UI
      ================================================= */
 
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div className="bg-white w-full max-w-6xl h-[85vh] rounded-2xl flex overflow-hidden shadow-2xl">
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading order details...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div className="bg-white w-full max-w-6xl h-[85vh] rounded-2xl flex overflow-hidden shadow-2xl">
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-gray-600">Order not found</p>
+              <button
+                onClick={onClose}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-6xl h-[85vh] rounded-2xl flex overflow-hidden shadow-2xl">
@@ -238,11 +321,11 @@ export default function ViewOrderModal({
             <div className="text-sm text-gray-600 space-y-2 mb-6">
               <div className="flex items-center justify-between">
                 <span>Customer:</span>
-                <strong className="text-gray-800">{order.customerName}</strong>
+                <strong className="text-gray-800">{order.customer.name}</strong>
               </div>
               <div className="flex items-center justify-between">
                 <span>Code:</span>
-                <span className="font-medium">{order.customerCode}</span>
+                <span className="font-medium">{order.customer.code}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Quantity:</span>
@@ -251,15 +334,15 @@ export default function ViewOrderModal({
               <div className="flex items-center justify-between">
                 <span>Status:</span>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  order.status === "COMPLETED" 
+                  order.statusCode === "COMPLETED" 
                     ? "bg-green-100 text-green-800"
-                    : order.status === "IN_PRODUCTION"
+                    : order.statusCode === "IN_PRODUCTION"
                     ? "bg-blue-100 text-blue-800"
-                    : order.status === "PRODUCTION_READY"
+                    : order.statusCode === "PRODUCTION_READY"
                     ? "bg-yellow-100 text-yellow-800"
                     : "bg-gray-100 text-gray-800"
                 }`}>
-                  {order.status.replace("_", " ")}
+                  {order.statusCode}
                 </span>
               </div>
             </div>
@@ -273,7 +356,7 @@ export default function ViewOrderModal({
                       onClick={() => toggleProcessExpansion(process.id)}
                       className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
                     >
-                      <span className="font-medium text-gray-800">{process.name}</span>
+                      <span className="font-medium text-gray-800">{process.process.name}</span>
                       <ChevronRight className={`w-4 h-4 transition-transform ${
                         expandedProcesses.has(process.id) ? "rotate-90" : ""
                       }`} />
@@ -292,19 +375,19 @@ export default function ViewOrderModal({
                                     <span className="text-gray-600">Run {run.runNumber}</span>
                                   </div>
                                   <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    run.status === "COMPLETED"
+                                    run.statusCode === "COMPLETED"
                                       ? "bg-green-100 text-green-800"
-                                      : run.status === "CONFIGURED"
+                                      : run.statusCode === "CONFIGURED"
                                       ? "bg-gray-100 text-gray-800"
-                                      : run.status === "NOT_CONFIGURED"
+                                      : run.statusCode === "NOT_CONFIGURED"
                                       ? "bg-red-100 text-red-800"
                                       : "bg-blue-100 text-blue-800"
                                   }`}>
-                                    {run.status === "COMPLETED" 
+                                    {run.statusCode === "COMPLETED" 
                                       ? "Completed" 
-                                      : run.status === "CONFIGURED"
+                                      : run.statusCode === "CONFIGURED"
                                       ? "Configured"
-                                      : run.status === "NOT_CONFIGURED"
+                                      : run.statusCode === "NOT_CONFIGURED"
                                       ? "Not Configured"
                                       : "Active"
                                     }
@@ -323,16 +406,19 @@ export default function ViewOrderModal({
                                       }))}
                                       placeholder="Enter location..."
                                       className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                      disabled={updating}
                                     />
                                     <button
                                       onClick={() => handleLocationUpdate(process.id, run.id)}
-                                      className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                                      disabled={updating}
+                                      className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
                                     >
-                                      <Save className="w-3 h-3" />
+                                      {updating ? "..." : <Save className="w-3 h-3" />}
                                     </button>
                                     <button
                                       onClick={cancelEditingLocation}
-                                      className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                                      disabled={updating}
+                                      className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400 disabled:opacity-50"
                                     >
                                       ×
                                     </button>
@@ -371,7 +457,8 @@ export default function ViewOrderModal({
 
           <button
             onClick={onClose}
-            className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            disabled={updating}
+            className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             Close
           </button>
@@ -380,7 +467,7 @@ export default function ViewOrderModal({
         {/* RIGHT — EXECUTION */}
         <div className="flex-1 p-6 overflow-y-auto">
           {/* NOT READY */}
-          {order.status === "CONFIGURE" && (
+          {order.statusCode === "CONFIGURE" && (
             <div className="flex flex-col items-center justify-center h-full">
               <div className="text-center text-gray-500 mb-6">
                 <div className="text-lg font-medium mb-2">Order Not Ready</div>
@@ -399,9 +486,9 @@ export default function ViewOrderModal({
           )}
 
           {/* EXECUTION MODE */}
-          {(order.status === "PRODUCTION_READY" ||
-            order.status === "IN_PRODUCTION" ||
-            order.status === "COMPLETED") &&
+          {(order.statusCode === "PRODUCTION_READY" ||
+            order.statusCode === "IN_PRODUCTION" ||
+            order.statusCode === "COMPLETED") &&
             order.processes.map(process => (
               <div key={process.id} className="mb-8">
                 <div className="flex items-center justify-between mb-6">
@@ -413,8 +500,8 @@ export default function ViewOrderModal({
 
                 {process.runs.map((run) => {
                   const isOpen = activeRunId === run.id;
-                  const canOpen = canOpenRun(run.status);
-                  const isActive = isRunActive(run.status);
+                  const canOpen = canOpenRun(run.statusCode);
+                  const isActive = isRunActive(run.statusCode);
                   const isEditingLocation = editingLocation === `${process.id}-${run.id}`;
 
                   return (
@@ -428,19 +515,19 @@ export default function ViewOrderModal({
                     >
                       {/* HEADER */}
                       <button
-                        onClick={() => handleRunClick(process.id, run.id, run.status)}
-                        disabled={!canOpen}
+                        onClick={() => handleRunClick(process.id, run.id, run.statusCode)}
+                        disabled={!canOpen || updating}
                         className={`w-full p-4 flex items-center justify-between transition-colors ${
                           isOpen 
                             ? "bg-blue-50" 
                             : !canOpen
                             ? "bg-gray-50 cursor-not-allowed"
                             : "bg-gray-50 hover:bg-gray-100"
-                        }`}
+                        } ${updating ? "opacity-50" : ""}`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-2 h-8 rounded ${
-                            run.status === "COMPLETED" 
+                            run.statusCode === "COMPLETED" 
                               ? "bg-green-500" 
                               : isActive
                               ? "bg-blue-500" 
@@ -451,7 +538,7 @@ export default function ViewOrderModal({
                               Run {run.runNumber}
                             </div>
                             <div className="text-sm text-gray-600">
-                              Progress: {getStatusDisplayName(run.status)}
+                              Progress: {getStatusDisplayName(run.statusCode)}
                             </div>
                             {run.location && (
                               <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
@@ -463,17 +550,17 @@ export default function ViewOrderModal({
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            run.status === "COMPLETED"
+                            run.statusCode === "COMPLETED"
                               ? "bg-green-100 text-green-800"
                               : isActive
                               ? "bg-blue-100 text-blue-800"
-                              : run.status === "CONFIGURED"
+                              : run.statusCode === "CONFIGURED"
                               ? "bg-yellow-100 text-yellow-800"
                               : "bg-gray-100 text-gray-800"
                           }`}>
-                            {run.status === "COMPLETED" 
+                            {run.statusCode === "COMPLETED" 
                               ? "Completed" 
-                              : run.status === "CONFIGURED"
+                              : run.statusCode === "CONFIGURED"
                               ? "Ready"
                               : isActive
                               ? "Active"
@@ -507,13 +594,15 @@ export default function ViewOrderModal({
                                 }))}
                                 placeholder="Enter location (e.g., Line 1, Machine A)"
                                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                disabled={updating}
                               />
                               <button
                                 onClick={() => handleLocationUpdate(process.id, run.id)}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                disabled={updating}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
                               >
                                 <Save className="w-4 h-4" />
-                                Update
+                                {updating ? "Updating..." : "Update"}
                               </button>
                             </div>
                             {run.location && !isEditingLocation && (
@@ -528,9 +617,9 @@ export default function ViewOrderModal({
                             {/* VERTICAL LINE */}
                             <div className="absolute left-2.75 top-2 bottom-2 w-0.5 bg-gray-300" />
                             
-                            {processMaster.statuses.map((status) => {
-                              const completed = isStepCompleted(run.status, status);
-                              const current = isCurrentStep(run.status, status);
+                            {PROCESS_MASTER_STATUSES.map((status) => {
+                              const completed = isStepCompleted(run.statusCode, status);
+                              const current = isCurrentStep(run.statusCode, status);
                               const nextButtonVisible = shouldShowNextButton(run, status);
 
                               return (
@@ -587,15 +676,17 @@ export default function ViewOrderModal({
                                         <div className="mt-4 pt-4 border-t border-blue-200">
                                           <button
                                             onClick={() => advanceRunStatus(process.id, run.id)}
-                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+                                            disabled={updating}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
                                           >
                                             <span>
-                                              {run.status === "CONFIGURED" 
-                                                ? "Start Production - Move to Design" 
-                                                : "Completed. Move to Next Step"
+                                              {updating ? "Updating..." : 
+                                                run.statusCode === "CONFIGURED" 
+                                                  ? "Start Production - Move to Design" 
+                                                  : "Completed. Move to Next Step"
                                               }
                                             </span>
-                                            <ChevronRight className="w-4 h-4" />
+                                            {!updating && <ChevronRight className="w-4 h-4" />}
                                           </button>
                                         </div>
                                       )}
@@ -607,7 +698,7 @@ export default function ViewOrderModal({
                           </div>
 
                           {/* RUN COMPLETION STATUS */}
-                          {run.status === "COMPLETED" && (
+                          {run.statusCode === "COMPLETED" && (
                             <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                               <div className="flex items-center justify-center gap-2 text-green-800">
                                 <CheckCircle className="w-5 h-5" />

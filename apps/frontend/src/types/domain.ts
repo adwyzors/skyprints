@@ -3,14 +3,22 @@
 export interface ProcessRun {
   id: string;
   runNumber: number;
-  status: string;
+  statusCode: string;
   fields: Record<string, any>;
   location?: string;
+  runTemplate:{
+    fields:[
+      Record<string, any>
+    ]
+  }
 }
 
 export interface Process {
   id: string;
   name: string;
+  process:{
+   name:string
+  }
   quantity: number;
   runs: ProcessRun[];
 }
@@ -19,10 +27,13 @@ export interface Order {
   id: string;
   orderCode: string;
   customerId: string;
-  customerName: string;
-  customerCode: string;
+  customer:{
+    id:string,
+name:string,
+code:string
+  }
   quantity: number;
-  status: string;
+  statusCode: string;
   createdAt: string;
   billedAt?: string;
   billingTotal?: number;

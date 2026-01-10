@@ -18,6 +18,18 @@
       "restart": true,
       "sourceMaps": true,
       "skipFiles": ["<node_internals>/**"]
+    },
+     {
+      "name": "Next.js: Debug Server",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_OPTIONS": "--inspect"
+      }
     }
   ]
 }

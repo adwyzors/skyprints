@@ -6,8 +6,8 @@ export interface ProcessRunConfig {
 
 // ONE process with N runs
 export interface ProcessConfig {
-  processName: string;
-  runs: ProcessRunConfig[];
+  processId: string;
+  count: number;
 }
 
 // Order in planning stage
@@ -23,8 +23,7 @@ export interface PlanningOrder {
 
 // Payload used by CreateOrderModal
 export interface NewOrderPayload {
-  customerName: string;
-  customerCode: string;
+  customerId: string;
   quantity: number;
   processes: ProcessConfig[];
 }
