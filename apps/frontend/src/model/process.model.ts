@@ -25,6 +25,12 @@ export const OrderProcessModelSchema = z.object({
     maxRuns: z.number(),
     createdAt: z.string(),
     processName: z.string(),
+    lifecycle: z.array(
+        z.object({
+            id: z.string(),
+            code: z.string(),
+        })
+    ),
     runs: z.array(ProcessRunModelSchema),
 })
 

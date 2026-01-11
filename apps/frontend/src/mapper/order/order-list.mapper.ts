@@ -14,7 +14,5 @@ export function mapOrderListDtoToModel(
         createdAt: new Date(dto.createdAt),
         updatedAt: new Date(dto.updatedAt),
         processes: dto.processes.map(mapOrderProcessDtoToModel),
-
-
     }
 }

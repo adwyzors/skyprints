@@ -3,9 +3,7 @@ import { z } from "zod";
 import { RunDefDtoSchema } from "../run/run.dto";
 import { ProcessRunDtoSchema } from "../run/process.run.dto";
 
-//export const MiniProcessDtoSchema = z.object({
-//    name: z.string(),
-//});
+/* -------------------- PROCESS (ADMIN CONFIG) -------------------- */
 
 export const ProcessDtoSchema = z.object({
     id: z.string(),
@@ -16,15 +14,26 @@ export const ProcessDtoSchema = z.object({
 });
 
 export const ProcessDtoArraySchema = z.array(ProcessDtoSchema);
-
 export type ProcessDto = z.infer<typeof ProcessDtoSchema>;
 
+/* -------------------- ORDER PROCESS (RUNTIME) -------------------- */
 
-
-
-export const MiniOrderProcessDtoSchema = z.object({
-    name: z.string()
+export const WorkflowStatusDtoSchema = z.object({
+    id: z.string(),
+    code: z.string(),
 });
+
+export const WorkflowTypeDtoSchema = z.object({
+    id: z.string(),
+    code: z.string(),
+    statuses: z.array(WorkflowStatusDtoSchema),
+});
+
+export const MiniProcessDtoSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+});
+
 export const OrderProcessDtoSchema = z.object({
     id: z.string(),
     orderId: z.string(),
@@ -34,9 +43,11 @@ export const OrderProcessDtoSchema = z.object({
     maxRuns: z.number(),
     createdAt: z.string(),
     updatedAt: z.string(),
-    process: MiniOrderProcessDtoSchema,
+
+    workflowType: WorkflowTypeDtoSchema,
+
+    process: MiniProcessDtoSchema,
     runs: z.array(ProcessRunDtoSchema),
-})
+});
 
-export type OrderProcessDto = z.infer<typeof OrderProcessDtoSchema>
-
+export type OrderProcessDto = z.infer<typeof OrderProcessDtoSchema>;

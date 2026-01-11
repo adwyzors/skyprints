@@ -22,6 +22,7 @@ export function mapOrderProcessDtoToModel(dto: OrderProcessDto): OrderProcess {
         orderId: dto.orderId,
         processId: dto.processId,
         processName: dto.process.name,
+        lifecycle: dto.workflowType?.statuses ?? [],
         runs: dto.runs.map(mapProcessRunDtoToModel),
         statusCode: dto.statusCode,
     };
