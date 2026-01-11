@@ -82,7 +82,7 @@ export default function OrderConfigPage() {
 
   const areAllRunsConfigured = (order: Order) =>
     order.processes.every((p) =>
-      p.runs.every((r) => r.status === 'CONFIGURED' || r.status === 'CONFIGURE'),
+      p.runs.every((r) => r.statusCode === 'CONFIGURED' || r.statusCode === 'CONFIGURE'),
     );
 
   const prettyLabel = (field: string) =>
@@ -275,9 +275,9 @@ export default function OrderConfigPage() {
             {order.processes.flatMap((process) =>
               process.runs.map((run) => {
                 const progress = getRunProgress(run);
-                const isConfigured = run.status === 'CONFIGURED' || run.status === 'CONFIGURE';
-                const hasFieldConfigs =
-                  run.runTemplate?.fields?.length && run.runTemplate.fields.length > 0;
+                const isConfigured =
+                  run.statusCode === 'CONFIGURED' || run.statusCode === 'CONFIGURE';
+                const hasFieldConfigs = Boolean(run.runTemplate?.fields?.length);
 
                 return (
                   <div
@@ -316,15 +316,15 @@ export default function OrderConfigPage() {
                     <button
                       onClick={() => setOpenRunId(openRunId === run.id ? null : run.id)}
                       disabled={
-                        run.status === 'COMPLETED' ||
-                        run.status === 'IN_PRODUCTION' ||
+                        run.statusCode === 'COMPLETED' ||
+                        run.statusCode === 'IN_PRODUCTION' ||
                         !hasFieldConfigs
                       }
                       className={`w-full mt-4 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                         openRunId === run.id
                           ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                          : run.status === 'COMPLETED' ||
-                              run.status === 'IN_PRODUCTION' ||
+                          : run.statusCode === 'COMPLETED' ||
+                              run.statusCode === 'IN_PRODUCTION' ||
                               !hasFieldConfigs
                             ? 'bg-gray-100 text-gray-400 border border-gray-300 cursor-not-allowed'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
@@ -332,9 +332,9 @@ export default function OrderConfigPage() {
                     >
                       {openRunId === run.id
                         ? 'Close'
-                        : run.status === 'COMPLETED'
+                        : run.statusCode === 'COMPLETED'
                           ? 'Completed'
-                          : run.status === 'IN_PRODUCTION'
+                          : run.statusCode === 'IN_PRODUCTION'
                             ? 'In Progress'
                             : !hasFieldConfigs
                               ? 'No Config'
@@ -351,7 +351,7 @@ export default function OrderConfigPage() {
         {order.processes.map((process) => (
           <div key={process.id} className="space-y-4">
             {process.runs.map((run) => {
-              if (run.status === 'COMPLETED' || run.status === 'IN_PRODUCTION') return null;
+              if (run.statusCode === 'COMPLETED' || run.statusCode === 'IN_PRODUCTION') return null;
 
               const fieldConfigs = getRunFieldConfigs(run);
               if (fieldConfigs.length === 0) return null;
@@ -381,12 +381,12 @@ export default function OrderConfigPage() {
                         <div className="flex items-center gap-3 mt-1">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              run.status === 'CONFIGURED' || run.status === 'CONFIGURE'
+                              run.statusCode === 'CONFIGURED' || run.statusCode === 'CONFIGURE'
                                 ? 'bg-green-100 text-green-800'
                                 : 'bg-yellow-100 text-yellow-800'
                             }`}
                           >
-                            {run.status === 'CONFIGURED' || run.status === 'CONFIGURE'
+                            {run.statusCode === 'CONFIGURED' || run.statusCode === 'CONFIGURE'
                               ? 'Configured'
                               : 'Not Configured'}
                           </span>
@@ -398,7 +398,7 @@ export default function OrderConfigPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      {(run.status === 'CONFIGURED' || run.status === 'CONFIGURE') && (
+                      {(run.statusCode === 'CONFIGURED' || run.statusCode === 'CONFIGURE') && (
                         <div className="flex items-center gap-1 text-green-600">
                           <CheckCircle className="w-4 h-4" />
                           <span className="text-sm font-medium">Ready</span>
@@ -621,7 +621,8 @@ export default function OrderConfigPage() {
                   {
                     order.processes
                       .flatMap((p) => p.runs)
-                      .filter((r) => r.status === 'CONFIGURED' || r.status === 'CONFIGURE').length
+                      .filter((r) => r.statusCode === 'CONFIGURED' || r.statusCode === 'CONFIGURE')
+                      .length
                   }
                   <span className="text-sm font-normal text-gray-400">
                     {' '}

@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { ProcessDtoSchema } from "../process/process.dto"
+import { OrderProcessDtoSchema, ProcessDtoSchema } from "../process/process.dto"
 import { CustomerDtoSchema } from "../customer/customer.dto"
 
 export const OrderDetailDtoSchema = z.object({
@@ -13,8 +13,8 @@ export const OrderDetailDtoSchema = z.object({
     createdAt: z.string(),
     updatedAt: z.string(),
 
-    customer: CustomerDtoSchema, // ✅ exists now
-    processes: z.array(ProcessDtoSchema), // ✅ correct import
+    customer: CustomerDtoSchema, 
+    processes: z.array(OrderProcessDtoSchema), 
 })
 
 export type OrderDetailDto = z.infer<typeof OrderDetailDtoSchema>

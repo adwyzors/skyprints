@@ -1,17 +1,35 @@
 import { z } from "zod"
 
-export const RunDtoSchema = z.object({
-    id: z.string(),
-    orderProcessId: z.string(),
-    displayName: z.string(),
-    runTemplateId: z.string(),
-    runNumber: z.number(),
-    statusCode: z.string(),
-    statusVersion: z.number(),
-    locationId: z.string().nullable(),
-    fields: z.record(z.string(), z.string().nullable()),
-    createdAt: z.string(),
-    updatedAt: z.string(),
+/**
+ * Field schema inside runTemplate.fields
+ */
+export const RunTemplateFieldSchema = z.object({
+    key: z.string(),
+    type: z.string(),
+    required: z.boolean(),
 })
 
-export type RunDto = z.infer<typeof RunDtoSchema>
+/**
+ * runTemplate schema
+ */
+export const RunTemplateSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    fields: z.array(RunTemplateFieldSchema),
+    createdAt: z.string(),
+})
+
+/**
+ * RunDef DTO schema
+ */
+export const RunDefDtoSchema = z.object({
+    id: z.string(),
+    processId: z.string(),
+    runTemplateId: z.string(),
+    displayName: z.string(),
+    sortOrder: z.number(),
+    createdAt: z.string(),
+    runTemplate: RunTemplateSchema,
+})
+
+export type RunDefDto = z.infer<typeof RunDefDtoSchema>

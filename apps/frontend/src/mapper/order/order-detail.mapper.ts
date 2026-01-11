@@ -1,7 +1,7 @@
 import { OrderDetailDto } from "../../dto/order/order.detail.dto"
 import { Order } from "../../model/order.model"
 import { mapCustomerDtoToModel } from "../customer/customer.mapper"
-import { mapProcessDtoToModel } from "../process/process.mapper"
+import { mapOrderProcessDtoToModel } from "../process/process.mapper"
 
 export function mapOrderDetailDtoToModel(
     dto: OrderDetailDto
@@ -16,6 +16,6 @@ export function mapOrderDetailDtoToModel(
         updatedAt: new Date(dto.updatedAt),
 
         customer: mapCustomerDtoToModel(dto.customer),
-        processes: dto.processes.map(mapProcessDtoToModel),
+        processes: dto.processes.map(mapOrderProcessDtoToModel),
     }
 }

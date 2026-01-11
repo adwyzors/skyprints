@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { ProcessDtoSchema } from "../process/process.dto"
+import { OrderProcessDtoSchema } from "../process/process.dto"
 
 export const OrderListDtoSchema = z.object({
     id: z.string(),
@@ -12,7 +12,7 @@ export const OrderListDtoSchema = z.object({
     createdAt: z.string(),
     updatedAt: z.string(),
 
-    processes: z.array(ProcessDtoSchema),
+    processes: z.array(OrderProcessDtoSchema),
 })
 
 export type OrderListDto = z.infer<typeof OrderListDtoSchema>

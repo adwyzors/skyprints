@@ -134,7 +134,7 @@ export default function AdminOrdersPage() {
     const configuredRuns = order.processes.reduce(
       (sum, p) =>
         sum +
-        p.runs.filter(r => r.status === "CONFIGURED").length,
+        p.runs.filter(r => r.statusCode === "CONFIGURED").length,
       0
     );
     return { configuredRuns, totalRuns };
@@ -166,9 +166,9 @@ export default function AdminOrdersPage() {
 
     order.processes.forEach(process => {
       process.runs.forEach(run => {
-        if (run.status === "NOT_CONFIGURED") return;
+        if (run.statusCode === "NOT_CONFIGURED") return;
         total += steps.length - 1;
-        const idx = steps.indexOf(run.status);
+        const idx = steps.indexOf(run.statusCode);
         completed += idx >= 0 ? idx : 0;
       });
     });

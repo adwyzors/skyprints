@@ -1,6 +1,6 @@
 import { OrderListDto } from "../../dto/order/order.list.dto"
 import { Order } from "../../model/order.model"
-import { mapProcessDtoToModel } from "../process/process.mapper"
+import { mapOrderProcessDtoToModel } from "../process/process.mapper"
 
 export function mapOrderListDtoToModel(
     dto: OrderListDto
@@ -13,7 +13,8 @@ export function mapOrderListDtoToModel(
         totalAmount: dto.totalAmount,
         createdAt: new Date(dto.createdAt),
         updatedAt: new Date(dto.updatedAt),
+        processes: dto.processes.map(mapOrderProcessDtoToModel),
 
-        processes: dto.processes.map(mapProcessDtoToModel),
+
     }
 }

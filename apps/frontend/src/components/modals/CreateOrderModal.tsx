@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { Customer } from "@/model/customer.model";
-import { Process } from "@/model/process.model";
-import { getCustomers } from "@/services/customer.service";
-import { createOrder, getOrders } from "@/services/orders.service";
+import { Customer } from '@/model/customer.model';
+import { Process } from '@/model/process.model';
+import { getCustomers } from '@/services/customer.service';
+import { createOrder, getOrders } from '@/services/orders.service';
 
-import { getProcesses } from "@/services/process.service";
-import { NewOrderPayload } from "@/types/planning";
-import { useEffect, useMemo, useState } from "react";
+import { getProcesses } from '@/services/process.service';
+import { NewOrderPayload } from '@/types/planning';
+import { useEffect, useMemo, useState } from 'react';
 
 /* ================= TYPES ================= */
 
@@ -24,14 +24,10 @@ interface ProcessRow {
 
 /* ================= COMPONENT ================= */
 
-export default function CreateOrderModal({
-  open,
-  onClose,
-  onCreate,
-}: Props) {
+export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
   /* ================= STATE (ALWAYS CALLED) ================= */
 
-  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState<number>(0);
   const [processRows, setProcessRows] = useState<ProcessRow[]>([]);
@@ -52,17 +48,19 @@ export default function CreateOrderModal({
     const fetchData = async () => {
       try {
         setDataLoading(true);
-        const [customersData, processesData] = await Promise.all([
-          getCustomers(),
-          getProcesses(),
-        ]);
+        const [customersData, processesData] = await Promise.all([getCustomers(), getProcesses()]);
 
         if (!cancelled) {
           setCustomers(customersData);
           setProcesses(processesData);
         }
-      } catch {
-        if (!cancelled) setError("Failed to load data");
+      } catch (error) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'Failed to load data';
+
+          setError(message);
+          console.error(error);
+        }
       } finally {
         if (!cancelled) setDataLoading(false);
       }
@@ -80,22 +78,20 @@ export default function CreateOrderModal({
     const s = customerSearch.toLowerCase().trim();
     if (!s) return [];
     return customers.filter(
-      c =>
-        c.name.toLowerCase().includes(s) ||
-        c.code?.toLowerCase().includes(s)
+      (c) => c.name.toLowerCase().includes(s) || c.code?.toLowerCase().includes(s),
     );
   }, [customerSearch, customers]);
 
   const selectedCustomer = useMemo(
-    () => customers.find(c => c.id === selectedCustomerId),
-    [customers, selectedCustomerId]
+    () => customers.find((c) => c.id === selectedCustomerId),
+    [customers, selectedCustomerId],
   );
 
   /* ================= CREATE ================= */
 
   const handleCreate = async () => {
     if (!selectedCustomer) {
-      setError("Please select a customer");
+      setError('Please select a customer');
       return;
     }
 
@@ -104,7 +100,7 @@ export default function CreateOrderModal({
       const payload: NewOrderPayload = {
         customerId: selectedCustomer.id,
         quantity,
-        processes: processRows.map(r => ({
+        processes: processRows.map((r) => ({
           processId: r.processId,
           count: r.runs,
         })),
@@ -115,30 +111,23 @@ export default function CreateOrderModal({
       onClose();
       getOrders();
     } catch {
-      setError("Failed to create order");
+      setError('Failed to create order');
     } finally {
       setLoading(false);
     }
   };
-  
+
   /* ================= PROCESS ROWS ================= */
   const addProcessRow = () => {
-    setProcessRows(prev => [
-      ...prev,
-      { processId: "", runs: 1 },
-    ]);
+    setProcessRows((prev) => [...prev, { processId: '', runs: 1 }]);
   };
 
   const updateProcessRow = (index: number, patch: Partial<ProcessRow>) => {
-    setProcessRows(prev =>
-      prev.map((row, i) =>
-        i === index ? { ...row, ...patch } : row
-      )
-    );
+    setProcessRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
 
   const removeProcessRow = (index: number) => {
-    setProcessRows(prev => prev.filter((_, i) => i !== index));
+    setProcessRows((prev) => prev.filter((_, i) => i !== index));
   };
 
   /* ================= RENDER ================= */
@@ -148,7 +137,6 @@ export default function CreateOrderModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        
         {/* HEADER */}
         <div className="px-6 py-4 border-b bg-linear-to-r from-blue-50 to-gray-50">
           <div className="flex justify-between items-center">
@@ -156,7 +144,7 @@ export default function CreateOrderModal({
               <h2 className="text-xl font-bold text-gray-800">Create New Order</h2>
               <p className="text-sm text-gray-600 mt-1">Add order details and processes</p>
             </div>
-            <button 
+            <button
               onClick={onClose}
               disabled={loading}
               className="text-gray-500 hover:text-gray-700 hover:bg-gray-200 w-8 h-8 flex items-center justify-center rounded-full transition-colors disabled:opacity-50"
@@ -187,9 +175,10 @@ export default function CreateOrderModal({
             <>
               {/* ORDER INFO */}
               <div className="mb-8">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">Order Details</h3>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                  Order Details
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
                   {/* CUSTOMER SEARCH */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Customer</label>
@@ -197,7 +186,7 @@ export default function CreateOrderModal({
                       <input
                         placeholder="Search by name or code..."
                         value={customerSearch}
-                        onChange={e => {
+                        onChange={(e) => {
                           setCustomerSearch(e.target.value);
                           setSelectedCustomerId(null);
                           setError(null);
@@ -205,24 +194,27 @@ export default function CreateOrderModal({
                         disabled={loading}
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
                       />
-                      {customerSearch && !selectedCustomer && filteredCustomers?.length &&filteredCustomers.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                          {filteredCustomers?.map(c => (
-                            <div
-                              key={c.id}
-                              onClick={() => {
-                                setSelectedCustomerId(c.id);
-                                setCustomerSearch(c.name);
-                                setError(null);
-                              }}
-                              className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
-                            >
-                              <div className="font-medium">{c.name}</div>
-                              <div className="text-sm text-gray-500">Code: {c.code}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {customerSearch &&
+                        !selectedCustomer &&
+                        filteredCustomers?.length &&
+                        filteredCustomers.length > 0 && (
+                          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {filteredCustomers?.map((c) => (
+                              <div
+                                key={c.id}
+                                onClick={() => {
+                                  setSelectedCustomerId(c.id);
+                                  setCustomerSearch(c.name);
+                                  setError(null);
+                                }}
+                                className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                              >
+                                <div className="font-medium">{c.name}</div>
+                                <div className="text-sm text-gray-500">Code: {c.code}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                     </div>
                   </div>
 
@@ -232,7 +224,7 @@ export default function CreateOrderModal({
                     <div className="relative">
                       <input
                         placeholder="Customer Code"
-                        value={selectedCustomer?.code ?? ""}
+                        value={selectedCustomer?.code ?? ''}
                         readOnly
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-50 text-gray-700"
                       />
@@ -252,8 +244,8 @@ export default function CreateOrderModal({
                     <input
                       type="number"
                       placeholder="Enter quantity..."
-                      value={quantity || ""}
-                      onChange={e => {
+                      value={quantity || ''}
+                      onChange={(e) => {
                         setQuantity(Number(e.target.value));
                         setError(null);
                       }}
@@ -286,7 +278,9 @@ export default function CreateOrderModal({
               {/* PROCESSES */}
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Processes</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                    Processes
+                  </h3>
                   <button
                     onClick={addProcessRow}
                     disabled={loading}
@@ -300,8 +294,18 @@ export default function CreateOrderModal({
                 {processRows.length === 0 ? (
                   <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-xl">
                     <div className="text-gray-400 mb-2">
-                      <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      <svg
+                        className="w-12 h-12 mx-auto"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                        />
                       </svg>
                     </div>
                     <p className="text-gray-500 text-sm">No processes added yet</p>
@@ -310,7 +314,10 @@ export default function CreateOrderModal({
                 ) : (
                   <div className="space-y-3">
                     {processRows.map((row, i) => (
-                      <div key={i} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors">
+                      <div
+                        key={i}
+                        className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
+                      >
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 bg-blue-100 text-blue-700 rounded text-xs font-bold flex items-center justify-center">
@@ -323,8 +330,18 @@ export default function CreateOrderModal({
                             disabled={loading}
                             className="text-gray-400 hover:text-red-500 transition-colors p-1 disabled:opacity-50"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
                             </svg>
                           </button>
                         </div>
@@ -334,7 +351,7 @@ export default function CreateOrderModal({
                             <label className="text-sm font-medium text-gray-700">Process</label>
                             <select
                               value={row.processId}
-                              onChange={e => {
+                              onChange={(e) => {
                                 updateProcessRow(i, { processId: e.target.value });
                                 setError(null);
                               }}
@@ -342,8 +359,10 @@ export default function CreateOrderModal({
                               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
                             >
                               <option value="">Select process...</option>
-                              {processes.map(p => (
-                                <option key={p.id} value={p.id}>{p.processName}</option>
+                              {processes.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name}
+                                </option>
                               ))}
                             </select>
                           </div>
@@ -355,11 +374,15 @@ export default function CreateOrderModal({
                                 type="number"
                                 min="1"
                                 value={row.runs}
-                                onChange={e => updateProcessRow(i, { runs: Number(e.target.value) })}
+                                onChange={(e) =>
+                                  updateProcessRow(i, { runs: Number(e.target.value) })
+                                }
                                 disabled={loading}
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
                               />
-                              <span className="absolute right-3 top-2.5 text-sm text-gray-500">runs</span>
+                              <span className="absolute right-3 top-2.5 text-sm text-gray-500">
+                                runs
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -384,7 +407,13 @@ export default function CreateOrderModal({
             </button>
             <button
               onClick={handleCreate}
-              disabled={loading || dataLoading || !selectedCustomer || quantity <= 0 || processRows.length === 0}
+              disabled={
+                loading ||
+                dataLoading ||
+                !selectedCustomer ||
+                quantity <= 0 ||
+                processRows.length === 0
+              }
               className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating...' : 'Create Order'}

@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { CustomerModelSchema } from "./customer.model"
-import { ProcessModelSchema } from "./process.model"
+import { OrderProcessModelSchema, ProcessModelSchema } from "./process.model"
 
 export const OrderModelSchema = z.object({
   id: z.string(),
@@ -12,7 +12,7 @@ export const OrderModelSchema = z.object({
   updatedAt: z.date(),
 
   customer: CustomerModelSchema.optional(), // ⭐ optional by design
-  processes: z.array(ProcessModelSchema),
+  processes: z.array(OrderProcessModelSchema),
 })
 
 export type Order = z.infer<typeof OrderModelSchema>

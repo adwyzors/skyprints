@@ -1,27 +1,20 @@
-import { z } from "zod";
+import { z } from "zod"
 
-export const ProcessRunModelSchema = z.object({
+export const ProcessRunDtoSchema = z.object({
     id: z.string(),
-    processId: z.string(),
+    orderProcessId: z.string(),
     displayName: z.string(),
     runTemplateId: z.string(),
     runNumber: z.number(),
-
     statusCode: z.string(),
     statusVersion: z.number(),
-    startedAt: z.string().nullable(),
-    completedAt: z.string().nullable(),
-    createdAt: z.string(),
     locationId: z.string().nullable(),
     assignedToId: z.string().nullable(),
-
-    // dynamic backend fields
-    fields: z.record(
-        z.string(),
-        z.union([z.string(), z.number(), z.null()])
-    ),
-
-    // only present for configurable runs
+    fields: z.record(z.string(), z.string().nullable()),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    startedAt: z.string().nullable(),
+    completedAt: z.string().nullable(),
     runTemplate: z
         .object({
             id: z.string(),
@@ -35,6 +28,6 @@ export const ProcessRunModelSchema = z.object({
             ),
         })
         .optional(),
-});
+})
 
-export type ProcessRun = z.infer<typeof ProcessRunModelSchema>;
+export type ProcessRunDto = z.infer<typeof ProcessRunDtoSchema>
