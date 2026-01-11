@@ -21,9 +21,6 @@ export class OutboxHandlers {
             case 'PROCESS_RUN_STATUS_TRANSITION_REQUESTED':
                 return this.handleProcessRunStatusTransition(event);
 
-            case 'ORDER_PROCESS_STATUS_TRANSITION_REQUESTED':
-                return this.handleOrderProcessStatusTransition(event);
-
             case 'ORDER_STATUS_TRANSITION_REQUESTED':
                 return this.handleOrderStatusTransition(event);
 
@@ -48,19 +45,15 @@ export class OutboxHandlers {
             processes.map(p => [p.processId, p.count]),
         );
 
-        const [orderStatus, processStatus, runStatus] = await Promise.all([
+        const [orderStatus, runStatus] = await Promise.all([
             this.prisma.workflowStatus.findFirstOrThrow({
                 where: { workflowType: { code: 'ORDER' }, isInitial: true },
-            }),
-            this.prisma.workflowStatus.findFirstOrThrow({
-                where: { workflowType: { code: 'PROCESS' }, isInitial: true },
             }),
             this.prisma.workflowStatus.findFirstOrThrow({
                 where: { workflowType: { code: 'RUN' }, isInitial: true },
             }),
         ]);
 
-        /* ---- update order workflow ---- */
         await this.prisma.$transaction(async tx => {
             await tx.order.update({
                 where: { id: orderId },
@@ -79,10 +72,14 @@ export class OutboxHandlers {
             });
         });
 
-        /* ---- load processes + runDefs ---- */
         const processEntities = await this.prisma.process.findMany({
             where: { id: { in: processes.map(p => p.processId) } },
             include: {
+                workflowType: {
+                    include: {
+                        statuses: { where: { isInitial: true } },
+                    },
+                },
                 runDefs: {
                     include: { runTemplate: true },
                 },
@@ -92,33 +89,19 @@ export class OutboxHandlers {
         for (const process of processEntities) {
             const count = processCountMap.get(process.id)!;
 
-            if (count < 1) {
-                throw new Error(`Invalid run count for process ${process.id}`);
-            }
+            const initialProcessStatus = process.workflowType.statuses[0];
 
-            /* ---- create OrderProcess ---- */
             const op = await this.prisma.orderProcess.create({
                 data: {
                     orderId,
                     processId: process.id,
-                    statusCode: processStatus.code,
+                    workflowTypeId: process.workflowTypeId,
+                    statusCode: initialProcessStatus.code,
                     minRuns: count,
                     maxRuns: count,
                 },
             });
 
-            await this.prisma.workflowAuditLog.create({
-                data: {
-                    workflowTypeId: processStatus.workflowTypeId,
-                    aggregateType: 'Process',
-                    aggregateId: op.id,
-                    fromStatus: null,
-                    toStatus: processStatus.code,
-                    payload: { event: 'ORDER_PROCESS_CREATED' },
-                },
-            });
-
-            /* ---- create runs (count × runDefs) ---- */
             let runNo = 1;
 
             for (let batch = 0; batch < count; batch++) {
@@ -127,7 +110,7 @@ export class OutboxHandlers {
                         def.runTemplate.fields as TemplateField[],
                     );
 
-                    const run = await this.prisma.processRun.create({
+                    await this.prisma.processRun.create({
                         data: {
                             displayName: `${def.displayName} (${batch + 1})`,
                             orderProcessId: op.id,
@@ -137,34 +120,13 @@ export class OutboxHandlers {
                             fields: initialFields,
                         },
                     });
-
-                    await this.prisma.workflowAuditLog.create({
-                        data: {
-                            workflowTypeId: runStatus.workflowTypeId,
-                            aggregateType: 'Run',
-                            aggregateId: run.id,
-                            fromStatus: null,
-                            toStatus: runStatus.code,
-                            payload: { event: 'PROCESS_RUN_CREATED' },
-                        },
-                    });
                 }
             }
         }
     }
 
-
-    private buildInitialFields(
-        templateFields: TemplateField[],
-    ): Record<string, any> {
-        return templateFields.reduce((acc, field) => {
-            acc[field.key] = null;
-            return acc;
-        }, {} as Record<string, any>);
-    }
-
     /* ---------------------------------------------------------
-     * RUN → PROCESS
+     * RUN STATUS TRANSITION
      * --------------------------------------------------------- */
 
     async handleProcessRunStatusTransition(event: {
@@ -220,93 +182,47 @@ export class OutboxHandlers {
             },
         });
 
+        /* -----------------------------------------------------
+         * CONFIGURATION COMPLETION CHECK
+         * ----------------------------------------------------- */
+
+        const initialRunStatus = workflow.statuses.find(s => s.isInitial);
+        if (!initialRunStatus) return;
+
         const orderProcess = await this.prisma.orderProcess.findUnique({
             where: { id: run.orderProcessId },
-            include: { runs: true },
+            include: {
+                order: {
+                    include: {
+                        processes: {
+                            include: { runs: true },
+                        },
+                    },
+                },
+            },
         });
         if (!orderProcess) return;
 
-        const terminalStatuses = new Set(
-            workflow.statuses.filter(s => s.isTerminal).map(s => s.code),
+        const order = orderProcess.order;
+
+        const allRunsConfigured = order.processes.every(op =>
+            op.runs.every(r => r.statusCode !== initialRunStatus.code),
         );
 
-        if (
-            orderProcess.runs.every(r =>
-                terminalStatuses.has(r.statusCode),
-            )
-        ) {
+        if (allRunsConfigured) {
             await this.prisma.outboxEvent.create({
                 data: {
-                    aggregateType: 'Process',
-                    aggregateId: orderProcess.id,
-                    eventType: 'ORDER_PROCESS_STATUS_TRANSITION_REQUESTED',
-                    payload: { workflowTypeCode: 'PROCESS' },
+                    aggregateType: 'Order',
+                    aggregateId: order.id,
+                    eventType: 'ORDER_STATUS_TRANSITION_REQUESTED',
+                    payload: { workflowTypeCode: 'ORDER' },
                 },
             });
         }
     }
 
     /* ---------------------------------------------------------
-     * PROCESS → ORDER
-     * --------------------------------------------------------- */
-
-    async handleOrderProcessStatusTransition(event: {
-        aggregateId: string;
-        payload: { workflowTypeCode: string };
-    }) {
-        const op = await this.prisma.orderProcess.findUnique({
-            where: { id: event.aggregateId },
-            include: { runs: true },
-        });
-        if (!op) return;
-
-        const workflow = await this.prisma.workflowType.findUnique({
-            where: { code: event.payload.workflowTypeCode },
-            include: {
-                statuses: true,
-                transitions: { include: { fromStatus: true, toStatus: true } },
-            },
-        });
-        if (!workflow) return;
-
-        const currentStatus = workflow.statuses.find(
-            s => s.code === op.statusCode,
-        );
-        if (!currentStatus) return;
-
-        const transition = workflow.transitions.find(
-            t => t.fromStatusId === currentStatus.id,
-        );
-        if (!transition) return;
-
-        await this.prisma.orderProcess.update({
-            where: { id: op.id },
-            data: { statusCode: transition.toStatus.code },
-        });
-
-        await this.prisma.workflowAuditLog.create({
-            data: {
-                workflowTypeId: workflow.id,
-                aggregateType: 'Process',
-                aggregateId: op.id,
-                fromStatus: currentStatus.code,
-                toStatus: transition.toStatus.code,
-                transitionId: transition.id,
-            },
-        });
-
-        await this.prisma.outboxEvent.create({
-            data: {
-                aggregateType: 'Order',
-                aggregateId: op.orderId,
-                eventType: 'ORDER_STATUS_TRANSITION_REQUESTED',
-                payload: { workflowTypeCode: 'ORDER' },
-            },
-        });
-    }
-
-    /* ---------------------------------------------------------
-     * ORDER FINAL
+     * ORDER STATUS TRANSITION
      * --------------------------------------------------------- */
 
     async handleOrderStatusTransition(event: {
@@ -315,7 +231,6 @@ export class OutboxHandlers {
     }) {
         const order = await this.prisma.order.findUnique({
             where: { id: event.aggregateId },
-            include: { processes: true },
         });
         if (!order) return;
 
@@ -353,5 +268,18 @@ export class OutboxHandlers {
                 transitionId: transition.id,
             },
         });
+    }
+
+    /* ---------------------------------------------------------
+     * HELPERS
+     * --------------------------------------------------------- */
+
+    private buildInitialFields(
+        templateFields: TemplateField[],
+    ): Record<string, any> {
+        return templateFields.reduce((acc, field) => {
+            acc[field.key] = null;
+            return acc;
+        }, {} as Record<string, any>);
     }
 }

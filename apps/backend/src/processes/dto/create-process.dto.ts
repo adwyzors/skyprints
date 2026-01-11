@@ -33,9 +33,14 @@ export class CreateProcessDto {
     @IsBoolean()
     isEnabled?: boolean;
 
+    // 👇 ADD THIS
+    @IsUUID()
+    workflowTypeId: string;
+
     @IsArray()
     @ArrayMinSize(1)
     @ValidateNested({ each: true })
     @Type(() => RunDefinitionDto)
     runDefinitions: RunDefinitionDto[];
 }
+

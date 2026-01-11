@@ -58,6 +58,10 @@ model WorkflowType {
   transitions WorkflowTransition[]
   auditLogs   WorkflowAuditLog[]
 
+  // 👇 inverse relations (REQUIRED)
+  processes      Process[]
+  orderProcesses OrderProcess[]
+
   createdAt   DateTime @default(now())
 }
 
@@ -100,11 +104,14 @@ model WorkflowTransition {
 ///////////////////////////////
 
 model Process {
-  id          String  @id @default(uuid())
-  name        String
-  description String?
-  isEnabled   Boolean @default(false)
-  sortOrder   Int     @default(0)
+  id             String @id @default(uuid())
+  name           String
+  description    String?
+  isEnabled      Boolean @default(false)
+
+  // 👇 process-specific lifecycle
+  workflowTypeId String
+  workflowType   WorkflowType @relation(fields: [workflowTypeId], references: [id])
 
   runDefs        ProcessRunDefinition[]
   orderProcesses OrderProcess[]
@@ -153,6 +160,7 @@ model Order {
 
   customer     Customer @relation(fields: [customerId], references: [id])
   user         User?    @relation(fields: [userId], references: [id])
+
   processes    OrderProcess[]
 
   createdAt DateTime @default(now())
@@ -164,23 +172,30 @@ model Order {
 }
 
 model OrderProcess {
-  id         String @id @default(uuid())
-  orderId    String
-  processId  String
-  statusCode String
-  progress   Int      @default(0)
-  minRuns    Int      @default(1)
-  maxRuns    Int      @default(1)
+  id             String @id @default(uuid())
 
-  order   Order   @relation(fields: [orderId], references: [id])
-  process Process @relation(fields: [processId], references: [id])
-  runs    ProcessRun[]
+  orderId        String
+  processId      String
+
+  // 👇 copied from Process at runtime
+  workflowTypeId String
+  workflowType   WorkflowType @relation(fields: [workflowTypeId], references: [id])
+
+  statusCode     String
+  progress       Int @default(0)
+  minRuns        Int @default(1)
+  maxRuns        Int @default(1)
+
+  // 👇 explicit relations (fixes all Prisma errors)
+  order          Order   @relation(fields: [orderId], references: [id])
+  process        Process @relation(fields: [processId], references: [id])
+
+  runs           ProcessRun[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([orderId, processId])
-  @@index([statusCode])
 }
 
 model ProcessRun {

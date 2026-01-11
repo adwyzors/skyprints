@@ -17,22 +17,21 @@ export class AdminProcessService {
         private readonly prisma: PrismaService,
     ) { }
 
+    // ✅ FIX: wrapped inside a method
     async create(dto: CreateProcessDto) {
-        const templateIds = dto.runDefinitions.map(d => d.runTemplateId);
-
-        const templates = await this.prisma.runTemplate.findMany({
-            where: { id: { in: templateIds } },
-        });
-
-        if (templates.length !== templateIds.length) {
-            throw new BadRequestException('Invalid run template detected');
-        }
-
         return this.prisma.process.create({
             data: {
                 name: dto.name,
                 description: dto.description,
                 isEnabled: dto.isEnabled ?? false,
+
+                // 👇 REQUIRED relation
+                workflowType: {
+                    connect: {
+                        id: dto.workflowTypeId,
+                    },
+                },
+
                 runDefs: {
                     create: dto.runDefinitions.map(d => ({
                         displayName: d.displayName,
@@ -42,11 +41,23 @@ export class AdminProcessService {
                 },
             },
             include: {
-                runDefs: { include: { runTemplate: true } },
+                workflowType: {
+                    include: {
+                        statuses: {
+                            orderBy: { createdAt: 'asc' }, select: {
+                                id: true,
+                                code: true,
+                            },
+                        },
+                    },
+                },
+                runDefs: {
+                    include: { runTemplate: true },
+                    orderBy: { sortOrder: 'asc' },
+                },
             },
         });
     }
-
 
     async getById(processId: string) {
         const process = await this.prisma.process.findUnique({
@@ -55,6 +66,16 @@ export class AdminProcessService {
                 runDefs: {
                     include: { runTemplate: true },
                     orderBy: { sortOrder: 'asc' },
+                },
+                workflowType: {
+                    include: {
+                        statuses: {
+                            orderBy: { createdAt: 'asc' }, select: {
+                                id: true,
+                                code: true,
+                            }
+                        },
+                    },
                 },
             },
         });
@@ -72,6 +93,17 @@ export class AdminProcessService {
                 runDefs: {
                     include: { runTemplate: true },
                     orderBy: { sortOrder: 'asc' },
+                },
+                workflowType: {
+                    include: {
+                        statuses: {
+                            orderBy: { createdAt: 'asc' }, 
+                            select: {
+                                id: true,
+                                code: true,
+                            }
+                        },
+                    },
                 },
             },
         });
@@ -91,10 +123,7 @@ export class AdminProcessService {
         });
     }
 
-    async getProcessRun(
-        orderProcessId: string,
-        processRunId: string,
-    ) {
+    async getProcessRun(orderProcessId: string, processRunId: string) {
         const run = await this.prisma.processRun.findFirst({
             where: {
                 id: processRunId,
@@ -126,9 +155,6 @@ export class AdminProcessService {
         processRunId: string,
         dto: ConfigureProcessRunDto,
     ) {
-        /**
-         * 1. Load ProcessRun + Template (NO TX)
-         */
         const run = await this.prisma.processRun.findFirst({
             where: {
                 id: processRunId,
@@ -141,9 +167,6 @@ export class AdminProcessService {
             throw new BadRequestException('Invalid process run');
         }
 
-        /**
-         * 2. Resolve RUN workflow initial status (NO TX)
-         */
         const initialStatus = await this.prisma.workflowStatus.findFirstOrThrow({
             where: {
                 workflowType: { code: 'RUN' },
@@ -157,17 +180,11 @@ export class AdminProcessService {
             );
         }
 
-        /**
-         * 3. Validate fields (NO TX)
-         */
         this.validateFields(
             run.runTemplate.fields as TemplateField[],
             dto.fields,
         );
 
-        /**
-         * 4. ATOMIC WRITE TRANSACTION
-         */
         return this.prisma.$transaction(async tx => {
             await tx.processRun.update({
                 where: { id: run.id },
@@ -220,6 +237,4 @@ export class AdminProcessService {
             }
         }
     }
-
-
 }

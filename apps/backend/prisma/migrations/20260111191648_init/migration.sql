@@ -69,7 +69,7 @@ CREATE TABLE "Process" (
     "name" TEXT NOT NULL,
     "description" TEXT,
     "isEnabled" BOOLEAN NOT NULL DEFAULT false,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "workflowTypeId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -118,6 +118,7 @@ CREATE TABLE "OrderProcess" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
     "processId" TEXT NOT NULL,
+    "workflowTypeId" TEXT NOT NULL,
     "statusCode" TEXT NOT NULL,
     "progress" INTEGER NOT NULL DEFAULT 0,
     "minRuns" INTEGER NOT NULL DEFAULT 1,
@@ -239,9 +240,6 @@ CREATE INDEX "Order_customerId_idx" ON "Order"("customerId");
 CREATE INDEX "Order_createdAt_idx" ON "Order"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "OrderProcess_statusCode_idx" ON "OrderProcess"("statusCode");
-
--- CreateIndex
 CREATE UNIQUE INDEX "OrderProcess_orderId_processId_key" ON "OrderProcess"("orderId", "processId");
 
 -- CreateIndex
@@ -287,6 +285,9 @@ ALTER TABLE "WorkflowTransition" ADD CONSTRAINT "WorkflowTransition_fromStatusId
 ALTER TABLE "WorkflowTransition" ADD CONSTRAINT "WorkflowTransition_toStatusId_fkey" FOREIGN KEY ("toStatusId") REFERENCES "WorkflowStatus"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Process" ADD CONSTRAINT "Process_workflowTypeId_fkey" FOREIGN KEY ("workflowTypeId") REFERENCES "WorkflowType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ProcessRunDefinition" ADD CONSTRAINT "ProcessRunDefinition_processId_fkey" FOREIGN KEY ("processId") REFERENCES "Process"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -297,6 +298,9 @@ ALTER TABLE "Order" ADD CONSTRAINT "Order_customerId_fkey" FOREIGN KEY ("custome
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrderProcess" ADD CONSTRAINT "OrderProcess_workflowTypeId_fkey" FOREIGN KEY ("workflowTypeId") REFERENCES "WorkflowType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OrderProcess" ADD CONSTRAINT "OrderProcess_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

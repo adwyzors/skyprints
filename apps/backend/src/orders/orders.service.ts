@@ -19,35 +19,23 @@ export class OrdersService {
     /* -------------------- QUERIES -------------------- */
 
     async getAll() {
-        return this.prisma.order.findMany({
-            include: {
-                processes: {
-                    include: {
-                        process: {
-                            select: {
-                                id: true,
-                                name: true,
-                            },
-                        },
-                        runs: {},
-                    },
-                }
-            }
-        });
-    }
-
-    async getById(orderId: string) {
-        return this.prisma.order.findUnique({
-            where: { id: orderId },
+        return await this.prisma.order.findMany({
             include: {
                 customer: true,
                 processes: {
                     include: {
-                        process: {
-                            select: {
-                                id: true,
-                                name: true,
+                        workflowType: {
+                            include: {
+                                statuses: {
+                                    orderBy: { createdAt: 'asc' }, select: {
+                                        id: true,
+                                        code: true,
+                                    }
+                                },
                             },
+                        },
+                        process: {
+                            select: { id: true, name: true },
                         },
                         runs: {
                             include: {
@@ -55,7 +43,7 @@ export class OrdersService {
                                     select: {
                                         id: true,
                                         name: true,
-                                        fields: true, // ✅ validation config
+                                        fields: true,
                                     },
                                 },
                             },
@@ -65,6 +53,44 @@ export class OrdersService {
             },
         });
     }
+
+    async getById(orderId: string) {
+        return await this.prisma.order.findUnique({
+            where: { id: orderId },
+            include: {
+                customer: true,
+                processes: {
+                    include: {
+                        workflowType: {
+                            include: {
+                                statuses: {
+                                    orderBy: { createdAt: 'asc' }, select: {
+                                        id: true,
+                                        code: true,
+                                    }
+                                },
+                            },
+                        },
+                        process: {
+                            select: { id: true, name: true },
+                        },
+                        runs: {
+                            include: {
+                                runTemplate: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        fields: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
 
 
     /* -------------------- CREATE ORDER -------------------- */
