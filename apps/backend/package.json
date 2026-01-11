@@ -14,9 +14,7 @@
         "start": "nest start",
         "start:dev": "nest start --watch",
         "start:debug": "nest start --debug --watch",
-        "prisma:generate": "prisma generate",
-        "prisma:migrate": "prisma migrate dev",
-        "prisma:deploy": "prisma migrate deploy"
+        "prisma": "prisma generate && prisma migrate deploy"
     },
     "dependencies": {
         "@nestjs/bull": "^11.0.4",
@@ -28,7 +26,6 @@
         "@nestjs/platform-express": "^11.1.11",
         "@nestjs/typeorm": "^11.0.0",
         "@prisma/client": "^6.19.1",
-        "@shared/types": "^1.0.0",
         "axios": "^1.13.2",
         "bull": "^4.16.5",
         "cookie-parser": "^1.4.7",
