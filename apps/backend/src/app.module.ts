@@ -23,7 +23,10 @@ import { CustomersModule } from './customers/customers.module';
 @Module({
     imports: [ConfigModule.forRoot({
         isGlobal: true, // VERY IMPORTANT
-        envFilePath: 'apps/backend/.env',
+        envFilePath: [
+            `apps/backend/.env.${process.env.NODE_ENV || 'local'}`,
+            '.env',
+        ]
     }), PrismaModule,
         OutboxModule,
         WorkflowModule,
