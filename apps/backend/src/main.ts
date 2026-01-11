@@ -7,21 +7,17 @@ import { PaginationInterceptor } from './common/interceptors/pagination-meta.int
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
-    // 🔹 GLOBAL API PREFIX
     app.setGlobalPrefix('api/v1');
 
     app.use(cookieParser());
 
-    // ✅ CORS (production-safe)
     app.enableCors({
-        origin: process.env.CLIENT_URL || true, // allow Render / frontend domain
+        origin: process.env.CLIENT_URL || true,
         credentials: true,
     });
 
-    // ✅ Global interceptor
     app.useGlobalInterceptors(new PaginationInterceptor());
 
-    // ✅ Global validation
     app.useGlobalPipes(
         new ValidationPipe({
             whitelist: true,
@@ -30,11 +26,10 @@ async function bootstrap() {
         }),
     );
 
-    // ✅ REQUIRED for Render
-    const port = Number(process.env.PORT) || 3001;
+    const port = process.env.PORT ? Number(process.env.PORT) : 3000;
     await app.listen(port, '0.0.0.0');
 
-    console.log(`🚀 Backend running on port ${port}`);
+    console.log(`Backend running on port ${port}`);
 }
 
 bootstrap();
