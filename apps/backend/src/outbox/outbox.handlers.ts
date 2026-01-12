@@ -24,6 +24,10 @@ export class OutboxHandlers {
             case 'ORDER_STATUS_TRANSITION_REQUESTED':
                 return this.handleOrderStatusTransition(event);
 
+            case 'ORDER_PROCESS_STATUS_TRANSITION_REQUESTED':
+                return this.handleOrderProcessStatusTransition(event);
+
+
             default:
                 this.logger.warn(`Unhandled outbox event: ${event.eventType}`);
         }
@@ -271,6 +275,93 @@ export class OutboxHandlers {
     }
 
     /* ---------------------------------------------------------
+ * ORDER PROCESS STATUS TRANSITION
+ * --------------------------------------------------------- */
+    private async handleOrderProcessStatusTransition(event: {
+        aggregateId: string;
+        payload: { };
+    }) {
+        const orderProcess = await this.prisma.orderProcess.findUnique({
+            where: { id: event.aggregateId },
+        });
+
+        if (!orderProcess) return;
+
+        this.logger.log(
+            `Handling OrderProcess transition ${orderProcess.id} (${orderProcess.statusCode})`,
+        );
+
+        const workflow = await this.prisma.workflowType.findUnique({
+            where: { id: orderProcess.workflowTypeId },
+            include: {
+                statuses: true,
+                transitions: { include: { fromStatus: true, toStatus: true } },
+            },
+        });
+
+        if (!workflow) return;
+
+        const currentStatus = workflow.statuses.find(
+            s => s.code === orderProcess.statusCode,
+        );
+
+        if (!currentStatus) return;
+
+        const transition = workflow.transitions.find(
+            t => t.fromStatusId === currentStatus.id,
+        );
+
+        if (!transition) return;
+
+        await this.prisma.orderProcess.update({
+            where: { id: orderProcess.id },
+            data: { statusCode: transition.toStatus.code },
+        });
+
+        await this.prisma.workflowAuditLog.create({
+            data: {
+                workflowTypeId: workflow.id,
+                aggregateType: 'OrderProcess',
+                aggregateId: orderProcess.id,
+                fromStatus: currentStatus.code,
+                toStatus: transition.toStatus.code,
+                transitionId: transition.id,
+            },
+        });
+
+        /* -----------------------------------------------------
+         * CHECK IF ALL ORDER PROCESSES ARE TERMINAL
+         * ----------------------------------------------------- */
+        const terminalStatuses = workflow.statuses
+            .filter(s => s.isTerminal)
+            .map(s => s.code);
+
+        const remaining = await this.prisma.orderProcess.count({
+            where: {
+                orderId: orderProcess.orderId,
+                statusCode: { notIn: terminalStatuses },
+            },
+        });
+
+        if (remaining === 0) {
+            this.logger.log(
+                `All OrderProcesses completed for order ${orderProcess.orderId}, requesting ORDER transition`,
+            );
+
+            await this.prisma.outboxEvent.create({
+                data: {
+                    aggregateType: 'Order',
+                    aggregateId: orderProcess.orderId,
+                    eventType: 'ORDER_STATUS_TRANSITION_REQUESTED',
+                    payload: { workflowTypeCode: 'ORDER' },
+                },
+            });
+        }
+    }
+
+
+
+    /* ---------------------------------------------------------
      * HELPERS
      * --------------------------------------------------------- */
 
@@ -282,4 +373,6 @@ export class OutboxHandlers {
             return acc;
         }, {} as Record<string, any>);
     }
+
+
 }

@@ -60,4 +60,13 @@ export class AdminProcessController {
         this.logger.log(`Fetching process ${orderProcessId} with processRun ${processRunId}`);
         return this.service.getProcessRun(orderProcessId, processRunId);
     }
+
+    @Put(':orderProcessId/transition')
+    async transitionOrderProcess(
+        @Param('orderProcessId') orderProcessId: string,
+    ) {
+        this.logger.log(`Requesting OrderProcess transition: ${orderProcessId}`);
+        return this.service.requestOrderProcessTransition(orderProcessId);
+    }
+
 }

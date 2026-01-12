@@ -97,7 +97,7 @@ export class AdminProcessService {
                 workflowType: {
                     include: {
                         statuses: {
-                            orderBy: { createdAt: 'asc' }, 
+                            orderBy: { createdAt: 'asc' },
                             select: {
                                 id: true,
                                 code: true,
@@ -108,6 +108,33 @@ export class AdminProcessService {
             },
         });
     }
+
+    async requestOrderProcessTransition(orderProcessId: string) {
+        const orderProcess = await this.prisma.orderProcess.findUnique({
+            where: { id: orderProcessId },
+        });
+
+        if (!orderProcess) {
+            throw new NotFoundException('OrderProcess not found');
+        }
+
+        this.logger.log(
+            `OrderProcess ${orderProcessId} requesting status transition from ${orderProcess.statusCode}`,
+        );
+
+        await this.prisma.outboxEvent.create({
+            data: {
+                aggregateType: 'OrderProcess',
+                aggregateId: orderProcess.id,
+                eventType: 'ORDER_PROCESS_STATUS_TRANSITION_REQUESTED',
+                payload: {
+                },
+            },
+        });
+
+        return { success: true };
+    }
+
 
     async enable(processId: string) {
         return this.prisma.process.update({
