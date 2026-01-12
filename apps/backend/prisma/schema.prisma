@@ -110,8 +110,8 @@ model Process {
   isEnabled      Boolean @default(false)
 
   // 👇 process-specific lifecycle
-  workflowTypeId String
-  workflowType   WorkflowType @relation(fields: [workflowTypeId], references: [id])
+  workflowTypeId String?
+  workflowType   WorkflowType? @relation(fields: [workflowTypeId], references: [id])
 
   runDefs        ProcessRunDefinition[]
   orderProcesses OrderProcess[]

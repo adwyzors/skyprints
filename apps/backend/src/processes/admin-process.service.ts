@@ -17,20 +17,18 @@ export class AdminProcessService {
         private readonly prisma: PrismaService,
     ) { }
 
-    // ✅ FIX: wrapped inside a method
     async create(dto: CreateProcessDto) {
-        return this.prisma.process.create({
+        // ---- VALIDATION ----
+        const unique = new Set(dto.lifeCycle);
+        if (unique.size !== dto.lifeCycle.length) {
+            throw new BadRequestException('Duplicate workflow types not allowed');
+        }
+
+        const process = await this.prisma.process.create({
             data: {
                 name: dto.name,
                 description: dto.description,
                 isEnabled: dto.isEnabled ?? false,
-
-                // 👇 REQUIRED relation
-                workflowType: {
-                    connect: {
-                        id: dto.workflowTypeId,
-                    },
-                },
 
                 runDefs: {
                     create: dto.runDefinitions.map(d => ({
@@ -40,23 +38,23 @@ export class AdminProcessService {
                     })),
                 },
             },
-            include: {
-                workflowType: {
-                    include: {
-                        statuses: {
-                            orderBy: { createdAt: 'asc' }, select: {
-                                id: true,
-                                code: true,
-                            },
-                        },
-                    },
-                },
-                runDefs: {
-                    include: { runTemplate: true },
-                    orderBy: { sortOrder: 'asc' },
+        });
+
+        await this.prisma.outboxEvent.create({
+            data: {
+                aggregateType: 'Process',
+                aggregateId: process.id,
+                eventType: 'PROCESS_WORKFLOW_BOOTSTRAP_REQUESTED',
+                payload: {
+                    workflowTypes: dto.lifeCycle,
                 },
             },
         });
+
+        return {
+            id: process.id,
+            status: 'PROCESS_CREATED',
+        };
     }
 
     async getById(processId: string) {

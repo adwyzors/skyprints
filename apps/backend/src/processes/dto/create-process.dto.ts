@@ -33,9 +33,10 @@ export class CreateProcessDto {
     @IsBoolean()
     isEnabled?: boolean;
 
-    // 👇 ADD THIS
-    @IsUUID()
-    workflowTypeId: string;
+    @IsArray()
+    @ArrayMinSize(1)
+    @IsString({ each: true })
+    lifeCycle: string[];
 
     @IsArray()
     @ArrayMinSize(1)
@@ -43,4 +44,5 @@ export class CreateProcessDto {
     @Type(() => RunDefinitionDto)
     runDefinitions: RunDefinitionDto[];
 }
+
 

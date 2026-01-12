@@ -21,9 +21,12 @@ export class AdminProcessController {
 
     @Post()
     async create(@Body() dto: CreateProcessDto) {
-        this.logger.log(`Creating process: ${dto.name}`);
+        this.logger.log(
+            `Creating process ${dto.name} with workflows [${dto.lifeCycle.join(', ')}]`,
+        );
         return this.service.create(dto);
     }
+
 
     @Get(':processId')
     async getById(@Param('processId') id: string) {
