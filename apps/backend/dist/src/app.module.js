@@ -32,7 +32,10 @@ exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [config_1.ConfigModule.forRoot({
                 isGlobal: true,
-                envFilePath: 'apps/backend/.env',
+                envFilePath: [
+                    '.env',
+                    `apps/backend/.env.${process.env.NODE_ENV || 'local'}`,
+                ]
             }), prisma_module_1.PrismaModule,
             outbox_module_1.OutboxModule,
             workflow_module_1.WorkflowModule,
