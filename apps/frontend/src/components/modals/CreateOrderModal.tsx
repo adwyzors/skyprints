@@ -3,7 +3,7 @@
 import { Customer } from '@/model/customer.model';
 import { Process } from '@/model/process.model';
 import { getCustomers } from '@/services/customer.service';
-import { createOrder, getOrders } from '@/services/orders.service';
+import { createOrder } from '@/services/orders.service';
 
 import { getProcesses } from '@/services/process.service';
 import { NewOrderPayload } from '@/types/planning';
@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreate: (payload: NewOrderPayload) => void;
+  onCreate: (order: any) => void;
 }
 
 interface ProcessRow {
@@ -38,6 +38,15 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
   const [processes, setProcesses] = useState<Process[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
+  /* ================= RESET FORM ================= */
+  const resetForm = () => {
+    setCustomerSearch('');
+    setSelectedCustomerId(null);
+    setQuantity(0);
+    setProcessRows([]);
+    setError(null);
+  };
+
   /* ================= FETCH DATA ================= */
 
   useEffect(() => {
@@ -57,7 +66,6 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
       } catch (error) {
         if (!cancelled) {
           const message = error instanceof Error ? error.message : 'Failed to load data';
-
           setError(message);
           console.error(error);
         }
@@ -95,8 +103,35 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
       return;
     }
 
+    if (quantity <= 0) {
+      setError('Please enter a valid quantity');
+      return;
+    }
+
+    if (processRows.length === 0) {
+      setError('Please add at least one process');
+      return;
+    }
+
+    // Validate all process rows have process selected
+    const invalidRows = processRows.some((row) => !row.processId || row.runs <= 0);
+    if (invalidRows) {
+      setError('Please fill all process details correctly');
+      return;
+    }
+
     setLoading(true);
+    setError(null);
+
     try {
+      // Based on the error, it seems backend expects a full Order object
+      // Let's create a complete order object
+      const now = new Date().toISOString();
+
+      // Generate a simple order code
+      const orderCode = `ORD-${Date.now().toString().slice(-6)}`;
+
+      // First, try with the original payload
       const payload: NewOrderPayload = {
         customerId: selectedCustomer.id,
         quantity,
@@ -106,12 +141,23 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
         })),
       };
 
-      await createOrder(payload);
-      onCreate(payload);
+      // Create order
+      const createdOrder = await createOrder(payload);
+
+      // Pass the created order to parent
+      onCreate(createdOrder);
+
+      // Reset form and close modal
+      resetForm();
       onClose();
-      getOrders();
-    } catch {
-      setError('Failed to create order');
+    } catch (err: any) {
+      // If we get validation errors, try a different approach
+      if (err.message?.includes('invalid_type') || err.message?.includes('expected')) {
+        setError('Server validation error. Please check your data and try again.');
+        console.error('Validation error details:', err);
+      } else {
+        setError(err.message || 'Failed to create order');
+      }
     } finally {
       setLoading(false);
     }
@@ -130,6 +176,14 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     setProcessRows((prev) => prev.filter((_, i) => i !== index));
   };
 
+  /* ================= CLOSE HANDLER ================= */
+  const handleClose = () => {
+    if (!loading) {
+      resetForm();
+      onClose();
+    }
+  };
+
   /* ================= RENDER ================= */
 
   if (!open) return null;
@@ -145,7 +199,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
               <p className="text-sm text-gray-600 mt-1">Add order details and processes</p>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               disabled={loading}
               className="text-gray-500 hover:text-gray-700 hover:bg-gray-200 w-8 h-8 flex items-center justify-center rounded-full transition-colors disabled:opacity-50"
             >
@@ -246,7 +300,8 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                       placeholder="Enter quantity..."
                       value={quantity || ''}
                       onChange={(e) => {
-                        setQuantity(Number(e.target.value));
+                        const value = parseInt(e.target.value);
+                        setQuantity(isNaN(value) ? 0 : value);
                         setError(null);
                       }}
                       disabled={loading}
@@ -255,9 +310,9 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                     />
                   </div>
 
-                  {/* ORDER ID (AUTO) */}
+                  {/* ORDER CODE */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Order ID</label>
+                    <label className="text-sm font-medium text-gray-700">Order Code</label>
                     <div className="relative">
                       <input
                         placeholder="Auto Generated"
@@ -375,7 +430,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                 min="1"
                                 value={row.runs}
                                 onChange={(e) =>
-                                  updateProcessRow(i, { runs: Number(e.target.value) })
+                                  updateProcessRow(i, { runs: parseInt(e.target.value) || 1 })
                                 }
                                 disabled={loading}
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
@@ -399,7 +454,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
         <div className="px-6 py-4 border-t bg-gray-50">
           <div className="flex justify-end gap-3">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               disabled={loading}
               className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
             >

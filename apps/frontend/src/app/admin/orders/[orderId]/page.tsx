@@ -1,27 +1,13 @@
 'use client';
-// apps/frontend/src/app/admin/orders/[orderId]/page.tsx
 
-import { AlertCircle, ArrowLeft, CheckCircle, ChevronRight, Loader2, Save, X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
+import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 
 import { getOrderById } from '@/services/orders.service';
-
 import { Order } from '@/model/order.model';
-import { ProcessRun } from '@/model/process.run.model';
-import { configureRun } from '@/services/run.service';
-
-/* ================= UTIL ================= */
-
-function chunk<T>(arr: T[], size: number): T[][] {
-  const res: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    res.push(arr.slice(i, i + size));
-  }
-  return res;
-}
-
-/* ================= COMPONENT ================= */
+import ScreenPrintingConfig from '@/components/orders/ScreenPrintingConfig';
+import ComingSoonConfig from '@/components/orders/ComingSoonConfig';
 
 export default function OrderConfigPage() {
   const router = useRouter();
@@ -30,10 +16,6 @@ export default function OrderConfigPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [openRunId, setOpenRunId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState<string | null>(null);
-
-  /* ================= FETCH ================= */
 
   useEffect(() => {
     let cancelled = false;
@@ -66,110 +48,18 @@ export default function OrderConfigPage() {
     };
   }, [orderId]);
 
-  /* ================= HELPERS ================= */
-
-  const getRunFieldConfigs = (run: ProcessRun) => run.runTemplate?.fields ?? [];
-
-  const areAllFieldsFilled = (run: ProcessRun) => {
-    const fields = run.runTemplate?.fields ?? [];
-    return fields
-      .filter((f) => f.required)
-      .every((f) => {
-        const value = run.fields[f.key];
-        return value !== null && value !== undefined && value !== '';
-      });
-  };
-
-  const areAllRunsConfigured = (order: Order) =>
-    order.processes.every((p) =>
-      p.runs.every((r) => r.statusCode === 'CONFIGURED' || r.statusCode === 'CONFIGURE'),
-    );
-
-  const prettyLabel = (field: string) =>
-    field
-      .replace(/_/g, ' ')
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, (s) => s.toUpperCase());
-
-  const getRunProgress = (run: ProcessRun) => {
-    const fields = run.runTemplate?.fields ?? [];
-    if (fields.length === 0) return 100;
-
-    const filled = fields.filter((f) => {
-      const value = run.fields[f.key];
-      return value !== null && value !== undefined && value !== '';
-    });
-
-    return Math.round((filled.length / fields.length) * 100);
-  };
-
-  /* ================= UPDATE FIELD ================= */
-
-  const updateRunField = (
-    processId: string,
-    runId: string,
-    field: string,
-    value: string | number,
-  ) => {
-    setOrder((prev) => {
-      if (!prev) return prev;
-
-      return {
-        ...prev,
-        processes: prev.processes.map((p) =>
-          p.id !== processId
-            ? p
-            : {
-                ...p,
-                runs: p.runs.map((r) =>
-                  r.id !== runId
-                    ? r
-                    : {
-                        ...r,
-                        fields: {
-                          ...r.fields,
-                          [field]: value,
-                        },
-                      },
-                ),
-              },
-        ),
-      };
-    });
-  };
-
-  /* ================= SAVE ================= */
-
-  const saveRun = async (processId: string, runId: string) => {
-    if (!order) return;
-
-    const process = order.processes.find((p) => p.id === processId);
-    const run = process?.runs.find((r) => r.id === runId);
-    if (!process || !run) return;
-
-    if (!areAllFieldsFilled(run)) {
-      alert('Please fill all required fields before saving.');
-      return;
-    }
-
-    setIsSaving(runId);
-    setError(null);
-
+  // Function to refresh order data
+  const refreshOrder = async () => {
+    if (!orderId) return;
     try {
-      await configureRun(order.id, processId, runId, run.fields);
-      const refreshed = await getOrderById(order.id);
-      if (!refreshed) throw new Error('Order not found');
-      setOrder(refreshed);
-      alert(`Run ${run.runNumber} configured successfully`);
+      const refreshed = await getOrderById(orderId);
+      if (refreshed) {
+        setOrder(refreshed);
+      }
     } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : 'Failed to save configuration');
-    } finally {
-      setIsSaving(null);
+      console.error('Failed to refresh order:', err);
     }
   };
-
-  /* ================= UI STATES ================= */
 
   if (loading) {
     return (
@@ -200,21 +90,13 @@ export default function OrderConfigPage() {
     );
   }
 
-  /* ================= MAIN UI ================= */
+  // Get the main process to determine which form to show
+  const mainProcess = order.processes[0];
+  const processName = mainProcess?.processName;
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 p-4 md:p-6">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* ERROR MESSAGE */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-red-700">
-              <AlertCircle className="w-5 h-5" />
-              <span className="font-medium">Error: {error}</span>
-            </div>
-          </div>
-        )}
-
         {/* HEADER CARD */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -268,342 +150,41 @@ export default function OrderConfigPage() {
           </div>
         </div>
 
-        {/* PROGRESS OVERVIEW */}
+        {/* PROCESS NAVIGATION */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Configuration Progress</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {order.processes.flatMap((process) =>
-              process.runs.map((run) => {
-                const progress = getRunProgress(run);
-                const isConfigured =
-                  run.statusCode === 'CONFIGURED' || run.statusCode === 'CONFIGURE';
-                const hasFieldConfigs = Boolean(run.runTemplate?.fields?.length);
-
-                return (
-                  <div
-                    key={run.id}
-                    className="border border-gray-200 rounded-xl p-4 hover:border-blue-300 transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`w-3 h-3 rounded-full ${isConfigured ? 'bg-green-500' : 'bg-gray-300'}`}
-                        />
-                        <span className="font-medium text-gray-700">
-                          {process.processName || process.processName} • Run {run.runNumber}
-                        </span>
-                      </div>
-                      {isConfigured && <CheckCircle className="w-4 h-4 text-green-500" />}
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Completion</span>
-                        <span
-                          className={`font-medium ${isConfigured ? 'text-green-600' : 'text-blue-600'}`}
-                        >
-                          {progress}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full transition-all duration-300 ${isConfigured ? 'bg-green-500' : 'bg-blue-500'}`}
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => setOpenRunId(openRunId === run.id ? null : run.id)}
-                      disabled={
-                        run.statusCode === 'COMPLETED' ||
-                        run.statusCode === 'IN_PRODUCTION' ||
-                        !hasFieldConfigs
-                      }
-                      className={`w-full mt-4 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        openRunId === run.id
-                          ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                          : run.statusCode === 'COMPLETED' ||
-                              run.statusCode === 'IN_PRODUCTION' ||
-                              !hasFieldConfigs
-                            ? 'bg-gray-100 text-gray-400 border border-gray-300 cursor-not-allowed'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
-                      }`}
-                    >
-                      {openRunId === run.id
-                        ? 'Close'
-                        : run.statusCode === 'COMPLETED'
-                          ? 'Completed'
-                          : run.statusCode === 'IN_PRODUCTION'
-                            ? 'In Progress'
-                            : !hasFieldConfigs
-                              ? 'No Config'
-                              : 'Configure'}
-                    </button>
-                  </div>
-                );
-              }),
-            )}
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Processes</h3>
+          <div className="flex flex-wrap gap-3">
+            {order.processes.map((process) => (
+              <div
+                key={process.id}
+                className={`px-4 py-2 rounded-lg border transition-colors ${
+                  processName === process.processName
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-300 bg-gray-50 text-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                  <span className="font-medium">{process.processName}</span>
+                  <span className="text-xs bg-white px-2 py-0.5 rounded-full">
+                    {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* CONFIGURATION FORMS */}
-        {order.processes.map((process) => (
-          <div key={process.id} className="space-y-4">
-            {process.runs.map((run) => {
-              if (run.statusCode === 'COMPLETED' || run.statusCode === 'IN_PRODUCTION') return null;
+        {/* CONFIGURATION COMPONENT */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          {processName === 'Screen Printing' ? (
+            <ScreenPrintingConfig order={order} onRefresh={refreshOrder} />
+          ) : (
+            <ComingSoonConfig order={order} />
+          )}
+        </div>
 
-              const fieldConfigs = getRunFieldConfigs(run);
-              if (fieldConfigs.length === 0) return null;
-
-              return (
-                <div
-                  key={run.id}
-                  className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 ${
-                    openRunId === run.id ? 'border-blue-300' : 'border-gray-200'
-                  }`}
-                >
-                  {/* RUN HEADER */}
-                  <div
-                    onClick={() => setOpenRunId(openRunId === run.id ? null : run.id)}
-                    className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors rounded-t-2xl"
-                  >
-                    <div className="flex items-center gap-4">
-                      <ChevronRight
-                        className={`w-5 h-5 text-gray-400 transition-transform ${
-                          openRunId === run.id ? 'rotate-90' : ''
-                        }`}
-                      />
-                      <div>
-                        <h3 className="font-semibold text-gray-800 text-lg">
-                          {process.processName} • Run {run.runNumber}
-                        </h3>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              run.statusCode === 'CONFIGURED' || run.statusCode === 'CONFIGURE'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                            {run.statusCode === 'CONFIGURED' || run.statusCode === 'CONFIGURE'
-                              ? 'Configured'
-                              : 'Not Configured'}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            {getRunProgress(run)}% complete
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      {(run.statusCode === 'CONFIGURED' || run.statusCode === 'CONFIGURE') && (
-                        <div className="flex items-center gap-1 text-green-600">
-                          <CheckCircle className="w-4 h-4" />
-                          <span className="text-sm font-medium">Ready</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* CONFIGURATION FORM */}
-                  {openRunId === run.id && (
-                    <div className="p-6 border-t border-gray-200">
-                      <div className="mb-6">
-                        <h4 className="text-sm font-medium text-gray-700 mb-3 uppercase tracking-wide">
-                          Run Configuration
-                        </h4>
-
-                        <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
-                          {chunk(fieldConfigs, 2).map((pair, rowIndex) => (
-                            <div
-                              key={rowIndex}
-                              className="grid grid-cols-4 border-b last:border-b-0 divide-x divide-gray-200"
-                            >
-                              {pair.map((fieldConfig: any) => {
-                                const field = fieldConfig.key;
-                                const type = fieldConfig.type || 'string';
-                                const isRequired = fieldConfig.required === true;
-                                const isTextarea =
-                                  field.toLowerCase().includes('description') ||
-                                  field.toLowerCase().includes('notes') ||
-                                  field.toLowerCase().includes('comments');
-                                const isNumber =
-                                  type === 'number' ||
-                                  field.toLowerCase().includes('quantity') ||
-                                  field.toLowerCase().includes('amount') ||
-                                  field.toLowerCase().includes('copies') ||
-                                  field.toLowerCase().includes('count');
-                                const isSelect =
-                                  field.toLowerCase().includes('color') ||
-                                  field.toLowerCase().includes('size') ||
-                                  field.toLowerCase().includes('type') ||
-                                  field.toLowerCase().includes('paper');
-
-                                return (
-                                  <React.Fragment key={field}>
-                                    <div
-                                      className={`px-4 py-4 text-sm font-medium ${
-                                        isRequired
-                                          ? 'bg-red-50 text-red-800'
-                                          : 'bg-gray-100 text-gray-700'
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        {prettyLabel(field)}
-                                        {isRequired && (
-                                          <span className="text-xs text-red-600">*</span>
-                                        )}
-                                        <span className="text-xs text-gray-500">({type})</span>
-                                      </div>
-                                    </div>
-
-                                    <div
-                                      className={`px-4 py-3 ${isRequired ? 'bg-red-50' : 'bg-white'}`}
-                                    >
-                                      {isSelect ? (
-                                        <select
-                                          value={run.fields[field] ?? ''}
-                                          onChange={(e) =>
-                                            updateRunField(
-                                              process.id,
-                                              run.id,
-                                              field,
-                                              e.target.value,
-                                            )
-                                          }
-                                          className={`w-full border ${isRequired && !run.fields[field] ? 'border-red-300' : 'border-gray-300'} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                                        >
-                                          <option value="">
-                                            Select {prettyLabel(field).toLowerCase()}...
-                                          </option>
-                                          {/* Add options based on field type */}
-                                          {field.toLowerCase().includes('paper') && (
-                                            <>
-                                              <option value="A4">A4</option>
-                                              <option value="A3">A3</option>
-                                              <option value="LETTER">Letter</option>
-                                              <option value="LEGAL">Legal</option>
-                                            </>
-                                          )}
-                                          {field.toLowerCase().includes('color') && (
-                                            <>
-                                              <option value="RED">Red</option>
-                                              <option value="BLUE">Blue</option>
-                                              <option value="GREEN">Green</option>
-                                              <option value="BLACK">Black</option>
-                                              <option value="WHITE">White</option>
-                                              <option value="MULTICOLOR">Multi-color</option>
-                                            </>
-                                          )}
-                                          {field.toLowerCase().includes('size') && (
-                                            <>
-                                              <option value="S">Small (S)</option>
-                                              <option value="M">Medium (M)</option>
-                                              <option value="L">Large (L)</option>
-                                              <option value="XL">Extra Large (XL)</option>
-                                            </>
-                                          )}
-                                        </select>
-                                      ) : isTextarea ? (
-                                        <textarea
-                                          value={run.fields[field] ?? ''}
-                                          onChange={(e) =>
-                                            updateRunField(
-                                              process.id,
-                                              run.id,
-                                              field,
-                                              e.target.value,
-                                            )
-                                          }
-                                          className={`w-full border ${isRequired && !run.fields[field] ? 'border-red-300' : 'border-gray-300'} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-24 resize-none`}
-                                          placeholder={`Enter ${prettyLabel(field).toLowerCase()}...`}
-                                        />
-                                      ) : (
-                                        <input
-                                          type={isNumber ? 'number' : 'text'}
-                                          value={run.fields[field] ?? ''}
-                                          onChange={(e) =>
-                                            updateRunField(
-                                              process.id,
-                                              run.id,
-                                              field,
-                                              isNumber ? Number(e.target.value) : e.target.value,
-                                            )
-                                          }
-                                          className={`w-full border ${isRequired && !run.fields[field] ? 'border-red-300' : 'border-gray-300'} rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                                          placeholder={`Enter ${prettyLabel(field).toLowerCase()}...`}
-                                          min={isNumber ? '0' : undefined}
-                                          step={isNumber ? '1' : undefined}
-                                        />
-                                      )}
-                                      {isRequired && !run.fields[field] && (
-                                        <p className="text-xs text-red-600 mt-1">
-                                          This field is required
-                                        </p>
-                                      )}
-                                    </div>
-                                  </React.Fragment>
-                                );
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* ACTION BUTTONS */}
-                      <div className="flex items-center justify-between pt-6 border-t border-gray-200">
-                        <div className="text-sm text-gray-600">
-                          {!areAllFieldsFilled(run) && (
-                            <div className="flex items-center gap-2 text-yellow-600">
-                              <AlertCircle className="w-4 h-4" />
-                              <span>Please fill all required fields before saving</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => setOpenRunId(null)}
-                            disabled={isSaving === run.id}
-                            className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50"
-                          >
-                            <X className="w-4 h-4" />
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => saveRun(process.id, run.id)}
-                            disabled={!areAllFieldsFilled(run) || isSaving === run.id}
-                            className={`px-5 py-2.5 font-medium rounded-lg transition-colors flex items-center gap-2 ${
-                              areAllFieldsFilled(run)
-                                ? 'bg-green-600 hover:bg-green-700 text-white'
-                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                            }`}
-                          >
-                            {isSaving === run.id ? (
-                              <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                Saving...
-                              </>
-                            ) : (
-                              <>
-                                <Save className="w-4 h-4" />
-                                Save Configuration
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-
-        {/* FOOTER */}
+        {/* FOOTER - START PRODUCTION BUTTON */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="text-sm text-gray-600">
@@ -621,8 +202,7 @@ export default function OrderConfigPage() {
                   {
                     order.processes
                       .flatMap((p) => p.runs)
-                      .filter((r) => r.statusCode === 'CONFIGURED' || r.statusCode === 'CONFIGURE')
-                      .length
+                      .filter((r) => r.statusCode === 'CONFIGURED').length
                   }
                   <span className="text-sm font-normal text-gray-400">
                     {' '}
@@ -631,17 +211,18 @@ export default function OrderConfigPage() {
                 </p>
               </div>
 
-              {areAllRunsConfigured(order) && order.status === 'CONFIGURE' && (
-                <button
-                  onClick={() => {
-                    // Navigate back to orders list with selected order
-                    router.push(`/admin/orders?selectedOrder=${order.id}`);
-                  }}
-                  className="px-6 py-3 bg-linear-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow"
-                >
-                  Start Production
-                </button>
-              )}
+              {/* Check if all runs are configured */}
+              {order.processes.flatMap((p) => p.runs).every((r) => r.statusCode === 'CONFIGURED') &&
+                order.status === 'CONFIGURE' && (
+                  <button
+                    onClick={() => {
+                      router.push(`/admin/orders?selectedOrder=${order.id}`);
+                    }}
+                    className="px-6 py-3 bg-linear-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow"
+                  >
+                    Start Production
+                  </button>
+                )}
             </div>
           </div>
         </div>
