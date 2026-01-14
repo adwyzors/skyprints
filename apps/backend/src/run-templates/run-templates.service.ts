@@ -1,97 +1,112 @@
+import { CreateRunTemplateDto } from '../../../packages/contracts/dist/run-template.contract';
+
 import {
     BadRequestException,
     Injectable,
     Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateRunTemplateDto } from './dto/create-run-template.dto';
-import { UpdateRunTemplateDto } from './dto/update-run-template.dto';
-import { RunTemplateValidator } from './run-template.validator';
-
-type RunTemplateFieldJson = {
-    key: string;
-    type: string;
-    required?: boolean;
-};
 
 @Injectable()
 export class RunTemplatesService {
-    private readonly logger = new Logger(
-        RunTemplatesService.name,
-    );
+    private readonly logger = new Logger(RunTemplatesService.name);
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly validator: RunTemplateValidator,
     ) { }
 
     async create(dto: CreateRunTemplateDto) {
-        this.validator.validate(dto.fields);
+        return this.prisma.$transaction(async tx => {
+            const fields = ["CONFIGURE", "COMPLETE"];
 
-        const fieldsJson: RunTemplateFieldJson[] = dto.fields.map(f => ({
-            key: f.key,
-            type: f.type,
-            required: f.required ?? false,
-        }));
+            const configWF = await this.createWorkflow(
+                tx,
+                `RUN_TEMPLATE_${dto.name}_CONFIG`,
+                fields,
+            );
 
-        const template = await this.prisma.runTemplate.create(
-            {
+            const lifecycleWF = await this.createWorkflow(
+                tx,
+                `RUN_TEMPLATE_${dto.name}_LIFECYCLE`,
+                dto.lifecycle,
+            );
+
+            return tx.runTemplate.create({
                 data: {
                     name: dto.name,
-                    fields: fieldsJson,
+                    fields: dto.fields,
+                    configWorkflowTypeId: configWF.id,
+                    lifecycleWorkflowTypeId: lifecycleWF.id,
                 },
-            },
-        );
-
-        this.logger.log(
-            `RunTemplate created: ${template.id}`,
-        );
-        return template;
+            });
+        });
     }
 
     async list() {
-        return this.prisma.runTemplate.findMany();
+        return this.prisma.runTemplate.findMany({
+            select: {
+                id: true,
+                name: true,
+            },
+        });
     }
 
     async get(id: string) {
-        const template =
-            await this.prisma.runTemplate.findUnique({
-                where: { id },
-            });
+        const template = await this.prisma.runTemplate.findUnique({
+            where: { id },
+            include: {
+                configWorkflowType: {
+                    include: {
+                        statuses: {
+                            orderBy: { createdAt: 'asc' },
+                            select: { code: true },
+                        },
+                    },
+                },
+                lifecycleWorkflowType: {
+                    include: {
+                        statuses: {
+                            orderBy: { createdAt: 'asc' },
+                            select: { code: true },
+                        },
+                    },
+                },
+            },
+        });
 
         if (!template) {
-            throw new BadRequestException(
-                'RunTemplate not found',
-            );
+            throw new BadRequestException('RunTemplate not found');
         }
 
         return template;
     }
 
-    async update(
-        id: string,
-        dto: UpdateRunTemplateDto,
-    ) {
-        if (dto.name !== undefined && dto.name.trim() === '') {
-            throw new BadRequestException('name cannot be empty');
+    private async createWorkflow(tx, code: string, states: string[]) {
+        const wf = await tx.workflowType.create({ data: { code } });
+
+        const statuses = await Promise.all(
+            states.map((s, i) =>
+                tx.workflowStatus.create({
+                    data: {
+                        workflowTypeId: wf.id,
+                        code: s,
+                        isInitial: i === 0,
+                        isTerminal: i === states.length - 1,
+                    },
+                }),
+            ),
+        );
+
+        for (let i = 0; i < statuses.length - 1; i++) {
+            await tx.workflowTransition.create({
+                data: {
+                    workflowTypeId: wf.id,
+                    fromStatusId: statuses[i].id,
+                    toStatusId: statuses[i + 1].id,
+                },
+            });
         }
-        if (dto.fields) {
-            this.validator.validate(dto.fields);
-        }
 
-        const fieldsJson: RunTemplateFieldJson[] = dto.fields.map(f => ({
-            key: f.key,
-            type: f.type,
-            required: f.required ?? false,
-        }));
-
-        return this.prisma.runTemplate.update({
-            where: { id },
-            data: {
-                ...(dto.name && { name: dto.name }),
-                ...(dto.fields && { fields: fieldsJson }),
-            },
-        });
-
+        return wf;
     }
 }

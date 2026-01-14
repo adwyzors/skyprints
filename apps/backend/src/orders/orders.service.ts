@@ -2,10 +2,13 @@ import {
     BadRequestException,
     Injectable,
     Logger,
+    NotFoundException,
 } from '@nestjs/common';
+import { CreateOrderDto } from '../../../packages/contracts/dist/order.contract';
 import { PrismaService } from '../../prisma/prisma.service';
+import { toOrderSummary } from '../mappers/order.mapper';
 import { OutboxService } from '../outbox/outbox.service';
-import { CreateOrderDto } from './dto/create-order.dto';
+
 
 @Injectable()
 export class OrdersService {
@@ -16,80 +19,117 @@ export class OrdersService {
         private readonly outbox: OutboxService,
     ) { }
 
-    /* -------------------- QUERIES -------------------- */
-
     async getAll() {
-        return await this.prisma.order.findMany({
-            include: {
-                customer: true,
-                processes: {
-                    include: {
-                        workflowType: {
-                            include: {
-                                statuses: {
-                                    orderBy: { createdAt: 'asc' }, select: {
-                                        id: true,
-                                        code: true,
-                                    }
-                                },
-                            },
-                        },
-                        process: {
-                            select: { id: true, name: true },
-                        },
-                        runs: {
-                            include: {
-                                runTemplate: {
-                                    select: {
-                                        id: true,
-                                        name: true,
-                                        fields: true,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
+  const orders = await this.prisma.order.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      customer: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+        },
+      },
+
+      processes: {
+        include: {
+          process: {
+            select: {
+              id: true,
+              name: true,
             },
-        });
-    }
+          },
+
+          runs: {
+            orderBy: { runNumber: 'asc' },
+            include: {
+              runTemplate: {
+                select: {
+                  id: true,
+                  name: true,
+                  fields: true,
+                  lifecycleWorkflowType: {
+                    include: {
+                      statuses: {
+                        orderBy: { createdAt: 'asc' },
+                        select: {
+                          code: true,
+                          isInitial: true,
+                          isTerminal: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return orders.map(toOrderSummary);
+}
+
+
 
     async getById(orderId: string) {
-        return await this.prisma.order.findUnique({
-            where: { id: orderId },
-            include: {
-                customer: true,
-                processes: {
-                    include: {
-                        workflowType: {
-                            include: {
-                                statuses: {
-                                    orderBy: { createdAt: 'asc' }, select: {
-                                        id: true,
-                                        code: true,
-                                    }
-                                },
-                            },
-                        },
-                        process: {
-                            select: { id: true, name: true },
-                        },
-                        runs: {
-                            include: {
-                                runTemplate: {
-                                    select: {
-                                        id: true,
-                                        name: true,
-                                        fields: true,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
+  const order = await this.prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      customer: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+        },
+      },
+
+      processes: {
+        include: {
+          process: {
+            select: {
+              id: true,
+              name: true,
             },
-        });
-    }
+          },
+
+          runs: {
+            orderBy: { runNumber: 'asc' },
+            include: {
+              runTemplate: {
+                select: {
+                  id: true,
+                  name: true,
+                  fields: true,
+                  lifecycleWorkflowType: {
+                    include: {
+                      statuses: {
+                        orderBy: { createdAt: 'asc' },
+                        select: {
+                          code: true,
+                          isInitial: true,
+                          isTerminal: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!order) {
+    throw new NotFoundException('Order not found');
+  }
+
+  return toOrderSummary(order);
+}
 
 
 
@@ -97,9 +137,10 @@ export class OrdersService {
 
     async create(dto: CreateOrderDto) {
         return this.prisma.$transaction(async tx => {
+            /* ---------------- VALIDATE PROCESSES ---------------- */
+
             const processIds = dto.processes.map(p => p.processId);
 
-            /* ---- validate processes ---- */
             const validCount = await tx.process.count({
                 where: {
                     id: { in: processIds },
@@ -113,37 +154,53 @@ export class OrdersService {
                 );
             }
 
-            /* ---- initial ORDER status ---- */
-            const orderStatus = await tx.workflowStatus.findFirstOrThrow({
-                where: {
-                    workflowType: { code: 'ORDER' },
-                    isInitial: true,
-                },
+            /* ---------------- ORDER INITIAL STATUS ---------------- */
+
+            const orderWorkflow = await tx.workflowType.findUniqueOrThrow({
+                where: { code: 'ORDER' },
             });
 
-            /* ---- create order ---- */
+            const initialOrderStatus =
+                await tx.workflowStatus.findFirstOrThrow({
+                    where: {
+                        workflowTypeId: orderWorkflow.id,
+                        isInitial: true,
+                    },
+                });
+
+            /* ---------------- CREATE ORDER ---------------- */
+
             const order = await tx.order.create({
                 data: {
-                    orderCode: `ORD-${Date.now()}`,
                     customerId: dto.customerId,
                     quantity: dto.quantity,
-                    statusCode: orderStatus.code,
+                    workflowTypeId: orderWorkflow.id,
+                    statusCode: initialOrderStatus.code,
+                    createdById: 'a98afcd6-e0d9-4948-afb8-11fb4d18185a',
                 },
             });
 
-            /* ---- outbox event ---- */
-            await this.outbox.add({
-                aggregateType: 'ORDER',
-                aggregateId: order.id,
-                eventType: 'ORDER_CREATED',
-                payload: {
-                    orderId: order.id,
-                    processes: dto.processes,
+
+            /* ---------------- OUTBOX EVENT ---------------- */
+
+            await tx.outboxEvent.create({
+                data: {
+                    aggregateType: 'ORDER',
+                    aggregateId: order.id,
+                    eventType: 'ORDER_CREATED',
+                    payload: {
+                        orderId: order.id,
+                        processes: dto.processes,
+                    },
                 },
             });
 
             this.logger.log(`Order created: ${order.id}`);
-            return order;
+
+            return {
+                id: order.id,
+                status: 'CREATED',
+            };
         });
     }
 }

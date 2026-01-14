@@ -4,10 +4,11 @@ import {
     Get,
     Logger,
     Param,
-    Post,
+    Post
 } from '@nestjs/common';
-import { CreateOrderDto } from './dto/create-order.dto';
+import type { CreateOrderDto } from '../../../packages/contracts/dist/order.contract';
 import { OrdersService } from './orders.service';
+
 
 @Controller('orders')
 export class OrdersController {
@@ -30,8 +31,9 @@ export class OrdersController {
         return this.service.create(dto);
     }
 
-    @Get(':orderId')
-    async get(@Param('orderId') id: string) {
-        return this.service.getById(id);
+    @Get(':id')
+    async get(@Param('id') orderId: string) {
+        return this.service.getById(orderId);
     }
+
 }

@@ -1,8 +1,7 @@
 import { Module } from "@nestjs/common";
-import { PrismaService } from "prisma/prisma.service";
-import { OutboxModule } from "src/outbox/outbox.module";
 import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
+import { OutboxModule } from "../outbox/outbox.module";
 
 @Module({
     controllers: [OrdersController],

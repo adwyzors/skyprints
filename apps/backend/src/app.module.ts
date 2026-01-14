@@ -8,8 +8,6 @@ import { HealthModule } from './health/health.module';
 import { UserModule } from './user/user.module';
 
 import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from 'prisma/prisma.module';
-import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { SessionModule } from './auth/session/session.module';
 import { OrdersModule } from './orders/orders.module';
@@ -19,6 +17,8 @@ import { RunTemplatesModule } from './run-templates/run-templates.module';
 import { RunsModule } from './runs/runs.module';
 import { WorkflowModule } from './workflow/workflow.module';
 import { CustomersModule } from './customers/customers.module';
+import { PrismaModule } from '../prisma/prisma.module';
+import { PermissionsGuard } from './auth/guards/permissions.guard';
 
 @Module({
     imports: [ConfigModule.forRoot({
