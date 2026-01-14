@@ -1,33 +1,36 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import { AppModule } from './app.module';
+import { PaginationInterceptor } from './common/interceptors/pagination-meta.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule);
 
-  // 🔹 GLOBAL API PREFIX
-  app.setGlobalPrefix('api/v1');
+    app.setGlobalPrefix('api/v1');
 
-  app.use(cookieParser());
+    app.use(cookieParser());
 
-  app.enableCors({
-    origin: 'http://localhost:3000',
-    credentials: true,
-  });
+    app.enableCors({
+        origin: process.env.CLIENT_URL || true,
+        credentials: true,
+    });
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+    app.useGlobalInterceptors(new PaginationInterceptor());
 
-  const port = process.env.PORT || 3001;
-  await app.listen(port);
+    app.useGlobalPipes(
+        new ValidationPipe({
+            whitelist: true,
+            forbidNonWhitelisted: true,
+            transform: true,
+        }),
+    );
 
-  console.log(`🚀 Backend running on http://localhost:${port}/api/v1`);
+    const port = process.env.PORT ? Number(process.env.PORT) : 3001;
+    await app.listen(port, '0.0.0.0');
+
+    console.log(`Backend running on port ${port}`);
 }
+
 
 bootstrap();

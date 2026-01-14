@@ -1,15 +1,18 @@
-import { Injectable } from "@nestjs/common";
-import { KeycloakService } from "./keycloak/keycloak.service";
-import { MemorySessionStore } from "./session/memory-session.store";
-import { SessionUser } from "./session/session-user";
+import { Inject, Injectable } from '@nestjs/common';
 import { jwtDecode } from 'jwt-decode';
-
+import { KeycloakService } from './keycloak/keycloak.service';
+import { SessionUser } from './session/session-user';
+import { SESSION_STORE } from './session/session.constant';
+import type { SessionStore } from './session/session.store';
 
 @Injectable()
 export class AuthService {
     constructor(
         private readonly keycloak: KeycloakService,
-        private readonly sessionStore: MemorySessionStore,
+
+        // ✅ REQUIRED: token-based injection
+        @Inject(SESSION_STORE)
+        private readonly sessionStore: SessionStore,
     ) { }
 
     async login(code: string): Promise<string> {
@@ -32,10 +35,12 @@ export class AuthService {
 
     async getSessionUser(sessionId: string): Promise<SessionUser | null> {
         const session = this.sessionStore.get(sessionId);
+
         if (!session || session.expiresAt < Date.now()) {
             if (session) this.sessionStore.delete(sessionId);
             return null;
         }
+
         return session.user;
     }
 
@@ -44,11 +49,6 @@ export class AuthService {
     }
 
     private mapPermissions(userInfo: any): string[] {
-        const permissions = userInfo.permissions ?? [];
-
-        return Array.from(
-            new Set([...permissions]),
-        );
+        return Array.from(new Set(userInfo.permissions ?? []));
     }
-
 }
