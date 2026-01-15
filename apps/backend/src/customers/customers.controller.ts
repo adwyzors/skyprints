@@ -1,3 +1,4 @@
+import type { CreateCustomerDto, QueryCustomerDto } from '@app/contracts';
 import {
     Body,
     Controller,
@@ -7,7 +8,6 @@ import {
     Post,
     Query
 } from '@nestjs/common';
-import type { CreateCustomerDto, QueryCustomerDto } from '../../../packages/contracts/dist/customer.contract';
 
 import { CustomersService } from './customers.service';
 

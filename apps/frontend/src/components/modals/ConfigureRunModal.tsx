@@ -1,4 +1,3 @@
-// @/components/ConfigureRunModal.tsx
 "use client";
 
 import { useState } from "react";
@@ -10,7 +9,6 @@ interface ConfigureRunModalProps {
   orderId: string;
   process: Process;
   run: ProcessRun;
-  processDefinition: any;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -19,28 +17,42 @@ export default function ConfigureRunModal({
   orderId,
   process,
   run,
-  processDefinition,
   onClose,
   onSuccess,
 }: ConfigureRunModalProps) {
-  const [formData, setFormData] = useState<Record<string, any>>(
-    Object.keys(processDefinition.fields).reduce((acc, field) => ({
-      ...acc,
-      [field]: run.fields[field] || ""
-    }), {})
+  /* ================= FIELD DEFINITIONS ================= */
+
+  // Field schema comes from backend via runTemplate
+  const fieldDefinitions = run.runTemplate?.fields ?? [];
+
+  /* ================= FORM STATE ================= */
+
+  const [formData, setFormData] = useState<Record<string, any>>(() =>
+    fieldDefinitions.reduce((acc, field) => {
+      acc[field.key] = run.fields[field.key] ?? "";
+      return acc;
+    }, {} as Record<string, any>)
   );
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  /* ================= HANDLERS ================= */
+
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const updatedOrder = configureRun(orderId, process.id, run.id, formData);
-      if (updatedOrder) {
-        onSuccess();
-        onClose();
-      }
+      await configureRun(orderId, process.id, run.id, formData);
+      onSuccess();
+      onClose();
     } catch (error) {
       console.error("Failed to configure run:", error);
     } finally {
@@ -48,22 +60,26 @@ export default function ConfigureRunModal({
     }
   };
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  /* ================= FIELD RENDERING ================= */
 
-  const renderField = (fieldName: string, fieldType: string) => {
+  const renderField = (
+    fieldName: string,
+    fieldType: string,
+    required: boolean
+  ) => {
     if (fieldType === "number") {
       return (
         <input
           type="number"
-          value={formData[fieldName] || ""}
-          onChange={(e) => handleInputChange(fieldName, parseFloat(e.target.value) || 0)}
+          value={formData[fieldName] ?? ""}
+          onChange={e =>
+            handleInputChange(
+              fieldName,
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
+          }
+          required={required}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
         />
       );
     }
@@ -71,13 +87,15 @@ export default function ConfigureRunModal({
     return (
       <input
         type="text"
-        value={formData[fieldName] || ""}
-        onChange={(e) => handleInputChange(fieldName, e.target.value)}
+        value={formData[fieldName] ?? ""}
+        onChange={e => handleInputChange(fieldName, e.target.value)}
+        required={required}
         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        required
       />
     );
   };
+
+  /* ================= UI ================= */
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
@@ -101,14 +119,22 @@ export default function ConfigureRunModal({
         </div>
 
         {/* FORM */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+        <form
+          onSubmit={handleSubmit}
+          className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]"
+        >
           <div className="space-y-4">
-            {Object.entries(processDefinition.fields).map(([fieldName, fieldType]) => (
-              <div key={fieldName}>
+            {fieldDefinitions.map(field => (
+              <div key={field.key}>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {fieldName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                  {field.key
+                    .replace(/([A-Z])/g, " $1")
+                    .replace(/^./, str => str.toUpperCase())}
+                  {field.required && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
                 </label>
-                {renderField(fieldName, fieldType as string)}
+                {renderField(field.key, field.type, field.required)}
               </div>
             ))}
           </div>

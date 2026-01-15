@@ -1,13 +1,12 @@
 
-import { CreateProcessDto } from '../../../packages/contracts/dist/process.contract';
+import { CreateProcessDto } from '@app/contracts';
 
+import { ConfigureProcessRunDto, RunTemplateField, TransitionProcessRunDto } from '@app/contracts';
 import {
     BadRequestException,
     Injectable,
     Logger
 } from '@nestjs/common';
-import { ConfigureProcessRunDto, TransitionProcessRunDto } from '../../../packages/contracts/dist/process-run.configure.contract';
-import { RunTemplateField } from '../../../packages/contracts/dist/run-template.contract';
 import { PrismaService } from '../../prisma/prisma.service';
 import { toProcessSummary } from '../mappers/process.mapper';
 

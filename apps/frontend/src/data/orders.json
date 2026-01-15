@@ -7,7 +7,7 @@
       "customerName": "Sky Prints",
       "customerCode": "SKY",
       "quantity": 150,
-      "status": "CONFIGURE",
+      "statusCode": "CONFIGURE",
       "createdAt": "2026-01-01T10:00:00Z",
       "processes": [
         {
@@ -62,7 +62,7 @@
       "customerName": "Urban Wear",
       "customerCode": "URB",
       "quantity": 80,
-      "status": "PRODUCTION_READY",
+      "statusCode": "PRODUCTION_READY",
       "createdAt": "2026-01-02T14:30:00Z",
       "processes": [
         {
@@ -100,7 +100,7 @@
       "customerName": "Fashion Hub",
       "customerCode": "FASH",
       "quantity": 200,
-      "status": "IN_PRODUCTION",
+      "statusCode": "IN_PRODUCTION",
       "createdAt": "2026-01-03T09:15:00Z",
       "processes": [
         {
@@ -157,7 +157,7 @@
       "customerName": "Trendy Tees",
       "customerCode": "TRND",
       "quantity": 120,
-      "status": "COMPLETED",
+      "statusCode": "COMPLETED",
       "createdAt": "2026-01-04T11:45:00Z",
       "processes": [
         {
@@ -214,7 +214,7 @@
       "customerName": "Elite Apparel",
       "customerCode": "ELIT",
       "quantity": 50,
-      "status": "BILLED",
+      "statusCode": "BILLED",
       "createdAt": "2026-01-05T16:20:00Z",
       "billedAt": "2026-01-10T14:30:00Z",
       "billingTotal": 4500,
@@ -277,7 +277,7 @@
       "customerName": "Sporty Gear",
       "customerCode": "SPRT",
       "quantity": 300,
-      "status": "IN_PRODUCTION",
+      "statusCode": "IN_PRODUCTION",
       "createdAt": "2026-01-06T08:00:00Z",
       "processes": [
         {
@@ -353,7 +353,7 @@
       "customerName": "Sky Prints",
       "customerCode": "SKY",
       "quantity": 90,
-      "status": "PRODUCTION_READY",
+      "statusCode": "PRODUCTION_READY",
       "createdAt": "2026-01-07T13:15:00Z",
       "processes": [
         {
@@ -391,7 +391,7 @@
       "customerName": "Urban Wear",
       "customerCode": "URB",
       "quantity": 150,
-      "status": "COMPLETED",
+      "statusCode": "COMPLETED",
       "createdAt": "2026-01-08T10:30:00Z",
       "processes": [
         {

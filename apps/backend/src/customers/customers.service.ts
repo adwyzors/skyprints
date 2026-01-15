@@ -1,9 +1,9 @@
+import type { CreateCustomerDto, QueryCustomerDto } from '@app/contracts';
 import {
     ConflictException,
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
-import type { CreateCustomerDto, QueryCustomerDto } from '../../../packages/contracts/dist/customer.contract';
 import { toCustomerSummary } from '../mappers/customer.mapper';
 import { CustomersRepository } from './customers.repository';
 
