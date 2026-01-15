@@ -21,6 +21,9 @@ export const OrderProcessRunSchema = z.object({
     fields: z.array(TemplateFieldSchema),
 });
 
+export type OrderProcessRunDto =
+    z.infer<typeof OrderProcessRunSchema>;
+
 
 /* ---------------- ORDER PROCESS ---------------- */
 

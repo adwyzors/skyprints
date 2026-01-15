@@ -1,4 +1,4 @@
-import { RunTemplateDetailDto } from '../../../packages/contracts/dist/run-template.read.contract';
+import { RunTemplateDetailDto } from '@app/contracts';
 
 
 export function toRunTemplateDetail(

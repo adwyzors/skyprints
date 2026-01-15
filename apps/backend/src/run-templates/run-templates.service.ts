@@ -1,4 +1,4 @@
-import { CreateRunTemplateDto } from '../../../packages/contracts/dist/run-template.contract';
+import { CreateRunTemplateDto } from '@app/contracts';
 
 import {
     BadRequestException,

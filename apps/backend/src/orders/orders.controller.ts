@@ -1,3 +1,4 @@
+import type { CreateOrderDto } from '@app/contracts';
 import {
     Body,
     Controller,
@@ -6,7 +7,6 @@ import {
     Param,
     Post
 } from '@nestjs/common';
-import type { CreateOrderDto } from '../../../packages/contracts/dist/order.contract';
 import { OrdersService } from './orders.service';
 
 

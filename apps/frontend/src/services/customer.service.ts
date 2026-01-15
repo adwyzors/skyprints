@@ -1,13 +1,13 @@
 // services/orders.service.ts
-import { CustomerDtoSchema } from "@/dto/customer/customer.dto";
-import { mapCustomerDtosToModels } from "@/mapper/customer/customer.mapper";
-import { Customer } from "@/model/customer.model";
+import { mapCustomerSummaryDtosToCustomers } from "@/domain/mapper/customer/customer.mapper";
+import { Customer } from "@/domain/model/customer.model";
+import { CustomerSummarySchema, CustomerSummaryDto } from "@app/contracts";
 import { apiRequest } from "./api.service";
 
 export async function getCustomers(): Promise<Customer[]> {
-    const res = await apiRequest<unknown>("/customers");
+    const res = await apiRequest<CustomerSummaryDto[]>("/customers");
 
-    const dto = CustomerDtoSchema.array().parse(res);
+    const dto = CustomerSummarySchema.array().parse(res);
 
-    return mapCustomerDtosToModels(dto);
+    return mapCustomerSummaryDtosToCustomers(dto);
 }

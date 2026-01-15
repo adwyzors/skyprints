@@ -1,30 +1,30 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
 import {
-  AlertCircle,
-  CheckCircle,
-  ChevronRight,
-  Save,
-  X,
-  Calendar,
-  Hash,
-  User,
-  FileText,
-  Palette,
-  Ruler,
-  Package,
-  DollarSign,
-  Grid,
-  Type,
-  Eye,
-  Edit,
+    AlertCircle,
+    Calendar,
+    CheckCircle,
+    ChevronRight,
+    DollarSign,
+    Edit,
+    Eye,
+    FileText,
+    Grid,
+    Hash,
+    Package,
+    Palette,
+    Ruler,
+    Save,
+    Type,
+    User,
+    X,
 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
-import { Order } from '@/model/order.model';
-import { ProcessRun } from '@/model/process.run.model';
-import { configureRun } from '@/services/run.service';
+import { Order } from '@/domain/model/order.model';
+import { ProcessRun } from '@/domain/model/process.run.model';
 import { getOrderById } from '@/services/orders.service';
+import { configureRun } from '@/services/run.service';
 
 interface ScreenPrintingConfigProps {
   order: Order;

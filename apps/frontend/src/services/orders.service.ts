@@ -1,44 +1,58 @@
-import { OrderCreateDtoSchema } from "@/dto/order/order.create.dto";
-import { OrderDetailDtoSchema } from "@/dto/order/order.detail.dto";
-import { OrderListDtoSchema } from "@/dto/order/order.list.dto";
-import { mapOrderCreateDtoToModel } from "@/mapper/order/order-create.mapper";
-import { mapOrderDetailDtoToModel } from "@/mapper/order/order-detail.mapper";
-import { mapOrderListDtoToModel } from "@/mapper/order/order-list.mapper";
-import { Order } from "@/model/order.model";
+// services/orders.service.ts
+import { mapOrderSummaryDtoToOrder } from "@/domain/mapper/order/order.mapper";
+import { Order } from "@/domain/model/order.model";
 import { NewOrderPayload } from "@/types/planning";
+import {
+    OrderSummarySchema,
+    OrderSummaryDto,
+    CreateOrderSchema,
+    CreateOrderDto,
+} from "@app/contracts";
 import { apiRequest } from "./api.service";
 
-
+/* =====================================================
+ * GET ALL ORDERS
+ * ===================================================== */
 
 export async function getOrders(): Promise<Order[]> {
-    const res = await apiRequest("/orders")
+    const res = await apiRequest<OrderSummaryDto[]>("/orders");
 
-    const dtos = OrderListDtoSchema.array().parse(res)
+    const dtos = OrderSummarySchema.array().parse(res);
 
-    return dtos.map(mapOrderListDtoToModel)
+    return dtos.map(mapOrderSummaryDtoToOrder);
 }
+
+/* =====================================================
+ * GET ORDER BY ID
+ * ===================================================== */
 
 export async function getOrderById(id: string): Promise<Order> {
-    const res = await apiRequest(`/orders/${id}`)
+    const res = await apiRequest<OrderSummaryDto>(`/orders/${id}`);
 
-    const dto = OrderDetailDtoSchema.parse(res)
+    const dto = OrderSummarySchema.parse(res);
 
-    return mapOrderDetailDtoToModel(dto)
+    return mapOrderSummaryDtoToOrder(dto);
 }
+
+/* =====================================================
+ * CREATE ORDER
+ * ===================================================== */
 
 export async function createOrder(
     payload: NewOrderPayload
 ): Promise<Order> {
-    const apiPayload = {
+    const apiPayload: CreateOrderDto = {
         customerId: payload.customerId,
         quantity: payload.quantity,
         processes: payload.processes,
     };
 
-    const res = apiRequest<Order>("/orders", {
+    const res = await apiRequest<CreateOrderDto>("/orders", {
         method: "POST",
         body: JSON.stringify(apiPayload),
     });
-    const dto = OrderCreateDtoSchema.parse(res);
-    return mapOrderCreateDtoToModel(dto);
+
+    const dto = OrderSummarySchema.parse(res);
+
+    return mapOrderSummaryDtoToOrder(dto);
 }

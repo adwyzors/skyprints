@@ -1,6 +1,5 @@
-import type { ConfigureProcessRunDto, TransitionProcessRunDto } from '../../../packages/contracts/dist/process-run.configure.contract';
-import type { CreateProcessDto } from '../../../packages/contracts/dist/process.contract';
-import { ProcessDetailDto, ProcessSummaryDto } from '../../../packages/contracts/dist/process.read.contract';
+import type { ConfigureProcessRunDto, CreateProcessDto, TransitionProcessRunDto } from '@app/contracts';
+import { ProcessDetailDto, ProcessSummaryDto } from '@app/contracts';
 
 
 import {

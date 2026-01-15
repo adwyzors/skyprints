@@ -1,7 +1,7 @@
 'use client';
 // apps\frontend\src\components\layout\AppHeader.tsx
-import { useState, useRef, useEffect } from 'react';
-import { LogOut, User, Settings, ChevronDown, Bell, HelpCircle, Menu, X } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Settings, User, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function AppHeader() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);

@@ -1,10 +1,10 @@
+import { CreateOrderDto } from '@app/contracts';
 import {
     BadRequestException,
     Injectable,
     Logger,
     NotFoundException,
 } from '@nestjs/common';
-import { CreateOrderDto } from '../../../packages/contracts/dist/order.contract';
 import { PrismaService } from '../../prisma/prisma.service';
 import { toOrderSummary } from '../mappers/order.mapper';
 import { OutboxService } from '../outbox/outbox.service';
@@ -20,116 +20,116 @@ export class OrdersService {
     ) { }
 
     async getAll() {
-  const orders = await this.prisma.order.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      customer: {
-        select: {
-          id: true,
-          code: true,
-          name: true,
-        },
-      },
-
-      processes: {
-        include: {
-          process: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-
-          runs: {
-            orderBy: { runNumber: 'asc' },
+        const orders = await this.prisma.order.findMany({
+            orderBy: { createdAt: 'desc' },
             include: {
-              runTemplate: {
-                select: {
-                  id: true,
-                  name: true,
-                  fields: true,
-                  lifecycleWorkflowType: {
-                    include: {
-                      statuses: {
-                        orderBy: { createdAt: 'asc' },
-                        select: {
-                          code: true,
-                          isInitial: true,
-                          isTerminal: true,
-                        },
-                      },
+                customer: {
+                    select: {
+                        id: true,
+                        code: true,
+                        name: true,
                     },
-                  },
                 },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
 
-  return orders.map(toOrderSummary);
-}
+                processes: {
+                    include: {
+                        process: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
+
+                        runs: {
+                            orderBy: { runNumber: 'asc' },
+                            include: {
+                                runTemplate: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        fields: true,
+                                        lifecycleWorkflowType: {
+                                            include: {
+                                                statuses: {
+                                                    orderBy: { createdAt: 'asc' },
+                                                    select: {
+                                                        code: true,
+                                                        isInitial: true,
+                                                        isTerminal: true,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        return orders.map(toOrderSummary);
+    }
 
 
 
     async getById(orderId: string) {
-  const order = await this.prisma.order.findUnique({
-    where: { id: orderId },
-    include: {
-      customer: {
-        select: {
-          id: true,
-          code: true,
-          name: true,
-        },
-      },
-
-      processes: {
-        include: {
-          process: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-
-          runs: {
-            orderBy: { runNumber: 'asc' },
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
             include: {
-              runTemplate: {
-                select: {
-                  id: true,
-                  name: true,
-                  fields: true,
-                  lifecycleWorkflowType: {
-                    include: {
-                      statuses: {
-                        orderBy: { createdAt: 'asc' },
-                        select: {
-                          code: true,
-                          isInitial: true,
-                          isTerminal: true,
-                        },
-                      },
+                customer: {
+                    select: {
+                        id: true,
+                        code: true,
+                        name: true,
                     },
-                  },
                 },
-              },
+
+                processes: {
+                    include: {
+                        process: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
+
+                        runs: {
+                            orderBy: { runNumber: 'asc' },
+                            include: {
+                                runTemplate: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        fields: true,
+                                        lifecycleWorkflowType: {
+                                            include: {
+                                                statuses: {
+                                                    orderBy: { createdAt: 'asc' },
+                                                    select: {
+                                                        code: true,
+                                                        isInitial: true,
+                                                        isTerminal: true,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
             },
-          },
-        },
-      },
-    },
-  });
+        });
 
-  if (!order) {
-    throw new NotFoundException('Order not found');
-  }
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
 
-  return toOrderSummary(order);
-}
+        return toOrderSummary(order);
+    }
 
 
 

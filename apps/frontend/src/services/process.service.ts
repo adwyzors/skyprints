@@ -1,20 +1,22 @@
-import { Process } from "@/model/process.model";
+import { mapProcessDetailDto, mapProcessSummaryDto } from "@/domain/mapper/process/process.mapper";
+import { ProcessDetail, ProcessSummary } from "@/domain/model/process.model";
+import { ProcessDetailDto, ProcessDetailSchema, ProcessSummaryDto, ProcessSummarySchema } from "@app/contracts";
 import { apiRequest } from "./api.service";
-import { ProcessDtoArraySchema, ProcessDtoSchema } from "@/dto/process/process.dto";
-import { mapProcessDtoToModel } from "@/mapper/process/process.mapper";
 
-export async function getProcesses(): Promise<Process[]> {
-    const res = await apiRequest<unknown[]>("/process");
+export async function getProcesses(): Promise<ProcessSummary[]> {
+    const res = await apiRequest<ProcessSummaryDto[]>("/process");
 
-    const dto = ProcessDtoArraySchema.parse(res);
+    const dto = ProcessSummarySchema.array().parse(res);
 
-    return dto.map(mapProcessDtoToModel);
+    return dto.map(mapProcessSummaryDto);
 }
 
-//export async function getProcesses(): Promise<Process[]> {
-//    const res = await apiRequest<unknown[]>("/process");
+export async function getProcessById(
+    processId: string
+): Promise<ProcessDetail> {
+    const res = await apiRequest<ProcessDetailDto>(`/process/${processId}`);
 
-//    const dto = ProcessDtoArraySchema.parse(res);
+    const dto = ProcessDetailSchema.parse(res);
 
-//    return dto.map(mapProcessDtoToModel);
-//}
+    return mapProcessDetailDto(dto);
+}

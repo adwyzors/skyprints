@@ -1,4 +1,4 @@
-import { OrderSummaryDto } from '../../../packages/contracts/dist/order.read.contract';
+import { OrderSummaryDto } from '@app/contracts';
 
 export function toOrderSummary(order: any): OrderSummaryDto {
     return {

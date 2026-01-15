@@ -17,6 +17,7 @@
         "prisma": "prisma generate && prisma migrate deploy"
     },
     "dependencies": {
+        "@babel/runtime": "^7.28.6",
         "@nestjs/bull": "^11.0.4",
         "@nestjs/common": "^11.1.11",
         "@nestjs/config": "^4.0.2",
@@ -28,15 +29,16 @@
         "@prisma/client": "^6.19.1",
         "axios": "^1.13.2",
         "bull": "^4.16.5",
+        "class-transformer": "^0.5.1",
+        "class-validator": "^0.14.0",
         "cookie-parser": "^1.4.7",
         "json-logic-js": "^2.0.5",
         "jsonwebtoken": "^9.0.3",
         "jwks-rsa": "^3.2.0",
+        "jwt-decode": "^4.0.0",
+        "lru-memoizer": "^3.0.0",
         "mathjs": "^15.1.0",
         "pg": "^8.16.3",
-        "jwt-decode": "^4.0.0",
-        "class-transformer": "^0.5.1",
-        "class-validator": "^0.14.0",
         "reflect-metadata": "^0.2.2",
         "rxjs": "^7.8.2",
         "typeorm": "^0.3.28"

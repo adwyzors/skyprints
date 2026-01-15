@@ -1,31 +1,30 @@
 'use client';
-// apps/frontend/src/app/admin/orders/page.tsx
 
 import {
-  Calendar,
-  CheckCircle,
-  ChevronRight,
-  Clock,
-  Download,
-  Eye as EyeIcon,
-  EyeOff,
-  FileText,
-  Filter,
-  Loader2,
-  MoreVertical,
-  Package,
-  Plus,
-  Search,
-  Settings,
-  User,
-  X,
+    Calendar,
+    CheckCircle,
+    ChevronRight,
+    Clock,
+    Download,
+    Eye as EyeIcon,
+    EyeOff,
+    FileText,
+    Filter,
+    Loader2,
+    MoreVertical,
+    Package,
+    Plus,
+    Search,
+    Settings,
+    User,
+    X,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import CreateOrderModal from '@/components/modals/CreateOrderModal';
 import ViewOrderModal from '@/components/modals/ViewOrderModal';
-import { Order } from '@/model/order.model';
+import { Order } from '@/domain/model/order.model';
 import { getOrders } from '@/services/orders.service';
 
 /* =================================================
@@ -43,7 +42,7 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [openCreate, setOpenCreate] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0); // Add this to trigger refreshes
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('hide_completed');
@@ -64,15 +63,11 @@ export default function AdminOrdersPage() {
       setLoading(true);
       try {
         const fetchedOrders = await getOrders();
-        if (!cancelled) {
-          setOrders(fetchedOrders);
-        }
+        if (!cancelled) setOrders(fetchedOrders);
       } catch (error) {
         console.error('Error fetching orders:', error);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     };
 
@@ -81,48 +76,19 @@ export default function AdminOrdersPage() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [searchQuery, statusFilter, dateFilter, refreshTrigger]); // Add refreshTrigger to dependencies
+  }, [searchQuery, statusFilter, dateFilter, refreshTrigger]);
 
-  /* ================= HANDLE ORDER CREATION ================= */
+  /* ================= HANDLERS ================= */
 
   const handleOrderCreated = (newOrder: Order) => {
-    // Add the new order to the beginning of the list
     setOrders((prev) => [newOrder, ...prev]);
-
-    // Close the modal
     setOpenCreate(false);
-
-    // Show success message (optional)
-    console.log('Order created successfully:', newOrder);
   };
-
-  /* ================= FILTERED ORDERS ================= */
-
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      const matchesSearch =
-        !searchQuery ||
-        order.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer?.code?.toLowerCase().includes(searchQuery.toLowerCase());
-
-      let matchesStatus = true;
-      if (statusFilter !== 'hide_completed' && statusFilter !== 'all') {
-        matchesStatus = order.status === statusFilter;
-      }
-
-      if (statusFilter === 'hide_completed') {
-        matchesStatus = order.status !== 'COMPLETED' && order.status !== 'BILLED';
-      }
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [orders, searchQuery, statusFilter]);
 
   /* ================= HELPERS ================= */
 
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -140,11 +106,16 @@ export default function AdminOrdersPage() {
   };
 
   const getProcessSummary = (order: Order) => {
-    const totalRuns = order.processes.reduce((sum, p) => sum + p.runs.length, 0);
-    const configuredRuns = order.processes.reduce(
-      (sum, p) => sum + p.runs.filter((r) => r.statusCode === 'CONFIGURED').length,
-      0,
+    const totalRuns = order.processes.reduce(
+      (sum, p) => sum + p.runs.length,
+      0
     );
+
+    const configuredRuns = order.processes.reduce(
+      (sum, p) => sum + p.runs.filter((r) => r.configStatus === 'CONFIGURED').length,
+      0
+    );
+
     return { configuredRuns, totalRuns };
   };
 
@@ -154,7 +125,7 @@ export default function AdminOrdersPage() {
     }
 
     const steps = [
-      'NOT_CONFIGURED', // Add NOT_CONFIGURED as the first step
+      'NOT_CONFIGURED',
       'CONFIGURED',
       'DESIGN',
       'SIZE_COLOR',
@@ -172,13 +143,11 @@ export default function AdminOrdersPage() {
 
     order.processes.forEach((process) => {
       process.runs.forEach((run) => {
-        // For NOT_CONFIGURED runs, they haven't started progress
-        if (run.statusCode === 'NOT_CONFIGURED') return;
+        if (run.configStatus === 'NOT_CONFIGURED') return;
 
-        // Calculate progress based on step index
-        total += steps.length - 1; // Total steps to complete (excluding NOT_CONFIGURED)
-        const idx = steps.indexOf(run.statusCode);
-        completed += idx >= 0 ? idx : 0; // Progress based on step index
+        total += steps.length - 1;
+        const idx = steps.indexOf(run.configStatus);
+        completed += idx >= 0 ? idx : 0;
       });
     });
 
@@ -232,67 +201,38 @@ export default function AdminOrdersPage() {
     }
   };
 
-  /* ================= RENDER HELPER ================= */
+  /* ================= FILTERING ================= */
 
-  // Render non-interactive version during SSR
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const orderCode = order.id.slice(0, 8).toUpperCase();
+
+      const matchesSearch =
+        !searchQuery ||
+        orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customer?.code?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      let matchesStatus = true;
+      if (statusFilter !== 'hide_completed' && statusFilter !== 'all') {
+        matchesStatus = order.status === statusFilter;
+      }
+
+      if (statusFilter === 'hide_completed') {
+        matchesStatus = order.status !== 'COMPLETED' && order.status !== 'BILLED';
+      }
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [orders, searchQuery, statusFilter]);
+
+  /* ================= SSR GUARD ================= */
+
   if (!isMounted) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="p-4 md:p-6 lg:p-8 space-y-6">
-          {/* HEADER SECTION - Static */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Production Orders</h1>
-              <p className="text-gray-600 mt-1">Manage and track all manufacturing orders</p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="hidden md:flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl">
-                <Download className="w-4 h-4" />
-                <span>Export</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl">
-                <EyeIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Show All</span>
-              </div>
-              <div className="flex items-center gap-2 px-5 py-3 bg-linear-to-r from-blue-600 to-blue-700 text-white font-medium rounded-xl">
-                <Plus className="w-5 h-5" />
-                <span className="hidden sm:inline">Create Order</span>
-              </div>
-            </div>
-          </div>
-
-          {/* SEARCH AND FILTERS BAR - Static */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-5 shadow-sm">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <div className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl">
-                    Search orders, customers, or codes...
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl">
-                  <Filter className="w-4 h-4" />
-                  <span className="hidden sm:inline">Filters</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* LOADING STATE */}
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-            <span className="ml-3 text-gray-600">Loading orders...</span>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
-  /* ================= MAIN UI ================= */
+  /* ================= UI ================= */
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -491,7 +431,7 @@ export default function AdminOrdersPage() {
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition-colors">
-                          {order.code}
+                          {order.id}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
                           <User className="w-4 h-4 text-gray-500" />
@@ -510,7 +450,7 @@ export default function AdminOrdersPage() {
                           {statusConfig.label}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {formatDate(order.createdAt.toString())}
+                          {formatDate(order.createdAt)}
                         </span>
                       </div>
                     </div>
@@ -558,7 +498,7 @@ export default function AdminOrdersPage() {
                         {order.processes.map((process) => (
                           <div key={process.id} className="flex items-center justify-between">
                             <span className="text-sm text-gray-700 truncate">
-                              {process.processName}
+                              {process.name}
                             </span>
                             <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
                               {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}

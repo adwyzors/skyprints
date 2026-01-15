@@ -1,7 +1,7 @@
 'use client';
 
-import { Customer } from '@/model/customer.model';
-import { Process } from '@/model/process.model';
+import { Customer } from '@/domain/model/customer.model';
+import { ProcessSummary } from '@/domain/model/process.model';
 import { getCustomers } from '@/services/customer.service';
 import { createOrder } from '@/services/orders.service';
 
@@ -35,7 +35,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [processes, setProcesses] = useState<Process[]>([]);
+  const [processes, setProcesses] = useState<ProcessSummary[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
   /* ================= RESET FORM ================= */

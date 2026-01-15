@@ -1,4 +1,4 @@
-import { ProcessDetailDto, ProcessSummaryDto } from '../../../packages/contracts/dist/process.read.contract';
+import { ProcessDetailDto, ProcessSummaryDto } from '@app/contracts';
 
 
 export function toProcessDetail(process: any): ProcessDetailDto {

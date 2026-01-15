@@ -1,8 +1,8 @@
 "use client";
 //apps\frontend\src\components\modals\CompletedOrderModal.tsx
-import { useState } from "react";
-import { X, FileText, DollarSign, Calculator, Package, MapPin, CheckCircle, Printer, Download } from "lucide-react";
 import { Order } from "@/types/domain";
+import { Calculator, CheckCircle, DollarSign, Download, FileText, MapPin, Package, Printer, X } from "lucide-react";
+import { useState } from "react";
 
 interface Props {
   order: Order;
@@ -52,7 +52,7 @@ export default function CompletedOrderModal({ order, onClose }: Props) {
     const invoiceContent = `
       INVOICE
       Order: ${order.orderCode}
-      Customer: ${order.customerName} (${order.customerCode})
+      Customer: ${order.customer.name} (${order.id})
       Billing Date: ${getBillingDate()}
       
       Total Amount: ₹${getTotalAmount().toLocaleString()}
@@ -146,11 +146,11 @@ export default function CompletedOrderModal({ order, onClose }: Props) {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Customer:</span>
-                      <span className="font-medium">{order.customerName}</span>
+                      <span className="font-medium">{order.customer.name}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Customer Code:</span>
-                      <span className="font-medium">{order.customerCode}</span>
+                      <span className="font-medium">{order.id}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Order Quantity:</span>
@@ -178,7 +178,7 @@ export default function CompletedOrderModal({ order, onClose }: Props) {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Status:</span>
                       <span className="px-2 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">
-                        {order.status}
+                        {order.statusCode}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -247,10 +247,10 @@ export default function CompletedOrderModal({ order, onClose }: Props) {
                             <div key={run.id} className="flex items-center justify-between text-sm">
                               <div className="flex items-center gap-3">
                                 <span className="text-gray-700">Run {run.runNumber}</span>
-                                {run.location && (
+                                {run.locationId && (
                                   <span className="flex items-center gap-1 text-gray-500">
                                     <MapPin className="w-3 h-3" />
-                                    {run.location}
+                                    {run.locationId}
                                   </span>
                                 )}
                               </div>
@@ -298,10 +298,10 @@ export default function CompletedOrderModal({ order, onClose }: Props) {
                             <div>
                               <h4 className="font-medium text-gray-800">Run {run.runNumber}</h4>
                               <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
-                                {run.location && (
+                                {run.locationId && (
                                   <span className="flex items-center gap-1">
                                     <MapPin className="w-3 h-3" />
-                                    {run.location}
+                                    {run.locationId}
                                   </span>
                                 )}
                                 <span>Quantity: {quantity} units</span>
@@ -407,8 +407,8 @@ export default function CompletedOrderModal({ order, onClose }: Props) {
                   <div>
                     <h3 className="font-semibold text-gray-800 mb-3">Bill To:</h3>
                     <div className="space-y-2">
-                      <p className="text-lg font-bold">{order.customerName}</p>
-                      <p className="text-gray-600">{order.customerCode}</p>
+                      <p className="text-lg font-bold">{order.customer.name}</p>
+                      <p className="text-gray-600">{order.id}</p>
                     </div>
                   </div>
                   
@@ -443,8 +443,8 @@ export default function CompletedOrderModal({ order, onClose }: Props) {
                         <div key={run.id} className="grid grid-cols-5 p-4 border-t border-gray-200">
                           <div>
                             <div className="font-medium">{process.name} - Run {run.runNumber}</div>
-                            {run.location && (
-                              <div className="text-sm text-gray-500">{run.location}</div>
+                            {run.locationId && (
+                              <div className="text-sm text-gray-500">{run.locationId}</div>
                             )}
                           </div>
                           <div className="text-center">{quantity}</div>

@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import { Order } from '@/domain/model/order.model';
 import { Clock, Construction } from 'lucide-react';
-import { Order } from '@/model/order.model';
 
 interface ComingSoonConfigProps {
   order: Order;
@@ -19,7 +18,7 @@ export default function ComingSoonConfig({ order }: ComingSoonConfigProps) {
             Configuration Interface Coming Soon
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto mb-8">
-            The configuration interface for {order.processes.map((p) => p.processName).join(', ')}{' '}
+            The configuration interface for {order.processes.map((p) => p.name).join(', ')}{' '}
             processes is currently under development. For now, you can proceed with basic order
             management.
           </p>
@@ -45,7 +44,7 @@ export default function ComingSoonConfig({ order }: ComingSoonConfigProps) {
                   <span className="font-medium text-gray-700">{index + 1}</span>
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-800">{process.processName}</h4>
+                  <h4 className="font-medium text-gray-800">{process.name}</h4>
                   <p className="text-sm text-gray-500">
                     {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
                   </p>

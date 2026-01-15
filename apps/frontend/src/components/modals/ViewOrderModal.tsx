@@ -4,7 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { Order } from "@/model/order.model";
+import { Order } from "@/domain/model/order.model";
 import { getOrderById } from "@/services/orders.service";
 import {
     CheckCircle,
@@ -84,9 +84,9 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
           outer: for (const process of fetched.processes) {
             for (const run of process.runs) {
               if (
-                run.status === "CONFIGURED" ||
-                (run.status !== "COMPLETED" &&
-                  run.status !== "NOT_CONFIGURED")
+                run.configStatus === "CONFIGURED" ||
+                (run.configStatus !== "COMPLETED" &&
+                  run.configStatus !== "NOT_CONFIGURED")
               ) {
                 firstActiveRun = run.id;
                 break outer;
@@ -212,7 +212,7 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
         <div className="w-1/3 border-r border-gray-200 p-6 flex flex-col">
           <div className="flex-1">
             <h2 className="text-xl font-bold text-gray-800 mb-2">
-              {order.code}
+              {order.id}
             </h2>
             <div className="text-sm text-gray-600 space-y-2 mb-6">
               <div className="flex items-center justify-between">
@@ -252,7 +252,7 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                       onClick={() => toggleProcessExpansion(process.id)}
                       className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
                     >
-                      <span className="font-medium text-gray-800">{process.processName}</span>
+                      <span className="font-medium text-gray-800">{process.name}</span>
                       <ChevronRight className={`w-4 h-4 transition-transform ${
                         expandedProcesses.has(process.id) ? "rotate-90" : ""
                       }`} />
@@ -271,19 +271,19 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                                     <span className="text-gray-600">Run {run.runNumber}</span>
                                   </div>
                                   <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    run.status === "COMPLETED"
+                                    run.configStatus === "COMPLETED"
                                       ? "bg-green-100 text-green-800"
-                                      : run.status === "CONFIGURED"
+                                      : run.configStatus === "CONFIGURED"
                                       ? "bg-gray-100 text-gray-800"
-                                      : run.status === "NOT_CONFIGURED"
+                                      : run.configStatus === "NOT_CONFIGURED"
                                       ? "bg-red-100 text-red-800"
                                       : "bg-blue-100 text-blue-800"
                                   }`}>
-                                    {run.status === "COMPLETED" 
+                                    {run.configStatus === "COMPLETED" 
                                       ? "Completed" 
-                                      : run.status === "CONFIGURED"
+                                      : run.configStatus === "CONFIGURED"
                                       ? "Configured"
-                                      : run.status === "NOT_CONFIGURED"
+                                      : run.configStatus === "NOT_CONFIGURED"
                                       ? "Not Configured"
                                       : "Active"
                                     }
@@ -322,14 +322,14 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                                 ) : (
                                   <div className="flex items-center justify-between mt-1">
                                     <div className="flex items-center gap-1 text-xs text-gray-500">
-                                      {run.locationId ? (
+                                      {/*{run.locationId ? (
                                         <>
                                           <MapPin className="w-3 h-3" />
                                           <span>{run.locationId}</span>CreateOrderModal.
                                         </>
-                                      ) : (
+                                      ) : (*/}
                                         <span className="text-gray-400">No location set</span>
-                                      )}
+                                      {/*)}*/}
                                     </div>
                                     <button
                                     //  onClick={() => startEditingLocation(process.id, run.id, run.locationId)}
@@ -388,7 +388,7 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
             order.processes.map(process => (
               <div key={process.id} className="mb-8">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-gray-800">{process.processName}</h3>
+                  <h3 className="text-lg font-bold text-gray-800">{process.name}</h3>
                   <span className="text-sm text-gray-500">
                     {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
                   </span>
@@ -396,8 +396,8 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
 
                 {process.runs.map((run) => {
                   const isOpen = activeRunId === run.id;
-                  const canOpen = canOpenRun(run.status);
-                  const isActive = isRunActive(run.status);
+                  const canOpen = canOpenRun(run.configStatus);
+                  const isActive = isRunActive(run.configStatus);
                   const isEditingLocation = editingLocation === `${process.id}-${run.id}`;
 
                   return (
@@ -411,7 +411,7 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                     >
                       {/* HEADER */}
                       <button
-                        onClick={() => handleRunClick(process.id, run.id, run.status)}
+                        onClick={() => handleRunClick(process.id, run.id, run.configStatus)}
                         disabled={!canOpen || updating}
                         className={`w-full p-4 flex items-center justify-between transition-colors ${
                           isOpen 
@@ -423,7 +423,7 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-2 h-8 rounded ${
-                            run.status === "COMPLETED" 
+                            run.configStatus === "COMPLETED" 
                               ? "bg-green-500" 
                               : isActive
                               ? "bg-blue-500" 
@@ -434,29 +434,29 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                               Run {run.runNumber}
                             </div>
                             <div className="text-sm text-gray-600">
-                              Progress: {getStatusDisplayName(run.status)}
+                              Progress: {getStatusDisplayName(run.configStatus)}
                             </div>
-                            {run.locationId && (
+                            {/*{run.locationId && (
                               <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
                                 <MapPin className="w-3 h-3" />
                                 <span>{run.locationId}</span>
                               </div>
-                            )}
+                            )}*/}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            run.status === "COMPLETED"
+                            run.configStatus === "COMPLETED"
                               ? "bg-green-100 text-green-800"
                               : isActive
                               ? "bg-blue-100 text-blue-800"
-                              : run.status === "CONFIGURED"
+                              : run.configStatus === "CONFIGURED"
                               ? "bg-yellow-100 text-yellow-800"
                               : "bg-gray-100 text-gray-800"
                           }`}>
-                            {run.status === "COMPLETED" 
+                            {run.configStatus === "COMPLETED" 
                               ? "Completed" 
-                              : run.status === "CONFIGURED"
+                              : run.configStatus === "CONFIGURED"
                               ? "Ready"
                               : isActive
                               ? "Active"
@@ -483,7 +483,7 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                             <div className="flex gap-2">
                               <input
                                 type="text"
-                                value={locationInput[`${process.id}-${run.id}`] || run.locationId || ""}
+                                //value={locationInput[`${process.id}-${run.id}`] || run.locationId || ""}
                                 onChange={(e) => setLocationInput(prev => ({
                                   ...prev,
                                   [`${process.id}-${run.id}`]: e.target.value
@@ -501,11 +501,11 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                                 {updating ? "Updating..." : "Update"}
                               </button>
                             </div>
-                            {run.locationId && !isEditingLocation && (
+                            {/*{run.locationId && !isEditingLocation && (
                               <div className="mt-2 text-sm text-gray-600">
                                 Current: {run.locationId}
                               </div>
-                            )}
+                            )}*/}
                           </div>
 
                           {/* VERTICAL TIMELINE */}
@@ -514,8 +514,8 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                             <div className="absolute left-2.75 top-2 bottom-2 w-0.5 bg-gray-300" />
                             
                             {PROCESS_MASTER_STATUSES.map((status) => {
-                              const completed = isStepCompleted(run.status, status);
-                              const current = isCurrentStep(run.status, status);
+                              const completed = isStepCompleted(run.configStatus, status);
+                              const current = isCurrentStep(run.configStatus, status);
                             //  const nextButtonVisible = shouldShowNextButton(run, status);
 
                               return (
@@ -579,7 +579,7 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                                           >
                                             <span>
                                               {updating ? "Updating..." : 
-                                                run.status === "CONFIGURED" 
+                                                run.configStatus === "CONFIGURED" 
                                                   ? "Start Production - Move to Design" 
                                                   : "Completed. Move to Next Step"
                                               }
@@ -596,17 +596,17 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                           </div>
 
                           {/* RUN COMPLETION STATUS */}
-                          {run.status === "COMPLETED" && (
+                          {run.configStatus === "COMPLETED" && (
                             <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
                               <div className="flex items-center justify-center gap-2 text-green-800">
                                 <CheckCircle className="w-5 h-5" />
                                 <span className="font-medium">This run has been completed</span>
                               </div>
-                              {run.locationId && (
+                              {/*{run.locationId && (
                                 <div className="text-center text-green-700 text-sm mt-2">
                                   Location: {run.locationId}
                                 </div>
-                              )}
+                              )}*/}
                             </div>
                           )}
                         </div>

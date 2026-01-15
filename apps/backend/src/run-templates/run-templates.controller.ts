@@ -1,3 +1,5 @@
+import type { CreateRunTemplateDto } from '@app/contracts';
+import { RunTemplateDetailDto, RunTemplateSummaryDto } from '@app/contracts';
 import {
     Body,
     Controller,
@@ -6,8 +8,6 @@ import {
     Param,
     Post,
 } from '@nestjs/common';
-import type { CreateRunTemplateDto } from '../../../packages/contracts/dist/run-template.contract';
-import { RunTemplateDetailDto, RunTemplateSummaryDto } from '../../../packages/contracts/dist/run-template.read.contract';
 import { toRunTemplateDetail } from '../mappers/run-template.mapper';
 import { RunTemplatesService } from './run-templates.service';
 
