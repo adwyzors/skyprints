@@ -1,22 +1,24 @@
 {
-  "name": "factory-process-app",
-  "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present",
-    "dev:backend": "npm run dev --workspace apps/backend",
-    "dev:frontend": "npm run dev --workspace apps/frontend",
-    "start:backend": "npm run start --workspace apps/backend",
-    "start:frontend": "npm run start --workspace apps/frontend",
-    "start:all": "npm run dev:backend & npm run dev:frontend"
-  },
-  "devDependencies": {
-    "eslint": "^9.39.2",
-    "prettier": "^3.7.4",
-    "prisma": "^6.19.1"
-  }
+    "name": "factory-process-app",
+    "private": true,
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "scripts": {
+        "dev": "npm run dev --workspaces --if-present",
+        "build:contracts": "npm --workspace apps/package run build",
+        "build:backend": "npm --workspace apps/backend run build",
+        "build": "npm run build:contracts && npm run build:backend",
+        "dev:backend": "npm run dev --workspace apps/backend",
+        "dev:frontend": "npm run dev --workspace apps/frontend",
+        "start:backend": "npm run start --workspace apps/backend",
+        "start:frontend": "npm run start --workspace apps/frontend",
+        "start:all": "npm run dev:backend & npm run dev:frontend"
+    },
+    "devDependencies": {
+        "eslint": "^9.39.2",
+        "prettier": "^3.7.4",
+        "prisma": "^6.19.1"
+    }
 }
