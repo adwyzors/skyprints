@@ -17,6 +17,7 @@ export class RunTemplatesService {
 
     async create(dto: CreateRunTemplateDto) {
         return this.prisma.$transaction(async tx => {
+            
             const fields = ["CONFIGURE", "COMPLETE"];
 
             const configWF = await this.createWorkflow(
