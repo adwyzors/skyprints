@@ -8,17 +8,18 @@ import { HealthModule } from './health/health.module';
 import { UserModule } from './user/user.module';
 
 import { ConfigModule } from '@nestjs/config';
+import { PrismaModule } from '../prisma/prisma.module';
 import { AuthGuard } from './auth/guards/auth.guard';
+import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { SessionModule } from './auth/session/session.module';
+import { CustomersModule } from './customers/customers.module';
 import { OrdersModule } from './orders/orders.module';
 import { OutboxModule } from './outbox/outbox.module';
 import { ProcessesModule } from './processes/processes.module';
 import { RunTemplatesModule } from './run-templates/run-templates.module';
 import { RunsModule } from './runs/runs.module';
 import { WorkflowModule } from './workflow/workflow.module';
-import { CustomersModule } from './customers/customers.module';
-import { PrismaModule } from '../prisma/prisma.module';
-import { PermissionsGuard } from './auth/guards/permissions.guard';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
     imports: [ConfigModule.forRoot({
@@ -38,6 +39,7 @@ import { PermissionsGuard } from './auth/guards/permissions.guard';
         ProcessesModule,
         RunTemplatesModule,
         CustomersModule,
+        BillingModule,
         HealthModule,],
     providers: [
         AppService,

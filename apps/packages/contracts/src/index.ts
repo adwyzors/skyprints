@@ -12,3 +12,6 @@ export * from './process-run.configure.contract';
 export * from './customer.contract';
 export * from './customer.read.contract';
 
+export * from './calculate-billing.contract';
+export * from './calculate-billing.read.contract';
+

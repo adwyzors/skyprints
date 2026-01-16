@@ -109,6 +109,8 @@ model RunTemplate {
   name   String
   fields Json
 
+  billingFormula String?
+
   configWorkflowTypeId    String
   lifecycleWorkflowTypeId String
 
