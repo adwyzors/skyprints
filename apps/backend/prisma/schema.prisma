@@ -79,6 +79,8 @@ model WorkflowStatus {
   createdAt DateTime @default(now())
 
   @@unique([workflowTypeId, code])
+  @@index([workflowTypeId, createdAt])
+  @@index([workflowTypeId, isInitial])
 }
 
 model WorkflowTransition {
@@ -93,6 +95,9 @@ model WorkflowTransition {
   toStatus     WorkflowStatus @relation("To", fields: [toStatusId], references: [id])
 
   @@unique([workflowTypeId, fromStatusId, toStatusId])
+  @@index([workflowTypeId])
+  @@index([fromStatusId])
+  @@index([toStatusId])
 }
 
 //////////////////////////////
@@ -114,6 +119,9 @@ model RunTemplate {
   runs    ProcessRun[]
 
   createdAt DateTime @default(now())
+
+  @@index([configWorkflowTypeId])
+  @@index([lifecycleWorkflowTypeId])
 }
 
 //////////////////////////////
@@ -131,6 +139,8 @@ model Process {
   orderProcesses OrderProcess[]
 
   createdAt DateTime @default(now())
+
+  @@index([isEnabled])
 }
 
 model ProcessRunDefinition {
@@ -144,6 +154,7 @@ model ProcessRunDefinition {
   runTemplate RunTemplate @relation(fields: [runTemplateId], references: [id])
 
   @@unique([processId, sortOrder])
+  @@index([runTemplateId])
 }
 
 //////////////////////////////
@@ -165,6 +176,11 @@ model Order {
   processes OrderProcess[]
 
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([customerId])
+  @@index([createdById])
+  @@index([workflowTypeId])
 }
 
 model OrderProcess {
@@ -181,6 +197,9 @@ model OrderProcess {
   runs ProcessRun[]
 
   @@unique([orderId, processId])
+  @@index([orderId])
+  @@index([processId])
+  @@index([workflowTypeId])
 }
 
 model ProcessRun {
@@ -208,6 +227,11 @@ model ProcessRun {
   runTemplate  RunTemplate  @relation(fields: [runTemplateId], references: [id])
 
   @@unique([orderProcessId, runNumber])
+  @@index([orderProcessId])
+  @@index([runTemplateId])
+  @@index([assignedUserId])
+  @@index([locationId])
+  @@index([lifecycleWorkflowTypeId])
 }
 
 ///////////////////////////////
@@ -225,6 +249,8 @@ model Location {
   runs        ProcessRun[]
 
   createdAt   DateTime @default(now())
+
+  @@index([isActive])
 }
 
 //////////////////////////////
@@ -240,6 +266,9 @@ model OutboxEvent {
   processed     Boolean @default(false)
 
   createdAt DateTime @default(now())
+
+  @@index([processed, createdAt])
+  @@index([aggregateType, aggregateId])
 }
 
 model WorkflowAuditLog {
@@ -253,6 +282,9 @@ model WorkflowAuditLog {
   workflowType WorkflowType @relation(fields: [workflowTypeId], references: [id])
 
   createdAt DateTime @default(now())
+
+  @@index([workflowTypeId])
+  @@index([aggregateType, aggregateId])
 }
 
 ///////////////////////////////
