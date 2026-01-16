@@ -60,7 +60,8 @@ export class OutboxProcessor implements OnModuleInit {
                     `Outbox processing failed: ${event.id}`,
                     err instanceof Error ? err.stack : undefined,
                 );
-                // ❗ do NOT mark processed → retry later
+                // TODO: do NOT mark processed → retry later
+                await this.repo.markFailed(event.id, err instanceof Error ? err.message : `Outbox processing failed: ${event.id}`);
             }
         }
     }

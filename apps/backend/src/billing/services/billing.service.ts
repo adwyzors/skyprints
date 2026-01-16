@@ -5,10 +5,10 @@ import {
     NotFoundException
 } from "@nestjs/common";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
-import { FormulaCompiler } from "./formula/formula-compiler";
-import { MathOnlyFormulaEngine } from "./formula/math-only.formula.engine";
-import { extractNumericVariables } from "./utils/field-mapper";
-import { extractFormulaVariables } from "./utils/formula-variable-extractor";
+import { FormulaCompiler } from "../formula/formula-compiler";
+import { MathOnlyFormulaEngine } from "../formula/math-only.formula.engine";
+import { extractNumericVariables } from "../utils/field-mapper";
+import { extractFormulaVariables } from "../utils/formula-variable-extractor";
 
 @Injectable()
 export class BillingService {

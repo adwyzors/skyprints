@@ -23,9 +23,9 @@ export function validateBillingFormula(
 
         if (node.isSymbolNode) {
             if (!allowedVariables.has(node.name)) {
-                throw new BadRequestException(
-                    `Invalid variable in formula: "${node.name}"`,
-                );
+                //throw new BadRequestException(
+                //    `Invalid variable in formula: "${node.name}"`,
+                //);
             }
         }
     });

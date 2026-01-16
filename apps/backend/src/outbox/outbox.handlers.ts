@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import jsonLogic from 'json-logic-js';
 import { PrismaService } from '../../prisma/prisma.service';
+import { BillingSnapshotWorker } from '../billing/workers/billing-snapshot.worker';
 
 @Injectable()
 export class OutboxHandlers {
     private readonly logger = new Logger(OutboxHandlers.name);
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(private readonly prisma: PrismaService, private readonly billingSnapshotWorker: BillingSnapshotWorker) { }
 
     async handle(event: {
         eventType: string;
@@ -28,6 +29,9 @@ export class OutboxHandlers {
                 return this.handleOrderProcessLifecycleTransition(event);
             case 'ORDER_LIFECYCLE_TRANSITION_REQUESTED':
                 return this.handleOrderLifecycleTransition(event);
+            case "BILLING_SNAPSHOT_REQUESTED":
+                await this.billingSnapshotWorker.handle(event);
+                break;
             default:
                 this.logger.warn(`Unhandled eventType=${event.eventType}`);
         }
@@ -276,123 +280,123 @@ export class OutboxHandlers {
      * ========================================================= */
 
     private async handleProcessRunLifecycleTransition(event: {
-    aggregateId: string;
-}) {
-    this.logger.debug(
-        `PROCESS_RUN_LIFECYCLE_TRANSITION_REQUESTED runId=${event.aggregateId}`,
-    );
-
-    const run = await this.prisma.processRun.findUnique({
-        where: { id: event.aggregateId },
-        include: {
-            runTemplate: {
-                include: {
-                    lifecycleWorkflowType: {
-                        include: {
-                            statuses: true,
-                            transitions: {
-                                include: { fromStatus: true, toStatus: true },
-                            },
-                        },
-                    },
-                },
-            },
-            orderProcess: true,
-        },
-    });
-
-    if (!run) {
-        this.logger.warn(`ProcessRun not found runId=${event.aggregateId}`);
-        return;
-    }
-
-    const workflow = run.runTemplate.lifecycleWorkflowType;
-
-    const current = workflow.statuses.find(
-        s => s.code === run.lifeCycleStatusCode,
-    );
-
-    if (!current) {
-        this.logger.warn(
-            `Invalid lifecycle status runId=${run.id}, status=${run.lifeCycleStatusCode}`,
-        );
-        return;
-    }
-
-    const transition = workflow.transitions.find(
-        t => t.fromStatusId === current.id,
-    );
-
-    if (!transition) {
+        aggregateId: string;
+    }) {
         this.logger.debug(
-            `No lifecycle transition runId=${run.id}, status=${current.code}`,
+            `PROCESS_RUN_LIFECYCLE_TRANSITION_REQUESTED runId=${event.aggregateId}`,
         );
-        return;
-    }
 
-    this.logger.log(
-        `Lifecycle transition START runId=${run.id} ${current.code} → ${transition.toStatus.code}`,
-    );
-
-    await this.prisma.$transaction(async tx => {
-        // 1️⃣ Transition ProcessRun lifecycle
-        await tx.processRun.update({
-            where: { id: run.id },
-            data: { lifeCycleStatusCode: transition.toStatus.code },
-        });
-
-        await tx.workflowAuditLog.create({
-            data: {
-                workflowTypeId: workflow.id,
-                aggregateType: 'ProcessRun',
-                aggregateId: run.id,
-                fromStatus: current.code,
-                toStatus: transition.toStatus.code,
-            },
-        });
-
-        // 2️⃣ Check if ALL ProcessRuns in this OrderProcess are terminal
-        const runs = await tx.processRun.findMany({
-            where: { orderProcessId: run.orderProcessId },
+        const run = await this.prisma.processRun.findUnique({
+            where: { id: event.aggregateId },
             include: {
                 runTemplate: {
                     include: {
                         lifecycleWorkflowType: {
-                            include: { statuses: true },
+                            include: {
+                                statuses: true,
+                                transitions: {
+                                    include: { fromStatus: true, toStatus: true },
+                                },
+                            },
                         },
                     },
                 },
+                orderProcess: true,
             },
         });
 
-        const allRunsTerminal = runs.every(r => {
-            const terminal = r.runTemplate.lifecycleWorkflowType.statuses.find(
-                s => s.isTerminal,
-            );
-            return terminal && r.lifeCycleStatusCode === terminal.code;
-        });
+        if (!run) {
+            this.logger.warn(`ProcessRun not found runId=${event.aggregateId}`);
+            return;
+        }
 
-        // 3️⃣ If yes → trigger OrderProcess lifecycle transition
-        if (allRunsTerminal) {
-            this.logger.log(
-                `All ProcessRuns terminal → requesting OrderProcess lifecycle transition orderProcessId=${run.orderProcessId}`,
-            );
+        const workflow = run.runTemplate.lifecycleWorkflowType;
 
-            await tx.outboxEvent.create({
+        const current = workflow.statuses.find(
+            s => s.code === run.lifeCycleStatusCode,
+        );
+
+        if (!current) {
+            this.logger.warn(
+                `Invalid lifecycle status runId=${run.id}, status=${run.lifeCycleStatusCode}`,
+            );
+            return;
+        }
+
+        const transition = workflow.transitions.find(
+            t => t.fromStatusId === current.id,
+        );
+
+        if (!transition) {
+            this.logger.debug(
+                `No lifecycle transition runId=${run.id}, status=${current.code}`,
+            );
+            return;
+        }
+
+        this.logger.log(
+            `Lifecycle transition START runId=${run.id} ${current.code} → ${transition.toStatus.code}`,
+        );
+
+        await this.prisma.$transaction(async tx => {
+            // 1️⃣ Transition ProcessRun lifecycle
+            await tx.processRun.update({
+                where: { id: run.id },
+                data: { lifeCycleStatusCode: transition.toStatus.code },
+            });
+
+            await tx.workflowAuditLog.create({
                 data: {
-                    aggregateType: 'OrderProcess',
-                    aggregateId: run.orderProcessId,
-                    eventType: 'ORDER_PROCESS_LIFECYCLE_TRANSITION_REQUESTED',
-                    payload: { reason: 'ALL_RUNS_COMPLETED' },
+                    workflowTypeId: workflow.id,
+                    aggregateType: 'ProcessRun',
+                    aggregateId: run.id,
+                    fromStatus: current.code,
+                    toStatus: transition.toStatus.code,
                 },
             });
-        }
-    });
 
-    this.logger.log(
-        `Lifecycle transition DONE runId=${run.id} → ${transition.toStatus.code}`,
-    );
-}
+            // 2️⃣ Check if ALL ProcessRuns in this OrderProcess are terminal
+            const runs = await tx.processRun.findMany({
+                where: { orderProcessId: run.orderProcessId },
+                include: {
+                    runTemplate: {
+                        include: {
+                            lifecycleWorkflowType: {
+                                include: { statuses: true },
+                            },
+                        },
+                    },
+                },
+            });
+
+            const allRunsTerminal = runs.every(r => {
+                const terminal = r.runTemplate.lifecycleWorkflowType.statuses.find(
+                    s => s.isTerminal,
+                );
+                return terminal && r.lifeCycleStatusCode === terminal.code;
+            });
+
+            // 3️⃣ If yes → trigger OrderProcess lifecycle transition
+            if (allRunsTerminal) {
+                this.logger.log(
+                    `All ProcessRuns terminal → requesting OrderProcess lifecycle transition orderProcessId=${run.orderProcessId}`,
+                );
+
+                await tx.outboxEvent.create({
+                    data: {
+                        aggregateType: 'OrderProcess',
+                        aggregateId: run.orderProcessId,
+                        eventType: 'ORDER_PROCESS_LIFECYCLE_TRANSITION_REQUESTED',
+                        payload: { reason: 'ALL_RUNS_COMPLETED' },
+                    },
+                });
+            }
+        });
+
+        this.logger.log(
+            `Lifecycle transition DONE runId=${run.id} → ${transition.toStatus.code}`,
+        );
+    }
 
 
     /* =========================================================

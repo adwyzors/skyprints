@@ -260,16 +260,19 @@ model Location {
 //////////////////////////////
 
 model OutboxEvent {
-  id            String @id @default(uuid())
+  id            String   @id @default(uuid())
   aggregateType String
   aggregateId   String
   eventType     String
   payload       Json
-  processed     Boolean @default(false)
 
-  createdAt DateTime @default(now())
+  processed     Boolean  @default(false)
+  failed        Boolean  @default(false)
+  errorMessage  String?
 
-  @@index([processed, createdAt])
+  createdAt     DateTime @default(now())
+
+  @@index([processed, failed, createdAt])
   @@index([aggregateType, aggregateId])
 }
 
@@ -309,3 +312,36 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
 }
+
+
+model BillingSnapshot {
+  id              String   @id @default(uuid())
+
+  orderId         String   // (primary billing owner)
+  version         Int
+  isLatest        Boolean  @default(true)
+
+  formula         String
+  formulaChecksum String
+
+  inputs          Json     // SNAPSHOT across all runs
+  result          Decimal  @db.Decimal(18, 4)
+  currency        String   @default("INR")
+
+  source          BillingSource
+  reason          String?
+
+  createdBy       String?
+  createdAt       DateTime @default(now())
+
+  @@unique([orderId, version])
+  @@index([orderId, isLatest])
+}
+
+
+enum BillingSource {
+  SYSTEM
+  MANUAL
+  RECALCULATION
+}
+

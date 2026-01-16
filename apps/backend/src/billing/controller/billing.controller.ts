@@ -7,7 +7,7 @@ import {
     Param,
     Put
 } from "@nestjs/common";
-import { BillingService } from "./billing.service";
+import { BillingService } from "../services/billing.service";
 
 @Controller("billing")
 export class BillingController {
