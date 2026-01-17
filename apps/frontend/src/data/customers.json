@@ -1,7 +1,0 @@
-{
-  "customers": [
-    { "id": "c1", "name": "Sky Prints", "code": "1" },
-    { "id": "c3", "name": "Tata Sky", "code": "TSKY" },
-    { "id": "c2", "name": "Urban Wear", "code": "URB" }
-  ]
-}
