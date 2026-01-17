@@ -1,32 +1,32 @@
-// auth/utils/cookie-domain.util.ts
-import express from 'express';
+import type { Request } from 'express';
 
-export function resolveCookieDomain(
-  req: express.Request,
-): string | undefined {
-  const envDomain = process.env.APP_COOKIE_DOMAIN;
+export function cookieOptions(req: Request, maxAgeSeconds: number) {
+    return {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' as const,
+        domain: resolveCookieDomain(req),
+        maxAge: maxAgeSeconds * 1000,
+        path: '/',
+    };
+}
 
-  if (envDomain && envDomain !== 'auto') {
-    return envDomain;
-  }
+export function resolveCookieDomain(req: Request): string | undefined {
+    const host = req.hostname;
 
-  const host = req.hostname;
+    if (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        /^\d+\.\d+\.\d+\.\d+$/.test(host)
+    ) {
+        return undefined;
+    }
 
-  // localhost (do NOT set domain)
-  if (
-    host === 'localhost' ||
-    host === '127.0.0.1' ||
-    /^[\d.]+$/.test(host)
-  ) {
-    return undefined;
-  }
+    const parts = host.split('.');
 
-  const parts = host.split('.');
+    if (parts.length === 2) {
+        return host;
+    }
 
-  // e.g. api.company.com → .company.com
-  if (parts.length >= 2) {
     return `.${parts.slice(-2).join('.')}`;
-  }
-
-  return undefined;
 }

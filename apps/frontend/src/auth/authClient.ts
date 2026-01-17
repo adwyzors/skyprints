@@ -1,39 +1,59 @@
-// src/auth/authClient.ts
-export interface AuthUser {
-  id: string;
-  email: string;
-  permissions: string[];
+import { AuthUser } from "./auth.types";
+
+const API = process.env.NEXT_PUBLIC_API_URL;
+
+function log(msg: string, extra?: any) {
+    if (process.env.NODE_ENV !== "production") {
+        console.log(`[AUTH] ${msg}`, extra ?? "");
+    }
 }
 
 export async function fetchMe(): Promise<AuthUser | null> {
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/auth/me`,
-      {
-        credentials: "include", // 🔥 required for cookies
-      }
-    );
+    const res = await fetch(`${API}/auth/me`, {
+        credentials: "include",
+    });
 
-    if (!res.ok) return null;
+    if (res.status === 401) {
+        return null;
+    }
+
+    if (!res.ok) {
+        return null;
+    }
+
     return res.json();
-  } catch {
-    return null;
-  }
+}
+
+
+async function refreshToken(): Promise<boolean> {
+    try {
+        const res = await fetch(`${API}/auth/refresh`, {
+            method: "POST",
+            credentials: "include",
+        });
+
+        log("Refresh response", res.status);
+        return res.ok;
+    } catch (err) {
+        log("Refresh failed", err);
+        return false;
+    }
 }
 
 export function redirectToLogin(redirectTo: string) {
-  const loginUrl =
-    `${process.env.NEXT_PUBLIC_API_URL}/auth/login` +
-    `?redirectTo=${encodeURIComponent(redirectTo)}`;
+    log("Redirecting to login", redirectTo);
 
-  window.location.href = loginUrl;
+    window.location.href =
+        `${API}/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
 }
 
 export async function logout() {
-  await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
-    method: "POST",
-    credentials: "include",
-  });
+    log("Logging out");
 
-  window.location.href = "/login";
+    await fetch(`${API}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+    });
+
+    window.location.href = "/";
 }

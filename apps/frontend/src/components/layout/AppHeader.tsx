@@ -1,4 +1,5 @@
 'use client';
+import { logout } from '@/auth/authClient';
 // apps\frontend\src\components\layout\AppHeader.tsx
 import { ChevronDown, LogOut, Menu, Settings, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -27,11 +28,13 @@ export default function AppHeader() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMounted]);
 
-  const handleLogout = () => {
-    // Add your logout logic here
-    console.log('Logging out...');
+const handleLogout = async () => {
+  try {
+    await logout();
+  } finally {
     setShowProfileMenu(false);
-  };
+  }
+};
 
   const handleViewProfile = () => {
     // Add view profile logic here

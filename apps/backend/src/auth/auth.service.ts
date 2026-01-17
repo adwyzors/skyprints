@@ -1,54 +1,39 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { jwtDecode } from 'jwt-decode';
-import { KeycloakService } from './keycloak/keycloak.service';
-import { SessionUser } from './session/session-user';
-import { SESSION_STORE } from './session/session.constant';
-import type { SessionStore } from './session/session.store';
+import { Injectable, Logger } from '@nestjs/common';
+import type { Request, Response } from 'express';
+import {
+    cookieOptions
+} from './utils/cookie-domain.util';
 
 @Injectable()
 export class AuthService {
-    constructor(
-        private readonly keycloak: KeycloakService,
+    private readonly logger = new Logger(AuthService.name);
 
-        // ✅ REQUIRED: token-based injection
-        @Inject(SESSION_STORE)
-        private readonly sessionStore: SessionStore,
-    ) { }
+    setAuthCookies(res: Response, tokens: any, req: Request) {
+        this.setAccessCookie(res, tokens.access_token, req);
 
-    async login(code: string): Promise<string> {
-        const tokens = await this.keycloak.exchangeCode(code);
-        const userInfo: any = jwtDecode(tokens.access_token);
+        res.cookie(
+            'REFRESH_TOKEN',
+            tokens.refresh_token,
+            cookieOptions(req, 7 * 24 * 60 * 60),
+        );
 
-        const permissions = this.mapPermissions(userInfo);
-
-        return this.sessionStore.create({
-            user: {
-                id: userInfo.sub,
-                email: userInfo.email,
-                permissions,
-            },
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiresAt: Date.now() + tokens.expires_in * 1000,
-        });
+        this.logger.log('Auth cookies set');
     }
 
-    async getSessionUser(sessionId: string): Promise<SessionUser | null> {
-        const session = this.sessionStore.get(sessionId);
-
-        if (!session || session.expiresAt < Date.now()) {
-            if (session) this.sessionStore.delete(sessionId);
-            return null;
-        }
-
-        return session.user;
+    setAccessCookie(res: Response, token: string, req: Request) {
+        res.cookie(
+            'ACCESS_TOKEN',
+            token,
+            cookieOptions(req, 10 * 60),
+        );
     }
 
-    logout(sessionId: string) {
-        this.sessionStore.delete(sessionId);
-    }
+    clearCookies(res: Response, req: Request) {
+        //const domain = resolveCookieDomain(req);
+        const options = cookieOptions(req, 0);
 
-    private mapPermissions(userInfo: any): string[] {
-        return Array.from(new Set(userInfo.permissions ?? []));
+        res.clearCookie('ACCESS_TOKEN', options);
+        res.clearCookie('REFRESH_TOKEN', options);
+        this.logger.log('Auth cookies cleared');
     }
 }

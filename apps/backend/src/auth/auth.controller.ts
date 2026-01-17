@@ -1,22 +1,21 @@
 import {
     Controller,
     Get,
+    Logger,
     Post,
     Query,
     Req,
     Res,
-    UnauthorizedException
+    UnauthorizedException,
 } from '@nestjs/common';
-import express from 'express';
-
+import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { KeycloakService } from './keycloak/keycloak.service';
-import { resolveCookieDomain } from './utils/cookie-domain.util';
-
-
 @Controller('auth')
 export class AuthController {
+    private readonly logger = new Logger(AuthController.name);
+
     constructor(
         private readonly auth: AuthService,
         private readonly keycloak: KeycloakService,
@@ -25,87 +24,113 @@ export class AuthController {
     @Get('login')
     @Public()
     login(
-        @Query('redirectTo') redirectTo = '/board',
-        @Res() res: express.Response,
+        @Query('redirectTo') redirectTo = '/',
+        @Req() req: Request,
+        @Res({ passthrough: true }) res: Response,
     ) {
-        const state = Buffer.from(JSON.stringify({ redirectTo })).toString('base64');
-        const loginUrl = this.keycloak.getLoginUrl(state);
-        return res.redirect(loginUrl);
-    }
+        this.logger.log(
+            `Login requested from ${req.ip}, redirectTo=${redirectTo}`,
+        );
 
-    @Get('status')
-    status(@Req() req: express.Request) {
-        const sessionId = req.cookies?.['SESSION_ID'];
-        return { authenticated: !!sessionId };
-    }
+        const state = Buffer.from(
+            JSON.stringify({ redirectTo }),
+        ).toString('base64');
 
-    // 🔐 REQUIRED BY FRONTEND
-    @Get('me')
-    async me(@Req() req: express.Request) {
-        const sessionId = req.cookies?.['SESSION_ID'];
-        if (!sessionId) {
-            throw new UnauthorizedException();
-        }
+        const url = this.keycloak.getLoginUrl(state);
 
-        const user = await this.auth.getSessionUser(sessionId);
-        if (!user) {
-            throw new UnauthorizedException();
-        }
-
-        return {
-            id: user.id,
-            email: user.email,
-            permissions: user.permissions,
-        };
+        this.logger.debug('Redirecting user to Keycloak authorization endpoint');
+        return res.redirect(url);
     }
 
     @Get('callback')
     @Public()
     async callback(
-        @Query('code') code: string,        // ✅ FIX
+        @Query('code') code: string,
         @Query('state') state: string,
-        @Req() req: express.Request,
-        @Res({ passthrough: true }) res: express.Response,
+        @Req() req: Request,
+        @Res({ passthrough: true }) res: Response,
     ) {
-        if (!code) {
-            throw new UnauthorizedException('Missing authorization code');
-        }
+        this.logger.log('OAuth callback received from Keycloak');
 
-        const sessionId = await this.auth.login(code);
+        const tokens = await this.keycloak.exchangeCode(code);
+        this.logger.debug('Authorization code successfully exchanged');
 
-        res.cookie('SESSION_ID', sessionId, {
-            httpOnly: true,
-            sameSite: 'lax',
-            secure: process.env.NODE_ENV === 'production',
-            domain: resolveCookieDomain(req),
-            maxAge: 1000 * 60 * 60 * 24,
-            expires: new Date(Date.now() + 60 * 60 * 1000),
-        });
+        this.auth.setAuthCookies(res, tokens, req);
 
-        let redirectTo = '/board';
-
+        let redirectTo = '/';
         if (state) {
             try {
-                const parsed = JSON.parse(Buffer.from(state, 'base64').toString());
-                redirectTo = parsed.redirectTo;
-            } catch { }
+                redirectTo = JSON.parse(
+                    Buffer.from(state, 'base64').toString(),
+                ).redirectTo;
+            } catch {
+                this.logger.warn('Invalid OAuth state parameter');
+            }
         }
 
-        return res.redirect(`${process.env.FRONT_END_BASE_URL}${redirectTo}`);
+        this.logger.log(`Login completed, redirecting to frontend: ${redirectTo}`);
+        return res.redirect(
+            `${process.env.FRONT_END_BASE_URL}${redirectTo}`,
+        );
     }
 
-
-    @Post('logout')
-    logout(
-        @Req() req: express.Request,
-        @Res({ passthrough: true }) res: express.Response,
+    @Post('refresh')
+    @Public()
+    async refresh(
+        @Req() req: Request,
+        @Res({ passthrough: true }) res: Response,
     ) {
-        const sessionId = req.cookies?.['SESSION_ID'];
-        if (sessionId) {
-            this.auth.logout(sessionId);
+        const hasRefreshToken = !!req.cookies?.REFRESH_TOKEN;
+
+        this.logger.log(
+            `Refresh requested (refreshTokenPresent=${hasRefreshToken})`,
+        );
+
+        if (!hasRefreshToken) {
+            this.logger.warn('Refresh denied: no refresh token cookie');
+            throw new UnauthorizedException();
         }
 
-        res.clearCookie('SESSION_ID');
+        const tokens = await this.keycloak.refresh(req.cookies.REFRESH_TOKEN);
+        this.logger.debug('Access token refreshed successfully');
+
+        this.auth.setAccessCookie(res, tokens.access_token, req);
+        return { ok: true };
+    }
+
+    @Post('logout')
+    @Public()
+    async logout(
+        @Req() req: Request,
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        this.logger.log('Logout requested');
+
+        const hasRefreshToken = !!req.cookies?.REFRESH_TOKEN;
+        this.logger.debug(
+            `Refresh token present during logout: ${hasRefreshToken}`,
+        );
+
+        if (hasRefreshToken) {
+            try {
+                await this.keycloak.keycloakLogout(req.cookies.REFRESH_TOKEN);
+                this.logger.log('Keycloak SSO session terminated');
+            } catch (err) {
+                this.logger.warn('Keycloak logout failed (continuing app logout)');
+            }
+        }
+
+        this.auth.clearCookies(res, req);
+        this.logger.log('Application auth cookies cleared');
+
         return { success: true };
+    }
+
+    @Get('me')
+    me(@Req() req: any) {
+        this.logger.debug(
+            `Me endpoint accessed (user=${req.user?.id ?? 'anonymous'})`,
+        );
+        return req.user;
     }
 }

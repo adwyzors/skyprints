@@ -1,43 +1,82 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
-import { KeycloakTokenResponse } from './keycloak.types';
-
 @Injectable()
 export class KeycloakService {
-    async exchangeCode(code: string): Promise<KeycloakTokenResponse> {
-        const tokenUrl =
-            `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}` +
-            `/protocol/openid-connect/token`;
+    private readonly logger = new Logger(KeycloakService.name);
 
-        const params = new URLSearchParams({
-            grant_type: 'authorization_code',
-            client_id: process.env.KEYCLOAK_CLIENT_ID!,
-            client_secret: process.env.KEYCLOAK_CLIENT_SECRET!, // REQUIRED
-            code,
-            redirect_uri: `${process.env.APP_BASE_URL}/auth/callback`,
-        });
+    async exchangeCode(code: string) {
+        this.logger.log('Exchanging authorization code for tokens');
 
-        const response = await axios.post(tokenUrl, params, {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        });
+        try {
+            const res = await axios.post(
+                process.env.KEYCLOAK_TOKEN_URL!,
+                new URLSearchParams({
+                    grant_type: 'authorization_code',
+                    client_id: process.env.KEYCLOAK_CLIENT_ID!,
+                    client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
+                    code,
+                    redirect_uri: `${process.env.APP_BASE_URL}/auth/callback`,
+                }),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                },
+            );
 
-        return response.data;
+            this.logger.debug('Token exchange succeeded');
+            return res.data;
+        } catch (err: any) {
+            this.logger.error(
+                'Token exchange with Keycloak failed',
+                err?.response?.data ?? err.message,
+            );
+            throw err;
+        }
+    }
+
+    async refresh(refreshToken: string) {
+        this.logger.log('Refreshing access token via Keycloak');
+
+        try {
+            const res = await axios.post(
+                process.env.KEYCLOAK_TOKEN_URL!,
+                new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    client_id: process.env.KEYCLOAK_CLIENT_ID!,
+                    client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
+                    refresh_token: refreshToken,
+                }),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                },
+            );
+
+            this.logger.debug('Token refresh succeeded');
+            return res.data;
+        } catch (err: any) {
+            this.logger.error(
+                'Token refresh failed',
+                err?.response?.data ?? err.message,
+            );
+            throw err;
+        }
     }
 
     getLoginUrl(state?: string) {
-        const url = new URL(
-            `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/auth`,
-        );
+        this.logger.debug('Generating Keycloak authorization URL');
+
+        const url = new URL(process.env.KEYCLOAK_AUTH_URL!);
 
         url.searchParams.set('client_id', process.env.KEYCLOAK_CLIENT_ID!);
         url.searchParams.set('response_type', 'code');
+        url.searchParams.set('scope', 'openid profile email');
         url.searchParams.set(
             'redirect_uri',
             `${process.env.APP_BASE_URL}/auth/callback`,
         );
-        url.searchParams.set('scope','openid profile email',)
 
         if (state) {
             url.searchParams.set('state', state);
@@ -46,30 +85,31 @@ export class KeycloakService {
         return url.toString();
     }
 
-    // keycloak.service.ts
-    async getUserInfo(accessToken: string) {
-        const res = await fetch(
-            `${process.env.KEYCLOAK_BASE_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/userinfo`,
-            {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
+    async keycloakLogout(refreshToken: string) {
+        this.logger.log('Calling Keycloak end-session endpoint');
+
+        try {
+            await axios.post(
+                process.env.KEYCLOAK_LOGOUT_URL!,
+                new URLSearchParams({
+                    client_id: process.env.KEYCLOAK_CLIENT_ID!,
+                    client_secret: process.env.KEYCLOAK_CLIENT_SECRET!,
+                    refresh_token: refreshToken,
+                }),
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
                 },
-            },
-        );
-
-        const text = await res.text(); // <-- important
-
-        if (!res.ok) {
-            throw new Error(
-                `UserInfo failed: ${res.status} ${res.statusText} - ${text}`,
             );
-        }
 
-        if (!text) {
-            throw new Error('UserInfo returned empty response');
+            this.logger.debug('Keycloak session successfully terminated');
+        } catch (err: any) {
+            this.logger.error(
+                'Keycloak logout failed',
+                err?.response?.data ?? err.message,
+            );
+            throw err;
         }
-
-        return JSON.parse(text);
     }
-
 }
