@@ -13,6 +13,6 @@ export async function logout(): Promise<void> {
         });
     } finally {
         // Always redirect, even if backend fails
-        window.location.href = '/login';
+        window.location.href = '/';
     }
 }

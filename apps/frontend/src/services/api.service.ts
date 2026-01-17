@@ -48,7 +48,7 @@ export async function logout(): Promise<void> {
         });
     } finally {
         // frontend state reset (router, store, etc.)
-        window.location.href = '/login';
+        window.location.href = '/';
     }
 }
 

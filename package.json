@@ -6,7 +6,7 @@
         "apps/packages/*"
     ],
     "scripts": {
-        "build:contracts": "npm --workspace packages/contracts run build",
+        "build:contracts": "npm --workspace apps/packages/contracts run build",
         "build:backend": "npm --workspace apps/backend run build",
         "build:frontend": "npm --workspace apps/frontend run build",
         "build": "npm run build:contracts && npm run build:backend && npm run build:frontend",
