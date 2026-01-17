@@ -1,28 +1,33 @@
 import { CreateRunTemplateDto } from '@app/contracts';
-
 import {
     BadRequestException,
     Injectable,
     Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { validateBillingFormula } from './formula/formula-validator';
+import { attachFormulaKeys } from './utils/field-normalizer';
 
 @Injectable()
 export class RunTemplatesService {
     private readonly logger = new Logger(RunTemplatesService.name);
 
-    constructor(
-        private readonly prisma: PrismaService,
-    ) { }
+    constructor(private readonly prisma: PrismaService) { }
 
     async create(dto: CreateRunTemplateDto) {
-        return this.prisma.$transaction(async tx => {
-            const fields = ["CONFIGURE", "COMPLETE"];
+        return this.prisma.$transaction(async (tx) => {
+            this.logger.log(`Creating RunTemplate ${dto.name}`);
+
+            // 1. Attach formulaKey, keep UI key unchanged
+            const enrichedFields = attachFormulaKeys(dto.fields);
+
+            // 2. Validate formula using formulaKey
+            validateBillingFormula(dto.billingFormula, enrichedFields);
 
             const configWF = await this.createWorkflow(
                 tx,
                 `RUN_TEMPLATE_${dto.name}_CONFIG`,
-                fields,
+                ['CONFIGURE', 'COMPLETE'],
             );
 
             const lifecycleWF = await this.createWorkflow(
@@ -34,7 +39,8 @@ export class RunTemplatesService {
             return tx.runTemplate.create({
                 data: {
                     name: dto.name,
-                    fields: dto.fields,
+                    fields: enrichedFields, // ✅ UI key preserved
+                    billingFormula: dto.billingFormula, // uses formulaKey
                     configWorkflowTypeId: configWF.id,
                     lifecycleWorkflowTypeId: lifecycleWF.id,
                 },

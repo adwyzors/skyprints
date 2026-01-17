@@ -259,42 +259,16 @@ export class AdminProcessService {
             where: {
                 id: processRunId,
                 orderProcessId,
-            },
-            include: {
-                runTemplate: {
-                    include: {
-                        lifecycleWorkflowType: {
-                            include: {
-                                statuses: true,
-                            },
-                        },
-                    },
-                },
-            },
+            }
         });
 
         if (!run) {
             throw new BadRequestException('Invalid process run');
         }
 
-
-        /* ---------------- VALIDATE FIELDS ---------------- */
-
-        this.validateFields(
-            run.runTemplate.fields as RunTemplateField[],
-            dto.fields,
-        );
-
         /* ---------------- TRANSACTION ---------------- */
 
         return this.prisma.$transaction(async tx => {
-            await tx.processRun.update({
-                where: { id: run.id },
-                data: {
-                    fields: dto.fields,
-                },
-            });
-
             // request transition
             await tx.outboxEvent.create({
                 data: {
