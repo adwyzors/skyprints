@@ -1,34 +1,34 @@
 'use client';
 
 import {
-    AlertCircle,
-    Calendar,
-    CheckCircle,
-    ChevronRight,
-    DollarSign,
-    Edit,
-    Eye,
-    FileText,
-    Grid,
-    Hash,
-    Package,
-    Palette,
-    Ruler,
-    Save,
-    Type,
-    User,
-    X,
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  ChevronRight,
+  DollarSign,
+  Edit,
+  Eye,
+  FileText,
+  Grid,
+  Hash,
+  Package,
+  Palette,
+  Ruler,
+  Save,
+  Type,
+  User,
+  X,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { Order } from '@/domain/model/order.model';
-import { ProcessRun } from '@/domain/model/process.run.model';
-import { getOrderById } from '@/services/orders.service';
+import { ProcessRun } from '@/domain/model/run.model';
 import { configureRun } from '@/services/run.service';
 
 interface ScreenPrintingConfigProps {
   order: Order;
   onRefresh?: () => Promise<void>;
+  onSaveSuccess?: (processId: string, runId: string) => void; // Add this prop
 }
 
 // Field icon mapping for compact view
@@ -52,7 +52,7 @@ const getFieldIcon = (fieldName: string) => {
   return <Grid className="w-3 h-3" />;
 };
 
-export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintingConfigProps) {
+export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }: ScreenPrintingConfigProps) {
   const [localOrder, setLocalOrder] = useState<Order>(order);
   const [openRunId, setOpenRunId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<string | null>(null);
@@ -63,14 +63,15 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
     setLocalOrder(order);
   }, [order]);
 
-  const getRunFieldConfigs = (run: ProcessRun) => run.runTemplate?.fields ?? [];
+  // Get field configurations from run.fields array
+  const getRunFieldConfigs = (run: ProcessRun) => run.fields ?? [];
 
   const areAllFieldsFilled = (run: ProcessRun) => {
-    const fields = run.runTemplate?.fields ?? [];
+    const fields = run.fields ?? [];
     return fields
       .filter((f) => f.required)
       .every((f) => {
-        const value = run.fields[f.key];
+        const value = run.values[f.key];
         return value !== null && value !== undefined && value !== '';
       });
   };
@@ -82,11 +83,11 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
       .replace(/^./, (s) => s.toUpperCase());
 
   const getRunProgress = (run: ProcessRun) => {
-    const fields = run.runTemplate?.fields ?? [];
+    const fields = run.fields ?? [];
     if (fields.length === 0) return 100;
 
     const filled = fields.filter((f) => {
-      const value = run.fields[f.key];
+      const value = run.values[f.key];
       return value !== null && value !== undefined && value !== '';
     });
 
@@ -96,87 +97,86 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
   const updateRunField = (processId: string, runId: string, field: string, value: string) => {
     setLocalOrder((prev) => {
       if (!prev) return prev;
+      const process = prev.processes.find(p => p.id === processId);
+      const run = process?.runs.find(r => r.id === runId);
 
+      if (!run) return prev;
+
+      // Find the field definition to get the type
+      const fieldDef = run.fields.find(f => f.key === field);
+      let typedValue: string | number | null = value;
+
+      // Convert to number if field type is number
+      if (fieldDef?.type === 'number' && value !== '') {
+        typedValue = Number(value);
+        // If conversion fails, keep as string but log error
+        if (isNaN(typedValue as number)) {
+          console.error(`Failed to convert ${field} to number: ${value}`);
+          typedValue = value; // Fallback to string
+        }
+      }
       const updatedOrder = {
         ...prev,
         processes: prev.processes.map((p) =>
           p.id !== processId
             ? p
             : {
-                ...p,
-                runs: p.runs.map((r) =>
-                  r.id !== runId
-                    ? r
-                    : {
-                        ...r,
-                        fields: {
-                          ...r.fields,
-                          [field]: value,
-                        },
-                      },
-                ),
-              },
+              ...p,
+              runs: p.runs.map((r) =>
+                r.id !== runId
+                  ? r
+                  : {
+                    ...r,
+                    values: {
+                      ...r.values,
+                      [field]: typedValue,
+                    },
+                  },
+              ),
+            },
         ),
       };
 
-      // If we're updating quantity or rate, calculate and update total amount
-      if (field === 'Quantity' || field === 'Rate') {
-        const process = updatedOrder.processes.find((p) => p.id === processId);
-        const run = process?.runs.find((r) => r.id === runId);
+      return updatedOrder;
+    });
+  };
 
-        if (run) {
-          const quantity = Number(run.fields['Quantity'] || 0);
-          const rate = Number(run.fields['Rate'] || 0);
+  // Function to update run configStatus locally
+  const updateRunConfigStatus = (processId: string, runId: string, newStatus: string) => {
+    setLocalOrder((prev) => {
+      if (!prev) return prev;
 
-          if (quantity && rate) {
-            const totalAmount = (quantity * rate).toString();
-
+      const updatedOrder = {
+        ...prev,
+        processes: prev.processes.map((process) => {
+          if (process.id === processId) {
             return {
-              ...updatedOrder,
-              processes: updatedOrder.processes.map((p) =>
-                p.id !== processId
-                  ? p
-                  : {
-                      ...p,
-                      runs: p.runs.map((r) =>
-                        r.id !== runId
-                          ? r
-                          : {
-                              ...r,
-                              fields: {
-                                ...r.fields,
-                                'Total Amount': totalAmount,
-                              },
-                            },
-                      ),
-                    },
-              ),
-            };
-          } else {
-            // If either quantity or rate is empty, clear total amount
-            return {
-              ...updatedOrder,
-              processes: updatedOrder.processes.map((p) =>
-                p.id !== processId
-                  ? p
-                  : {
-                      ...p,
-                      runs: p.runs.map((r) =>
-                        r.id !== runId
-                          ? r
-                          : {
-                              ...r,
-                              fields: {
-                                ...r.fields,
-                                'Total Amount': '',
-                              },
-                            },
-                      ),
-                    },
-              ),
+              ...process,
+              runs: process.runs.map((run) => {
+                if (run.id === runId) {
+                  return {
+                    ...run,
+                    configStatus: newStatus
+                  };
+                }
+                return run;
+              })
             };
           }
-        }
+          return process;
+        })
+      };
+
+      // Check if ALL runs in ALL processes are complete
+      const allRunsComplete = updatedOrder.processes.every(process =>
+        process.runs.every(run => run.configStatus === 'COMPLETE')
+      );
+
+      if (allRunsComplete) {
+        return {
+          ...updatedOrder,
+          status: 'Production_Ready'
+        };
       }
 
       return updatedOrder;
@@ -193,52 +193,78 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
       return;
     }
 
-    // Ensure all values are strings before sending to API
-    const stringFields: Record<string, string> = {};
-    Object.entries(run.fields).forEach(([key, value]) => {
-      stringFields[key] = value === null || value === undefined ? '' : String(value);
+    // Prepare values for API - preserve types based on field definitions
+    const apiValues: Record<string, string | number | boolean> = {};
+    const fieldConfigs = getRunFieldConfigs(run);
+
+    Object.entries(run.values).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === '') {
+        // Skip empty optional values or send as null depending on backend requirments
+        // Since the validator checks required fields, and we filtered them above, 
+        // we might just want to skip sending empty non-required fields?
+        // But the original code sent '' for everything.
+        // Let's look at the field definition.
+
+        // Actually, let's keep it simple: if it's empty, send as empty string if backend accepts it, or don't send?
+        // The validator checks `value === undefined` to skip optional checks. 
+        // If we send nothing, it's undefined.
+        // If we send '', and it expects number, it fails "must be number".
+        // So for number fields, if it's empty/optional, we probably shouldn't send it, or send null?
+        // The previous code sent '' for everything.
+
+        // Let's check what the validator does:
+        // switch (def.type) { case 'number': if (typeof value !== 'number') throw...
+        // So sending '' will fail validation if the key exists.
+
+        // So we should NOT send the key if the value is empty/null/undefined.
+        return;
+      }
+
+      const fieldDef = fieldConfigs.find(f => f.key === key);
+      const type = fieldDef?.type || 'string';
+
+      if (type === 'number') {
+        apiValues[key] = Number(value);
+      } else if (type === 'boolean') {
+        apiValues[key] = Boolean(value);
+      } else {
+        apiValues[key] = String(value);
+      }
     });
 
     setIsSaving(runId);
     setError(null);
 
     try {
-      await configureRun(localOrder.id, processId, runId, stringFields);
+      // Send the values object to configureRun
+      const response = await configureRun(localOrder.id, processId, runId, apiValues);
 
-      // Refresh the order data from API
-      const refreshed = await getOrderById(localOrder.id);
-      if (!refreshed) throw new Error('Order not found');
-      setLocalOrder(refreshed);
+      // Check if API returned success
+      if (response && response.success === true) {
+        // Update local state immediately
+        updateRunConfigStatus(processId, runId, "COMPLETE");
 
-      // Also refresh parent component
-      if (onRefresh) {
-        await onRefresh();
+        // Notify parent component
+        if (onSaveSuccess) {
+          onSaveSuccess(processId, runId);
+        }
+
+        alert(`Run ${run.runNumber} configured successfully`);
+        setOpenRunId(null); // Close the form after successful save
+
+        // Optionally refresh from server to get latest data
+        // if (onRefresh) {
+        //   await onRefresh();
+        // }
+      } else {
+        throw new Error('Failed to save configuration');
       }
-
-      alert(`Run ${run.runNumber} configured successfully`);
-      setOpenRunId(null); // Close the form after successful save
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Failed to save configuration');
     } finally {
       setIsSaving(null);
     }
-  };
-
-  // Calculate total amount if quantity and rate are filled
-  const calculateTotalAmount = (run: ProcessRun) => {
-    const quantity = Number(run.fields['Quantity'] || 0);
-    const rate = Number(run.fields['Rate'] || 0);
-    if (quantity && rate) {
-      return quantity * rate;
-    }
-    return null;
-  };
-
-  // Get total amount as string for display
-  const getTotalAmountDisplay = (run: ProcessRun) => {
-    const totalAmount = calculateTotalAmount(run);
-    return totalAmount ? `₹${totalAmount.toLocaleString('en-IN')}` : '₹0';
   };
 
   // Group fields into pairs for table-like layout
@@ -250,53 +276,9 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
     return pairs;
   };
 
-  // Initialize total amount when component loads
-  useEffect(() => {
-    const initializeTotalAmounts = () => {
-      localOrder.processes.forEach((process) => {
-        process.runs.forEach((run) => {
-          const quantity = Number(run.fields['Quantity'] || 0);
-          const rate = Number(run.fields['Rate'] || 0);
-
-          if (quantity && rate && !run.fields['Total Amount']) {
-            const totalAmount = (quantity * rate).toString();
-
-            setLocalOrder((prev) => {
-              if (!prev) return prev;
-
-              return {
-                ...prev,
-                processes: prev.processes.map((p) =>
-                  p.id !== process.id
-                    ? p
-                    : {
-                        ...p,
-                        runs: p.runs.map((r) =>
-                          r.id !== run.id
-                            ? r
-                            : {
-                                ...r,
-                                fields: {
-                                  ...r.fields,
-                                  'Total Amount': totalAmount,
-                                },
-                              },
-                        ),
-                      },
-                ),
-              };
-            });
-          }
-        });
-      });
-    };
-
-    initializeTotalAmounts();
-  }, []);
-
   // Function to render form or view based on run status
   const renderRunFormOrView = (process: any, run: ProcessRun) => {
-    const isConfigured = run.statusCode === 'CONFIGURED';
+    const isConfigured = run.configStatus === 'COMPLETE';
 
     if (isConfigured) {
       // Show READ-ONLY view for configured runs
@@ -332,7 +314,9 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
 
                       const field = fieldConfig.key;
                       const isRequired = fieldConfig.required === true;
-
+                      const type = fieldConfig.type || 'string';
+                      const isNumberField = type === 'number';
+                      const currentValue = run.values[field];
                       return (
                         <React.Fragment key={field}>
                           {/* LABEL CELL */}
@@ -349,7 +333,7 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
                           {/* VALUE CELL (READ-ONLY) */}
                           <div className="p-1.5 bg-white">
                             <div className="w-full text-sm border border-gray-200 bg-gray-50 rounded px-2 py-1 font-medium text-gray-700">
-                              {run.fields[field] || <span className="text-gray-400">Not set</span>}
+                              {run.values[field] || <span className="text-gray-400">Not set</span>}
                             </div>
                           </div>
                         </React.Fragment>
@@ -366,14 +350,6 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
                   </div>
                 ));
               })()}
-            </div>
-
-            {/* TOTAL AMOUNT INFO */}
-            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Total Amount:</span>
-                <span className="font-bold text-green-700">{getTotalAmountDisplay(run)}</span>
-              </div>
             </div>
 
             {/* CLOSE BUTTON FOR VIEW MODE */}
@@ -424,10 +400,7 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
                       const field = fieldConfig.key;
                       const isRequired = fieldConfig.required === true;
                       const type = fieldConfig.type || 'string';
-                      const isNumberField =
-                        field.toLowerCase().includes('quantity') ||
-                        field.toLowerCase().includes('amount') ||
-                        field.toLowerCase().includes('rate');
+                      const isNumberField = type === 'number';
 
                       return (
                         <React.Fragment key={field}>
@@ -444,26 +417,37 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
 
                           {/* INPUT CELL */}
                           <div className="p-1.5 bg-white">
-                            {field === 'Total Amount' ? (
-                              // Display-only field for Total Amount
-                              <div className="w-full text-sm border border-green-300 bg-green-50 rounded px-2 py-1 font-medium text-green-700">
-                                {getTotalAmountDisplay(run)}
-                              </div>
-                            ) : (
-                              // Editable field
-                              <input
-                                type={isNumberField ? 'number' : 'text'}
-                                value={run.fields[field] ?? ''}
-                                onChange={(e) =>
-                                  updateRunField(process.id, run.id, field, e.target.value)
+                            <input
+                              type={isNumberField ? 'number' : 'text'}
+                              value={run.values[field] ?? ''}
+                              onChange={(e) => {
+                                let value = e.target.value;
+
+                                // For number fields, ensure we're sending valid numbers
+                                if (isNumberField) {
+                                  // Allow empty, but validate it's a number if not empty
+                                  if (value !== '') {
+                                    // Remove any non-numeric characters except decimal point
+                                    value = value.replace(/[^0-9.]/g, '');
+                                    // Ensure only one decimal point
+                                    const parts = value.split('.');
+                                    if (parts.length > 2) {
+                                      value = parts[0] + '.' + parts.slice(1).join('');
+                                    }
+                                  }
                                 }
-                                className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                placeholder={`Enter ${prettyLabel(field).toLowerCase()}`}
-                                min={isNumberField ? '0' : undefined}
-                                step={isNumberField ? '1' : undefined}
-                              />
-                            )}
-                            {isRequired && !run.fields[field] && (
+
+                                updateRunField(process.id, run.id, field, value);
+                              }
+
+                              }
+
+                              className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              placeholder={`Enter ${prettyLabel(field).toLowerCase()}`}
+                              min={isNumberField ? '0' : undefined}
+                              step={isNumberField ? '1' : undefined}
+                            />
+                            {isRequired && !run.values[field] && (
                               <p className="text-xs text-red-500 mt-0.5">Required</p>
                             )}
                           </div>
@@ -481,17 +465,6 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
                   </div>
                 ));
               })()}
-            </div>
-
-            {/* TOTAL AMOUNT INFO */}
-            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Total Amount (Calculated):</span>
-                <span className="font-bold text-green-700">{getTotalAmountDisplay(run)}</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Calculated automatically as: Quantity × Rate
-              </p>
             </div>
 
             {/* ACTION BUTTONS - COMPACT */}
@@ -516,11 +489,10 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
                 <button
                   onClick={() => saveRun(process.id, run.id)}
                   disabled={!areAllFieldsFilled(run) || isSaving === run.id}
-                  className={`px-4 py-1 text-sm font-medium rounded transition-colors flex items-center gap-1 ${
-                    areAllFieldsFilled(run)
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
+                  className={`px-4 py-1 text-sm font-medium rounded transition-colors flex items-center gap-1 ${areAllFieldsFilled(run)
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
                 >
                   {isSaving === run.id ? (
                     <>
@@ -561,21 +533,19 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
         {localOrder.processes.flatMap((process) =>
           process.runs.map((run) => {
             const progress = getRunProgress(run);
-            const isConfigured = run.statusCode === 'CONFIGURED';
-            const totalAmountDisplay = getTotalAmountDisplay(run);
-            const filledFields = Object.values(run.fields).filter((v) => v && v !== '').length;
-            const totalFields = run.runTemplate?.fields?.length || 0;
+            const isConfigured = run.configStatus === 'COMPLETE'; // Check for COMPLETE status
+            const filledFields = Object.values(run.values).filter((v) => v && v !== '').length;
+            const totalFields = run.fields?.length || 0;
 
             return (
               <div key={run.id} className="space-y-1">
                 {/* RUN HEADER - COMPACT */}
                 <div
                   onClick={() => setOpenRunId(openRunId === run.id ? null : run.id)}
-                  className={`border rounded p-2 cursor-pointer hover:bg-gray-50 transition-colors ${
-                    isConfigured
-                      ? 'bg-green-50 border-green-200 hover:bg-green-100'
-                      : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
-                  }`}
+                  className={`border rounded p-2 cursor-pointer hover:bg-gray-50 transition-colors ${isConfigured
+                    ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                    : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -594,7 +564,6 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
                       )}
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-green-700">{totalAmountDisplay}</span>
                       <div className="flex items-center gap-1">
                         {isConfigured ? (
                           <Eye className="w-4 h-4 text-gray-500" />
@@ -602,9 +571,8 @@ export default function ScreenPrintingConfig({ order, onRefresh }: ScreenPrintin
                           <Edit className="w-4 h-4 text-gray-500" />
                         )}
                         <ChevronRight
-                          className={`w-4 h-4 text-gray-400 transition-transform ${
-                            openRunId === run.id ? 'rotate-90' : ''
-                          }`}
+                          className={`w-4 h-4 text-gray-400 transition-transform ${openRunId === run.id ? 'rotate-90' : ''
+                            }`}
                         />
                       </div>
                     </div>

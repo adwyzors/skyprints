@@ -19,6 +19,10 @@ export const OrderProcessRunSchema = z.object({
     values: z.record(z.string(), z.any()),
 
     fields: z.array(TemplateFieldSchema),
+    lifecycle: z.array(z.object({
+        code: z.string(),
+        completed: z.boolean(),
+    })).optional(),
 });
 
 export type OrderProcessRunDto =

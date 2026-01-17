@@ -1,23 +1,21 @@
 'use client';
 
 import {
-    Calendar,
-    CheckCircle,
-    ChevronRight,
-    Clock,
-    Download,
-    Eye as EyeIcon,
-    EyeOff,
-    FileText,
-    Filter,
-    Loader2,
-    MoreVertical,
-    Package,
-    Plus,
-    Search,
-    Settings,
-    User,
-    X,
+  Calendar,
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  Download,
+  FileText,
+  Filter,
+  Loader2,
+  MoreVertical,
+  Package,
+  Plus,
+  Search,
+  Settings,
+  User,
+  X
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -45,10 +43,9 @@ export default function AdminOrdersPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('hide_completed');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(false);
 
   /* ================= EFFECTS ================= */
 
@@ -80,8 +77,8 @@ export default function AdminOrdersPage() {
 
   /* ================= HANDLERS ================= */
 
-  const handleOrderCreated = (newOrder: Order) => {
-    setOrders((prev) => [newOrder, ...prev]);
+  const handleOrderCreated = () => {
+    setRefreshTrigger((prev) => prev + 1);
     setOpenCreate(false);
   };
 
@@ -94,14 +91,9 @@ export default function AdminOrdersPage() {
       year: 'numeric',
     });
 
-  const toggleShowCompleted = () => {
-    setShowCompleted((prev) => !prev);
-    setStatusFilter(showCompleted ? 'hide_completed' : 'all');
-  };
-
   const clearFilters = () => {
     setSearchQuery('');
-    setStatusFilter('hide_completed');
+    setStatusFilter('all');
     setDateFilter('all');
   };
 
@@ -205,6 +197,11 @@ export default function AdminOrdersPage() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
+      // Always exclude completed/billed orders - they belong on billing page
+      if (order.status === 'COMPLETED' || order.status === 'COMPLETE' || order.status === 'BILLED') {
+        return false;
+      }
+
       const orderCode = order.id.slice(0, 8).toUpperCase();
 
       const matchesSearch =
@@ -214,12 +211,8 @@ export default function AdminOrdersPage() {
         order.customer?.code?.toLowerCase().includes(searchQuery.toLowerCase());
 
       let matchesStatus = true;
-      if (statusFilter !== 'hide_completed' && statusFilter !== 'all') {
+      if (statusFilter !== 'all') {
         matchesStatus = order.status === statusFilter;
-      }
-
-      if (statusFilter === 'hide_completed') {
-        matchesStatus = order.status !== 'COMPLETED' && order.status !== 'BILLED';
       }
 
       return matchesSearch && matchesStatus;
@@ -248,22 +241,6 @@ export default function AdminOrdersPage() {
             <button className="hidden md:flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors">
               <Download className="w-4 h-4" />
               <span>Export</span>
-            </button>
-            <button
-              onClick={toggleShowCompleted}
-              className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              {showCompleted ? (
-                <>
-                  <EyeOff className="w-4 h-4" />
-                  <span className="hidden sm:inline">Hide Completed</span>
-                </>
-              ) : (
-                <>
-                  <EyeIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Show All</span>
-                </>
-              )}
             </button>
             <button
               onClick={() => setOpenCreate(true)}
@@ -310,7 +287,7 @@ export default function AdminOrdersPage() {
                 <span className="hidden sm:inline">Filters</span>
               </button>
 
-              {(searchQuery || statusFilter !== 'hide_completed' || dateFilter !== 'all') && (
+              {(searchQuery || statusFilter !== 'all' || dateFilter !== 'all') && (
                 <button
                   onClick={clearFilters}
                   className="flex items-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
@@ -332,13 +309,10 @@ export default function AdminOrdersPage() {
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="hide_completed">Hide Completed & Billed</option>
-                    <option value="all">All Statuses</option>
+                    <option value="all">All Active Statuses</option>
                     <option value="CONFIGURE">To Configure</option>
                     <option value="PRODUCTION_READY">Ready for Production</option>
                     <option value="IN_PRODUCTION">In Production</option>
-                    <option value="COMPLETED">Completed</option>
-                    <option value="BILLED">Billed</option>
                   </select>
                 </div>
 
@@ -381,11 +355,6 @@ export default function AdminOrdersPage() {
                 <span className="font-semibold text-gray-800">{filteredOrders?.length}</span> of{' '}
                 <span className="font-semibold text-gray-800">{orders?.length}</span> orders
               </p>
-              {statusFilter === 'hide_completed' && (
-                <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-                  Completed orders hidden
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-2">
               <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
@@ -543,12 +512,12 @@ export default function AdminOrdersPage() {
             </div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              {searchQuery || statusFilter !== 'hide_completed' || dateFilter !== 'all'
+              {searchQuery || statusFilter !== 'all' || dateFilter !== 'all'
                 ? 'No orders match your current filters. Try adjusting your search criteria.'
                 : 'Get started by creating your first production order.'}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              {(searchQuery || statusFilter !== 'hide_completed' || dateFilter !== 'all') && (
+              {(searchQuery || statusFilter !== 'all' || dateFilter !== 'all') && (
                 <button
                   onClick={clearFilters}
                   className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"

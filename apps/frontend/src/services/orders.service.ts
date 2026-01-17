@@ -3,10 +3,9 @@ import { mapOrderSummaryDtoToOrder } from "@/domain/mapper/order/order.mapper";
 import { Order } from "@/domain/model/order.model";
 import { NewOrderPayload } from "@/types/planning";
 import {
-    OrderSummarySchema,
-    OrderSummaryDto,
-    CreateOrderSchema,
     CreateOrderDto,
+    OrderSummaryDto,
+    OrderSummarySchema
 } from "@app/contracts";
 import { apiRequest } from "./api.service";
 
@@ -40,19 +39,19 @@ export async function getOrderById(id: string): Promise<Order> {
 
 export async function createOrder(
     payload: NewOrderPayload
-): Promise<Order> {
+): Promise<any> {
     const apiPayload: CreateOrderDto = {
         customerId: payload.customerId,
         quantity: payload.quantity,
         processes: payload.processes,
     };
 
-    const res = await apiRequest<CreateOrderDto>("/orders", {
+    const res = await apiRequest<any>("/orders", {
         method: "POST",
         body: JSON.stringify(apiPayload),
     });
 
-    const dto = OrderSummarySchema.parse(res);
-
-    return mapOrderSummaryDtoToOrder(dto);
+    // The server returns { id: "...", status: "CREATED" } which doesn't match OrderSummarySchema
+    // We return the raw response because the calling component will likely refresh the list anyway
+    return res;
 }

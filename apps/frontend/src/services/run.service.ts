@@ -4,10 +4,25 @@ export async function configureRun(
     orderId: string,
     processId: string,
     runId: string,
-    fields: Record<string, string | number | null>
+    fields: Record<string, any>
 ) {
-    apiRequest<unknown>(
+    return apiRequest<{ success: boolean }>(
         `/process/${processId}/runs/${runId}/configure`,
+        {
+            method: "POST",
+            body: JSON.stringify({ fields }),
+        }
+    );
+}
+
+export async function transitionLifeCycle(
+    orderId: string,
+    processId: string,
+    runId: string,
+    fields: Record<string, any>
+) {
+    return apiRequest<{ success: boolean }>(
+        `/process/${processId}/runs/${runId}/transition`,
         {
             method: "POST",
             body: JSON.stringify({ fields }),

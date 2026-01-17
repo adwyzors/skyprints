@@ -9,6 +9,7 @@ export const mapProcessRunDto = (
     displayName: dto.displayName,
     configStatus: dto.configStatus,
     lifecycleStatus: dto.lifecycleStatus,
+    lifecycle: dto.lifecycle ?? [],
     values: dto.values,
     fields: dto.fields.map(mapRunField),
 });

@@ -1,68 +1,132 @@
 'use client';
 //apps\frontend\src\app\admin\billing\page.tsx
-import { useState } from 'react';
-import {
-  Search,
-  Filter,
-  Calendar,
-  X,
-  DollarSign,
-  CheckCircle,
-  FileText,
-  ChevronRight,
-} from 'lucide-react';
-import { Order } from '@/types/domain';
-//import { getCompletedOrders } from "@/services/orders.service";
 import BillingModal from '@/components/modals/BillingModal';
-import CompletedOrderModal from '@/components/modals/CompletedOrderModal';
+import { Order } from '@/domain/model/order.model';
+import { getOrders } from '@/services/orders.service';
+import {
+  Calendar,
+  CheckCircle,
+  DollarSign,
+  FileText,
+  Filter,
+  Loader2,
+  Package,
+  Search,
+  User,
+  X,
+} from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
 export default function BillingPage() {
-  //  const [orders] = useState<Order[]>(getCompletedOrders());
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [viewOrder, setViewOrder] = useState<Order | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedOrderId = searchParams.get('selectedOrder');
+
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  //  const filteredOrders = orders.filter(order => {
-  //    const matchesSearch =
-  //      searchQuery === "" ||
-  //      order.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //      order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  //      order.customerCode.toLowerCase().includes(searchQuery.toLowerCase());
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
-  //    const matchesDate = dateFilter === "all" || true;
+  useEffect(() => {
+    let cancelled = false;
 
-  //    return matchesSearch && matchesDate;
-  //  });
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const fetchedOrders = await getOrders();
+        if (!cancelled) setOrders(fetchedOrders);
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    fetchOrders();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Refresh orders function for after billing success
+  const refreshOrders = async () => {
+    try {
+      const fetchedOrders = await getOrders();
+      setOrders(fetchedOrders);
+    } catch (error) {
+      console.error('Error refreshing orders:', error);
+    }
+  };
+
+  // Filter only completed orders (ready for billing, not yet billed)
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      // Only show completed orders ready for billing (not already billed)
+      if (order.status !== 'COMPLETED' && order.status !== 'COMPLETE') {
+        return false;
+      }
+
+      const orderCode = order.id.slice(0, 8).toUpperCase();
+
+      const matchesSearch =
+        !searchQuery ||
+        orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.customer?.code?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return matchesSearch;
+    });
+  }, [orders, searchQuery]);
+
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
-  };
-
-  const getTotalAmount = (order: Order) => {
-    return order.processes.reduce(
-      (sum, process) =>
-        sum +
-        process.runs.reduce((rSum, run) => {
-          const quantity = run.fields.quantity || 0;
-          const billingRate = run.fields.billingRate || run.fields.rate || 0;
-          //return rSum + (quantity * billingRate);
-          return 0;
-        }, 0),
-      0,
-    );
-  };
 
   const clearFilters = () => {
     setSearchQuery('');
     setDateFilter('all');
   };
+
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'COMPLETED':
+      case 'COMPLETE':
+        return {
+          color: 'bg-green-100 text-green-800 border-green-200',
+          icon: <CheckCircle className="w-4 h-4" />,
+          label: 'Ready for Billing',
+          bgColor: 'bg-green-50',
+        };
+      case 'BILLED':
+        return {
+          color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+          icon: <FileText className="w-4 h-4" />,
+          label: 'Billed',
+          bgColor: 'bg-indigo-50',
+        };
+      default:
+        return {
+          color: 'bg-gray-100 text-gray-800 border-gray-200',
+          icon: <CheckCircle className="w-4 h-4" />,
+          label: status,
+          bgColor: 'bg-gray-50',
+        };
+    }
+  };
+
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -79,8 +143,7 @@ export default function BillingPage() {
               <span>Generate Reports</span>
             </button>
             <div className="px-4 py-2.5 bg-green-100 text-green-800 rounded-xl text-sm font-medium">
-              {/*{filteredOrders.length} */}
-              orders ready for billing
+              {filteredOrders.length} orders ready for billing
             </div>
           </div>
         </div>
@@ -150,12 +213,6 @@ export default function BillingPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
                   <select className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     <option value="all">All Customers</option>
-                    <option value="sky">Sky Prints</option>
-                    <option value="urban">Urban Wear</option>
-                    <option value="fashion">Fashion Hub</option>
-                    <option value="trendy">Trendy Tees</option>
-                    <option value="elite">Elite Apparel</option>
-                    <option value="sporty">Sporty Gear</option>
                   </select>
                 </div>
               </div>
@@ -165,7 +222,7 @@ export default function BillingPage() {
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
             <p className="text-sm text-gray-600">
               Showing{' '}
-              <span className="font-semibold text-gray-800">{/*{filteredOrders.length}*/}</span>{' '}
+              <span className="font-semibold text-gray-800">{filteredOrders.length}</span>{' '}
               completed orders
             </p>
             <div className="flex items-center gap-2">
@@ -176,123 +233,126 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {/*<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredOrders.map(order => {
-            const totalAmount = getTotalAmount(order);
-            const originalAmount = order.processes.reduce((sum, process) =>
-              sum + process.runs.reduce((rSum, run) => {
-                const quantity = run.fields.quantity || 0;
-                const rate = run.fields.rate || 0;
-                return rSum + (quantity * rate);
-              }, 0), 0);
-            const hasBillingRate = order.processes.some(p => 
-              p.runs.some(r => r.fields.billingRate !== undefined)
-            );
-            
-            return (
-              <div
-                key={order.id}
-                className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300"
-              >
-                <div className="p-5 bg-linear-to-r from-green-50 to-emerald-50">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-lg text-gray-800">
-                        {order.orderCode}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm text-gray-700">{order.customerName}</span>
-                        <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full">
-                          {order.customerCode}
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            <span className="ml-3 text-gray-600">Loading orders...</span>
+          </div>
+        )}
+
+        {/* Orders Grid */}
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {filteredOrders.map((order) => {
+              const statusConfig = getStatusConfig(order.status);
+
+              return (
+                <div
+                  key={order.id}
+                  onClick={() => router.push(`/admin/billing?selectedOrder=${order.id}`)}
+                  className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-green-300 transition-all duration-300 hover:-translate-y-1"
+                >
+                  {/* Card Header */}
+                  <div className={`p-5 ${statusConfig.bgColor}`}>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-800 group-hover:text-green-600 transition-colors">
+                          {order.id.slice(0, 8).toUpperCase()}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <User className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-700">{order.customer?.name}</span>
+                          <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full">
+                            {order.customer?.code}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-1">
+                        <span
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
+                        >
+                          {statusConfig.icon}
+                          {statusConfig.label}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatDate(order.createdAt)}
                         </span>
                       </div>
                     </div>
-                    
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200 flex items-center gap-1.5">
-                        <CheckCircle className="w-4 h-4" />
-                        Ready for Billing
-                      </span>
-                      <span className="text-xs text-gray-500">{formatDate(order.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-5 space-y-4">
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600">Estimated Amount:</span>
-                      <span className="text-lg font-bold text-green-700">₹{totalAmount.toLocaleString()}</span>
-                    </div>
-                    {hasBillingRate && originalAmount !== totalAmount && (
-                      <div className="text-xs text-gray-500">
-                        Original: ₹{originalAmount.toLocaleString()} • Adjusted: +₹{(totalAmount - originalAmount).toLocaleString()}
-                      </div>
-                    )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <div className="text-xs text-gray-500">Quantity</div>
-                      <p className="font-bold text-gray-800">{order.quantity}</p>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="text-xs text-gray-500">Processes</div>
-                      <p className="font-bold text-gray-800">{order.processes.length}</p>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-gray-100">
-                    <div className="text-xs text-gray-500 mb-2">Production Summary:</div>
-                    <div className="space-y-2">
-                      {order.processes.map(process => (
-                        <div key={process.id} className="flex items-center justify-between">
-                          <span className="text-sm text-gray-700">{process.name}</span>
-                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                            {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
-                          </span>
+                  {/* Card Body */}
+                  <div className="p-5 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4 text-gray-400" />
+                          <span className="text-xs text-gray-500">Quantity</span>
                         </div>
-                      ))}
+                        <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-gray-400" />
+                          <span className="text-xs text-gray-500">Processes</span>
+                        </div>
+                        <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
+                      </div>
+                    </div>
+
+                    {/* Runs Overview */}
+                    <div className="pt-3 border-t border-gray-100">
+                      <div className="text-xs text-gray-500 mb-2">Production Summary:</div>
+                      <div className="space-y-2">
+                        {order.processes.map((process) => (
+                          <div key={process.id} className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700 truncate">
+                              {process.name}
+                            </span>
+                            <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
+                              {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
-                  <div className="flex gap-3">
+                  {/* Card Footer */}
+                  <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
                     <button
-                      onClick={() => setViewOrder(order)}
-                      className="flex-1 px-4 py-2.5 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <FileText className="w-4 h-4" />
-                      View Details
-                    </button>
-                    <button
-                      onClick={() => setSelectedOrder(order)}
-                      className="flex-1 px-4 py-2.5 text-sm font-medium bg-linear-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all flex items-center justify-center gap-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/admin/billing?selectedOrder=${order.id}`);
+                      }}
+                      className="w-full px-4 py-2.5 text-sm font-medium bg-linear-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all flex items-center justify-center gap-2"
                     >
                       <DollarSign className="w-4 h-4" />
-                      Bill Now
+                      View & Bill Order
                     </button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>*/}
+              );
+            })}
+          </div>
+        )}
 
-        {/*{filteredOrders.length === 0 && (
+        {/* Empty State */}
+        {!loading && filteredOrders.length === 0 && (
           <div className="bg-white rounded-2xl p-12 border border-gray-200 text-center">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-12 h-12 text-gray-400" />
             </div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders ready for billing</h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              {searchQuery || dateFilter !== "all"
-                ? "No completed orders match your current filters. Try adjusting your search criteria."
-                : "All orders have been billed. Check back when more orders are completed."}
+              {searchQuery || dateFilter !== 'all'
+                ? 'No completed orders match your current filters. Try adjusting your search criteria.'
+                : 'All orders have been billed. Check back when more orders are completed.'}
             </p>
-            {searchQuery || dateFilter !== "all" && (
+            {(searchQuery || dateFilter !== 'all') && (
               <button
                 onClick={clearFilters}
                 className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
@@ -301,14 +361,18 @@ export default function BillingPage() {
               </button>
             )}
           </div>
-        )}*/}
+        )}
 
-        {/*{selectedOrder && (
-        //  <BillingModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
-        )}*/}
-
-        {viewOrder && <CompletedOrderModal order={viewOrder} onClose={() => setViewOrder(null)} />}
+        {/* Billing Modal */}
+        {selectedOrderId && (
+          <BillingModal
+            orderId={selectedOrderId}
+            onClose={() => router.push('/admin/billing')}
+            onSuccess={refreshOrders}
+          />
+        )}
       </div>
     </div>
   );
 }
+

@@ -153,11 +153,10 @@ export default function OrderConfigPage() {
             {order.processes.map(process => (
               <div
                 key={process.id}
-                className={`px-4 py-2 rounded-lg border transition-colors ${
-                  processName === process.name
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-gray-300 bg-gray-50 text-gray-700'
-                }`}
+                className={`px-4 py-2 rounded-lg border transition-colors ${processName === process.name
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-gray-300 bg-gray-50 text-gray-700'
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full" />

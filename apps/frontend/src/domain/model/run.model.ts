@@ -1,11 +1,19 @@
 export interface ProcessRun {
-    id: string;
-    runNumber: number;
-    displayName: string;
-    configStatus: string;
-    lifecycleStatus: string;
-    values: Record<string, unknown>;
-    fields: RunField[];
+  id: string;
+  runNumber: number;
+  displayName: string;
+  configStatus: string;
+  lifecycleStatus: string;
+  lifecycle: Array<{
+    code: string;
+    completed: boolean;
+  }>;
+  values: Record<string, string | number | null>; // Changed from fields
+  fields: Array<{ // This is now an array, not in runTemplate
+    key: string;
+    type: string;
+    required: boolean;
+  }>;
 }
 
 export interface RunField {

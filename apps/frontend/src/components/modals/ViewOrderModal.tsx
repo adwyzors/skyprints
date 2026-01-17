@@ -7,12 +7,10 @@ import { useEffect, useRef, useState } from "react";
 import { Order } from "@/domain/model/order.model";
 import { getOrderById } from "@/services/orders.service";
 import {
-    CheckCircle,
-    ChevronRight,
-    Circle,
-    MapPin,
-    Save,
-    Settings,
+  CheckCircle,
+  ChevronRight,
+  Circle,
+  Settings
 } from "lucide-react";
 
 /* =================================================
@@ -28,23 +26,18 @@ export interface ViewOrderModalProps {
    CONSTANTS (STATIC DOMAIN DATA)
    ================================================= */
 
-const PROCESS_MASTER_STATUSES = [
-  "DESIGN",
-  "SIZE_COLOR",
-  "TRACING",
-  "EXPOSING",
-  "SAMPLE",
-  "PRODUCTION",
-  "FUSING",
-  "CARTING",
-  "COMPLETED",
-] as const;
+/* =================================================
+   CONSTANTS
+   ================================================= */
 
-type ProcessStepStatus = (typeof PROCESS_MASTER_STATUSES)[number];
+// Process statuses are now dynamic from the backend via run.lifecycle
+
 
 /* =================================================
    COMPONENT
    ================================================= */
+
+import { transitionLifeCycle } from "@/services/run.service";
 
 export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps) {
   const [order, setOrder] = useState<Order | null>(null);
@@ -62,55 +55,59 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
      FETCH ORDER (SAFE + ONCE)
      ================================================= */
 
+  const fetchOrder = async () => {
+    setLoading(true);
+    try {
+      const fetched = await getOrderById(orderId);
+      if (!fetched) return;
+
+      setOrder(fetched);
+      if (fetched.processes.length > 0 && expandedProcesses.size === 0) {
+        setExpandedProcesses(new Set([fetched.processes[0].id]));
+      }
+      // Preselect first active run for execution views
+      if (
+        fetched.status === "PRODUCTION_READY" ||
+        fetched.status === "IN_PRODUCTION"
+      ) {
+        let firstActiveRun: string | null = null;
+
+        outer: for (const process of fetched.processes) {
+          for (const run of process.runs) {
+            if (
+              run.configStatus === "COMPLETE" ||
+              (run.configStatus !== "COMPLETED" &&
+                run.configStatus !== "NOT_CONFIGURED")
+            ) {
+              firstActiveRun = run.id;
+              break outer;
+            }
+          }
+        }
+
+        // Only set if not already set or invalid
+        if (!activeRunId) {
+          setActiveRunId(
+            firstActiveRun ??
+            fetched.processes[0]?.runs[0]?.id ??
+            null
+          );
+        }
+
+        if (fetched.processes[0] && expandedProcesses.size === 0) {
+          setExpandedProcesses(new Set([fetched.processes[0].id]));
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching order:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
-
-    const fetchOrder = async () => {
-      setLoading(true);
-      try {
-        const fetched = await getOrderById(orderId);
-        if (!fetched) return;
-
-        setOrder(fetched);
-
-        // Preselect first active run for execution views
-        if (
-          fetched.status === "PRODUCTION_READY" ||
-          fetched.status === "IN_PRODUCTION"
-        ) {
-          let firstActiveRun: string | null = null;
-
-          outer: for (const process of fetched.processes) {
-            for (const run of process.runs) {
-              if (
-                run.configStatus === "CONFIGURED" ||
-                (run.configStatus !== "COMPLETED" &&
-                  run.configStatus !== "NOT_CONFIGURED")
-              ) {
-                firstActiveRun = run.id;
-                break outer;
-              }
-            }
-          }
-
-          setActiveRunId(
-            firstActiveRun ??
-              fetched.processes[0]?.runs[0]?.id ??
-              null
-          );
-
-          if (fetched.processes[0]) {
-            setExpandedProcesses(new Set([fetched.processes[0].id]));
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching order:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrder();
   }, [orderId]);
 
@@ -118,42 +115,19 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
      DOMAIN HELPERS (PURE FUNCTIONS)
      ================================================= */
 
-  const getStatusIndex = (status: string): number => {
-    if (status === "CONFIGURED") return -1;
-    return PROCESS_MASTER_STATUSES.indexOf(status as ProcessStepStatus);
-  };
-
   const getStatusDisplayName = (status: string): string => {
-    const map: Record<string, string> = {
-      CONFIGURED: "Configured",
-      DESIGN: "Design",
-      SIZE_COLOR: "Size & Color",
-      TRACING: "Tracing",
-      EXPOSING: "Exposing",
-      SAMPLE: "Sample",
-      PRODUCTION: "Production",
-      FUSING: "Fusing",
-      CARTING: "Carting",
-      COMPLETED: "Completed",
-    };
-    return map[status] ?? status;
-  };
-
-  const isStepCompleted = (runStatus: string, stepStatus: string): boolean => {
-    if (runStatus === "CONFIGURED") return false;
-    return getStatusIndex(stepStatus) < getStatusIndex(runStatus) ||
-      runStatus === "COMPLETED";
-  };
-
-  const isCurrentStep = (runStatus: string, stepStatus: string): boolean => {
-    if (runStatus === "CONFIGURED") return stepStatus === "DESIGN";
-    return runStatus === stepStatus;
+    // Basic formatting for dynamic codes
+    return status
+      .replace(/_/g, ' ')
+      .replace(/&/g, ' & ')
+      .toLowerCase()
+      .replace(/\b\w/g, c => c.toUpperCase());
   };
 
   const isRunActive = (status: string) =>
     status !== "COMPLETED" &&
     status !== "NOT_CONFIGURED" &&
-    status !== "CONFIGURED";
+    status !== "CONFIGURED"; // Assuming 'CONFIGURED' is just ready state, not active processing?
 
   const canOpenRun = (status: string) =>
     status !== "NOT_CONFIGURED";
@@ -171,11 +145,112 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
     setActiveRunId(prev => (prev === runId ? null : runId));
   };
 
+  // Function to check if a lifecycle step is completed
+  const isLifecycleStepCompleted = (run: any, stepCode: string): boolean => {
+    const step = run.lifecycle?.find((s: any) => s.code === stepCode);
+    return step ? step.completed : false;
+  };
+
+  // Function to check if a lifecycle step is the current step
+  const isLifecycleStepCurrent = (run: any, stepCode: string): boolean => {
+    return run.lifecycleStatus === stepCode &&
+      !isLifecycleStepCompleted(run, stepCode);
+  };
+
+  // Function to update lifecycle status locally after successful transition
+  const updateLifecycleStatus = (processId: string, runId: string, newStatus: string) => {
+    setOrder(prev => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        processes: prev.processes.map(process => {
+          if (process.id === processId) {
+            return {
+              ...process,
+              runs: process.runs.map(run => {
+                if (run.id === runId) {
+                  // Get current status before update
+                  const currentStatus = run.lifecycleStatus;
+
+                  // Update lifecycle: mark all steps UP TO (but not including) the new status as completed
+                  const lifecycle = run.lifecycle?.map((step: any) => {
+                    if (run.lifecycle) {
+                      const stepIndex = run.lifecycle.findIndex((s: any) => s.code === step.code);
+                      const newStatusIndex = run.lifecycle.findIndex((s: any) => s.code === newStatus);
+                      // Mark all steps BEFORE the new status as completed
+                      if (stepIndex < newStatusIndex) {
+                        return { ...step, completed: true };
+                      }
+                    }
+                    return step;
+                  });
+
+                  return {
+                    ...run,
+                    lifecycleStatus: newStatus,
+                    lifecycle: lifecycle || run.lifecycle
+                  };
+                }
+                return run;
+              })
+            };
+          }
+          return process;
+        })
+      };
+    });
+  };
+
+  /* =================================================
+     ACTIONS
+     ================================================= */
+
+  const handleTransition = async (processId: string, runId: string) => {
+    if (!order) return;
+    setUpdating(true);
+    try {
+      // Find the run to get its current values to pass to backend
+      const process = order.processes.find(p => p.id === processId);
+      const run = process?.runs.find(r => r.id === runId);
+
+      if (!run) throw new Error("Run not found");
+
+      // Get current lifecycle status and find next step
+      const currentStatus = run.lifecycleStatus;
+      const lifecycleSteps = run.lifecycle || [];
+      const currentIndex = lifecycleSteps.findIndex((step: any) => step.code === currentStatus);
+
+      if (currentIndex === -1 || currentIndex >= lifecycleSteps.length - 1) {
+        throw new Error("No next step available");
+      }
+
+      const nextStep = lifecycleSteps[currentIndex + 1];
+      const nextStatusCode = nextStep.code;
+
+      const response = await transitionLifeCycle(order.id, processId, runId, {
+        ...run.values,
+        targetStatus: nextStatusCode
+      });
+
+      if (response.success) {
+        // Update local state immediately - no need to refetch from server
+        updateLifecycleStatus(processId, runId, nextStatusCode);
+      }
+    } catch (err) {
+      console.error("Failed to transition:", err);
+      alert(err instanceof Error ? err.message : "Failed to update status");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+
   /* =================================================
      UI GUARDS
      ================================================= */
 
-  if (loading) {
+  if (loading && !order) {
     return (
       <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
         <div className="bg-white w-full max-w-6xl h-[85vh] rounded-2xl flex items-center justify-center">
@@ -201,16 +276,15 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
   }
 
   /* =================================================
-     UI (UNCHANGED)
+     UI
      ================================================= */
 
   return (
-    /* ⬇️ JSX CONTENT UNCHANGED ⬇️ */
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-6xl h-[85vh] rounded-2xl flex overflow-hidden shadow-2xl">
         {/* LEFT — ORDER DETAILS */}
-        <div className="w-1/3 border-r border-gray-200 p-6 flex flex-col">
-          <div className="flex-1">
+        <div className="w-1/3 border-r border-gray-200 p-6 flex flex-col h-full">
+          <div className="flex-1 overflow-y-auto min-h-0">
             <h2 className="text-xl font-bold text-gray-800 mb-2">
               {order.id}
             </h2>
@@ -229,15 +303,14 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
               </div>
               <div className="flex items-center justify-between">
                 <span>Status:</span>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  order.status === "COMPLETED" 
-                    ? "bg-green-100 text-green-800"
-                    : order.status === "IN_PRODUCTION"
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === "COMPLETED"
+                  ? "bg-green-100 text-green-800"
+                  : order.status === "IN_PRODUCTION"
                     ? "bg-blue-100 text-blue-800"
                     : order.status === "PRODUCTION_READY"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-gray-100 text-gray-800"
-                }`}>
+                      ? "bg-yellow-100 text-yellow-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}>
                   {order.status}
                 </span>
               </div>
@@ -253,92 +326,98 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                       className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
                     >
                       <span className="font-medium text-gray-800">{process.name}</span>
-                      <ChevronRight className={`w-4 h-4 transition-transform ${
-                        expandedProcesses.has(process.id) ? "rotate-90" : ""
-                      }`} />
+                      <ChevronRight className={`w-4 h-4 transition-transform ${expandedProcesses.has(process.id) ? "rotate-90" : ""
+                        }`} />
                     </button>
-                    
+
                     {expandedProcesses.has(process.id) && (
                       <div className="px-4 pb-3 pt-1 border-t border-gray-200">
                         <div className="space-y-2">
                           {process.runs.map((run) => {
-                            const isEditing = editingLocation === `${process.id}-${run.id}`;
-                            
+                            // Get lifecycle steps for this run
+                            const lifecycleSteps = run.lifecycle || [];
+
+                            // Find current step
+                            const currentStepIndex = lifecycleSteps.findIndex(
+                              (step: any) => step.code === run.lifecycleStatus
+                            );
+
+                            // Calculate progress
+                            const completedSteps = lifecycleSteps.filter((step: any) => step.completed).length;
+                            const totalSteps = lifecycleSteps.length;
+
                             return (
                               <div key={run.id} className="text-sm">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
                                     <span className="text-gray-600">Run {run.runNumber}</span>
                                   </div>
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                    run.configStatus === "COMPLETED"
-                                      ? "bg-green-100 text-green-800"
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${run.lifecycleStatus === 'COMPLETE' || run.lifecycleStatus === 'BILLED'
+                                    ? "bg-green-100 text-green-800"
+                                    : run.configStatus === "COMPLETE"
+                                      ? "bg-blue-100 text-blue-800"
                                       : run.configStatus === "CONFIGURED"
-                                      ? "bg-gray-100 text-gray-800"
-                                      : run.configStatus === "NOT_CONFIGURED"
-                                      ? "bg-red-100 text-red-800"
-                                      : "bg-blue-100 text-blue-800"
-                                  }`}>
-                                    {run.configStatus === "COMPLETED" 
-                                      ? "Completed" 
-                                      : run.configStatus === "CONFIGURED"
-                                      ? "Configured"
-                                      : run.configStatus === "NOT_CONFIGURED"
-                                      ? "Not Configured"
-                                      : "Active"
+                                        ? "bg-gray-100 text-gray-800"
+                                        : "bg-red-100 text-red-800"
+                                    }`}>
+                                    {run.lifecycleStatus === 'COMPLETE' || run.lifecycleStatus === 'BILLED'
+                                      ? "Completed"
+                                      : run.configStatus === "COMPLETE"
+                                        ? "In Progress"
+                                        : run.configStatus === "CONFIGURED"
+                                          ? "Configured"
+                                          : "Not Configured"
                                     }
                                   </span>
                                 </div>
-                                
-                                {/* Location Display/Edit */}
-                                {isEditing ? (
-                                  <div className="mt-2 flex gap-1">
-                                    <input
-                                      type="text"
-                                      value={locationInput[`${process.id}-${run.id}`] || ""}
-                                      onChange={(e) => setLocationInput(prev => ({
-                                        ...prev,
-                                        [`${process.id}-${run.id}`]: e.target.value
-                                      }))}
-                                      placeholder="Enter location..."
-                                      className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                      disabled={updating}
-                                    />
-                                    <button
-                                    //  onClick={() => handleLocationUpdate(process.id, run.id)}
-                                      disabled={updating}
-                                      className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
-                                    >
-                                      {updating ? "..." : <Save className="w-3 h-3" />}
-                                    </button>
-                                    <button
-                                    //  onClick={cancelEditingLocation}
-                                      disabled={updating}
-                                      className="px-2 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400 disabled:opacity-50"
-                                    >
-                                      ×
-                                    </button>
+
+                                {/* Lifecycle Status Display */}
+                                <div className="mt-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-gray-500 text-xs">
+                                      Current: {getStatusDisplayName(run.lifecycleStatus || "Not started")}
+                                    </span>
+                                    {lifecycleSteps.length > 0 && (
+                                      <span className="text-gray-400 text-xs">
+                                        {completedSteps}/{totalSteps} steps
+                                      </span>
+                                    )}
                                   </div>
-                                ) : (
-                                  <div className="flex items-center justify-between mt-1">
-                                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                                      {/*{run.locationId ? (
-                                        <>
-                                          <MapPin className="w-3 h-3" />
-                                          <span>{run.locationId}</span>CreateOrderModal.
-                                        </>
-                                      ) : (*/}
-                                        <span className="text-gray-400">No location set</span>
-                                      {/*)}*/}
+
+                                  {/* Lifecycle Progress Bar */}
+                                  {lifecycleSteps.length > 0 && (
+                                    <div className="mt-1">
+                                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                        <div
+                                          className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                                          style={{ width: `${(completedSteps / totalSteps) * 100}%` }}
+                                        />
+                                      </div>
+
+                                      {/* Lifecycle Steps (mini view) */}
+                                      <div className="flex items-center justify-between mt-1">
+                                        {lifecycleSteps.map((step: any, index: number) => {
+                                          const isCompleted = step.completed;
+                                          const isCurrent = step.code === run.lifecycleStatus && !isCompleted;
+
+                                          return (
+                                            <div key={step.code} className="flex flex-col items-center">
+                                              <div className={`w-2 h-2 rounded-full ${isCompleted
+                                                ? "bg-green-500"
+                                                : isCurrent
+                                                  ? "bg-blue-500"
+                                                  : "bg-gray-300"
+                                                }`} />
+                                              <span className="text-[10px] text-gray-500 mt-1 truncate max-w-[40px]">
+                                                {step.code.split('&')[0]} {/* Show only first part for compactness */}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
-                                    <button
-                                    //  onClick={() => startEditingLocation(process.id, run.id, run.locationId)}
-                                      className="text-xs text-blue-600 hover:text-blue-800"
-                                    >
-                                      Edit
-                                    </button>
-                                  </div>
-                                )}
+                                  )}
+                                </div>
                               </div>
                             );
                           })}
@@ -351,13 +430,15 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            disabled={updating}
-            className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            Close
-          </button>
+          <div className="pt-4 border-t border-gray-200 mt-4 flex-shrink-0">
+            <button
+              onClick={onClose}
+              disabled={updating}
+              className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              Close
+            </button>
+          </div>
         </div>
 
         {/* RIGHT — EXECUTION */}
@@ -369,8 +450,7 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                 <div className="text-lg font-medium mb-2">Order Not Ready</div>
                 <p>Set configurations for this order to begin production</p>
               </div>
-              
-              {/* CONFIGURE RUNS BUTTON */}
+
               <button
                 onClick={() => router.push(`/admin/orders/${order.id}`)}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
@@ -384,7 +464,8 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
           {/* EXECUTION MODE */}
           {(order.status === "PRODUCTION_READY" ||
             order.status === "IN_PRODUCTION" ||
-            order.status === "COMPLETED") &&
+            order.status === "COMPLETED" ||
+            order.status === "COMPLETE") &&
             order.processes.map(process => (
               <div key={process.id} className="mb-8">
                 <div className="flex items-center justify-between mb-6">
@@ -397,76 +478,68 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                 {process.runs.map((run) => {
                   const isOpen = activeRunId === run.id;
                   const canOpen = canOpenRun(run.configStatus);
-                  const isActive = isRunActive(run.configStatus);
-                  const isEditingLocation = editingLocation === `${process.id}-${run.id}`;
+                  const isRunComplete = run.lifecycleStatus === 'BILLED';
+
+                  // Dynamic lifecycle from run - use the lifecycle array from the run
+                  const lifecycleSteps = run.lifecycle || [];
+                  const shouldShowTimeline = run.configStatus === "COMPLETE" && lifecycleSteps.length > 0;
 
                   return (
                     <div
                       key={run.id}
-                      className={`border rounded-xl overflow-hidden mb-4 shadow-sm transition-shadow ${
-                        !canOpen 
-                          ? 'border-gray-200 bg-gray-50' 
-                          : 'border-gray-300 hover:shadow-md'
-                      }`}
+                      className={`border rounded-xl overflow-hidden mb-4 shadow-sm transition-shadow ${!canOpen
+                        ? 'border-gray-200 bg-gray-50'
+                        : 'border-gray-300 hover:shadow-md'
+                        }`}
                     >
                       {/* HEADER */}
                       <button
                         onClick={() => handleRunClick(process.id, run.id, run.configStatus)}
                         disabled={!canOpen || updating}
-                        className={`w-full p-4 flex items-center justify-between transition-colors ${
-                          isOpen 
-                            ? "bg-blue-50" 
-                            : !canOpen
+                        className={`w-full p-4 flex items-center justify-between transition-colors ${isOpen
+                          ? "bg-blue-50"
+                          : !canOpen
                             ? "bg-gray-50 cursor-not-allowed"
                             : "bg-gray-50 hover:bg-gray-100"
-                        } ${updating ? "opacity-50" : ""}`}
+                          } ${updating ? "opacity-50" : ""}`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-2 h-8 rounded ${
-                            run.configStatus === "COMPLETED" 
-                              ? "bg-green-500" 
-                              : isActive
-                              ? "bg-blue-500" 
+                          <div className={`w-2 h-8 rounded ${isRunComplete
+                            ? "bg-green-500" // Completed
+                            : run.configStatus === "COMPLETE"
+                              ? "bg-blue-500" // Active
                               : "bg-gray-400"
-                          }`} />
+                            }`} />
                           <div className="text-left">
                             <div className="font-semibold text-gray-800 flex items-center gap-2">
                               Run {run.runNumber}
                             </div>
                             <div className="text-sm text-gray-600">
-                              Progress: {getStatusDisplayName(run.configStatus)}
+                              {isRunComplete
+                                ? "Completed (Billed)"
+                                : run.configStatus === "COMPLETE"
+                                  ? `Current: ${getStatusDisplayName(run.lifecycleStatus || "Pending")}`
+                                  : "Configured"}
                             </div>
-                            {/*{run.locationId && (
-                              <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                                <MapPin className="w-3 h-3" />
-                                <span>{run.locationId}</span>
-                              </div>
-                            )}*/}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            run.configStatus === "COMPLETED"
-                              ? "bg-green-100 text-green-800"
-                              : isActive
+                          {/* Status Badge */}
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${isRunComplete
+                            ? "bg-green-100 text-green-800"
+                            : run.configStatus === "COMPLETE"
                               ? "bg-blue-100 text-blue-800"
-                              : run.configStatus === "CONFIGURED"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}>
-                            {run.configStatus === "COMPLETED" 
-                              ? "Completed" 
-                              : run.configStatus === "CONFIGURED"
-                              ? "Ready"
-                              : isActive
-                              ? "Active"
-                              : "Not Configured"
-                            }
+                              : "bg-gray-100"
+                            }`}>
+                            {isRunComplete
+                              ? "Completed"
+                              : run.configStatus === "COMPLETE"
+                                ? "Active"
+                                : "Ready"}
                           </span>
                           {canOpen && (
-                            <ChevronRight className={`w-5 h-5 text-gray-500 transition-transform ${
-                              isOpen ? "rotate-90" : ""
-                            }`} />
+                            <ChevronRight className={`w-5 h-5 text-gray-500 transition-transform ${isOpen ? "rotate-90" : ""
+                              }`} />
                           )}
                         </div>
                       </button>
@@ -474,141 +547,93 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                       {/* BODY - PROCESS TIMELINE */}
                       {isOpen && canOpen && (
                         <div className="p-6">
-                          {/* LOCATION INPUT */}
-                          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <div className="flex items-center gap-2 mb-2">
-                              <MapPin className="w-4 h-4 text-gray-600" />
-                              <span className="font-medium text-gray-700">Update Location</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                //value={locationInput[`${process.id}-${run.id}`] || run.locationId || ""}
-                                onChange={(e) => setLocationInput(prev => ({
-                                  ...prev,
-                                  [`${process.id}-${run.id}`]: e.target.value
-                                }))}
-                                placeholder="Enter location (e.g., Line 1, Machine A)"
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                disabled={updating}
-                              />
-                              <button
-                                //onClick={() => handleLocationUpdate(process.id, run.id)}
-                                disabled={updating}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-                              >
-                                <Save className="w-4 h-4" />
-                                {updating ? "Updating..." : "Update"}
-                              </button>
-                            </div>
-                            {/*{run.locationId && !isEditingLocation && (
-                              <div className="mt-2 text-sm text-gray-600">
-                                Current: {run.locationId}
-                              </div>
-                            )}*/}
-                          </div>
+                          {/* Show timeline if run is COMPLETE and has lifecycle steps */}
+                          {shouldShowTimeline ? (
+                            <div className="relative pl-8 space-y-6">
+                              {/* VERTICAL LINE */}
+                              <div className="absolute left-2.75 top-2 bottom-2 w-0.5 bg-gray-300" />
 
-                          {/* VERTICAL TIMELINE */}
-                          <div className="relative pl-8 space-y-6">
-                            {/* VERTICAL LINE */}
-                            <div className="absolute left-2.75 top-2 bottom-2 w-0.5 bg-gray-300" />
-                            
-                            {PROCESS_MASTER_STATUSES.map((status) => {
-                              const completed = isStepCompleted(run.configStatus, status);
-                              const current = isCurrentStep(run.configStatus, status);
-                            //  const nextButtonVisible = shouldShowNextButton(run, status);
+                              {lifecycleSteps.map((step, index) => {
+                                const isCompleted = step.completed ||
+                                  isLifecycleStepCompleted(run, step.code) ||
+                                  (run.lifecycleStatus &&
+                                    index < lifecycleSteps.findIndex((s: any) => s.code === run.lifecycleStatus));
+                                const isCurrent = isLifecycleStepCurrent(run, step.code);
 
-                              return (
-                                <div key={status} className="relative flex items-start gap-4">
-                                  {/* TIMELINE DOT */}
-                                  <div className={`absolute -left-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                                    completed
+                                return (
+                                  <div key={step.code} className="relative flex items-start gap-4">
+                                    {/* DOT */}
+                                    <div className={`absolute -left-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isCompleted
                                       ? "bg-green-500 border-green-500"
-                                      : current
-                                      ? "bg-white border-blue-500"
-                                      : "bg-white border-gray-300"
-                                  }`}>
-                                    {completed ? (
-                                      <CheckCircle className="w-3 h-3 text-white" />
-                                    ) : current ? (
-                                      <Circle className="w-2 h-2 text-blue-500" />
-                                    ) : null}
-                                  </div>
+                                      : isCurrent
+                                        ? "bg-white border-blue-500"
+                                        : "bg-white border-gray-300"
+                                      }`}>
+                                      {isCompleted ? (
+                                        <CheckCircle className="w-3 h-3 text-white" />
+                                      ) : isCurrent ? (
+                                        <Circle className="w-2 h-2 text-blue-500" />
+                                      ) : null}
+                                    </div>
 
-                                  {/* CONTENT */}
-                                  <div className={`flex-1 rounded-lg border ${
-                                    current
+                                    {/* CARD */}
+                                    <div className={`flex-1 rounded-lg border ${isCurrent
                                       ? "border-blue-200 bg-blue-50"
-                                      : completed
-                                      ? "border-green-200 bg-green-50"
-                                      : "border-gray-200 bg-white"
-                                  }`}>
-                                    <div className="p-4">
-                                      <div className="flex items-start justify-between mb-1">
-                                        <div>
-                                          <span className={`font-medium block ${
-                                            current ? "text-blue-700" : completed ? "text-green-700" : "text-gray-700"
-                                          }`}>
-                                            {getStatusDisplayName(status)}
-                                          </span>
-                                          <span className="text-xs text-gray-500 mt-1 block">
-                                            Not started
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          {current && (
-                                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                                              Current Step
+                                      : isCompleted
+                                        ? "border-green-200 bg-green-50"
+                                        : "border-gray-200 bg-white"
+                                      }`}>
+                                      <div className="p-4">
+                                        <div className="flex items-start justify-between mb-1">
+                                          <div>
+                                            <span className={`font-medium block ${isCurrent ? "text-blue-700" : isCompleted ? "text-green-700" : "text-gray-700"
+                                              }`}>
+                                              {getStatusDisplayName(step.code)}
                                             </span>
-                                          )}
-                                          {completed && (
-                                            <CheckCircle className="w-4 h-4 text-green-600" />
-                                          )}
+                                          </div>
+                                          <div className="flex items-center gap-1">
+                                            {isCurrent && (
+                                              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                                                Current Step
+                                              </span>
+                                            )}
+                                            {isCompleted && (
+                                              <CheckCircle className="w-4 h-4 text-green-600" />
+                                            )}
+                                          </div>
                                         </div>
+
+                                        {/* NEXT BUTTON */}
+                                        {isCurrent && !isCompleted && !isRunComplete && (
+                                          <div className="mt-4 pt-4 border-t border-blue-200">
+                                            <button
+                                              onClick={() => handleTransition(process.id, run.id)}
+                                              disabled={updating}
+                                              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                                            >
+                                              <span>
+                                                {updating ? "Updating..." : "Mark Completed & Continue"}
+                                              </span>
+                                              {!updating && <ChevronRight className="w-4 h-4" />}
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
-                                      
-                                      {/* NEXT BUTTON - BELOW THE STATUS CONTENT */}
-                                      {
-                                    //  nextButtonVisible && 
-                                      (
-                                        <div className="mt-4 pt-4 border-t border-blue-200">
-                                          <button
-                                            //onClick={() => advanceRunStatus(process.id, run.id)}
-                                            disabled={updating}
-                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-                                          >
-                                            <span>
-                                              {updating ? "Updating..." : 
-                                                run.configStatus === "CONFIGURED" 
-                                                  ? "Start Production - Move to Design" 
-                                                  : "Completed. Move to Next Step"
-                                              }
-                                            </span>
-                                            {!updating && <ChevronRight className="w-4 h-4" />}
-                                          </button>
-                                        </div>
-                                      )}
                                     </div>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {/* RUN COMPLETION STATUS */}
-                          {run.configStatus === "COMPLETED" && (
-                            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                              <div className="flex items-center justify-center gap-2 text-green-800">
-                                <CheckCircle className="w-5 h-5" />
-                                <span className="font-medium">This run has been completed</span>
-                              </div>
-                              {/*{run.locationId && (
-                                <div className="text-center text-green-700 text-sm mt-2">
-                                  Location: {run.locationId}
-                                </div>
-                              )}*/}
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-gray-500">
+                              {run.configStatus === "COMPLETE"
+                                ? lifecycleSteps.length === 0
+                                  ? "No lifecycle steps defined."
+                                  : "Configured. Ready to start production."
+                                : "Configured. Ready to start production."}
                             </div>
                           )}
+
                         </div>
                       )}
                     </div>
