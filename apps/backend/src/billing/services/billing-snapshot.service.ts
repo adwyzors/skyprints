@@ -31,8 +31,7 @@ export class BillingSnapshotService {
         });
 
         return {
-            requestId: event.id,
-            status: "QUEUED"
+            success: true
         };
     }
 
@@ -48,5 +47,4 @@ export class BillingSnapshotService {
             orderBy: { version: "asc" }
         });
     }
-
 }

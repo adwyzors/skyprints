@@ -1,22 +1,21 @@
-// src/middleware.ts
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const { pathname, search } = req.nextUrl;
+    const { pathname, search } = req.nextUrl;
 
-  // Protect dashboard routes
-  if (pathname.startsWith("/dashboard")) {
-    const sessionCookie = req.cookies.get("SESSION_ID");
+    // Protect admin routes
+    if (pathname.startsWith("/admin")) {
+        const accessToken = req.cookies.get("ACCESS_TOKEN");
 
-    if (!sessionCookie) {
-      const backendLoginUrl =
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/login` +
-        `?redirectTo=${encodeURIComponent(pathname + search)}`;
+        if (!accessToken) {
+            const backendLoginUrl =
+                `${process.env.NEXT_PUBLIC_API_URL}/auth/login` +
+                `?redirectTo=${encodeURIComponent(pathname + search)}`;
 
-      return NextResponse.redirect(backendLoginUrl);
+            return NextResponse.redirect(backendLoginUrl);
+        }
     }
-  }
 
-  return NextResponse.next();
+    return NextResponse.next();
 }
