@@ -18,7 +18,7 @@ import {
   X
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 import CreateOrderModal from '@/components/modals/CreateOrderModal';
 import ViewOrderModal from '@/components/modals/ViewOrderModal';
@@ -29,7 +29,7 @@ import { getOrders } from '@/services/orders.service';
    COMPONENT
    ================================================= */
 
-export default function AdminOrdersPage() {
+function AdminOrdersContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedOrderId = searchParams.get('selectedOrder');
@@ -548,5 +548,19 @@ export default function AdminOrdersPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AdminOrdersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        </div>
+      }
+    >
+      <AdminOrdersContent />
+    </Suspense>
   );
 }

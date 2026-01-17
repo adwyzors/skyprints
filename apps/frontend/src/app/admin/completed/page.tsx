@@ -5,9 +5,9 @@ import { Order } from "@/domain/model/order.model";
 import { getOrders } from "@/services/orders.service";
 import { Calendar, CheckCircle, DollarSign, Download, FileText, Filter, Loader2, Package, Search, User, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
-export default function CompletedPage() {
+function CompletedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedOrderId = searchParams.get('selectedOrder');
@@ -354,5 +354,19 @@ export default function CompletedPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CompletedPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+        </div>
+      }
+    >
+      <CompletedContent />
+    </Suspense>
   );
 }
