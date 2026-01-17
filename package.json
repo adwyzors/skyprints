@@ -5,6 +5,9 @@
         "apps/*",
         "apps/packages/*"
     ],
+    "engines": {
+        "node": ">=20 <21"
+    },
     "scripts": {
         "build:contracts": "npm --workspace apps/packages/contracts run build",
         "build:backend": "npm --workspace apps/backend run build",
@@ -20,9 +23,5 @@
         "eslint": "^9.39.2",
         "prettier": "^3.7.4",
         "prisma": "^6.19.1"
-    },
-    "dependencies": {
-        "@isaacs/brace-expansion": "^5.0.0",
-        "@jridgewell/sourcemap-codec": "^1.5.5"
     }
 }
