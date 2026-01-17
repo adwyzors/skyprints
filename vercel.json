@@ -1,0 +1,5 @@
+{
+    "buildCommand": "npm run build:contracts && npm run build:frontend",
+    "outputDirectory": "apps/frontend/.next",
+    "framework": "nextjs"
+}
