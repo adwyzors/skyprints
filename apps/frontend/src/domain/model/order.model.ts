@@ -2,6 +2,7 @@ import { ProcessRun } from "./run.model";
 
 export interface Order {
     id: string;
+    code: string;
     quantity: number;
     status: string;
     createdAt: Date;

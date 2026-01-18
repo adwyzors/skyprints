@@ -1,5 +1,6 @@
 'use client';
 
+import debounce from 'lodash/debounce';
 import {
   Calendar,
   CheckCircle,
@@ -18,12 +19,12 @@ import {
   X
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 
 import CreateOrderModal from '@/components/modals/CreateOrderModal';
 import ViewOrderModal from '@/components/modals/ViewOrderModal';
 import { Order } from '@/domain/model/order.model';
-import { getOrders } from '@/services/orders.service';
+import { GetOrdersParams, getOrders } from '@/services/orders.service';
 
 /* =================================================
    COMPONENT
@@ -36,16 +37,54 @@ function AdminOrdersContent() {
 
   /* ================= STATE ================= */
 
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersData, setOrdersData] = useState<{
+    orders: Order[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>({
+    orders: [],
+    total: 0,
+    page: 1,
+    limit: 12, // Default limit
+    totalPages: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [openCreate, setOpenCreate] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Customer data from API
+  const [customers, setCustomers] = useState<{ id: string; name: string; code?: string }[]>([
+    { id: 'all', name: 'All Customers' },
+  ]);
+
+  // Fetch customers on mount
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const { getCustomers } = await import('@/services/customer.service');
+        const fetchedCustomers = await getCustomers();
+        setCustomers([
+          { id: 'all', name: 'All Customers' },
+          ...fetchedCustomers.map(c => ({ id: c.id, name: c.name, code: c.code }))
+        ]);
+      } catch (error) {
+        console.error('Failed to fetch customers:', error);
+      }
+    };
+    fetchCustomers();
+  }, []);
 
   /* ================= EFFECTS ================= */
 
@@ -53,16 +92,86 @@ function AdminOrdersContent() {
     setIsMounted(true);
   }, []);
 
+  // Debounce search input
+  const debouncedSearchUpdate = useCallback(
+    debounce((value: string) => {
+      setDebouncedSearch(value);
+    }, 500),
+    []
+  );
+
+  useEffect(() => {
+    debouncedSearchUpdate(searchQuery);
+    return () => debouncedSearchUpdate.cancel();
+  }, [searchQuery, debouncedSearchUpdate]);
+
+  // Main data fetching effect
   useEffect(() => {
     let cancelled = false;
 
     const fetchOrders = async () => {
+      if (isSearching) {
+        setIsSearching(false);
+      }
+
       setLoading(true);
       try {
-        const fetchedOrders = await getOrders();
-        if (!cancelled) setOrders(fetchedOrders);
+        // Build query params
+        const params: GetOrdersParams = {
+          page: ordersData.page,
+          limit: ordersData.limit,
+        };
+
+        // Add status filters - for orders page, we only show active statuses
+        if (statusFilter === 'all') {
+          // Default: show active order statuses (not COMPLETED or BILLED)
+          params.status = 'CONFIGURE';
+        } else {
+          params.status = statusFilter;
+        }
+
+        if (debouncedSearch) {
+          params.search = debouncedSearch;
+        }
+
+        if (customerFilter !== 'all') {
+          params.customerId = customerFilter;
+        }
+
+        // Handle date filters
+        const now = new Date();
+        if (dateFilter !== 'all') {
+          const fromDate = new Date();
+
+          switch (dateFilter) {
+            case 'today':
+              fromDate.setHours(0, 0, 0, 0);
+              params.fromDate = fromDate.toISOString().split('T')[0];
+              break;
+            case 'week':
+              fromDate.setDate(fromDate.getDate() - 7);
+              params.fromDate = fromDate.toISOString().split('T')[0];
+              break;
+            case 'month':
+              fromDate.setMonth(fromDate.getMonth() - 1);
+              params.fromDate = fromDate.toISOString().split('T')[0];
+              break;
+            case 'quarter':
+              fromDate.setMonth(fromDate.getMonth() - 3);
+              params.fromDate = fromDate.toISOString().split('T')[0];
+              break;
+          }
+        }
+
+        const fetchedData = await getOrders(params);
+        if (!cancelled) {
+          setOrdersData(fetchedData);
+        }
       } catch (error) {
         console.error('Error fetching orders:', error);
+        if (!cancelled) {
+          setOrdersData(prev => ({ ...prev, orders: [], total: 0, totalPages: 0 }));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -73,13 +182,23 @@ function AdminOrdersContent() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [searchQuery, statusFilter, dateFilter, refreshTrigger]);
+  }, [debouncedSearch, statusFilter, dateFilter, customerFilter, ordersData.page, refreshTrigger]);
 
   /* ================= HANDLERS ================= */
 
   const handleOrderCreated = () => {
     setRefreshTrigger((prev) => prev + 1);
     setOpenCreate(false);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSearching(true);
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setOrdersData(prev => ({ ...prev, page: newPage }));
   };
 
   /* ================= HELPERS ================= */
@@ -95,6 +214,9 @@ function AdminOrdersContent() {
     setSearchQuery('');
     setStatusFilter('all');
     setDateFilter('all');
+    setCustomerFilter('all');
+    setDebouncedSearch('');
+    setOrdersData(prev => ({ ...prev, page: 1 }));
   };
 
   const getProcessSummary = (order: Order) => {
@@ -193,31 +315,11 @@ function AdminOrdersContent() {
     }
   };
 
-  /* ================= FILTERING ================= */
+  /* ================= FILTERED ORDERS ================= */
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      // Always exclude completed/billed orders - they belong on billing page
-      if (order.status === 'COMPLETED' || order.status === 'COMPLETE' || order.status === 'BILLED') {
-        return false;
-      }
-
-      const orderCode = order.id.slice(0, 8).toUpperCase();
-
-      const matchesSearch =
-        !searchQuery ||
-        orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer?.code?.toLowerCase().includes(searchQuery.toLowerCase());
-
-      let matchesStatus = true;
-      if (statusFilter !== 'all') {
-        matchesStatus = order.status === statusFilter;
-      }
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [orders, searchQuery, statusFilter]);
+  // Server already filters by status, so we just use the orders directly
+  // Additional client-side filtering can be added here if needed
+  const filteredOrders = ordersData.orders;
 
   /* ================= SSR GUARD ================= */
 
@@ -244,7 +346,7 @@ function AdminOrdersContent() {
             </button>
             <button
               onClick={() => setOpenCreate(true)}
-              className="flex items-center gap-2 px-5 py-3 bg-linear-to-r from-blue-600 to-blue-700 text-white font-medium rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow"
+              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow"
             >
               <Plus className="w-5 h-5" />
               <span className="hidden sm:inline">Create Order</span>
@@ -254,10 +356,10 @@ function AdminOrdersContent() {
 
         {/* SEARCH AND FILTERS BAR */}
         <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-5 shadow-sm">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* SEARCH INPUT */}
-            <div className="flex-1">
-              <div className="relative">
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+            {/* SEARCH INPUT WITH BUTTON */}
+            <div className="flex-1 flex gap-2">
+              <div className="flex-1 relative">
                 <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
@@ -268,6 +370,7 @@ function AdminOrdersContent() {
                 />
                 {searchQuery && (
                   <button
+                    type="button"
                     onClick={() => setSearchQuery('')}
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-lg"
                   >
@@ -275,11 +378,23 @@ function AdminOrdersContent() {
                   </button>
                 )}
               </div>
+              <button
+                type="submit"
+                disabled={isSearching}
+                className="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-xl hover:from-blue-700 hover:to-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSearching ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Search className="w-5 h-5" />
+                )}
+              </button>
             </div>
 
             {/* FILTER BUTTONS */}
             <div className="flex items-center gap-3">
               <button
+                type="button"
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-2 px-4 py-3 border rounded-xl font-medium transition-colors ${showFilters ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
               >
@@ -287,8 +402,9 @@ function AdminOrdersContent() {
                 <span className="hidden sm:inline">Filters</span>
               </button>
 
-              {(searchQuery || statusFilter !== 'all' || dateFilter !== 'all') && (
+              {(searchQuery || statusFilter !== 'all' || dateFilter !== 'all' || customerFilter !== 'all') && (
                 <button
+                  type="button"
                   onClick={clearFilters}
                   className="flex items-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
                 >
@@ -296,7 +412,7 @@ function AdminOrdersContent() {
                 </button>
               )}
             </div>
-          </div>
+          </form>
 
           {/* EXPANDED FILTERS */}
           {showFilters && (
@@ -333,14 +449,16 @@ function AdminOrdersContent() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
-                  <select className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="all">All Customers</option>
-                    <option value="sky">Sky Prints</option>
-                    <option value="urban">Urban Wear</option>
-                    <option value="fashion">Fashion Hub</option>
-                    <option value="trendy">Trendy Tees</option>
-                    <option value="elite">Elite Apparel</option>
-                    <option value="sporty">Sporty Gear</option>
+                  <select
+                    value={customerFilter}
+                    onChange={(e) => setCustomerFilter(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -352,8 +470,13 @@ function AdminOrdersContent() {
             <div className="flex items-center gap-4">
               <p className="text-sm text-gray-600">
                 Showing{' '}
-                <span className="font-semibold text-gray-800">{filteredOrders?.length}</span> of{' '}
-                <span className="font-semibold text-gray-800">{orders?.length}</span> orders
+                <span className="font-semibold text-gray-800">{filteredOrders.length}</span> of{' '}
+                <span className="font-semibold text-gray-800">{ordersData.total}</span> orders
+                {ordersData.totalPages > 1 && (
+                  <span>
+                    {' '}(Page {ordersData.page} of {ordersData.totalPages})
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -375,149 +498,200 @@ function AdminOrdersContent() {
           </div>
         )}
 
-        {/* ORDERS GRID */}
+        {/* ORDERS GRID - IMPROVED LAYOUT */}
         {!loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filteredOrders?.map((order) => {
-              const statusConfig = getStatusConfig(order.status);
-              const processSummary = getProcessSummary(order);
-              const progressPercentage = getCompletionProgress(order);
-              const progressColor =
-                progressPercentage < 30
-                  ? 'from-red-500 to-red-600'
-                  : progressPercentage < 70
-                    ? 'from-yellow-500 to-yellow-600'
-                    : 'from-green-500 to-green-600';
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+              {filteredOrders.map((order) => {
+                const statusConfig = getStatusConfig(order.status);
+                const processSummary = getProcessSummary(order);
+                const progressPercentage = getCompletionProgress(order);
+                const progressColor =
+                  progressPercentage < 30
+                    ? 'from-red-500 to-red-600'
+                    : progressPercentage < 70
+                      ? 'from-yellow-500 to-yellow-600'
+                      : 'from-green-500 to-green-600';
 
-              return (
-                <div
-                  key={order.id}
-                  onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
-                  className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1"
-                >
-                  {/* CARD HEADER */}
-                  <div className={`p-5 ${statusConfig.bgColor}`}>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition-colors">
-                          {order.id}
-                        </h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <User className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm text-gray-700">{order.customer?.name}</span>
-                          <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full">
-                            {order.customer?.code}
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
+                    className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1 flex flex-col"
+                  >
+                    {/* CARD HEADER */}
+                    <div className={`p-5 ${statusConfig.bgColor}`}>
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition-colors truncate">
+                            {order.code}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <User className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                            <span className="text-sm text-gray-700 truncate">{order.customer?.name}</span>
+                            <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full flex-shrink-0">
+                              {order.customer?.code}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <span
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
+                          >
+                            {statusConfig.icon}
+                            <span className="truncate">{statusConfig.label}</span>
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatDate(order.createdAt)}
                           </span>
                         </div>
                       </div>
-
-                      <div className="flex flex-col items-end gap-1">
-                        <span
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
-                        >
-                          {statusConfig.icon}
-                          {statusConfig.label}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {formatDate(order.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CARD BODY */}
-                  <div className="p-5 space-y-4">
-                    {/* QUANTITY & PROCESS INFO */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Package className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs text-gray-500">Quantity</span>
-                        </div>
-                        <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Settings className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs text-gray-500">Processes</span>
-                        </div>
-                        <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
-                      </div>
                     </div>
 
-                    {/* PROGRESS BAR */}
-                    <div>
-                      <div className="flex justify-between text-xs text-gray-600 mb-1.5">
-                        <span>Production Progress</span>
-                        <span className="font-medium">{progressPercentage}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                        <div
-                          className={`bg-linear-to-r ${progressColor} h-2 rounded-full transition-all duration-700`}
-                          style={{ width: `${progressPercentage}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* RUNS OVERVIEW */}
-                    <div className="pt-3 border-t border-gray-100">
-                      <div className="text-xs text-gray-500 mb-2">Runs by Process:</div>
-                      <div className="space-y-2">
-                        {order.processes.map((process) => (
-                          <div key={process.id} className="flex items-center justify-between">
-                            <span className="text-sm text-gray-700 truncate">
-                              {process.name}
-                            </span>
-                            <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                              {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
-                            </span>
+                    {/* CARD BODY */}
+                    <div className="p-5 space-y-4 flex-1">
+                      {/* QUANTITY & PROCESS INFO */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-4 h-4 text-gray-400" />
+                            <span className="text-xs text-gray-500">Quantity</span>
                           </div>
-                        ))}
+                          <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Settings className="w-4 h-4 text-gray-400" />
+                            <span className="text-xs text-gray-500">Processes</span>
+                          </div>
+                          <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
+                        </div>
+                      </div>
+
+                      {/* PROGRESS BAR */}
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-600 mb-1.5">
+                          <span>Production Progress</span>
+                          <span className="font-medium">{progressPercentage}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                          <div
+                            className={`bg-gradient-to-r ${progressColor} h-2 rounded-full transition-all duration-700`}
+                            style={{ width: `${progressPercentage}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* RUNS OVERVIEW */}
+                      <div className="pt-3 border-t border-gray-100">
+                        <div className="text-xs text-gray-500 mb-2">Runs by Process:</div>
+                        <div className="space-y-2">
+                          {order.processes.slice(0, 3).map((process) => (
+                            <div key={process.id} className="flex items-center justify-between">
+                              <span className="text-sm text-gray-700 truncate">
+                                {process.name}
+                              </span>
+                              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full flex-shrink-0">
+                                {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          ))}
+                          {order.processes.length > 3 && (
+                            <div className="text-xs text-gray-500 pt-1">
+                              +{order.processes.length - 3} more processes
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
+
+                    {/* CARD FOOTER */}
+                    <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500 truncate mr-2">
+                          {processSummary.configuredRuns}/{processSummary.totalRuns} runs configured
+                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/admin/orders/${order.id}`);
+                            }}
+                            className="px-3 py-1.5 text-xs bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+                          >
+                            Configure
+                          </button>
+                          <ChevronRight className="w-4 h-4 text-gray-400" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* PAGINATION */}
+            {ordersData.totalPages > 1 && (
+              <div className="flex items-center justify-center pt-6">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(ordersData.page - 1)}
+                    disabled={ordersData.page === 1}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, ordersData.totalPages) }, (_, i) => {
+                      const pageNum = i + 1;
+                      if (ordersData.totalPages <= 5) {
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`px-3 py-1 rounded-lg ${ordersData.page === pageNum
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50'
+                              } transition-colors`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      }
+                      return null;
+                    })}
                   </div>
 
-                  {/* CARD FOOTER */}
-                  <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">
-                        {processSummary.configuredRuns}/{processSummary.totalRuns} runs configured
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/admin/orders/${order.id}`);
-                          }}
-                          className="px-3 py-1.5 text-xs bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                        >
-                          Configure
-                        </button>
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
+                  <button
+                    onClick={() => handlePageChange(ordersData.page + 1)}
+                    disabled={ordersData.page === ordersData.totalPages}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* EMPTY STATE */}
-        {!loading && filteredOrders?.length === 0 && (
+        {!loading && filteredOrders.length === 0 && (
           <div className="bg-white rounded-2xl p-12 border border-gray-200 text-center">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Package className="w-12 h-12 text-gray-400" />
             </div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              {searchQuery || statusFilter !== 'all' || dateFilter !== 'all'
+              {searchQuery || statusFilter !== 'all' || dateFilter !== 'all' || customerFilter !== 'all'
                 ? 'No orders match your current filters. Try adjusting your search criteria.'
                 : 'Get started by creating your first production order.'}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              {(searchQuery || statusFilter !== 'all' || dateFilter !== 'all') && (
+              {(searchQuery || statusFilter !== 'all' || dateFilter !== 'all' || customerFilter !== 'all') && (
                 <button
                   onClick={clearFilters}
                   className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
@@ -527,7 +701,7 @@ function AdminOrdersContent() {
               )}
               <button
                 onClick={() => setOpenCreate(true)}
-                className="px-6 py-3 bg-linear-to-r from-blue-600 to-blue-700 text-white font-medium rounded-xl hover:from-blue-700 hover:to-blue-800 transition-colors flex items-center justify-center gap-2"
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-xl hover:from-blue-700 hover:to-blue-800 transition-colors flex items-center justify-center gap-2"
               >
                 <Plus className="w-5 h-5" />
                 Create New Order
@@ -540,7 +714,7 @@ function AdminOrdersContent() {
         <CreateOrderModal
           open={openCreate}
           onClose={() => setOpenCreate(false)}
-          onCreate={handleOrderCreated} // Pass the handler
+          onCreate={handleOrderCreated}
         />
 
         {selectedOrderId && (

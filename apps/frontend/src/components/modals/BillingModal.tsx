@@ -132,7 +132,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
   };
 
   // Check if process is Screen Printing New
-  const isScreenPrintingNew = (processName: string) => processName === "Screen Printing New";
+  const isScreenPrintingNew = (processName: string) => processName === "Screen Printing";
 
   // Loading state
   if (loading) {

@@ -87,3 +87,41 @@ export async function apiRequest<T>(
 
     return response.json() as Promise<T>;
 }
+
+/**
+ * API request helper that also returns response headers
+ * Used for extracting pagination metadata from x-* headers
+ */
+export async function apiRequestWithHeaders<T>(
+    endpoint: string,
+    options: RequestInit = {},
+    retry = true,
+): Promise<{ data: T; headers: Headers }> {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        },
+    });
+
+    // 🔁 AUTO REFRESH ON 401
+    if (response.status === 401 && retry) {
+        try {
+            await refreshSession();
+            return apiRequestWithHeaders<T>(endpoint, options, false);
+        } catch {
+            await logout();
+            throw new Error('Session expired');
+        }
+    }
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`API Error ${response.status}: ${text}`);
+    }
+
+    const data = await response.json() as T;
+    return { data, headers: response.headers };
+}

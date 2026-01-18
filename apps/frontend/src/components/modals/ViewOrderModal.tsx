@@ -7,10 +7,10 @@ import { useEffect, useRef, useState } from "react";
 import { Order } from "@/domain/model/order.model";
 import { getOrderById } from "@/services/orders.service";
 import {
-    CheckCircle,
-    ChevronRight,
-    Circle,
-    Settings
+  CheckCircle,
+  ChevronRight,
+  Circle,
+  Settings
 } from "lucide-react";
 
 /* =================================================

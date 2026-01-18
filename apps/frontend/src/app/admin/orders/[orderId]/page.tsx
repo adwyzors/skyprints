@@ -92,6 +92,7 @@ export default function OrderConfigPage() {
   // ✅ FIXED: correct field name
   const mainProcess = order.processes[0];
   const processName = mainProcess?.name;
+  const processId = mainProcess?.id;
 
   const allRuns = order.processes.flatMap(p => p.runs);
 
@@ -113,7 +114,7 @@ export default function OrderConfigPage() {
                 </button>
                 <div className="h-6 w-px bg-gray-300 hidden md:block" />
                 {/* ✅ FIXED */}
-                <h1 className="text-2xl font-bold text-gray-800">{order.id}</h1>
+                <h1 className="text-2xl font-bold text-gray-800">{order.code}</h1>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 mt-2">
@@ -174,7 +175,7 @@ export default function OrderConfigPage() {
 
         {/* CONFIGURATION COMPONENT */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          {processName === 'Screen Printing New' ? (
+          {processName === "Screen Printing" ? (
             <ScreenPrintingConfig order={order} onRefresh={refreshOrder} />
           ) : (
             <ComingSoonConfig order={order} />
