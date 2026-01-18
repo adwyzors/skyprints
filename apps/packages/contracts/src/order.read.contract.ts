@@ -47,6 +47,7 @@ export const OrderSummarySchema = z.object({
     quantity: z.number(),
     status: z.string(),
     createdAt: z.string(),
+    code: z.string(),
 
     customer: z.object({
         id: z.string().uuid(),
