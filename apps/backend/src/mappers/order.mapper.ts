@@ -6,6 +6,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         quantity: order.quantity,
         status: order.statusCode,
         createdAt: order.createdAt.toISOString(),
+        code: order.code,
 
         customer: {
             id: order.customer.id,
