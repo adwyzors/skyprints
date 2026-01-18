@@ -263,9 +263,6 @@ function BillingContent() {
                         <div className="flex items-center gap-2 mt-1">
                           <User className="w-4 h-4 text-gray-500" />
                           <span className="text-sm text-gray-700">{order.customer?.name}</span>
-                          <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full">
-                            {order.customer?.code}
-                          </span>
                         </div>
                       </div>
 
