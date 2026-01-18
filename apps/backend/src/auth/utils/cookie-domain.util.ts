@@ -2,17 +2,18 @@ import type { Request } from 'express';
 
 
 export function cookieOptions(req: Request, maxAgeSeconds: number) {
-    const isHttps =
-        req.secure ||
-        req.headers['x-forwarded-proto'] === 'https';
+  return {
+    httpOnly: process.env.COOKIE_HTTP_ONLY === "true",
+    secure: process.env.COOKIE_SECURE === "true",
+    sameSite: process.env.COOKIE_SAMESITE as "lax" | "strict" | "none",
+    maxAge: maxAgeSeconds * 1000,
+    path: process.env.COOKIE_PATH || "/",
 
-    return {
-        httpOnly: true,
-        secure: isHttps,              // works on local + prod
-        sameSite: 'none' as const,    // required for Keycloak
-        maxAge: maxAgeSeconds * 1000,
-        path: '/',
-    };
+    // domain must be omitted locally
+    ...(process.env.COOKIE_DOMAIN
+      ? { domain: process.env.COOKIE_DOMAIN }
+      : {}),
+  };
 }
 
 
