@@ -24,6 +24,8 @@ model User {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([isActive])
 }
 
 ///////////////////////////////
@@ -43,7 +45,21 @@ model Customer {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([isActive])
 }
+
+///////////////////////////////
+// ORDER SEQUENCE
+///////////////////////////////
+
+model OrderSequence {
+  id           Int      @id @default(1)
+  nextValue    Int
+  lastResetAt  DateTime?  // REQUIRED for "once per retention window"
+  updatedAt    DateTime   @updatedAt
+}
+
 
 ///////////////////////////////
 // WORKFLOW
@@ -62,6 +78,8 @@ model WorkflowType {
   lifecycleRunTemplates RunTemplate[] @relation("LifecycleWF")
 
   createdAt DateTime @default(now())
+
+  @@index([isActive])
 }
 
 model WorkflowStatus {
@@ -81,6 +99,7 @@ model WorkflowStatus {
   @@unique([workflowTypeId, code])
   @@index([workflowTypeId, createdAt])
   @@index([workflowTypeId, isInitial])
+  @@index([workflowTypeId, isTerminal])
 }
 
 model WorkflowTransition {
@@ -159,12 +178,16 @@ model ProcessRunDefinition {
   @@index([runTemplateId])
 }
 
-//////////////////////////////
-// ORDERS (RUNTIME)
-//////////////////////////////
+///////////////////////////////
+// ORDERS
+///////////////////////////////
 
 model Order {
   id         String @id @default(uuid())
+
+  code       String
+  deletedAt  DateTime?
+
   customerId String
   quantity   Int
 
@@ -179,11 +202,17 @@ model Order {
 
   createdAt DateTime @default(now())
 
+  @@unique([code, deletedAt])
+  @@index([deletedAt])
   @@index([createdAt])
   @@index([customerId])
   @@index([createdById])
   @@index([workflowTypeId])
 }
+
+///////////////////////////////
+// ORDER PROCESS
+///////////////////////////////
 
 model OrderProcess {
   id        String @id @default(uuid())
@@ -203,6 +232,10 @@ model OrderProcess {
   @@index([processId])
   @@index([workflowTypeId])
 }
+
+///////////////////////////////
+// PROCESS RUN
+///////////////////////////////
 
 model ProcessRun {
   id             String @id @default(uuid())
@@ -313,18 +346,21 @@ model Notification {
   @@index([userId, isRead, createdAt])
 }
 
+///////////////////////////////
+// BILLING
+///////////////////////////////
 
 model BillingSnapshot {
   id              String   @id @default(uuid())
 
-  orderId         String   // (primary billing owner)
+  orderId         String
   version         Int
   isLatest        Boolean  @default(true)
 
   formula         String
   formulaChecksum String
 
-  inputs          Json     // SNAPSHOT across all runs
+  inputs          Json
   result          Decimal  @db.Decimal(18, 4)
   currency        String   @default("INR")
 
@@ -338,10 +374,8 @@ model BillingSnapshot {
   @@index([orderId, isLatest])
 }
 
-
 enum BillingSource {
   SYSTEM
   MANUAL
   RECALCULATION
 }
-

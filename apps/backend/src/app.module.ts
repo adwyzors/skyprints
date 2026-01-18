@@ -7,9 +7,11 @@ import { HealthModule } from './health/health.module';
 import { UserModule } from './user/user.module';
 
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from '../prisma/prisma.module';
 import { BillingModule } from './billing/billing.module';
 import { CustomersModule } from './customers/customers.module';
+import { JobsModule } from './jobs/jobs.module';
 import { OrdersModule } from './orders/orders.module';
 import { OutboxModule } from './outbox/outbox.module';
 import { ProcessesModule } from './processes/processes.module';
@@ -26,6 +28,7 @@ import { WorkflowModule } from './workflow/workflow.module';
         ]
     }), PrismaModule,
         OutboxModule,
+    ScheduleModule.forRoot(),
         WorkflowModule,
         OrdersModule,
         RunsModule,
@@ -35,7 +38,9 @@ import { WorkflowModule } from './workflow/workflow.module';
         RunTemplatesModule,
         CustomersModule,
         BillingModule,
-        HealthModule,],
+        HealthModule,
+        JobsModule,
+    ],
     providers: [
         AppService,
         //{
