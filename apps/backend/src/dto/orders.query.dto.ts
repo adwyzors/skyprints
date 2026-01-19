@@ -19,6 +19,10 @@ export class OrdersQueryDto {
   @Min(1)
   limit: number = 20;
 
+  /**
+   * Single or comma-separated status codes
+   * Example: COMPLETED or COMPLETED,IN_PRODUCTION
+   */
   @IsOptional()
   @IsString()
   status?: string;
