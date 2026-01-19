@@ -82,13 +82,16 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
 
   /* ================= DERIVED ================= */
 
+  const [showCustomerList, setShowCustomerList] = useState(false);
+
   const filteredCustomers = useMemo(() => {
     const s = customerSearch.toLowerCase().trim();
-    if (!s) return [];
+    // Show all customers when focused and no search, or filter by search
+    if (!s) return showCustomerList ? customers : [];
     return customers.filter(
       (c) => c.name.toLowerCase().includes(s) || c.code?.toLowerCase().includes(s),
     );
-  }, [customerSearch, customers]);
+  }, [customerSearch, customers, showCustomerList]);
 
   const selectedCustomer = useMemo(
     () => customers.find((c) => c.id === selectedCustomerId),
@@ -238,27 +241,33 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                     <label className="text-sm font-medium text-gray-700">Customer</label>
                     <div className="relative">
                       <input
-                        placeholder="Search by name or code..."
+                        placeholder="Click to select or search..."
                         value={customerSearch}
                         onChange={(e) => {
                           setCustomerSearch(e.target.value);
                           setSelectedCustomerId(null);
                           setError(null);
                         }}
+                        onFocus={() => setShowCustomerList(true)}
+                        onBlur={() => {
+                          // Delay to allow click on dropdown item
+                          setTimeout(() => setShowCustomerList(false), 200);
+                        }}
                         disabled={loading}
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
                       />
-                      {customerSearch &&
+                      {showCustomerList &&
                         !selectedCustomer &&
-                        filteredCustomers?.length &&
-                        filteredCustomers.length > 0 && (
-                          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        filteredCustomers?.length > 0 && (
+                          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                             {filteredCustomers?.map((c) => (
                               <div
                                 key={c.id}
-                                onClick={() => {
+                                onMouseDown={(e) => {
+                                  e.preventDefault(); // Prevent blur before click
                                   setSelectedCustomerId(c.id);
                                   setCustomerSearch(c.name);
+                                  setShowCustomerList(false);
                                   setError(null);
                                 }}
                                 className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"

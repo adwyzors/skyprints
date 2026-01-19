@@ -1,23 +1,23 @@
 'use client';
 
 import {
-    AlertCircle,
-    Calendar,
-    CheckCircle,
-    ChevronRight,
-    DollarSign,
-    Edit,
-    Eye,
-    FileText,
-    Grid,
-    Hash,
-    Package,
-    Palette,
-    Ruler,
-    Save,
-    Type,
-    User,
-    X,
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  ChevronRight,
+  DollarSign,
+  Edit,
+  Eye,
+  FileText,
+  Grid,
+  Hash,
+  Package,
+  Palette,
+  Ruler,
+  Save,
+  Type,
+  User,
+  X,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -69,7 +69,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
   const areAllFieldsFilled = (run: ProcessRun) => {
     const fields = run.fields ?? [];
     return fields
-      .filter((f) => f.required)
+      .filter((f) => f.required && f.key !== 'Estimated Amount') // Skip auto-calculated field
       .every((f) => {
         const value = run.values[f.key];
         return value !== null && value !== undefined && value !== '';
@@ -115,6 +115,23 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
           typedValue = value; // Fallback to string
         }
       }
+
+      // Build new values object
+      const newValues = {
+        ...run.values,
+        [field]: typedValue,
+      };
+
+      // Auto-calculate estimated_amount when estimated_rate or quantity changes
+      if (field === 'estimated_rate' || field === 'quantity') {
+        const rate = field === 'estimated_rate' ? typedValue : run.values['estimated_rate'];
+        const qty = field === 'quantity' ? typedValue : run.values['quantity'];
+
+        if (typeof rate === 'number' && typeof qty === 'number') {
+          newValues['estimated_amount'] = rate * qty;
+        }
+      }
+
       const updatedOrder = {
         ...prev,
         processes: prev.processes.map((p) =>
@@ -127,10 +144,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                   ? r
                   : {
                     ...r,
-                    values: {
-                      ...r.values,
-                      [field]: typedValue,
-                    },
+                    values: newValues,
                   },
               ),
             },
@@ -232,6 +246,13 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       }
     });
 
+    // Calculate and add Estimated Amount (auto-calculated field)
+    const rate = Number(run.values['Estimated Rate']) || 0;
+    const qty = Number(run.values['Quantity']) || 0;
+    if (rate > 0 && qty > 0) {
+      apiValues['Estimated Amount'] = rate * qty;
+    }
+
     setIsSaving(runId);
     setError(null);
 
@@ -301,7 +322,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
             {/* READ-ONLY COMPACT TABLE */}
             <div className="border border-gray-300 rounded overflow-hidden bg-white">
               {(() => {
-                const fieldConfigs = getRunFieldConfigs(run);
+                const fieldConfigs = getRunFieldConfigs(run).filter(f => f.required === true);
                 const pairs = groupFieldsIntoPairs(fieldConfigs);
 
                 return pairs.map((pair, rowIndex) => (
@@ -386,7 +407,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
             {/* EDITABLE COMPACT FORM TABLE */}
             <div className="border border-gray-300 rounded overflow-hidden bg-white">
               {(() => {
-                const fieldConfigs = getRunFieldConfigs(run);
+                const fieldConfigs = getRunFieldConfigs(run).filter(f => f.required === true);
                 const pairs = groupFieldsIntoPairs(fieldConfigs);
 
                 return pairs.map((pair, rowIndex) => (
@@ -417,37 +438,45 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
 
                           {/* INPUT CELL */}
                           <div className="p-1.5 bg-white">
-                            <input
-                              type={isNumberField ? 'number' : 'text'}
-                              value={run.values[field] ?? ''}
-                              onChange={(e) => {
-                                let value = e.target.value;
+                            {field === 'Estimated Amount' ? (
+                              // Read-only calculated field
+                              <div className="w-full text-sm border border-gray-200 bg-gray-100 rounded px-2 py-1 text-gray-700 font-medium">
+                                {(() => {
+                                  const rate = Number(run.values['Estimated Rate']) || 0;
+                                  const qty = Number(run.values['Quantity']) || 0;
+                                  return rate * qty || <span className="text-gray-400">Auto-calculated</span>;
+                                })()}
+                              </div>
+                            ) : (
+                              <input
+                                type={isNumberField ? 'number' : 'text'}
+                                value={run.values[field] ?? ''}
+                                onChange={(e) => {
+                                  let value = e.target.value;
 
-                                // For number fields, ensure we're sending valid numbers
-                                if (isNumberField) {
-                                  // Allow empty, but validate it's a number if not empty
-                                  if (value !== '') {
-                                    // Remove any non-numeric characters except decimal point
-                                    value = value.replace(/[^0-9.]/g, '');
-                                    // Ensure only one decimal point
-                                    const parts = value.split('.');
-                                    if (parts.length > 2) {
-                                      value = parts[0] + '.' + parts.slice(1).join('');
+                                  // For number fields, ensure we're sending valid numbers
+                                  if (isNumberField) {
+                                    // Allow empty, but validate it's a number if not empty
+                                    if (value !== '') {
+                                      // Remove any non-numeric characters except decimal point
+                                      value = value.replace(/[^0-9.]/g, '');
+                                      // Ensure only one decimal point
+                                      const parts = value.split('.');
+                                      if (parts.length > 2) {
+                                        value = parts[0] + '.' + parts.slice(1).join('');
+                                      }
                                     }
                                   }
-                                }
 
-                                updateRunField(process.id, run.id, field, value);
-                              }
-
-                              }
-
-                              className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                              placeholder={`Enter ${prettyLabel(field).toLowerCase()}`}
-                              min={isNumberField ? '0' : undefined}
-                              step={isNumberField ? '1' : undefined}
-                            />
-                            {isRequired && !run.values[field] && (
+                                  updateRunField(process.id, run.id, field, value);
+                                }}
+                                className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                placeholder={`Enter ${prettyLabel(field).toLowerCase()}`}
+                                min={isNumberField ? '0' : undefined}
+                                step={isNumberField ? '1' : undefined}
+                              />
+                            )}
+                            {isRequired && !run.values[field] && field !== 'estimated_amount' && (
                               <p className="text-xs text-red-500 mt-0.5">Required</p>
                             )}
                           </div>

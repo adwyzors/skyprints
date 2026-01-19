@@ -6,6 +6,7 @@ export const mapOrderSummaryDtoToOrder = (
     dto: OrderSummaryDto
 ): Order => ({
     id: dto.id,
+    code: dto.code,
     quantity: dto.quantity,
     status: dto.status,
     createdAt: new Date(dto.createdAt),
