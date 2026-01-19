@@ -172,7 +172,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                  {order.id.slice(0, 8).toUpperCase()}
+                  {order.code}
                 </h2>
                 <p className="text-gray-600">Billing Generation</p>
               </div>

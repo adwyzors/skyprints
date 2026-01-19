@@ -27,7 +27,7 @@ const tabs = [
     badge: null,
   },
   {
-    label: 'Billing',
+    label: 'Rate Config',
     path: '/admin/billing',
     icon: <CreditCard className="w-4 h-4" />,
     badge: null,
@@ -42,6 +42,12 @@ const tabs = [
     label: 'Customers',
     path: '/admin/customers',
     icon: <Users className="w-4 h-4" />,
+    badge: null,
+  },
+  {
+    label: 'Bills',
+    path: '/admin/bills',
+    icon: <FileText className="w-4 h-4" />,
     badge: null,
   },
   // {

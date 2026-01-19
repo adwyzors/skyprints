@@ -58,7 +58,7 @@ function AdminOrdersContent() {
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string[]>(['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY']);
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
@@ -122,12 +122,12 @@ function AdminOrdersContent() {
           limit: ordersData.limit,
         };
 
-        // Add status filters - for orders page, we only show active statuses
-        if (statusFilter === 'all') {
-          // Default: show active order statuses (not COMPLETED or BILLED)
-          params.status = 'CONFIGURE';
+        // Add status filters - send comma-separated statuses
+        if (statusFilter.length > 0) {
+          params.status = statusFilter.join(',');
         } else {
-          params.status = statusFilter;
+          // If no status selected, default to all active statuses
+          params.status = 'CONFIGURE,IN_PRODUCTION,PRODUCTION_READY';
         }
 
         if (debouncedSearch) {
@@ -212,7 +212,7 @@ function AdminOrdersContent() {
 
   const clearFilters = () => {
     setSearchQuery('');
-    setStatusFilter('all');
+    setStatusFilter(['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY']);
     setDateFilter('all');
     setCustomerFilter('all');
     setDebouncedSearch('');
@@ -402,7 +402,7 @@ function AdminOrdersContent() {
                 <span className="hidden sm:inline">Filters</span>
               </button>
 
-              {(searchQuery || statusFilter !== 'all' || dateFilter !== 'all' || customerFilter !== 'all') && (
+              {(searchQuery || statusFilter.length < 3 || dateFilter !== 'all' || customerFilter !== 'all') && (
                 <button
                   type="button"
                   onClick={clearFilters}
@@ -414,23 +414,43 @@ function AdminOrdersContent() {
             </div>
           </form>
 
+          {/* STATUS TOGGLE BUTTONS */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[
+              { value: 'CONFIGURE', label: 'To Configure', color: 'purple' },
+              { value: 'PRODUCTION_READY', label: 'Ready', color: 'yellow' },
+              { value: 'IN_PRODUCTION', label: 'In Production', color: 'blue' },
+            ].map((status) => {
+              const isSelected = statusFilter.includes(status.value);
+              const colorClasses = {
+                purple: isSelected ? 'bg-purple-100 border-purple-400 text-purple-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50',
+                yellow: isSelected ? 'bg-yellow-100 border-yellow-400 text-yellow-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50',
+                blue: isSelected ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50',
+              };
+              return (
+                <button
+                  key={status.value}
+                  type="button"
+                  onClick={() => {
+                    if (isSelected) {
+                      setStatusFilter(prev => prev.filter(s => s !== status.value));
+                    } else {
+                      setStatusFilter(prev => [...prev, status.value]);
+                    }
+                  }}
+                  className={`px-4 py-2 text-sm font-medium rounded-full border transition-colors ${colorClasses[status.color as keyof typeof colorClasses]}`}
+                >
+                  {isSelected && <span className="mr-1">✓</span>}
+                  {status.label}
+                </button>
+              );
+            })}
+          </div>
+
           {/* EXPANDED FILTERS */}
           {showFilters && (
             <div className="mt-5 pt-5 border-t border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="all">All Active Statuses</option>
-                    <option value="CONFIGURE">To Configure</option>
-                    <option value="PRODUCTION_READY">Ready for Production</option>
-                    <option value="IN_PRODUCTION">In Production</option>
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
@@ -686,12 +706,12 @@ function AdminOrdersContent() {
             </div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              {searchQuery || statusFilter !== 'all' || dateFilter !== 'all' || customerFilter !== 'all'
+              {searchQuery || statusFilter.length < 3 || dateFilter !== 'all' || customerFilter !== 'all'
                 ? 'No orders match your current filters. Try adjusting your search criteria.'
                 : 'Get started by creating your first production order.'}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              {(searchQuery || statusFilter !== 'all' || dateFilter !== 'all' || customerFilter !== 'all') && (
+              {(searchQuery || statusFilter.length < 3 || dateFilter !== 'all' || customerFilter !== 'all') && (
                 <button
                   onClick={clearFilters}
                   className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"

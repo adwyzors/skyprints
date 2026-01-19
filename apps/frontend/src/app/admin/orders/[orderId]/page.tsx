@@ -176,7 +176,31 @@ export default function OrderConfigPage() {
         {/* CONFIGURATION COMPONENT */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           {processName === "Screen Printing" ? (
-            <ScreenPrintingConfig order={order} onRefresh={refreshOrder} />
+            <ScreenPrintingConfig
+              order={order}
+              onRefresh={refreshOrder}
+              onSaveSuccess={(processId, runId) => {
+                // Update local order state to reflect the configured run
+                setOrder(prev => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    processes: prev.processes.map(p =>
+                      p.id === processId
+                        ? {
+                          ...p,
+                          runs: p.runs.map(r =>
+                            r.id === runId
+                              ? { ...r, configStatus: 'COMPLETE' }
+                              : r
+                          )
+                        }
+                        : p
+                    )
+                  };
+                });
+              }}
+            />
           ) : (
             <ComingSoonConfig order={order} />
           )}
@@ -201,7 +225,7 @@ export default function OrderConfigPage() {
                 <p className="text-2xl font-bold text-gray-800">
                   {
                     allRuns.filter(
-                      r => r.configStatus === 'CONFIGURED'
+                      r => r.configStatus === 'COMPLETE'
                     ).length
                   }
                   <span className="text-sm font-normal text-gray-400">
@@ -212,18 +236,16 @@ export default function OrderConfigPage() {
               </div>
 
               {allRuns.every(
-                r => r.configStatus === 'CONFIGURED'
-              ) &&
-                order.status === 'CONFIGURE' && (
+                r => r.configStatus === 'COMPLETE'
+              ) && (
                   <button
-                    onClick={() =>
-                      router.push(
-                        `/admin/orders?selectedOrder=${order.id}`
-                      )
-                    }
-                    className="px-6 py-3 bg-linear-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow"
+                    onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
+                    className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-lg hover:from-green-700 hover:to-green-800 transition-all shadow-sm hover:shadow flex items-center gap-2"
                   >
-                    Start Production
+                    <span>Production Ready</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
                   </button>
                 )}
             </div>
