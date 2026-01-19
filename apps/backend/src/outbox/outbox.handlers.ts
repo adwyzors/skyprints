@@ -7,7 +7,10 @@ import { BillingSnapshotWorker } from '../billing/workers/billing-snapshot.worke
 export class OutboxHandlers {
     private readonly logger = new Logger(OutboxHandlers.name);
 
-    constructor(private readonly prisma: PrismaService, private readonly billingSnapshotWorker: BillingSnapshotWorker) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly billingSnapshotWorker: BillingSnapshotWorker,
+    ) { }
 
     async handle(event: {
         eventType: string;
@@ -29,9 +32,8 @@ export class OutboxHandlers {
                 return this.handleOrderProcessLifecycleTransition(event);
             case 'ORDER_LIFECYCLE_TRANSITION_REQUESTED':
                 return this.handleOrderLifecycleTransition(event);
-            case "BILLING_SNAPSHOT_REQUESTED":
-                await this.billingSnapshotWorker.handle(event);
-                break;
+            case 'BILLING_SNAPSHOT_REQUESTED':
+                return this.billingSnapshotWorker.handle(event);
             default:
                 this.logger.warn(`Unhandled eventType=${event.eventType}`);
         }
@@ -110,7 +112,7 @@ export class OutboxHandlers {
 
             if (existingRuns > 0) {
                 this.logger.warn(
-                    `ProcessRuns already exist for orderProcessId=${orderProcess.id}, skipping`,
+                    `ProcessRuns already exist, skipping creation orderProcessId=${orderProcess.id}`,
                 );
                 continue;
             }
@@ -184,13 +186,22 @@ export class OutboxHandlers {
             },
         });
 
-        if (!run) return;
+        if (!run) {
+            this.logger.warn(`ProcessRun not found runId=${event.aggregateId}`);
+            return;
+        }
 
         const workflow = run.runTemplate.configWorkflowType;
         const current = workflow.statuses.find(
             s => s.code === run.statusCode,
         );
-        if (!current) return;
+
+        if (!current) {
+            this.logger.warn(
+                `Invalid config status runId=${run.id}, status=${run.statusCode}`,
+            );
+            return;
+        }
 
         const transition = workflow.transitions.find(
             t =>
@@ -201,7 +212,12 @@ export class OutboxHandlers {
                     })),
         );
 
-        if (!transition) return;
+        if (!transition) {
+            this.logger.debug(
+                `No config transition runId=${run.id}, status=${current.code}`,
+            );
+            return;
+        }
 
         this.logger.log(
             `Config transition START runId=${run.id} ${current.code} → ${transition.toStatus.code}`,
@@ -228,10 +244,6 @@ export class OutboxHandlers {
             `Config transition DONE runId=${run.id} → ${transition.toStatus.code}`,
         );
 
-        /**
-         * ✅ CONFIG COMPLETE → REQUEST WORKFLOW TRANSITIONS
-         * ❌ NO lifecycle triggers here
-         */
         const runs = await this.prisma.processRun.findMany({
             where: { orderProcessId: run.orderProcessId },
             include: {
@@ -250,12 +262,40 @@ export class OutboxHandlers {
             return terminal && r.statusCode === terminal.code;
         });
 
-        if (allConfigRunsTerminal) {
+        if (!allConfigRunsTerminal) {
+            this.logger.debug(
+                `Not all config runs terminal orderProcessId=${run.orderProcessId}`,
+            );
+            return;
+        }
+
+        this.logger.log(
+            `All config runs terminal → attempting CONFIG_COMPLETE emission orderProcessId=${run.orderProcessId}`,
+        );
+
+        await this.prisma.$transaction(async tx => {
+            const updated = await tx.orderProcess.updateMany({
+                where: {
+                    id: run.orderProcessId,
+                    configCompletedAt: null,
+                },
+                data: {
+                    configCompletedAt: new Date(),
+                },
+            });
+
+            if (updated.count === 0) {
+                this.logger.debug(
+                    `CONFIG_COMPLETE already emitted orderProcessId=${run.orderProcessId}`,
+                );
+                return;
+            }
+
             this.logger.log(
-                `All config runs terminal → requesting OrderProcess & Order workflow transitions`,
+                `CONFIG_COMPLETE emitted orderProcessId=${run.orderProcessId}`,
             );
 
-            await this.prisma.outboxEvent.create({
+            await tx.outboxEvent.create({
                 data: {
                     aggregateType: 'OrderProcess',
                     aggregateId: run.orderProcessId,
@@ -264,7 +304,7 @@ export class OutboxHandlers {
                 },
             });
 
-            await this.prisma.outboxEvent.create({
+            await tx.outboxEvent.create({
                 data: {
                     aggregateType: 'Order',
                     aggregateId: run.orderProcess.orderId,
@@ -272,7 +312,7 @@ export class OutboxHandlers {
                     payload: { reason: 'CONFIG_COMPLETE' },
                 },
             });
-        }
+        });
     }
 
     /* =========================================================
@@ -301,7 +341,6 @@ export class OutboxHandlers {
                         },
                     },
                 },
-                orderProcess: true,
             },
         });
 
@@ -311,7 +350,6 @@ export class OutboxHandlers {
         }
 
         const workflow = run.runTemplate.lifecycleWorkflowType;
-
         const current = workflow.statuses.find(
             s => s.code === run.lifeCycleStatusCode,
         );
@@ -339,7 +377,6 @@ export class OutboxHandlers {
         );
 
         await this.prisma.$transaction(async tx => {
-            // 1️⃣ Transition ProcessRun lifecycle
             await tx.processRun.update({
                 where: { id: run.id },
                 data: { lifeCycleStatusCode: transition.toStatus.code },
@@ -355,15 +392,12 @@ export class OutboxHandlers {
                 },
             });
 
-            // 2️⃣ Check if ALL ProcessRuns in this OrderProcess are terminal
             const runs = await tx.processRun.findMany({
                 where: { orderProcessId: run.orderProcessId },
                 include: {
                     runTemplate: {
                         include: {
-                            lifecycleWorkflowType: {
-                                include: { statuses: true },
-                            },
+                            lifecycleWorkflowType: { include: { statuses: true } },
                         },
                     },
                 },
@@ -376,28 +410,44 @@ export class OutboxHandlers {
                 return terminal && r.lifeCycleStatusCode === terminal.code;
             });
 
-            // 3️⃣ If yes → trigger OrderProcess lifecycle transition
-            if (allRunsTerminal) {
-                this.logger.log(
-                    `All ProcessRuns terminal → requesting OrderProcess lifecycle transition orderProcessId=${run.orderProcessId}`,
+            if (!allRunsTerminal) {
+                this.logger.debug(
+                    `Not all ProcessRuns terminal orderProcessId=${run.orderProcessId}`,
                 );
-
-                await tx.outboxEvent.create({
-                    data: {
-                        aggregateType: 'OrderProcess',
-                        aggregateId: run.orderProcessId,
-                        eventType: 'ORDER_PROCESS_LIFECYCLE_TRANSITION_REQUESTED',
-                        payload: { reason: 'ALL_RUNS_COMPLETED' },
-                    },
-                });
+                return;
             }
+
+            const updated = await tx.orderProcess.updateMany({
+                where: {
+                    id: run.orderProcessId,
+                    lifecycleCompletionSent: false,
+                },
+                data: {
+                    lifecycleCompletionSent: true,
+                },
+            });
+
+            if (updated.count === 0) {
+                this.logger.debug(
+                    `ALL_RUNS_COMPLETED already emitted orderProcessId=${run.orderProcessId}`,
+                );
+                return;
+            }
+
+            this.logger.log(
+                `ALL_RUNS_COMPLETED emitted orderProcessId=${run.orderProcessId}`,
+            );
+
+            await tx.outboxEvent.create({
+                data: {
+                    aggregateType: 'OrderProcess',
+                    aggregateId: run.orderProcessId,
+                    eventType: 'ORDER_PROCESS_LIFECYCLE_TRANSITION_REQUESTED',
+                    payload: { reason: 'ALL_RUNS_COMPLETED' },
+                },
+            });
         });
-
-        this.logger.log(
-            `Lifecycle transition DONE runId=${run.id} → ${transition.toStatus.code}`,
-        );
     }
-
 
     /* =========================================================
      * ORDER PROCESS – LIFECYCLE
@@ -413,16 +463,12 @@ export class OutboxHandlers {
         await this.prisma.$transaction(async tx => {
             const orderProcess = await tx.orderProcess.findUnique({
                 where: { id: event.aggregateId },
-                select: {
-                    id: true,
-                    statusCode: true,
-                    workflowTypeId: true,
-                    orderId: true,
-                },
             });
 
             if (!orderProcess) {
-                this.logger.warn(`OrderProcess not found id=${event.aggregateId}`);
+                this.logger.warn(
+                    `OrderProcess not found id=${event.aggregateId}`,
+                );
                 return;
             }
 
@@ -468,47 +514,59 @@ export class OutboxHandlers {
 
             const processes = await tx.orderProcess.findMany({
                 where: { orderId: orderProcess.orderId },
-                select: {
-                    statusCode: true,
-                    workflowTypeId: true,
-                },
             });
 
-            const workflowTypeIds = [
-                ...new Set(processes.map(p => p.workflowTypeId)),
-            ];
-
             const workflows = await tx.workflowType.findMany({
-                where: { id: { in: workflowTypeIds } },
+                where: {
+                    id: { in: [...new Set(processes.map(p => p.workflowTypeId))] },
+                },
                 include: { statuses: true },
             });
 
-            const workflowById = new Map(
-                workflows.map(wf => [wf.id, wf]),
-            );
+            const wfById = new Map(workflows.map(w => [w.id, w]));
 
-            const allProcessesCompleted = processes.every(op => {
-                const wf = workflowById.get(op.workflowTypeId);
-                if (!wf) return false;
-
-                const terminal = wf.statuses.find(s => s.isTerminal);
-                return terminal && op.statusCode === terminal.code;
+            const allCompleted = processes.every(p => {
+                const wf = wfById.get(p.workflowTypeId);
+                const terminal = wf?.statuses.find(s => s.isTerminal);
+                return terminal && p.statusCode === terminal.code;
             });
 
-            if (allProcessesCompleted) {
-                this.logger.log(
-                    `All OrderProcesses terminal, triggering Order transition orderId=${orderProcess.orderId}`,
+            if (!allCompleted) {
+                this.logger.debug(
+                    `Not all OrderProcesses terminal orderId=${orderProcess.orderId}`,
                 );
-
-                await tx.outboxEvent.create({
-                    data: {
-                        aggregateType: 'Order',
-                        aggregateId: orderProcess.orderId,
-                        eventType: 'ORDER_LIFECYCLE_TRANSITION_REQUESTED',
-                        payload: {},
-                    },
-                });
+                return;
             }
+
+            const updated = await tx.order.updateMany({
+                where: {
+                    id: orderProcess.orderId,
+                    lifecycleCompletionSent: false,
+                },
+                data: {
+                    lifecycleCompletionSent: true,
+                },
+            });
+
+            if (updated.count === 0) {
+                this.logger.debug(
+                    `Order lifecycle already emitted orderId=${orderProcess.orderId}`,
+                );
+                return;
+            }
+
+            this.logger.log(
+                `Order lifecycle emitted orderId=${orderProcess.orderId}`,
+            );
+
+            await tx.outboxEvent.create({
+                data: {
+                    aggregateType: 'Order',
+                    aggregateId: orderProcess.orderId,
+                    eventType: 'ORDER_LIFECYCLE_TRANSITION_REQUESTED',
+                    payload: {},
+                },
+            });
         });
     }
 
@@ -552,7 +610,6 @@ export class OutboxHandlers {
         const transition = workflow.transitions.find(
             t => t.fromStatusId === current.id,
         );
-
         if (!transition) {
             this.logger.debug(
                 `No Order transition orderId=${order.id}, status=${current.code}`,
@@ -564,19 +621,21 @@ export class OutboxHandlers {
             `Order transition START orderId=${order.id} ${current.code} → ${transition.toStatus.code}`,
         );
 
-        await this.prisma.order.update({
-            where: { id: order.id },
-            data: { statusCode: transition.toStatus.code },
-        });
+        await this.prisma.$transaction(async tx => {
+            await tx.order.update({
+                where: { id: order.id },
+                data: { statusCode: transition.toStatus.code },
+            });
 
-        await this.prisma.workflowAuditLog.create({
-            data: {
-                workflowTypeId: workflow.id,
-                aggregateType: 'Order',
-                aggregateId: order.id,
-                fromStatus: current.code,
-                toStatus: transition.toStatus.code,
-            },
+            await tx.workflowAuditLog.create({
+                data: {
+                    workflowTypeId: workflow.id,
+                    aggregateType: 'Order',
+                    aggregateId: order.id,
+                    fromStatus: current.code,
+                    toStatus: transition.toStatus.code,
+                },
+            });
         });
 
         this.logger.log(

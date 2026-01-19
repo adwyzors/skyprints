@@ -7,9 +7,9 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { OrdersQueryDto } from '../dto/orders.query.dto';
 import { toOrderSummary } from '../mappers/order.mapper';
 import { OutboxService } from '../outbox/outbox.service';
-import { OrdersQueryDto } from '../dto/orders.query.dto';
 
 const SYSTEM_USER_ID = 'a98afcd6-e0d9-4948-afb8-11fb4d18185a';
 
@@ -37,19 +37,9 @@ export class OrdersService {
 
         const skip = (page - 1) * limit;
 
-        /**
-         * ==========================
-         * DATE NORMALIZATION (CRITICAL)
-         * ==========================
-         *
-         * - fromDate: start of day (00:00:00.000)
-         * - toDate:   end of day   (23:59:59.999)
-         *
-         * Prevents:
-         * - timezone drift
-         * - missing records
-         * - off-by-one-day bugs
-         */
+        /* ==========================
+         * DATE NORMALIZATION
+         * ========================== */
         let from: Date | undefined;
         let to: Date | undefined;
 
@@ -69,10 +59,35 @@ export class OrdersService {
             to.setHours(23, 59, 59, 999);
         }
 
+        /* ==========================
+         * STATUS NORMALIZATION (KEY FIX)
+         * ========================== */
+        const statusCodes = status
+            ? status
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean)
+            : undefined;
+
+        if (statusCodes?.length) {
+            this.logger.debug(
+                `Filtering orders by statusCodes=[${statusCodes.join(', ')}]`,
+            );
+        }
+
+        /* ==========================
+         * WHERE CLAUSE
+         * ========================== */
         const where: Prisma.OrderWhereInput = {
             deletedAt: null,
 
-            ...(status && { statusCode: status }),
+            ...(statusCodes?.length === 1 && {
+                statusCode: statusCodes[0],
+            }),
+
+            ...(statusCodes && statusCodes.length > 1 && {
+                statusCode: { in: statusCodes },
+            }),
 
             ...(customerId && { customerId }),
 
@@ -98,10 +113,6 @@ export class OrdersService {
                 where,
                 skip,
                 take: limit,
-
-                /**
-                 * ALWAYS latest first
-                 */
                 orderBy: { createdAt: 'desc' },
 
                 include: {
@@ -153,6 +164,8 @@ export class OrdersService {
             },
         };
     }
+
+    /* ========================== GET BY ID ========================== */
 
     async getById(orderId: string) {
         const order = await this.prisma.order.findUnique({
@@ -222,7 +235,7 @@ export class OrdersService {
 
     async create(dto: CreateOrderDto) {
         return this.prisma.$transaction(async (tx) => {
-            const processIds = dto.processes.map((p) => p.processId);
+            const processIds = dto.processes.map(p => p.processId);
 
             const validCount = await tx.process.count({
                 where: { id: { in: processIds }, isEnabled: true },

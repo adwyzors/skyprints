@@ -198,6 +198,8 @@ model Order {
   createdBy   User     @relation(fields: [createdById], references: [id])
   customer    Customer @relation(fields: [customerId], references: [id])
 
+  lifecycleCompletionSent  Boolean  @default(false)
+
   processes OrderProcess[]
 
   createdAt DateTime @default(now())
@@ -221,6 +223,9 @@ model OrderProcess {
 
   workflowTypeId String
   statusCode     String
+
+  configCompletedAt        DateTime?
+  lifecycleCompletionSent Boolean @default(false)
 
   order   Order   @relation(fields: [orderId], references: [id])
   process Process @relation(fields: [processId], references: [id])
