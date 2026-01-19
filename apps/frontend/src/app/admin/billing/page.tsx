@@ -5,16 +5,16 @@ import { Order } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrders } from '@/services/orders.service';
 import debounce from 'lodash/debounce';
 import {
-  Calendar,
-  CheckCircle,
-  DollarSign,
-  FileText,
-  Filter,
-  Loader2,
-  Package,
-  Search,
-  User,
-  X,
+    Calendar,
+    CheckCircle,
+    DollarSign,
+    FileText,
+    Filter,
+    Loader2,
+    Package,
+    Search,
+    User,
+    X,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
@@ -356,7 +356,7 @@ function BillingContent() {
                       <div className="flex items-start justify-between">
                         <div>
                           <h3 className="font-bold text-lg text-gray-800 group-hover:text-green-600 transition-colors">
-                            {order.id.slice(0, 8).toUpperCase()}
+                            {order.code}
                           </h3>
                           <div className="flex items-center gap-2 mt-1">
                             <User className="w-4 h-4 text-gray-500" />
