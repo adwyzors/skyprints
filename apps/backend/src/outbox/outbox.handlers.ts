@@ -348,7 +348,6 @@ export class OutboxHandlers {
             this.logger.warn(`ProcessRun not found runId=${event.aggregateId}`);
             return;
         }
-
         const workflow = run.runTemplate.lifecycleWorkflowType;
         const current = workflow.statuses.find(
             s => s.code === run.lifeCycleStatusCode,
