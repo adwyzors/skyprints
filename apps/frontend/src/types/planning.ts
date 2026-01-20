@@ -26,4 +26,5 @@ export interface NewOrderPayload {
   customerId: string;
   quantity: number;
   processes: ProcessConfig[];
+  jobCode?: string;
 }

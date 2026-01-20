@@ -5,16 +5,16 @@ import { Order } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrders } from '@/services/orders.service';
 import debounce from 'lodash/debounce';
 import {
-    Calendar,
-    CheckCircle,
-    DollarSign,
-    FileText,
-    Filter,
-    Loader2,
-    Package,
-    Search,
-    User,
-    X,
+  Calendar,
+  CheckCircle,
+  DollarSign,
+  FileText,
+  Filter,
+  Loader2,
+  Package,
+  Search,
+  User,
+  X,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
@@ -76,6 +76,8 @@ function BillingContent() {
   const debouncedSearchUpdate = useCallback(
     debounce((value: string) => {
       setDebouncedSearch(value);
+      // Reset to page 1 when search changes
+      setOrdersData((prev) => ({ ...prev, page: 1 }));
     }, 500),
     []
   );
@@ -362,6 +364,13 @@ function BillingContent() {
                             <User className="w-4 h-4 text-gray-500" />
                             <span className="text-sm text-gray-700">{order.customer?.name}</span>
                           </div>
+                          {order.jobCode && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs px-2 py-0.5 bg-white/70 text-gray-600 rounded">
+                                Job: {order.jobCode}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex flex-col items-end gap-1">
@@ -435,7 +444,7 @@ function BillingContent() {
             </div>
 
             {/* PAGINATION */}
-            {ordersData.totalPages > 1 && (
+            {ordersData.totalPages >= 1 && (
               <div className="flex items-center justify-center pt-6">
                 <div className="flex items-center gap-2">
                   <button
@@ -447,24 +456,45 @@ function BillingContent() {
                   </button>
 
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, ordersData.totalPages) }, (_, i) => {
-                      const pageNum = i + 1;
-                      if (ordersData.totalPages <= 5) {
+                    {(() => {
+                      const totalPages = ordersData.totalPages;
+                      const currentPage = ordersData.page;
+                      const pages: (number | string)[] = [];
+
+                      if (totalPages <= 7) {
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        pages.push(1);
+                        if (currentPage > 3) pages.push('...');
+                        const start = Math.max(2, currentPage - 1);
+                        const end = Math.min(totalPages - 1, currentPage + 1);
+                        for (let i = start; i <= end; i++) {
+                          if (!pages.includes(i)) pages.push(i);
+                        }
+                        if (currentPage < totalPages - 2) pages.push('...');
+                        if (!pages.includes(totalPages)) pages.push(totalPages);
+                      }
+
+                      return pages.map((page, index) => {
+                        if (page === '...') {
+                          return <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">...</span>;
+                        }
                         return (
                           <button
-                            key={pageNum}
-                            onClick={() => handlePageChange(pageNum)}
-                            className={`px-3 py-1 rounded-lg ${ordersData.page === pageNum
+                            key={page}
+                            onClick={() => handlePageChange(page as number)}
+                            className={`px-3 py-1 rounded-lg ${ordersData.page === page
                               ? 'bg-green-600 text-white'
                               : 'border border-gray-300 hover:bg-gray-50'
                               } transition-colors`}
                           >
-                            {pageNum}
+                            {page}
                           </button>
                         );
-                      }
-                      return null;
-                    })}
+                      });
+                    })()}
                   </div>
 
                   <button

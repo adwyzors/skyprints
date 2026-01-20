@@ -1,8 +1,11 @@
 "use client";
 //apps\frontend\src\components\modals\CompletedOrderModal.tsx
+import { BillingSnapshot } from "@/domain/model/billing.model";
 import { Order } from "@/domain/model/order.model";
+import { getLatestBillingSnapshot } from "@/services/billing.service";
 import { getOrderById } from "@/services/orders.service";
-import { Calculator, CheckCircle, DollarSign, FileText, Loader2, Package, Printer, X } from "lucide-react";
+import { Calculator, CheckCircle, DollarSign, ExternalLink, FileText, Loader2, Package, Printer, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 interface Props {
@@ -11,35 +14,61 @@ interface Props {
 }
 
 export default function CompletedOrderModal({ orderId, onClose }: Props) {
+  const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
+  const [billingSnapshot, setBillingSnapshot] = useState<BillingSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"summary" | "runs" | "invoice">("summary");
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Fetch order details when modal opens
+  // Fetch order and billing snapshot when modal opens
   useEffect(() => {
-    const fetchOrder = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const fetchedOrder = await getOrderById(orderId);
+        const [fetchedOrder, snapshot] = await Promise.all([
+          getOrderById(orderId),
+          getLatestBillingSnapshot(orderId),
+        ]);
         setOrder(fetchedOrder);
+        setBillingSnapshot(snapshot);
       } catch (err) {
-        console.error("Error fetching order:", err);
+        console.error("Error fetching order data:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOrder();
+    fetchData();
   }, [orderId]);
 
-  // Get values from run with proper field names
+  // Get values from run with billing snapshot data if available
   const getRunValues = (run: Order['processes'][0]['runs'][0]) => {
+    // First, get from order's run values
     const quantity = (run.values?.['Quantity'] as number) || 0;
     const estimatedRate = (run.values?.['Estimated Rate'] as number) || 0;
-    const newRate = (run.values?.['New Rate'] as number) || estimatedRate;
-    const newAmount = (run.values?.['New Amount'] as number) || (quantity * newRate);
     const estimatedAmount = quantity * estimatedRate;
+
+    // Check billing snapshot for revised rates
+    let newRate = estimatedRate;
+    let newAmount = estimatedAmount;
+
+    if (billingSnapshot?.inputs) {
+      const snapshotInput = billingSnapshot.inputs.find(input => input.runId === run.id);
+      if (snapshotInput?.values) {
+        // Billing API uses snake_case keys
+        newRate = snapshotInput.values['new_rate'] ?? snapshotInput.values['New Rate'] ?? estimatedRate;
+        const snapshotQuantity = snapshotInput.values['quantity'] ?? quantity;
+        newAmount = snapshotQuantity * newRate;
+
+        console.log('Using billing snapshot - newRate:', newRate, 'qty:', snapshotQuantity, 'newAmount:', newAmount);
+      }
+    } else {
+      // Fallback to order's run values if no snapshot
+      newRate = (run.values?.['New Rate'] as number) || estimatedRate;
+      newAmount = (run.values?.['New Amount'] as number) || (quantity * newRate);
+    }
+
     return { quantity, estimatedRate, newRate, newAmount, estimatedAmount };
   };
 
@@ -156,8 +185,32 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
         {/* HEADER */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">{order.id.slice(0, 8).toUpperCase()} - Billed Order</h2>
-            <p className="text-gray-600">View complete order details and billing information</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  onClose();
+                  router.push(`/admin/orders/${order.id}`);
+                }}
+                className="group flex items-center gap-2 text-2xl font-bold text-gray-800 hover:text-blue-600 transition-colors"
+                title="View order details"
+              >
+                {order.code || order.id.slice(0, 8).toUpperCase()}
+                <ExternalLink className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity" />
+              </button>
+              <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-xs font-medium rounded-full">
+                Billed
+              </span>
+              {billingSnapshot && (
+                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Revised Rates
+                </span>
+              )}
+            </div>
+            <p className="text-gray-600 mt-1">
+              Click order code to view full details
+              {billingSnapshot && ` • Billing v${billingSnapshot.version}`}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -173,8 +226,8 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
             <button
               onClick={() => setActiveTab("summary")}
               className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "summary"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-800"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-800"
                 }`}
             >
               <div className="flex items-center gap-2">
@@ -185,8 +238,8 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
             <button
               onClick={() => setActiveTab("runs")}
               className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "runs"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-800"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-800"
                 }`}
             >
               <div className="flex items-center gap-2">
@@ -197,8 +250,8 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
             <button
               onClick={() => setActiveTab("invoice")}
               className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "invoice"
-                  ? "border-blue-600 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-800"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-800"
                 }`}
             >
               <div className="flex items-center gap-2">
@@ -229,6 +282,12 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
                       <span className="text-gray-600">Customer Code:</span>
                       <span className="font-medium">{order.customer?.code}</span>
                     </div>
+                    {order.jobCode && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Job Code:</span>
+                        <span className="font-medium text-blue-700">{order.jobCode}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-gray-600">Order Quantity:</span>
                       <span className="font-medium">{order.quantity} units</span>

@@ -34,8 +34,11 @@ export interface GetOrdersResponse {
 export async function getOrders(params: GetOrdersParams = {}): Promise<GetOrdersResponse> {
   const queryParams = new URLSearchParams();
 
-  if (params.page) queryParams.append('page', params.page.toString());
-  if (params.limit) queryParams.append('limit', params.limit.toString());
+  const requestedPage = params.page || 1;
+  const requestedLimit = params.limit || 12;
+
+  queryParams.append('page', requestedPage.toString());
+  queryParams.append('limit', requestedLimit.toString());
   if (params.status && params.status !== 'all') queryParams.append('status', params.status);
   if (params.search) queryParams.append('search', params.search);
   if (params.customerId) queryParams.append('customerId', params.customerId);
@@ -45,38 +48,30 @@ export async function getOrders(params: GetOrdersParams = {}): Promise<GetOrders
   const queryString = queryParams.toString();
   const url = queryString ? `/orders?${queryString}` : '/orders';
 
-  const { data: res, headers } = await apiRequestWithHeaders<
-    OrderSummaryDto[] | { orders: OrderSummaryDto[] }
-  >(url);
+  const { data: res, headers } = await apiRequestWithHeaders<any>(url);
 
-  // Handle both array response and wrapped object response
-  const ordersArray = Array.isArray(res) ? res : res.orders;
-
-  // DEBUG: Log the response to see what we're getting
-  console.log('getOrders API response:', {
-    res, headers: {
-      total: headers.get('x-total-count'),
-      page: headers.get('x-page'),
-      limit: headers.get('x-limit'),
-      totalPages: headers.get('x-total-pages'),
-    }
-  });
-
-  // Validate response structure
-  if (!ordersArray || !Array.isArray(ordersArray)) {
-    console.error('Invalid response - ordersArray is:', ordersArray, 'Full res:', res);
+  // Extract orders array from response (handle different formats)
+  let ordersArray: OrderSummaryDto[];
+  if (res.data && Array.isArray(res.data)) {
+    ordersArray = res.data;
+  } else if (Array.isArray(res)) {
+    ordersArray = res;
+  } else if (res.orders && Array.isArray(res.orders)) {
+    ordersArray = res.orders;
+  } else {
+    console.error('Unexpected API response format:', res);
     throw new Error('Invalid response format from server');
   }
 
-  const dtos = OrderSummarySchema.array().parse(ordersArray);
-
-  // Extract pagination from headers (with fallbacks)
-  const total = parseInt(headers.get('x-total-count') || String(dtos.length), 10);
-  const page = parseInt(headers.get('x-page') || '1', 10);
-  const limit = parseInt(headers.get('x-limit') || '20', 10);
+  // Extract pagination from headers
+  const total = parseInt(headers.get('x-total-count') || String(ordersArray.length), 10);
+  const page = parseInt(headers.get('x-page') || String(requestedPage), 10);
+  const limit = parseInt(headers.get('x-limit') || String(requestedLimit), 10);
   const totalPages = parseInt(headers.get('x-total-pages') || '1', 10);
 
-  console.log('getOrders returning:', { ordersCount: dtos.length, total, page, limit, totalPages });
+  const dtos = OrderSummarySchema.array().parse(ordersArray);
+
+  console.log('Orders API - Pagination:', { page, limit, total, totalPages, ordersCount: dtos.length });
 
   return {
     orders: dtos.map(mapOrderSummaryDtoToOrder),

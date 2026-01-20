@@ -27,7 +27,7 @@ export class OrdersService {
     async getAll(query: OrdersQueryDto) {
         const {
             page = 1,
-            limit = 20,
+            limit = 12,
             status,
             customerId,
             search,
@@ -271,7 +271,7 @@ export class OrdersService {
                     createdById: SYSTEM_USER_ID,
                     totalProcesses: dto.processes.length,
                     completedProcesses: 0,
-                    jobCode: dto.jobCode,
+                    ...(dto.jobCode ? { jobCode: dto.jobCode } : {}),
                 },
             });
 
@@ -392,7 +392,7 @@ export class OrdersService {
             this.logger.log(`Order created id=${orderId}, code=${code}`);
 
             return { id: orderId, code };
-        });
+        }, { timeout: 30000 }); // 30 second timeout for large orders
     }
 
 

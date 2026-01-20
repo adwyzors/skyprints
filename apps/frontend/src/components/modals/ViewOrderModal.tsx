@@ -299,6 +299,12 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                 <span>Code:</span>
                 <span className="font-medium">{order.customer?.code}</span>
               </div>
+              {order.jobCode && (
+                <div className="flex items-center justify-between">
+                  <span>Job Code:</span>
+                  <span className="font-medium text-blue-700">{order.jobCode}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span>Quantity:</span>
                 <span className="font-medium">{order.quantity}</span>

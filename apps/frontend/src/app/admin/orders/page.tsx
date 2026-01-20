@@ -100,6 +100,8 @@ function AdminOrdersContent() {
   const debouncedSearchUpdate = useCallback(
     debounce((value: string) => {
       setDebouncedSearch(value);
+      // Reset to page 1 when search changes
+      setOrdersData((prev) => ({ ...prev, page: 1 }));
     }, 500),
     [],
   );
@@ -392,14 +394,14 @@ function AdminOrdersContent() {
                 statusFilter.length < 3 ||
                 dateFilter !== 'all' ||
                 customerFilter !== 'all') && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="flex items-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  <span>Clear All</span>
-                </button>
-              )}
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="flex items-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    <span>Clear All</span>
+                  </button>
+                )}
             </div>
           </form>
 
@@ -545,10 +547,14 @@ function AdminOrdersContent() {
                             <span className="text-sm text-gray-700 truncate">
                               {order.customer?.name}
                             </span>
-                            <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full flex-shrink-0">
-                              {order.customer?.code}
-                            </span>
                           </div>
+                          {order.jobCode && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
+                                Job: {order.jobCode}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -647,7 +653,7 @@ function AdminOrdersContent() {
             </div>
 
             {/* PAGINATION */}
-            {ordersData.totalPages > 1 && (
+            {ordersData.totalPages >= 1 && (
               <div className="flex items-center justify-center pt-6">
                 <div className="flex items-center gap-2">
                   <button
@@ -659,25 +665,66 @@ function AdminOrdersContent() {
                   </button>
 
                   <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, ordersData.totalPages) }, (_, i) => {
-                      const pageNum = i + 1;
-                      if (ordersData.totalPages <= 5) {
+                    {(() => {
+                      const totalPages = ordersData.totalPages;
+                      const currentPage = ordersData.page;
+                      const pages: (number | string)[] = [];
+
+                      if (totalPages <= 7) {
+                        // Show all pages if 7 or less
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        // Always show first page
+                        pages.push(1);
+
+                        if (currentPage > 3) {
+                          pages.push('...');
+                        }
+
+                        // Show pages around current page
+                        const start = Math.max(2, currentPage - 1);
+                        const end = Math.min(totalPages - 1, currentPage + 1);
+
+                        for (let i = start; i <= end; i++) {
+                          if (!pages.includes(i)) {
+                            pages.push(i);
+                          }
+                        }
+
+                        if (currentPage < totalPages - 2) {
+                          pages.push('...');
+                        }
+
+                        // Always show last page
+                        if (!pages.includes(totalPages)) {
+                          pages.push(totalPages);
+                        }
+                      }
+
+                      return pages.map((page, index) => {
+                        if (page === '...') {
+                          return (
+                            <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">
+                              ...
+                            </span>
+                          );
+                        }
                         return (
                           <button
-                            key={pageNum}
-                            onClick={() => handlePageChange(pageNum)}
-                            className={`px-3 py-1 rounded-lg ${
-                              ordersData.page === pageNum
-                                ? 'bg-blue-600 text-white'
-                                : 'border border-gray-300 hover:bg-gray-50'
-                            } transition-colors`}
+                            key={page}
+                            onClick={() => handlePageChange(page as number)}
+                            className={`px-3 py-1 rounded-lg ${ordersData.page === page
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50'
+                              } transition-colors`}
                           >
-                            {pageNum}
+                            {page}
                           </button>
                         );
-                      }
-                      return null;
-                    })}
+                      });
+                    })()}
                   </div>
 
                   <button
@@ -702,9 +749,9 @@ function AdminOrdersContent() {
             <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
               {searchQuery ||
-              statusFilter.length < 3 ||
-              dateFilter !== 'all' ||
-              customerFilter !== 'all'
+                statusFilter.length < 3 ||
+                dateFilter !== 'all' ||
+                customerFilter !== 'all'
                 ? 'No orders match your current filters. Try adjusting your search criteria.'
                 : 'Get started by creating your first production order.'}
             </p>
@@ -713,13 +760,13 @@ function AdminOrdersContent() {
                 statusFilter.length < 3 ||
                 dateFilter !== 'all' ||
                 customerFilter !== 'all') && (
-                <button
-                  onClick={clearFilters}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  Clear All Filters
-                </button>
-              )}
+                  <button
+                    onClick={clearFilters}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    Clear All Filters
+                  </button>
+                )}
               <button
                 onClick={() => setOpenCreate(true)}
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-xl hover:from-blue-700 hover:to-blue-800 transition-colors flex items-center justify-center gap-2"
