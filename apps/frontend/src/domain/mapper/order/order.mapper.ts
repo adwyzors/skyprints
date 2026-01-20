@@ -14,7 +14,7 @@ export const mapOrderSummaryDtoToOrder = (
     processes: dto.processes.map(mapOrderProcessDto),
     completedProcesses: dto.completedProcesses ?? 0,
     totalProcesses: dto.totalProcesses,
-    jobCode: "" //TODO:FIX
+    jobCode: dto.jobCode ?? ""
 });
 
 const mapOrderProcessDto = (
@@ -24,5 +24,5 @@ const mapOrderProcessDto = (
     name: process.name,
     status: process.status,
     runs: process.runs.map(mapProcessRunDto),
-    processId: "" // TODO: fix
+    processId: process.processId
 });

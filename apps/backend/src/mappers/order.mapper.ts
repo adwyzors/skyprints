@@ -7,7 +7,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         status: order.statusCode,
         createdAt: order.createdAt.toISOString(),
         code: order.code,
-
+        jobCode: order.jobCode,
         totalProcesses: order.totalProcesses,
         completedProcesses: order.completedProcesses,
 
@@ -20,9 +20,9 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         processes: order.processes.map((op: any) => ({
             id: op.id,
             name: op.process.name,
+            processId: op.process.id,
             status: op.statusCode,
 
-            /* ✅ PROCESS COUNTERS */
             totalRuns: op.totalRuns,
             completedRuns: op.lifecycleCompletedRuns,
 

@@ -234,165 +234,166 @@ export class OrdersService {
     }
 
     async create(dto: CreateOrderDto) {
-    return this.prisma.$transaction(async (tx) => {
-        const processIds = dto.processes.map(p => p.processId);
+        return this.prisma.$transaction(async (tx) => {
+            const processIds = dto.processes.map(p => p.processId);
 
-        const processes = await tx.process.findMany({
-            where: { id: { in: processIds }, isEnabled: true },
-            select: { id: true },
-        });
+            const processes = await tx.process.findMany({
+                where: { id: { in: processIds }, isEnabled: true },
+                select: { id: true },
+            });
 
-        if (processes.length !== processIds.length) {
-            throw new BadRequestException(
-                'One or more processes are disabled or invalid',
+            if (processes.length !== processIds.length) {
+                throw new BadRequestException(
+                    'One or more processes are disabled or invalid',
+                );
+            }
+
+            const workflow = await tx.workflowType.findUniqueOrThrow({
+                where: { code: 'ORDER' },
+            });
+
+            const initialStatus = await tx.workflowStatus.findFirstOrThrow({
+                where: {
+                    workflowTypeId: workflow.id,
+                    isInitial: true,
+                },
+            });
+
+            const code = await this.generateOrderCode(tx);
+
+            const order = await tx.order.create({
+                data: {
+                    code,
+                    customerId: dto.customerId,
+                    quantity: dto.quantity,
+                    workflowTypeId: workflow.id,
+                    statusCode: initialStatus.code,
+                    createdById: SYSTEM_USER_ID,
+                    totalProcesses: dto.processes.length,
+                    completedProcesses: 0,
+                    jobCode: dto.jobCode,
+                },
+            });
+
+            const orderId = order.id;
+
+            this.logger.log(
+                `ORDER_CREATED start orderId=${orderId}, processes=${dto.processes.length}`,
             );
-        }
 
-        const workflow = await tx.workflowType.findUniqueOrThrow({
-            where: { code: 'ORDER' },
-        });
+            const processCountMap = new Map(
+                dto.processes.map(p => [p.processId, p.count]),
+            );
 
-        const initialStatus = await tx.workflowStatus.findFirstOrThrow({
-            where: {
-                workflowTypeId: workflow.id,
-                isInitial: true,
-            },
-        });
-
-        const code = await this.generateOrderCode(tx);
-
-        const order = await tx.order.create({
-            data: {
-                code,
-                customerId: dto.customerId,
-                quantity: dto.quantity,
-                workflowTypeId: workflow.id,
-                statusCode: initialStatus.code,
-                createdById: SYSTEM_USER_ID,
-                totalProcesses: dto.processes.length,
-                completedProcesses: 0,
-            },
-        });
-
-        const orderId = order.id;
-
-        this.logger.log(
-            `ORDER_CREATED start orderId=${orderId}, processes=${dto.processes.length}`,
-        );
-
-        const processCountMap = new Map(
-            dto.processes.map(p => [p.processId, p.count]),
-        );
-
-        const processEntities = await tx.process.findMany({
-            where: { id: { in: processIds } },
-            include: {
-                runDefs: {
-                    orderBy: { sortOrder: 'asc' },
-                    include: {
-                        runTemplate: {
-                            include: {
-                                lifecycleWorkflowType: {
-                                    include: { statuses: true },
+            const processEntities = await tx.process.findMany({
+                where: { id: { in: processIds } },
+                include: {
+                    runDefs: {
+                        orderBy: { sortOrder: 'asc' },
+                        include: {
+                            runTemplate: {
+                                include: {
+                                    lifecycleWorkflowType: {
+                                        include: { statuses: true },
+                                    },
                                 },
                             },
                         },
                     },
                 },
-            },
-        });
-
-        const processWorkflow = await tx.workflowType.findUniqueOrThrow({
-            where: { code: 'ORDER_PROCESS' },
-        });
-
-        const initialProcessStatus =
-            await tx.workflowStatus.findFirstOrThrow({
-                where: {
-                    workflowTypeId: processWorkflow.id,
-                    isInitial: true,
-                },
             });
 
-        for (const process of processEntities) {
-            const count = processCountMap.get(process.id)!;
-            const totalRuns = count * process.runDefs.length;
+            const processWorkflow = await tx.workflowType.findUniqueOrThrow({
+                where: { code: 'ORDER_PROCESS' },
+            });
 
-            const orderProcess = await tx.orderProcess.upsert({
-                where: {
-                    orderId_processId: {
+            const initialProcessStatus =
+                await tx.workflowStatus.findFirstOrThrow({
+                    where: {
+                        workflowTypeId: processWorkflow.id,
+                        isInitial: true,
+                    },
+                });
+
+            for (const process of processEntities) {
+                const count = processCountMap.get(process.id)!;
+                const totalRuns = count * process.runDefs.length;
+
+                const orderProcess = await tx.orderProcess.upsert({
+                    where: {
+                        orderId_processId: {
+                            orderId,
+                            processId: process.id,
+                        },
+                    },
+                    create: {
                         orderId,
                         processId: process.id,
+                        workflowTypeId: processWorkflow.id,
+                        statusCode: initialProcessStatus.code,
+                        totalRuns,
+                        configCompletedRuns: 0,
+                        lifecycleCompletedRuns: 0,
                     },
-                },
-                create: {
-                    orderId,
-                    processId: process.id,
-                    workflowTypeId: processWorkflow.id,
-                    statusCode: initialProcessStatus.code,
-                    totalRuns,
-                    configCompletedRuns: 0,
-                    lifecycleCompletedRuns: 0,
-                },
-                update: {},
-            });
+                    update: {},
+                });
 
-            const existingRuns = await tx.processRun.count({
-                where: { orderProcessId: orderProcess.id },
-            });
+                const existingRuns = await tx.processRun.count({
+                    where: { orderProcessId: orderProcess.id },
+                });
 
-            if (existingRuns > 0) {
-                this.logger.warn(
-                    `ProcessRuns already exist, skipping creation orderProcessId=${orderProcess.id}`,
-                );
-                continue;
-            }
+                if (existingRuns > 0) {
+                    this.logger.warn(
+                        `ProcessRuns already exist, skipping creation orderProcessId=${orderProcess.id}`,
+                    );
+                    continue;
+                }
 
-            let runNumber = 1;
+                let runNumber = 1;
 
-            for (let batch = 0; batch < count; batch++) {
-                for (const def of process.runDefs) {
-                    const template = def.runTemplate;
+                for (let batch = 0; batch < count; batch++) {
+                    for (const def of process.runDefs) {
+                        const template = def.runTemplate;
 
-                    const initialConfigStatus =
-                        await tx.workflowStatus.findFirstOrThrow({
-                            where: {
-                                workflowTypeId:
+                        const initialConfigStatus =
+                            await tx.workflowStatus.findFirstOrThrow({
+                                where: {
+                                    workflowTypeId:
+                                        template.configWorkflowTypeId,
+                                    isInitial: true,
+                                },
+                            });
+
+                        const initialLifecycleStatus =
+                            template.lifecycleWorkflowType.statuses.find(
+                                s => s.isInitial,
+                            )!;
+
+                        await tx.processRun.create({
+                            data: {
+                                orderProcessId: orderProcess.id,
+                                runTemplateId: template.id,
+                                runNumber: runNumber++,
+                                displayName: `${def.displayName} (${batch + 1})`,
+                                configWorkflowTypeId:
                                     template.configWorkflowTypeId,
-                                isInitial: true,
+                                lifecycleWorkflowTypeId:
+                                    template.lifecycleWorkflowTypeId,
+                                statusCode: initialConfigStatus.code,
+                                lifeCycleStatusCode:
+                                    initialLifecycleStatus.code,
+                                fields: {},
                             },
                         });
-
-                    const initialLifecycleStatus =
-                        template.lifecycleWorkflowType.statuses.find(
-                            s => s.isInitial,
-                        )!;
-
-                    await tx.processRun.create({
-                        data: {
-                            orderProcessId: orderProcess.id,
-                            runTemplateId: template.id,
-                            runNumber: runNumber++,
-                            displayName: `${def.displayName} (${batch + 1})`,
-                            configWorkflowTypeId:
-                                template.configWorkflowTypeId,
-                            lifecycleWorkflowTypeId:
-                                template.lifecycleWorkflowTypeId,
-                            statusCode: initialConfigStatus.code,
-                            lifeCycleStatusCode:
-                                initialLifecycleStatus.code,
-                            fields: {},
-                        },
-                    });
+                    }
                 }
             }
-        }
 
-        this.logger.log(`Order created id=${orderId}, code=${code}`);
+            this.logger.log(`Order created id=${orderId}, code=${code}`);
 
-        return { id: orderId, code };
-    });
-}
+            return { id: orderId, code };
+        });
+    }
 
 
     /* =========================================================
@@ -427,7 +428,7 @@ export class OrdersService {
             workflowTypeId: string;
             statusCode: string;
         },
-    ): Promise<void> {
+    ): Promise<string> {
 
         const wf = await tx.workflowType.findUnique({
             where: { id: order.workflowTypeId },
@@ -454,7 +455,7 @@ export class OrdersService {
             this.logger.log(
                 `[ORDER][NO_TRANSITION] order=${order.id} status=${current.code}`,
             );
-            return;
+            return "";
         }
 
         const toStatus = wf.statuses.find(
@@ -475,6 +476,7 @@ export class OrdersService {
             },
             data: { statusCode: toStatus.code },
         });
+        return toStatus.code;
     }
 
 }

@@ -37,6 +37,7 @@ export type OrderProcessRunDto =
 
 export const OrderProcessSchema = z.object({
     id: z.string().uuid(),
+    processId: z.string().uuid(),
     name: z.string(),
     status: z.string(),
 
@@ -54,6 +55,7 @@ export const OrderSummarySchema = z.object({
     status: z.string(),
     createdAt: z.string(),
     code: z.string(),
+    jobCode: z.string().optional(),
 
     totalProcesses: z.number().int(),
     completedProcesses: z.number().int().optional(),

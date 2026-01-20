@@ -293,7 +293,6 @@ export class AdminProcessService {
         );
 
         return this.prisma.$transaction(async tx => {
-
             const run = await tx.processRun.findFirst({
                 where: { id: processRunId, orderProcessId },
                 select: {
@@ -357,9 +356,78 @@ export class AdminProcessService {
                 data: { lifeCycleStatusCode: toStatus.code },
             });
 
-            if (!toStatus.isTerminal) return { success: true };
+            const orderProcess = await tx.orderProcess.findUnique({
+                where: { id: run.orderProcessId },
+                select: {
+                    id: true,
+                    orderId: true,
+                    totalRuns: true,
+                    lifecycleCompletedRuns: true,
+                    workflowTypeId: true,
+                    statusCode: true,
+                },
+            });
 
-            const op = await tx.orderProcess.update({
+            if (!orderProcess) {
+                throw new BadRequestException('Invalid order process');
+            }
+
+            const orderSnapshot = await tx.order.findUnique({
+                where: { id: orderProcess.orderId },
+                select: {
+                    id: true,
+                    lifecycleStartedAt: true,
+                    statusCode: true,
+                },
+            });
+
+            if (!orderSnapshot) {
+                throw new BadRequestException('Invalid order');
+            }
+
+            /**
+             * Start order lifecycle exactly once
+             */
+            this.logger.log(orderSnapshot.lifecycleStartedAt);
+            this.logger.log('----------');
+
+            let orderStatus: string = orderSnapshot.statusCode;
+
+            if (!orderSnapshot.lifecycleStartedAt) {
+                const started = await tx.order.updateMany({
+                    where: {
+                        id: orderSnapshot.id,
+                        lifecycleStartedAt: null,
+                    },
+                    data: { lifecycleStartedAt: new Date() },
+                });
+
+                this.logger.log(started.count);
+                this.logger.log('----------');
+
+                if (started.count === 1) {
+                    this.logger.log(
+                        `[ORDER][LIFECYCLE_STARTED] order=${orderSnapshot.id}`,
+                    );
+
+                    const orderForTransition = await tx.order.findUniqueOrThrow({
+                        where: { id: orderSnapshot.id },
+                        select: {
+                            id: true,
+                            workflowTypeId: true,
+                            statusCode: true,
+                        },
+                    });
+
+                    orderStatus = await this.orderService.transitionOrder(tx, orderForTransition);
+                }
+            }
+
+            if (!toStatus.isTerminal) {
+                return { success: true, status: orderStatus };
+            }
+
+            const updatedOrderProcess = await tx.orderProcess.update({
                 where: { id: run.orderProcessId },
                 data: { lifecycleCompletedRuns: { increment: 1 } },
                 select: {
@@ -374,8 +442,8 @@ export class AdminProcessService {
 
             const finalized = await tx.orderProcess.updateMany({
                 where: {
-                    id: op.id,
-                    lifecycleCompletedRuns: op.totalRuns,
+                    id: updatedOrderProcess.id,
+                    lifecycleCompletedRuns: updatedOrderProcess.totalRuns,
                     lifecycleCompletedAt: null,
                 },
                 data: { lifecycleCompletedAt: new Date() },
@@ -383,13 +451,13 @@ export class AdminProcessService {
 
             if (finalized.count === 1) {
                 this.logger.log(
-                    `[LIFECYCLE][ORDER_PROCESS_COMPLETED] orderProcess=${op.id}`,
+                    `[LIFECYCLE][ORDER_PROCESS_COMPLETED] orderProcess=${updatedOrderProcess.id}`,
                 );
 
-                await this.transitionOrderProcess(tx, op);
+                await this.transitionOrderProcess(tx, updatedOrderProcess);
 
-                const order = await tx.order.update({
-                    where: { id: op.orderId },
+                const updatedOrder = await tx.order.update({
+                    where: { id: updatedOrderProcess.orderId },
                     data: { completedProcesses: { increment: 1 } },
                     select: {
                         id: true,
@@ -401,17 +469,22 @@ export class AdminProcessService {
                 });
 
                 this.logger.log(
-                    `[ORDER][PROGRESS] order=${order.id} ${order.completedProcesses}/${order.totalProcesses}`,
+                    `[ORDER][PROGRESS] order=${updatedOrder.id} ${updatedOrder.completedProcesses}/${updatedOrder.totalProcesses}`,
                 );
 
-                if (order.completedProcesses === order.totalProcesses) {
-                    await this.orderService.transitionOrder(tx, order);
+                if (
+                    updatedOrder.completedProcesses ===
+                    updatedOrder.totalProcesses
+                ) {
+                    orderStatus = await this.orderService.transitionOrder(tx, updatedOrder);
                 }
             }
 
-            return { success: true };
+            return { success: true, status: orderStatus };
         });
     }
+
+
 
     /* =========================================================
      * FIELD VALIDATION
