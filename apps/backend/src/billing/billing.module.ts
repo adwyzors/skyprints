@@ -11,7 +11,6 @@ import { OrdersModule } from "../orders/orders.module";
 import { BillingCalculatorService } from "./services/billing-calculator.service";
 import { BillingSnapshotService } from "./services/billing-snapshot.service";
 import { BillingService } from "./services/billing.service";
-import { BillingSnapshotWorker } from "./workers/billing-snapshot.worker";
 
 @Module({
     controllers: [
@@ -30,11 +29,8 @@ import { BillingSnapshotWorker } from "./workers/billing-snapshot.worker";
         FormulaCompiler,
         MathOnlyFormulaEngine,
 
-        // worker
-        BillingSnapshotWorker
     ],
     exports: [
-        BillingSnapshotWorker,
         BillingService
     ],
     imports: [OrdersModule]

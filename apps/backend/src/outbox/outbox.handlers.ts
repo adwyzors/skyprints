@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import jsonLogic from 'json-logic-js';
 import { PrismaService } from '../../prisma/prisma.service';
-import { BillingSnapshotWorker } from '../billing/workers/billing-snapshot.worker';
 
 @Injectable()
 export class OutboxHandlers {
@@ -21,8 +20,6 @@ export class OutboxHandlers {
         );
 
         switch (event.eventType) {
-            case 'ORDER_CREATED':
-                return this.handleOrderCreated(event);
             case 'PROCESS_RUN_CONFIG_TRANSITION_REQUESTED':
                 return this.handleProcessRunConfigTransition(event);
             case 'PROCESS_RUN_LIFECYCLE_TRANSITION_REQUESTED':
@@ -36,126 +33,6 @@ export class OutboxHandlers {
         }
     }
 
-    /* =========================================================
-     * ORDER CREATED (IDEMPOTENT)
-     * ========================================================= */
-
-    private async handleOrderCreated(event: {
-        payload: {
-            orderId: string;
-            processes: { processId: string; count: number }[];
-        };
-    }) {
-        const { orderId, processes } = event.payload;
-
-        this.logger.log(
-            `ORDER_CREATED start orderId=${orderId}, processes=${processes.length}`,
-        );
-
-        const processCountMap = new Map(
-            processes.map(p => [p.processId, p.count]),
-        );
-
-        const processEntities = await this.prisma.process.findMany({
-            where: { id: { in: processes.map(p => p.processId) } },
-            include: {
-                runDefs: {
-                    orderBy: { sortOrder: 'asc' },
-                    include: {
-                        runTemplate: {
-                            include: {
-                                lifecycleWorkflowType: { include: { statuses: true } },
-                            },
-                        },
-                    },
-                },
-            },
-        });
-
-        const processWorkflow = await this.prisma.workflowType.findUniqueOrThrow({
-            where: { code: 'ORDER_PROCESS' },
-        });
-
-        const initialProcessStatus =
-            await this.prisma.workflowStatus.findFirstOrThrow({
-                where: {
-                    workflowTypeId: processWorkflow.id,
-                    isInitial: true,
-                },
-            });
-
-        for (const process of processEntities) {
-            const count = processCountMap.get(process.id)!;
-            const totalRuns = count * process.runDefs.length;
-
-            const orderProcess = await this.prisma.orderProcess.upsert({
-                where: {
-                    orderId_processId: {
-                        orderId,
-                        processId: process.id,
-                    },
-                },
-                create: {
-                    orderId,
-                    processId: process.id,
-                    workflowTypeId: processWorkflow.id,
-                    statusCode: initialProcessStatus.code,
-                    totalRuns,
-                    configCompletedRuns: 0,
-                    lifecycleCompletedRuns: 0,
-                },
-                update: {},
-            });
-
-            const existingRuns = await this.prisma.processRun.count({
-                where: { orderProcessId: orderProcess.id },
-            });
-
-            if (existingRuns > 0) {
-                this.logger.warn(
-                    `ProcessRuns already exist, skipping creation orderProcessId=${orderProcess.id}`,
-                );
-                continue;
-            }
-
-            let runNumber = 1;
-
-            for (let batch = 0; batch < count; batch++) {
-                for (const def of process.runDefs) {
-                    const template = def.runTemplate;
-
-                    const initialConfigStatus =
-                        await this.prisma.workflowStatus.findFirstOrThrow({
-                            where: {
-                                workflowTypeId: template.configWorkflowTypeId,
-                                isInitial: true,
-                            },
-                        });
-
-                    const initialLifecycleStatus =
-                        template.lifecycleWorkflowType.statuses.find(
-                            s => s.isInitial,
-                        )!;
-
-                    await this.prisma.processRun.create({
-                        data: {
-                            orderProcessId: orderProcess.id,
-                            runTemplateId: template.id,
-                            runNumber: runNumber++,
-                            displayName: `${def.displayName} (${batch + 1})`,
-                            configWorkflowTypeId: template.configWorkflowTypeId,
-                            lifecycleWorkflowTypeId: template.lifecycleWorkflowTypeId,
-                            statusCode: initialConfigStatus.code,
-                            lifeCycleStatusCode: initialLifecycleStatus.code,
-                            fields: {},
-                        },
-                    });
-                }
-            }
-        }
-
-        this.logger.log(`ORDER_CREATED completed orderId=${orderId}`);
-    }
 
     /* =========================================================
      * PROCESS RUN – CONFIG WORKFLOW
