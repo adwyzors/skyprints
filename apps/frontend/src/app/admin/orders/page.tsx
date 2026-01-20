@@ -16,7 +16,7 @@ import {
   Search,
   Settings,
   User,
-  X
+  X,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
@@ -58,7 +58,11 @@ function AdminOrdersContent() {
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string[]>(['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY']);
+  const [statusFilter, setStatusFilter] = useState<string[]>([
+    'CONFIGURE',
+    'IN_PRODUCTION',
+    'PRODUCTION_READY',
+  ]);
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
@@ -77,7 +81,7 @@ function AdminOrdersContent() {
         const fetchedCustomers = await getCustomers();
         setCustomers([
           { id: 'all', name: 'All Customers' },
-          ...fetchedCustomers.map(c => ({ id: c.id, name: c.name, code: c.code }))
+          ...fetchedCustomers.map((c) => ({ id: c.id, name: c.name, code: c.code })),
         ]);
       } catch (error) {
         console.error('Failed to fetch customers:', error);
@@ -97,7 +101,7 @@ function AdminOrdersContent() {
     debounce((value: string) => {
       setDebouncedSearch(value);
     }, 500),
-    []
+    [],
   );
 
   useEffect(() => {
@@ -170,7 +174,7 @@ function AdminOrdersContent() {
       } catch (error) {
         console.error('Error fetching orders:', error);
         if (!cancelled) {
-          setOrdersData(prev => ({ ...prev, orders: [], total: 0, totalPages: 0 }));
+          setOrdersData((prev) => ({ ...prev, orders: [], total: 0, totalPages: 0 }));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -194,11 +198,11 @@ function AdminOrdersContent() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   const handlePageChange = (newPage: number) => {
-    setOrdersData(prev => ({ ...prev, page: newPage }));
+    setOrdersData((prev) => ({ ...prev, page: newPage }));
   };
 
   /* ================= HELPERS ================= */
@@ -216,56 +220,38 @@ function AdminOrdersContent() {
     setDateFilter('all');
     setCustomerFilter('all');
     setDebouncedSearch('');
-    setOrdersData(prev => ({ ...prev, page: 1 }));
+    setOrdersData((prev) => ({ ...prev, page: 1 }));
   };
 
   const getProcessSummary = (order: Order) => {
-    const totalRuns = order.processes.reduce(
-      (sum, p) => sum + p.runs.length,
-      0
-    );
+    const totalRuns = order.processes.reduce((sum, p) => sum + p.runs.length, 0);
 
     const configuredRuns = order.processes.reduce(
       (sum, p) => sum + p.runs.filter((r) => r.configStatus === 'CONFIGURED').length,
-      0
+      0,
     );
 
     return { configuredRuns, totalRuns };
   };
-
-  const getCompletionProgress = (order: Order) => {
-    if (order.status === 'COMPLETED' || order.status === 'BILLED') {
-      return 100;
-    }
-
-    const steps = [
-      'NOT_CONFIGURED',
-      'CONFIGURED',
-      'DESIGN',
-      'SIZE_COLOR',
-      'TRACING',
-      'EXPOSING',
-      'SAMPLE',
-      'PRODUCTION',
-      'FUSING',
-      'CARTING',
-      'COMPLETED',
-    ];
-
+  const getCompletionProgress = (order: Order): number => {
     let total = 0;
     let completed = 0;
 
     order.processes.forEach((process) => {
       process.runs.forEach((run) => {
-        if (run.configStatus === 'NOT_CONFIGURED') return;
+        // lifecycle
+        total += run.lifecycle.length;
+        completed += run.lifecycle.filter((step) => step.completed).length;
 
-        total += steps.length - 1;
-        const idx = steps.indexOf(run.configStatus);
-        completed += idx >= 0 ? idx : 0;
+        // fields
+        total += run.fields.length - 1;
+        completed += run.fields.filter((field) => run.values?.[field.key] != null).length;
       });
     });
 
-    return total > 0 ? Math.round((completed / total) * 100) : 0;
+    if (total === 0) return 0;
+
+    return Math.round((completed / total) * 100);
   };
 
   const getStatusConfig = (status: string) => {
@@ -402,7 +388,10 @@ function AdminOrdersContent() {
                 <span className="hidden sm:inline">Filters</span>
               </button>
 
-              {(searchQuery || statusFilter.length < 3 || dateFilter !== 'all' || customerFilter !== 'all') && (
+              {(searchQuery ||
+                statusFilter.length < 3 ||
+                dateFilter !== 'all' ||
+                customerFilter !== 'all') && (
                 <button
                   type="button"
                   onClick={clearFilters}
@@ -423,9 +412,15 @@ function AdminOrdersContent() {
             ].map((status) => {
               const isSelected = statusFilter.includes(status.value);
               const colorClasses = {
-                purple: isSelected ? 'bg-purple-100 border-purple-400 text-purple-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50',
-                yellow: isSelected ? 'bg-yellow-100 border-yellow-400 text-yellow-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50',
-                blue: isSelected ? 'bg-blue-100 border-blue-400 text-blue-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50',
+                purple: isSelected
+                  ? 'bg-purple-100 border-purple-400 text-purple-700'
+                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50',
+                yellow: isSelected
+                  ? 'bg-yellow-100 border-yellow-400 text-yellow-700'
+                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50',
+                blue: isSelected
+                  ? 'bg-blue-100 border-blue-400 text-blue-700'
+                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50',
               };
               return (
                 <button
@@ -433,9 +428,9 @@ function AdminOrdersContent() {
                   type="button"
                   onClick={() => {
                     if (isSelected) {
-                      setStatusFilter(prev => prev.filter(s => s !== status.value));
+                      setStatusFilter((prev) => prev.filter((s) => s !== status.value));
                     } else {
-                      setStatusFilter(prev => [...prev, status.value]);
+                      setStatusFilter((prev) => [...prev, status.value]);
                     }
                   }}
                   className={`px-4 py-2 text-sm font-medium rounded-full border transition-colors ${colorClasses[status.color as keyof typeof colorClasses]}`}
@@ -451,7 +446,6 @@ function AdminOrdersContent() {
           {showFilters && (
             <div className="mt-5 pt-5 border-t border-gray-200">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
                   <select
@@ -489,12 +483,12 @@ function AdminOrdersContent() {
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
             <div className="flex items-center gap-4">
               <p className="text-sm text-gray-600">
-                Showing{' '}
-                <span className="font-semibold text-gray-800">{filteredOrders.length}</span> of{' '}
-                <span className="font-semibold text-gray-800">{ordersData.total}</span> orders
+                Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span>{' '}
+                of <span className="font-semibold text-gray-800">{ordersData.total}</span> orders
                 {ordersData.totalPages > 1 && (
                   <span>
-                    {' '}(Page {ordersData.page} of {ordersData.totalPages})
+                    {' '}
+                    (Page {ordersData.page} of {ordersData.totalPages})
                   </span>
                 )}
               </p>
@@ -548,7 +542,9 @@ function AdminOrdersContent() {
                           </h3>
                           <div className="flex items-center gap-2 mt-1">
                             <User className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                            <span className="text-sm text-gray-700 truncate">{order.customer?.name}</span>
+                            <span className="text-sm text-gray-700 truncate">
+                              {order.customer?.name}
+                            </span>
                             <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full flex-shrink-0">
                               {order.customer?.code}
                             </span>
@@ -586,7 +582,7 @@ function AdminOrdersContent() {
                             <Settings className="w-4 h-4 text-gray-400" />
                             <span className="text-xs text-gray-500">Processes</span>
                           </div>
-                          <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
+                          <p className="text-lg font-bold text-gray-800">{order.totalProcesses}</p>
                         </div>
                       </div>
 
@@ -610,9 +606,7 @@ function AdminOrdersContent() {
                         <div className="space-y-2">
                           {order.processes.slice(0, 3).map((process) => (
                             <div key={process.id} className="flex items-center justify-between">
-                              <span className="text-sm text-gray-700 truncate">
-                                {process.name}
-                              </span>
+                              <span className="text-sm text-gray-700 truncate">{process.name}</span>
                               <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full flex-shrink-0">
                                 {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
                               </span>
@@ -672,10 +666,11 @@ function AdminOrdersContent() {
                           <button
                             key={pageNum}
                             onClick={() => handlePageChange(pageNum)}
-                            className={`px-3 py-1 rounded-lg ${ordersData.page === pageNum
-                              ? 'bg-blue-600 text-white'
-                              : 'border border-gray-300 hover:bg-gray-50'
-                              } transition-colors`}
+                            className={`px-3 py-1 rounded-lg ${
+                              ordersData.page === pageNum
+                                ? 'bg-blue-600 text-white'
+                                : 'border border-gray-300 hover:bg-gray-50'
+                            } transition-colors`}
                           >
                             {pageNum}
                           </button>
@@ -706,12 +701,18 @@ function AdminOrdersContent() {
             </div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders found</h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              {searchQuery || statusFilter.length < 3 || dateFilter !== 'all' || customerFilter !== 'all'
+              {searchQuery ||
+              statusFilter.length < 3 ||
+              dateFilter !== 'all' ||
+              customerFilter !== 'all'
                 ? 'No orders match your current filters. Try adjusting your search criteria.'
                 : 'Get started by creating your first production order.'}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              {(searchQuery || statusFilter.length < 3 || dateFilter !== 'all' || customerFilter !== 'all') && (
+              {(searchQuery ||
+                statusFilter.length < 3 ||
+                dateFilter !== 'all' ||
+                customerFilter !== 'all') && (
                 <button
                   onClick={clearFilters}
                   className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"

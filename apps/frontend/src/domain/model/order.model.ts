@@ -5,6 +5,9 @@ export interface Order {
     code: string;
     quantity: number;
     status: string;
+    jobCode: string;
+    totalProcesses: number;
+    completedProcesses: number;
     createdAt: Date;
 
     customer: {
@@ -18,6 +21,7 @@ export interface Order {
 
 export interface OrderProcess {
     id: string;
+    processId: string;
     name: string;
     status: string;
     runs: ProcessRun[];
