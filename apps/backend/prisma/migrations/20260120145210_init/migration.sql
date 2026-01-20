@@ -1,5 +1,11 @@
 -- CreateEnum
-CREATE TYPE "BillingSource" AS ENUM ('SYSTEM', 'MANUAL', 'RECALCULATION');
+CREATE TYPE "BillingContextType" AS ENUM ('ORDER', 'GROUP');
+
+-- CreateEnum
+CREATE TYPE "BillingSnapshotState" AS ENUM ('DRAFT', 'FINAL');
+
+-- CreateEnum
+CREATE TYPE "CalculationType" AS ENUM ('INITIAL', 'RECALCULATED');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -33,6 +39,7 @@ CREATE TABLE "Customer" (
 CREATE TABLE "OrderSequence" (
     "id" INTEGER NOT NULL DEFAULT 1,
     "nextValue" INTEGER NOT NULL,
+    "lastResetAt" TIMESTAMP(3),
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "OrderSequence_pkey" PRIMARY KEY ("id")
@@ -115,8 +122,12 @@ CREATE TABLE "Order" (
     "quantity" INTEGER NOT NULL,
     "workflowTypeId" TEXT NOT NULL,
     "statusCode" TEXT NOT NULL,
+    "jobCode" TEXT,
     "createdById" TEXT NOT NULL,
+    "totalProcesses" INTEGER NOT NULL DEFAULT 0,
+    "completedProcesses" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lifecycleStartedAt" TIMESTAMP(3),
 
     CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
 );
@@ -128,6 +139,11 @@ CREATE TABLE "OrderProcess" (
     "processId" TEXT NOT NULL,
     "workflowTypeId" TEXT NOT NULL,
     "statusCode" TEXT NOT NULL,
+    "totalRuns" INTEGER NOT NULL DEFAULT 0,
+    "configCompletedRuns" INTEGER NOT NULL DEFAULT 0,
+    "lifecycleCompletedRuns" INTEGER NOT NULL DEFAULT 0,
+    "configCompletedAt" TIMESTAMP(3),
+    "lifecycleCompletedAt" TIMESTAMP(3),
 
     CONSTRAINT "OrderProcess_pkey" PRIMARY KEY ("id")
 );
@@ -207,17 +223,41 @@ CREATE TABLE "Notification" (
 );
 
 -- CreateTable
+CREATE TABLE "BillingContext" (
+    "id" TEXT NOT NULL,
+    "type" "BillingContextType" NOT NULL,
+    "name" TEXT,
+    "description" TEXT,
+    "isFinalized" BOOLEAN NOT NULL DEFAULT false,
+    "finalizedAt" TIMESTAMP(3),
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "BillingContext_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BillingContextOrder" (
+    "id" TEXT NOT NULL,
+    "billingContextId" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "BillingContextOrder_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "BillingSnapshot" (
     "id" TEXT NOT NULL,
-    "orderId" TEXT NOT NULL,
+    "billingContextId" TEXT NOT NULL,
     "version" INTEGER NOT NULL,
     "isLatest" BOOLEAN NOT NULL DEFAULT true,
-    "formula" TEXT NOT NULL,
-    "formulaChecksum" TEXT NOT NULL,
+    "state" "BillingSnapshotState" NOT NULL,
     "inputs" JSONB NOT NULL,
     "result" DECIMAL(18,4) NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'INR',
-    "source" "BillingSource" NOT NULL,
+    "calculationType" "CalculationType" NOT NULL,
     "reason" TEXT,
     "createdBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -229,16 +269,28 @@ CREATE TABLE "BillingSnapshot" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE INDEX "User_isActive_idx" ON "User"("isActive");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Customer_code_key" ON "Customer"("code");
 
 -- CreateIndex
+CREATE INDEX "Customer_isActive_idx" ON "Customer"("isActive");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "WorkflowType_code_key" ON "WorkflowType"("code");
+
+-- CreateIndex
+CREATE INDEX "WorkflowType_isActive_idx" ON "WorkflowType"("isActive");
 
 -- CreateIndex
 CREATE INDEX "WorkflowStatus_workflowTypeId_createdAt_idx" ON "WorkflowStatus"("workflowTypeId", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "WorkflowStatus_workflowTypeId_isInitial_idx" ON "WorkflowStatus"("workflowTypeId", "isInitial");
+
+-- CreateIndex
+CREATE INDEX "WorkflowStatus_workflowTypeId_isTerminal_idx" ON "WorkflowStatus"("workflowTypeId", "isTerminal");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "WorkflowStatus_workflowTypeId_code_key" ON "WorkflowStatus"("workflowTypeId", "code");
@@ -269,9 +321,6 @@ CREATE INDEX "ProcessRunDefinition_runTemplateId_idx" ON "ProcessRunDefinition"(
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ProcessRunDefinition_processId_sortOrder_key" ON "ProcessRunDefinition"("processId", "sortOrder");
-
--- CreateIndex
-CREATE INDEX "Order_code_idx" ON "Order"("code");
 
 -- CreateIndex
 CREATE INDEX "Order_deletedAt_idx" ON "Order"("deletedAt");
@@ -343,10 +392,25 @@ CREATE INDEX "WorkflowAuditLog_aggregateType_aggregateId_idx" ON "WorkflowAuditL
 CREATE INDEX "Notification_userId_isRead_createdAt_idx" ON "Notification"("userId", "isRead", "createdAt");
 
 -- CreateIndex
-CREATE INDEX "BillingSnapshot_orderId_isLatest_idx" ON "BillingSnapshot"("orderId", "isLatest");
+CREATE INDEX "BillingContext_type_idx" ON "BillingContext"("type");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "BillingSnapshot_orderId_version_key" ON "BillingSnapshot"("orderId", "version");
+CREATE INDEX "BillingContext_isFinalized_idx" ON "BillingContext"("isFinalized");
+
+-- CreateIndex
+CREATE INDEX "BillingContextOrder_orderId_idx" ON "BillingContextOrder"("orderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BillingContextOrder_billingContextId_orderId_key" ON "BillingContextOrder"("billingContextId", "orderId");
+
+-- CreateIndex
+CREATE INDEX "BillingSnapshot_billingContextId_isLatest_idx" ON "BillingSnapshot"("billingContextId", "isLatest");
+
+-- CreateIndex
+CREATE INDEX "BillingSnapshot_state_idx" ON "BillingSnapshot"("state");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BillingSnapshot_billingContextId_version_key" ON "BillingSnapshot"("billingContextId", "version");
 
 -- AddForeignKey
 ALTER TABLE "WorkflowStatus" ADD CONSTRAINT "WorkflowStatus_workflowTypeId_fkey" FOREIGN KEY ("workflowTypeId") REFERENCES "WorkflowType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -401,3 +465,12 @@ ALTER TABLE "WorkflowAuditLog" ADD CONSTRAINT "WorkflowAuditLog_workflowTypeId_f
 
 -- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BillingContextOrder" ADD CONSTRAINT "BillingContextOrder_billingContextId_fkey" FOREIGN KEY ("billingContextId") REFERENCES "BillingContext"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BillingContextOrder" ADD CONSTRAINT "BillingContextOrder_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BillingSnapshot" ADD CONSTRAINT "BillingSnapshot_billingContextId_fkey" FOREIGN KEY ("billingContextId") REFERENCES "BillingContext"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

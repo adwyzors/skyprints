@@ -1,66 +1,51 @@
 import { z } from "zod";
 
-/* =========================
- * Money
- * ========================= */
+export const RunDynamicInputsSchema = z.record(
+    z.string(),
+    z.number().finite()
+);
 
-export const MoneySchema = z.object({
-  amount: z.string(),        // decimal as string
-  currency: z.string(),
+export const CreateBillingDraftSchema = z.object({
+    runs: z.record(z.string().uuid(), RunDynamicInputsSchema),
+    reason: z.string().optional()
 });
 
-/* =========================
- * Billing Input (per run)
- * ========================= */
+export type CreateBillingDraftDto =
+    z.infer<typeof CreateBillingDraftSchema>;
 
-export const BillingInputSchema = z.object({
-  runId: z.string(),
-  values: z.record(z.string(), z.number()),
+
+
+export const BillingSnapshotResponseDto = z.object({
+    billingContextId: z.string().uuid(),
+    type: z.enum(["ORDER", "GROUP"]),
+    version: z.number(),
+    intent: z.enum(["DRAFT", "FINAL"]),
+    currency: z.string(),
+    result: z.string(), // Decimal serialized
+    inputs: z.record(z.string(), z.any()),
+    isLatest: z.literal(true),
+    createdAt: z.string()
 });
 
-/* =========================
- * Billing Snapshot (UI-safe)
- * ========================= */
+export type BillingSnapshotResponseDto =
+    z.infer<typeof BillingSnapshotResponseDto>;
 
-export const BillingSnapshotSchema = z.object({
-  version: z.number(),
-  isLatest: z.boolean(),
 
-  total: MoneySchema,
 
-  inputs: z.array(BillingInputSchema),
+export const GetLatestBillingSnapshotDto = z
+    .object({
+        orderId: z.string().uuid().optional(),
+        billingContextId: z.string().uuid().optional()
+    })
+    .refine(
+        data => data.orderId || data.billingContextId,
+        {
+            message: "Either orderId or billingContextId must be provided"
+        }
+    );
 
-  calculationType: z.enum([
-    "INITIAL",
-    "RECALCULATED",
-  ]),
+export type GetLatestBillingSnapshotDto =
+    z.infer<typeof GetLatestBillingSnapshotDto>;
 
-  createdAt: z.string(), // ISO date
-});
 
-/* =========================
- * Latest Billing Response
- * ========================= */
 
-export const LatestBillingSnapshotSchema = z.object({
-  orderProcessId: z.string(),
-  snapshot: BillingSnapshotSchema,
-});
-
-/* =========================
- * Billing History Response
- * ========================= */
-
-export const BillingHistorySchema = z.object({
-  orderProcessId: z.string(),
-  snapshots: z.array(BillingSnapshotSchema),
-});
-
-export type BillingSnapshotDto =
-  z.infer<typeof BillingSnapshotSchema>;
-
-export type LatestBillingSnapshotDto =
-  z.infer<typeof LatestBillingSnapshotSchema>;
-
-export type BillingHistoryDto =
-  z.infer<typeof BillingHistorySchema>;

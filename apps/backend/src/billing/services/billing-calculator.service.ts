@@ -19,14 +19,11 @@ export class BillingCalculatorService {
         private readonly prisma: PrismaService,
         private readonly compiler: FormulaCompiler,
         private readonly engine: MathOnlyFormulaEngine
-    ) { }
+    ) {}
 
     async calculateForOrder(
         orderId: string,
-        runDynamicInputs: Record<
-            string,
-            Record<string, number>
-        > = {}
+        runDynamicInputs: Record<string, Record<string, number>> = {}
     ) {
         const orderProcesses = await this.prisma.orderProcess.findMany({
             where: { orderId },
@@ -85,4 +82,36 @@ export class BillingCalculatorService {
         };
     }
 
+    async calculateForGroup(
+        orders: {
+            orderId: string;
+            runInputs: Record<string, Record<string, number>>;
+        }[]
+    ) {
+        let total = new Decimal(0);
+        const perOrder: Record<string, any> = {};
+
+        for (const { orderId, runInputs } of orders) {
+            const calc = await this.calculateForOrder(
+                orderId,
+                runInputs
+            );
+
+            total = total.plus(calc.result);
+
+            perOrder[orderId] = {
+                result: calc.result,
+                inputs: calc.inputs,
+                formula: calc.formula,
+                checksum: calc.checksum
+            };
+        }
+
+        return {
+            result: total,
+            perOrder,
+            formula: "GROUP_AGGREGATE",
+            checksum: checksumFormula("GROUP_AGGREGATE")
+        };
+    }
 }

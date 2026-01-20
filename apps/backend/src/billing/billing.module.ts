@@ -1,21 +1,22 @@
 import { Module } from "@nestjs/common";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
 
-import { BillingSnapshotController } from "./controller/billing-snapshot.controller";
-import { BillingController } from "./controller/billing.controller";
-
 import { FormulaCompiler } from "./formula/formula-compiler";
 import { MathOnlyFormulaEngine } from "./formula/math-only.formula.engine";
 
 import { OrdersModule } from "../orders/orders.module";
+import { BillingContextController } from "./controller/billing-context.controller";
+import { BillingController } from "./controller/billing-finalize.controller";
 import { BillingCalculatorService } from "./services/billing-calculator.service";
+import { BillingContextResolver } from "./services/billing-context.resolver";
+import { BillingContextService } from "./services/billing-context.service";
 import { BillingSnapshotService } from "./services/billing-snapshot.service";
 import { BillingService } from "./services/billing.service";
 
 @Module({
     controllers: [
         BillingController,
-        BillingSnapshotController
+        BillingContextController
     ],
     providers: [
         PrismaService,
@@ -28,6 +29,8 @@ import { BillingService } from "./services/billing.service";
         // formula
         FormulaCompiler,
         MathOnlyFormulaEngine,
+        BillingContextResolver,
+        BillingContextService
 
     ],
     exports: [

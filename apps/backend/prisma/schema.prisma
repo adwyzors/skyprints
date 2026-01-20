@@ -184,7 +184,6 @@ model ProcessRunDefinition {
 
 model Order {
   id         String @id @default(uuid())
-
   code       String
   deletedAt  DateTime?
 
@@ -193,16 +192,18 @@ model Order {
 
   workflowTypeId String
   statusCode     String
-  jobCode     String?
+  jobCode        String?
 
   createdById String
   createdBy   User     @relation(fields: [createdById], references: [id])
   customer    Customer @relation(fields: [customerId], references: [id])
 
-  totalProcesses              Int      @default(0)
-  completedProcesses Int      @default(0)
+  totalProcesses       Int @default(0)
+  completedProcesses   Int @default(0)
 
   processes OrderProcess[]
+
+  billingContexts BillingContextOrder[]
 
   createdAt DateTime @default(now())
   lifecycleStartedAt DateTime?
@@ -361,33 +362,71 @@ model Notification {
 ///////////////////////////////
 // BILLING
 ///////////////////////////////
+enum BillingContextType {
+  ORDER
+  GROUP
+}
+
+enum BillingSnapshotIntent {
+  DRAFT
+  FINAL
+}
+
+enum CalculationType {
+  INITIAL
+  RECALCULATED
+}
+
+model BillingContext {
+  id            String   @id @default(uuid())
+  type          BillingContextType
+  name          String?
+  description   String?
+
+  orders        BillingContextOrder[]
+  snapshots     BillingSnapshot[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([type])
+}
+
+model BillingContextOrder {
+  id               String @id @default(uuid())
+  billingContextId String
+  orderId          String
+
+  billingContext BillingContext @relation(fields: [billingContextId], references: [id])
+  order          Order          @relation(fields: [orderId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([billingContextId, orderId])
+}
 
 model BillingSnapshot {
-  id              String   @id @default(uuid())
+  id               String   @id @default(uuid())
 
-  orderId         String
-  version         Int
-  isLatest        Boolean  @default(true)
+  billingContextId String
+  version          Int
+  isLatest         Boolean  @default(true)
 
-  formula         String
-  formulaChecksum String
+  intent           BillingSnapshotIntent
 
-  inputs          Json
-  result          Decimal  @db.Decimal(18, 4)
-  currency        String   @default("INR")
+  inputs           Json
+  result           Decimal  @db.Decimal(18, 4)
+  currency         String   @default("INR")
 
-  source          BillingSource
-  reason          String?
+  calculationType  CalculationType
+  reason           String?
 
-  createdBy       String?
-  createdAt       DateTime @default(now())
+  createdBy        String?
+  createdAt        DateTime @default(now())
 
-  @@unique([orderId, version])
-  @@index([orderId, isLatest])
+  billingContext BillingContext @relation(fields: [billingContextId], references: [id])
+
+  @@unique([billingContextId, version])
+  @@index([billingContextId, isLatest])
 }
 
-enum BillingSource {
-  SYSTEM
-  MANUAL
-  RECALCULATION
-}
