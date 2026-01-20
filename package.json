@@ -20,7 +20,9 @@
         "start:all": "npm run dev:backend & npm run dev:frontend"
     },
     "devDependencies": {
+        "@alloc/quick-lru": "^5.2.0",
         "eslint": "^9.39.2",
+        "object-hash": "^3.0.0",
         "prettier": "^3.7.4",
         "prisma": "^6.19.1"
     }

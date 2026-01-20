@@ -1,48 +1,83 @@
 'use client';
 
-import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Calculator, Edit2, FileText, Loader2, Save, X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import ComingSoonConfig from '@/components/orders/ComingSoonConfig';
 import ScreenPrintingConfig from '@/components/orders/ScreenPrintingConfig';
 import { Order } from '@/domain/model/order.model';
+import { getLatestBillingSnapshot, updateBillingSnapshot } from '@/services/billing.service';
 import { getOrderById } from '@/services/orders.service';
+
+interface BillingSnapshot {
+  version: number;
+  isLatest: boolean;
+  total: {
+    amount: string;
+    currency: string;
+  };
+  inputs: Array<{
+    runId: string;
+    values: Record<string, number>;
+  }>;
+  calculationType: string;
+  createdAt: string;
+}
 
 export default function OrderConfigPage() {
   const router = useRouter();
   const { orderId } = useParams<{ orderId: string }>();
 
   const [order, setOrder] = useState<Order | null>(null);
+  const [billingData, setBillingData] = useState<BillingSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingRunId, setEditingRunId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, number>>({});
+  const [isSavingBilling, setIsSavingBilling] = useState(false);
+
+  const showBillingView = useMemo(() => {
+    if (!order) return false;
+    return ['BILLED', 'COMPLETE'].includes(order.status.toUpperCase());
+  }, [order]);
+
+  const fetchAllData = async () => {
+    if (!orderId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Fetch order data
+      const orderData = await getOrderById(orderId);
+      if (!orderData) throw new Error('Order not found');
+      setOrder(orderData);
+
+      // Fetch billing data for billed/completed orders
+      if (['BILLED', 'COMPLETE'].includes(orderData.status.toUpperCase())) {
+        const billingSnapshot = await getLatestBillingSnapshot(orderId);
+        setBillingData(billingSnapshot);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : 'Failed to load order data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
 
-    const fetchOrderData = async () => {
-      if (!orderId) return;
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const orderData = await getOrderById(orderId);
-        if (!cancelled) {
-          if (!orderData) throw new Error('Order not found');
-          setOrder(orderData);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error(err);
-          setError(err instanceof Error ? err.message : 'Failed to load order');
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    const loadData = async () => {
+      await fetchAllData();
     };
 
-    fetchOrderData();
+    if (!cancelled) {
+      loadData();
+    }
+
     return () => {
       cancelled = true;
     };
@@ -57,6 +92,73 @@ export default function OrderConfigPage() {
       console.error('Failed to refresh order:', err);
     }
   };
+
+  const handleEditBilling = (runId: string, values: Record<string, number>) => {
+    setEditingRunId(runId);
+    setEditValues({ ...values });
+  };
+
+  const handleSaveBilling = async () => {
+    if (!orderId || !editingRunId || !billingData) return;
+
+    setIsSavingBilling(true);
+    try {
+      // Find the original input to preserve all its values
+      const originalInput = billingData.inputs.find(input => input.runId === editingRunId);
+
+      const updatedInputs = billingData.inputs.map(input =>
+        input.runId === editingRunId
+          ? {
+            ...input,
+            values: {
+              ...input.values,  // Keep original values
+              ...editValues     // Override with edited values (new_rate)
+            }
+          }
+          : input
+      );
+
+      // Fix: Cast calculationType to the correct type
+      const updatedBilling: BillingSnapshot = {
+        ...billingData,
+        inputs: updatedInputs,
+        calculationType: 'MANUAL_ADJUSTMENT' as const
+      };
+
+      console.log('Saving billing data:', updatedBilling);
+      await updateBillingSnapshot(orderId, updatedBilling);
+      setBillingData(updatedBilling);
+      setEditingRunId(null);
+      await fetchAllData(); // Refresh to get recalculated totals
+    } catch (err) {
+      console.error('Failed to update billing:', err);
+      alert('Failed to update billing data');
+    } finally {
+      setIsSavingBilling(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRunId(null);
+    setEditValues({});
+  };
+
+  const getRunById = (runId: string) => {
+    if (!order) return null;
+    for (const process of order.processes) {
+      const run = process.runs.find(r => r.id === runId);
+      if (run) return { run, processName: process.name };
+    }
+    return null;
+  };
+
+  const allRuns = useMemo(() => {
+    return order?.processes.flatMap(p => p.runs) || [];
+  }, [order]);
+
+  const configuredRunsCount = useMemo(() => {
+    return allRuns.filter(r => r.configStatus === 'COMPLETE').length;
+  }, [allRuns]);
 
   if (loading) {
     return (
@@ -89,16 +191,12 @@ export default function OrderConfigPage() {
     );
   }
 
-  // ✅ FIXED: correct field name
   const mainProcess = order.processes[0];
   const processName = mainProcess?.name;
 
-  const allRuns = order.processes.flatMap(p => p.runs);
-
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 p-4 md:p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* HEADER CARD */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -112,13 +210,14 @@ export default function OrderConfigPage() {
                   <span className="hidden sm:inline">Back to Orders</span>
                 </button>
                 <div className="h-6 w-px bg-gray-300 hidden md:block" />
-                {/* ✅ FIXED */}
-                <h1 className="text-2xl font-bold text-gray-800">{order.id}</h1>
+                <h1 className="text-2xl font-bold text-gray-800">{order.code}</h1>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                  <div className={`w-2 h-2 rounded-full ${order.status === 'BILLED' ? 'bg-purple-500' :
+                    order.status === 'COMPLETE' ? 'bg-green-500' : 'bg-blue-500'
+                    }`} />
                   <span className="text-sm text-gray-600">
                     {order.customer.name} ({order.customer.code})
                   </span>
@@ -129,105 +228,377 @@ export default function OrderConfigPage() {
                     Quantity: {order.quantity}
                   </span>
                 </div>
+                {order.jobCode && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg">
+                    <span className="text-sm font-medium text-blue-700">
+                      Job: {order.jobCode}
+                    </span>
+                  </div>
+                )}
+                {billingData && (
+                  <div className="flex items-center gap-2">
+                    <Calculator className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">
+                      Total: {billingData.total.amount} {billingData.total.currency}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <div className="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+              <div className={`px-4 py-2 rounded-full text-sm font-medium ${order.status === 'BILLED' ? 'bg-purple-100 text-purple-800' :
+                order.status === 'COMPLETE' ? 'bg-green-100 text-green-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
                 {order.status.replace('_', ' ')}
               </div>
               <div className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
                 {order.processes.length} Process
                 {order.processes.length !== 1 ? 'es' : ''}
               </div>
+              {showBillingView && billingData && (
+                <div className="px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Billing v{billingData.version}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* PROCESS NAVIGATION */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
-            Processes
-          </h3>
-          <div className="flex flex-wrap gap-3">
-            {order.processes.map(process => (
-              <div
-                key={process.id}
-                className={`px-4 py-2 rounded-lg border transition-colors ${processName === process.name
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-300 bg-gray-50 text-gray-700'
-                  }`}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                  {/* ✅ FIXED */}
-                  <span className="font-medium">{process.name}</span>
-                  <span className="text-xs bg-white px-2 py-0.5 rounded-full">
-                    {process.runs.length} run
-                    {process.runs.length !== 1 ? 's' : ''}
-                  </span>
+        <div className={`grid gap-6 ${showBillingView ? 'lg:grid-cols-2' : ''}`}>
+          {/* LEFT COLUMN - Processes & Configuration */}
+          <div className="space-y-6">
+            {/* PROCESS NAVIGATION */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Processes
+              </h3>
+              <div className="flex flex-wrap gap-3">
+                {order.processes.map(process => (
+                  <div
+                    key={process.id}
+                    className={`px-4 py-2 rounded-lg border transition-colors ${processName === process.name
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-300 bg-gray-50 text-gray-700'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                      <span className="font-medium">{process.name}</span>
+                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">
+                        {process.runs.length} run
+                        {process.runs.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* CONFIGURATION COMPONENT */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              {processName === "Screen Printing" ? (
+                <ScreenPrintingConfig
+                  order={order}
+                  onRefresh={refreshOrder}
+                  onSaveSuccess={(processId, runId) => {
+                    setOrder(prev => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        processes: prev.processes.map(p =>
+                          p.id === processId
+                            ? {
+                              ...p,
+                              runs: p.runs.map(r =>
+                                r.id === runId
+                                  ? { ...r, configStatus: 'COMPLETE' }
+                                  : r
+                              )
+                            }
+                            : p
+                        )
+                      };
+                    });
+                  }}
+                />
+              ) : (
+                <ComingSoonConfig order={order} />
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN - Billing Information (only for billed/complete) */}
+          {showBillingView && billingData && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      Billing Summary
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Updated: {new Date(billingData.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+                    {billingData.calculationType}
+                  </div>
+                </div>
+
+                {/* TOTAL AMOUNT */}
+                <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl">
+                  <div className="text-sm text-gray-600 mb-1">Total Amount</div>
+                  <div className="text-3xl font-bold text-gray-800">
+                    {billingData.total.amount} {billingData.total.currency}
+                  </div>
+                  {billingData.version > 1 && (
+                    <div className="text-xs text-gray-500 mt-2">
+                      Version {billingData.version} • {billingData.isLatest ? 'Latest' : 'Historical'}
+                    </div>
+                  )}
+                </div>
+
+                {/* RUN-WISE BREAKDOWN */}
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-700">Run-wise Breakdown</h4>
+                  {billingData.inputs.map((input, index) => {
+                    const runInfo = getRunById(input.runId);
+                    return (
+                      <div
+                        key={input.runId}
+                        className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <div className="font-medium text-gray-800">
+                              {runInfo ? runInfo.run.displayName : `Run ${index + 1}`}
+                            </div>
+                            {runInfo && (
+                              <div className="text-sm text-gray-600">
+                                {runInfo.processName}
+                              </div>
+                            )}
+                          </div>
+                          {editingRunId !== input.runId ? (
+                            <button
+                              onClick={() => handleEditBilling(input.runId, input.values)}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              Edit
+                            </button>
+                          ) : (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleSaveBilling}
+                                disabled={isSavingBilling}
+                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                {isSavingBilling ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Save className="w-4 h-4" />
+                                )}
+                                Save
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {editingRunId === input.runId ? (
+                          <div className="space-y-4">
+                            {/* NEW RATE - Billing API Field (highlighted) */}
+                            <div className="p-4 bg-green-50 border-2 border-green-300 rounded-xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="p-1.5 bg-green-600 rounded-lg">
+                                  <Calculator className="w-4 h-4 text-white" />
+                                </div>
+                                <div>
+                                  <div className="font-medium text-green-800">Billing Rate</div>
+                                  <div className="text-xs text-green-600">Saved via Billing API • Creates new version</div>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-green-700 mb-1">
+                                  New Rate (₹ per unit)
+                                </label>
+                                <input
+                                  type="number"
+                                  value={editValues['new_rate'] ?? 0}
+                                  onChange={(e) =>
+                                    setEditValues(prev => ({
+                                      ...prev,
+                                      new_rate: parseFloat(e.target.value) || 0
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 border-2 border-green-400 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-lg font-semibold"
+                                />
+                              </div>
+                            </div>
+
+                            {/* OTHER FIELDS - Order API Fields */}
+                            <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="p-1.5 bg-gray-500 rounded-lg">
+                                  <FileText className="w-4 h-4 text-white" />
+                                </div>
+                                <div>
+                                  <div className="font-medium text-gray-700">Run Details</div>
+                                  <div className="text-xs text-gray-500">Read-only billing reference values</div>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                {Object.entries(editValues)
+                                  .filter(([key]) => key !== 'new_rate')
+                                  .map(([key, value]) => (
+                                    <div key={key} className="text-center p-3 bg-white border border-gray-200 rounded-lg">
+                                      <div className="text-xs text-gray-500 mb-1">
+                                        {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                      </div>
+                                      <div className="font-medium text-gray-800">
+                                        {key.includes('rate') || key.includes('amount') ? `₹${value}` : value}
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {/* NEW RATE - Highlighted display */}
+                            {input.values['new_rate'] !== undefined && (
+                              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <div className="flex items-center justify-between">
+                                  <div className="text-sm text-green-700 font-medium">Billing Rate</div>
+                                  <div className="text-xl font-bold text-green-700">₹{input.values['new_rate']}/unit</div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* OTHER VALUES */}
+                            <div className="grid grid-cols-3 gap-3">
+                              {Object.entries(input.values)
+                                .filter(([key]) => key !== 'new_rate')
+                                .map(([key, value]) => (
+                                  <div key={key} className="text-center p-2 bg-gray-50 rounded">
+                                    <div className="text-xs text-gray-600 mb-1">
+                                      {key.replace(/_/g, ' ')}
+                                    </div>
+                                    <div className="font-medium text-gray-800">
+                                      {key.includes('rate') || key.includes('amount') ? `₹${value}` : value}
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* RECALCULATE BUTTON */}
+                {billingData.calculationType !== 'RECALCULATED' && (
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <button
+                      onClick={() => {
+                        // Implement recalculation logic here
+                        console.log('Recalculate billing');
+                      }}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all"
+                    >
+                      <Calculator className="w-5 h-5" />
+                      Recalculate Billing
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* QUICK SUMMARY */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h4 className="font-medium text-gray-700 mb-4">Order Summary</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-xl">
+                    <div className="text-2xl font-bold text-blue-700">
+                      {order.processes.length}
+                    </div>
+                    <div className="text-sm text-blue-600">Processes</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-xl">
+                    <div className="text-2xl font-bold text-green-700">
+                      {allRuns.length}
+                    </div>
+                    <div className="text-sm text-green-600">Total Runs</div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-xl">
+                    <div className="text-2xl font-bold text-purple-700">
+                      {configuredRunsCount}
+                    </div>
+                    <div className="text-sm text-purple-600">Configured</div>
+                  </div>
+                  <div className="text-center p-4 bg-amber-50 rounded-xl">
+                    <div className="text-2xl font-bold text-amber-700">
+                      {allRuns.length - configuredRunsCount}
+                    </div>
+                    <div className="text-sm text-amber-600">Pending</div>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* CONFIGURATION COMPONENT */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          {processName === 'Screen Printing New' ? (
-            <ScreenPrintingConfig order={order} onRefresh={refreshOrder} />
-          ) : (
-            <ComingSoonConfig order={order} />
+            </div>
           )}
         </div>
 
-        {/* FOOTER */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="text-sm text-gray-600">
-              <p className="font-medium">Order Configuration Summary</p>
-              <p className="mt-1">
-                Configure all runs to move this order to{' '}
-                <span className="font-semibold text-green-600">
-                  PRODUCTION_READY
-                </span>
-              </p>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-600">Configured Runs</p>
-                <p className="text-2xl font-bold text-gray-800">
-                  {
-                    allRuns.filter(
-                      r => r.configStatus === 'CONFIGURED'
-                    ).length
-                  }
-                  <span className="text-sm font-normal text-gray-400">
-                    {' '}
-                    / {allRuns.length}
+        {/* FOOTER (only for configure/production statuses) */}
+        {!showBillingView && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="text-sm text-gray-600">
+                <p className="font-medium">Order Configuration Summary</p>
+                <p className="mt-1">
+                  Configure all runs to move this order to{' '}
+                  <span className="font-semibold text-green-600">
+                    PRODUCTION_READY
                   </span>
                 </p>
               </div>
 
-              {allRuns.every(
-                r => r.configStatus === 'CONFIGURED'
-              ) &&
-                order.status === 'CONFIGURE' && (
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Configured Runs</p>
+                  <p className="text-2xl font-bold text-gray-800">
+                    {configuredRunsCount}
+                    <span className="text-sm font-normal text-gray-400">
+                      {' '}
+                      / {allRuns.length}
+                    </span>
+                  </p>
+                </div>
+
+                {configuredRunsCount === allRuns.length && (
                   <button
-                    onClick={() =>
-                      router.push(
-                        `/admin/orders?selectedOrder=${order.id}`
-                      )
-                    }
-                    className="px-6 py-3 bg-linear-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow"
+                    onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
+                    className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-lg hover:from-green-700 hover:to-green-800 transition-all shadow-sm hover:shadow flex items-center gap-2"
                   >
-                    Start Production
+                    <span>Production Ready</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
                   </button>
                 )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

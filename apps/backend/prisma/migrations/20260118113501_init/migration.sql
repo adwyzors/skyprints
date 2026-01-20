@@ -30,6 +30,15 @@ CREATE TABLE "Customer" (
 );
 
 -- CreateTable
+CREATE TABLE "OrderSequence" (
+    "id" INTEGER NOT NULL DEFAULT 1,
+    "nextValue" INTEGER NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OrderSequence_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "WorkflowType" (
     "id" TEXT NOT NULL,
     "code" TEXT NOT NULL,
@@ -100,6 +109,8 @@ CREATE TABLE "ProcessRunDefinition" (
 -- CreateTable
 CREATE TABLE "Order" (
     "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "deletedAt" TIMESTAMP(3),
     "customerId" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL,
     "workflowTypeId" TEXT NOT NULL,
@@ -160,6 +171,8 @@ CREATE TABLE "OutboxEvent" (
     "eventType" TEXT NOT NULL,
     "payload" JSONB NOT NULL,
     "processed" BOOLEAN NOT NULL DEFAULT false,
+    "failed" BOOLEAN NOT NULL DEFAULT false,
+    "errorMessage" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "OutboxEvent_pkey" PRIMARY KEY ("id")
@@ -258,6 +271,12 @@ CREATE INDEX "ProcessRunDefinition_runTemplateId_idx" ON "ProcessRunDefinition"(
 CREATE UNIQUE INDEX "ProcessRunDefinition_processId_sortOrder_key" ON "ProcessRunDefinition"("processId", "sortOrder");
 
 -- CreateIndex
+CREATE INDEX "Order_code_idx" ON "Order"("code");
+
+-- CreateIndex
+CREATE INDEX "Order_deletedAt_idx" ON "Order"("deletedAt");
+
+-- CreateIndex
 CREATE INDEX "Order_createdAt_idx" ON "Order"("createdAt");
 
 -- CreateIndex
@@ -268,6 +287,9 @@ CREATE INDEX "Order_createdById_idx" ON "Order"("createdById");
 
 -- CreateIndex
 CREATE INDEX "Order_workflowTypeId_idx" ON "Order"("workflowTypeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Order_code_deletedAt_key" ON "Order"("code", "deletedAt");
 
 -- CreateIndex
 CREATE INDEX "OrderProcess_orderId_idx" ON "OrderProcess"("orderId");
@@ -306,7 +328,7 @@ CREATE UNIQUE INDEX "Location_code_key" ON "Location"("code");
 CREATE INDEX "Location_isActive_idx" ON "Location"("isActive");
 
 -- CreateIndex
-CREATE INDEX "OutboxEvent_processed_createdAt_idx" ON "OutboxEvent"("processed", "createdAt");
+CREATE INDEX "OutboxEvent_processed_failed_createdAt_idx" ON "OutboxEvent"("processed", "failed", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "OutboxEvent_aggregateType_aggregateId_idx" ON "OutboxEvent"("aggregateType", "aggregateId");

@@ -7,11 +7,12 @@ import { useEffect, useRef, useState } from "react";
 import { Order } from "@/domain/model/order.model";
 import { getOrderById } from "@/services/orders.service";
 import {
-    CheckCircle,
-    ChevronRight,
-    Circle,
-    Settings
+  CheckCircle,
+  ChevronRight,
+  Circle,
+  Settings
 } from "lucide-react";
+import ConfigurationModal from "./ConfigurationModal";
 
 /* =================================================
    PROPS
@@ -47,6 +48,7 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
   const [locationInput, setLocationInput] = useState<Record<string, string>>({});
   const [editingLocation, setEditingLocation] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [configModalRun, setConfigModalRun] = useState<{ run: any; processName: string } | null>(null);
 
   const router = useRouter();
   const hasFetchedRef = useRef(false);
@@ -286,7 +288,7 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
         <div className="w-1/3 border-r border-gray-200 p-6 flex flex-col h-full">
           <div className="flex-1 overflow-y-auto min-h-0">
             <h2 className="text-xl font-bold text-gray-800 mb-2">
-              {order.id}
+              {order.code}
             </h2>
             <div className="text-sm text-gray-600 space-y-2 mb-6">
               <div className="flex items-center justify-between">
@@ -297,6 +299,12 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                 <span>Code:</span>
                 <span className="font-medium">{order.customer?.code}</span>
               </div>
+              {order.jobCode && (
+                <div className="flex items-center justify-between">
+                  <span>Job Code:</span>
+                  <span className="font-medium text-blue-700">{order.jobCode}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span>Quantity:</span>
                 <span className="font-medium">{order.quantity}</span>
@@ -334,8 +342,10 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                       <div className="px-4 pb-3 pt-1 border-t border-gray-200">
                         <div className="space-y-2">
                           {process.runs.map((run) => {
-                            // Get lifecycle steps for this run
-                            const lifecycleSteps = run.lifecycle || [];
+                            // Get lifecycle steps for this run - filter out COMPLETE/BILLED
+                            const lifecycleSteps = (run.lifecycle || []).filter(
+                              (step: any) => step.code !== 'COMPLETE' && step.code !== 'BILLED'
+                            );
 
                             // Find current step
                             const currentStepIndex = lifecycleSteps.findIndex(
@@ -371,53 +381,18 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                                   </span>
                                 </div>
 
-                                {/* Lifecycle Status Display */}
-                                <div className="mt-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-gray-500 text-xs">
-                                      Current: {getStatusDisplayName(run.lifecycleStatus || "Not started")}
-                                    </span>
-                                    {lifecycleSteps.length > 0 && (
-                                      <span className="text-gray-400 text-xs">
-                                        {completedSteps}/{totalSteps} steps
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {/* Lifecycle Progress Bar */}
-                                  {lifecycleSteps.length > 0 && (
-                                    <div className="mt-1">
-                                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                        <div
-                                          className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                                          style={{ width: `${(completedSteps / totalSteps) * 100}%` }}
-                                        />
-                                      </div>
-
-                                      {/* Lifecycle Steps (mini view) */}
-                                      <div className="flex items-center justify-between mt-1">
-                                        {lifecycleSteps.map((step: any, index: number) => {
-                                          const isCompleted = step.completed;
-                                          const isCurrent = step.code === run.lifecycleStatus && !isCompleted;
-
-                                          return (
-                                            <div key={step.code} className="flex flex-col items-center">
-                                              <div className={`w-2 h-2 rounded-full ${isCompleted
-                                                ? "bg-green-500"
-                                                : isCurrent
-                                                  ? "bg-blue-500"
-                                                  : "bg-gray-300"
-                                                }`} />
-                                              <span className="text-[10px] text-gray-500 mt-1 truncate max-w-[40px]">
-                                                {step.code.split('&')[0]} {/* Show only first part for compactness */}
-                                              </span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
+                                {/* View Configuration Link */}
+                                {run.configStatus === "COMPLETE" && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConfigModalRun({ run, processName: process.name });
+                                    }}
+                                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                  >
+                                    View Configuration →
+                                  </button>
+                                )}
                               </div>
                             );
                           })}
@@ -481,7 +456,10 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                   const isRunComplete = run.lifecycleStatus === 'BILLED';
 
                   // Dynamic lifecycle from run - use the lifecycle array from the run
-                  const lifecycleSteps = run.lifecycle || [];
+                  // Filter out COMPLETE/BILLED steps from display
+                  const lifecycleSteps = (run.lifecycle || []).filter(
+                    (step: any) => step.code !== 'COMPLETE' && step.code !== 'BILLED'
+                  );
                   const shouldShowTimeline = run.configStatus === "COMPLETE" && lifecycleSteps.length > 0;
 
                   return (
@@ -643,6 +621,17 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
             ))}
         </div>
       </div>
+
+      {/* CONFIGURATION MODAL */}
+      {configModalRun && order && (
+        <ConfigurationModal
+          run={configModalRun.run}
+          processName={configModalRun.processName}
+          orderCode={order.code}
+          customerName={order.customer?.name || ''}
+          onClose={() => setConfigModalRun(null)}
+        />
+      )}
     </div>
   );
 }

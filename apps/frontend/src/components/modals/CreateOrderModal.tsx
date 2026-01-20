@@ -4,7 +4,6 @@ import { Customer } from '@/domain/model/customer.model';
 import { ProcessSummary } from '@/domain/model/process.model';
 import { getCustomers } from '@/services/customer.service';
 import { createOrder } from '@/services/orders.service';
-
 import { getProcesses } from '@/services/process.service';
 import { NewOrderPayload } from '@/types/planning';
 import { useEffect, useMemo, useState } from 'react';
@@ -30,10 +29,10 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState<number>(0);
+  const [jobCode, setJobCode] = useState<string>('');
   const [processRows, setProcessRows] = useState<ProcessRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [processes, setProcesses] = useState<ProcessSummary[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
@@ -43,6 +42,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     setCustomerSearch('');
     setSelectedCustomerId(null);
     setQuantity(0);
+    setJobCode('');
     setProcessRows([]);
     setError(null);
   };
@@ -82,13 +82,16 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
 
   /* ================= DERIVED ================= */
 
+  const [showCustomerList, setShowCustomerList] = useState(false);
+
   const filteredCustomers = useMemo(() => {
     const s = customerSearch.toLowerCase().trim();
-    if (!s) return [];
+    // Show all customers when focused and no search, or filter by search
+    if (!s) return showCustomerList ? customers : [];
     return customers.filter(
       (c) => c.name.toLowerCase().includes(s) || c.code?.toLowerCase().includes(s),
     );
-  }, [customerSearch, customers]);
+  }, [customerSearch, customers, showCustomerList]);
 
   const selectedCustomer = useMemo(
     () => customers.find((c) => c.id === selectedCustomerId),
@@ -139,6 +142,8 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
           processId: r.processId,
           count: r.runs,
         })),
+        // Only include jobCode if it has a value
+        ...(jobCode.trim() ? { jobCode: jobCode.trim() } : {}),
       };
 
       // Create order
@@ -238,27 +243,33 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                     <label className="text-sm font-medium text-gray-700">Customer</label>
                     <div className="relative">
                       <input
-                        placeholder="Search by name or code..."
+                        placeholder="Click to select or search..."
                         value={customerSearch}
                         onChange={(e) => {
                           setCustomerSearch(e.target.value);
                           setSelectedCustomerId(null);
                           setError(null);
                         }}
+                        onFocus={() => setShowCustomerList(true)}
+                        onBlur={() => {
+                          // Delay to allow click on dropdown item
+                          setTimeout(() => setShowCustomerList(false), 200);
+                        }}
                         disabled={loading}
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
                       />
-                      {customerSearch &&
+                      {showCustomerList &&
                         !selectedCustomer &&
-                        filteredCustomers?.length &&
-                        filteredCustomers.length > 0 && (
-                          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        filteredCustomers?.length > 0 && (
+                          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                             {filteredCustomers?.map((c) => (
                               <div
                                 key={c.id}
-                                onClick={() => {
+                                onMouseDown={(e) => {
+                                  e.preventDefault(); // Prevent blur before click
                                   setSelectedCustomerId(c.id);
                                   setCustomerSearch(c.name);
+                                  setShowCustomerList(false);
                                   setError(null);
                                 }}
                                 className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
@@ -326,6 +337,22 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                         </span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* JOB CODE */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Job Code (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Enter job code..."
+                      value={jobCode}
+                      onChange={(e) => {
+                        setJobCode(e.target.value);
+                        setError(null);
+                      }}
+                      disabled={loading}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
+                    />
                   </div>
                 </div>
               </div>

@@ -15,6 +15,5 @@ import { OutboxService } from './outbox.service';
         PrismaService
     ],
     exports: [OutboxService],
-    imports: [BillingModule]
 })
 export class OutboxModule { }

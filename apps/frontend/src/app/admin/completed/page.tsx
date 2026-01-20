@@ -2,68 +2,152 @@
 //apps\frontend\src\app\admin\completed\page.tsx
 import CompletedOrderModal from "@/components/modals/CompletedOrderModal";
 import { Order } from "@/domain/model/order.model";
-import { getOrders } from "@/services/orders.service";
+import { GetOrdersParams, getOrders } from "@/services/orders.service";
+import debounce from 'lodash/debounce';
 import { Calendar, CheckCircle, DollarSign, Download, FileText, Filter, Loader2, Package, Search, User, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 
 function CompletedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedOrderId = searchParams.get('selectedOrder');
 
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersData, setOrdersData] = useState<{
+    orders: Order[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>({
+    orders: [],
+    total: 0,
+    page: 1,
+    limit: 12,
+    totalPages: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [dateFilter, setDateFilter] = useState("all");
   const [customerFilter, setCustomerFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Customer data from API
+  const [customers, setCustomers] = useState<{ id: string; name: string; code?: string }[]>([
+    { id: 'all', name: 'All Customers' },
+  ]);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
+  // Fetch customers on mount
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const { getCustomers } = await import('@/services/customer.service');
+        const fetchedCustomers = await getCustomers();
+        setCustomers([
+          { id: 'all', name: 'All Customers' },
+          ...fetchedCustomers.map(c => ({ id: c.id, name: c.name, code: c.code }))
+        ]);
+      } catch (error) {
+        console.error('Failed to fetch customers:', error);
+      }
+    };
+    fetchCustomers();
+  }, []);
+
+  // Debounce search input
+  const debouncedSearchUpdate = useCallback(
+    debounce((value: string) => {
+      setDebouncedSearch(value);
+      // Reset to page 1 when search changes
+      setOrdersData((prev) => ({ ...prev, page: 1 }));
+    }, 500),
+    []
+  );
+
+  useEffect(() => {
+    debouncedSearchUpdate(searchQuery);
+    return () => debouncedSearchUpdate.cancel();
+  }, [searchQuery, debouncedSearchUpdate]);
+
+  // Main data fetching effect
   useEffect(() => {
     let cancelled = false;
 
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        const fetchedOrders = await getOrders();
-        if (!cancelled) setOrders(fetchedOrders);
+        const params: GetOrdersParams = {
+          page: ordersData.page,
+          limit: ordersData.limit,
+          status: 'BILLED', // Only fetch BILLED orders
+        };
+
+        if (debouncedSearch) {
+          params.search = debouncedSearch;
+        }
+
+        // Handle date filters
+        if (dateFilter !== 'all') {
+          const fromDate = new Date();
+          switch (dateFilter) {
+            case 'today':
+              fromDate.setHours(0, 0, 0, 0);
+              params.fromDate = fromDate.toISOString().split('T')[0];
+              break;
+            case 'week':
+              fromDate.setDate(fromDate.getDate() - 7);
+              params.fromDate = fromDate.toISOString().split('T')[0];
+              break;
+            case 'month':
+              fromDate.setMonth(fromDate.getMonth() - 1);
+              params.fromDate = fromDate.toISOString().split('T')[0];
+              break;
+            case 'quarter':
+              fromDate.setMonth(fromDate.getMonth() - 3);
+              params.fromDate = fromDate.toISOString().split('T')[0];
+              break;
+          }
+        }
+
+        // Handle customer filter
+        if (customerFilter !== 'all') {
+          params.customerId = customerFilter;
+        }
+
+        const fetchedData = await getOrders(params);
+        if (!cancelled) {
+          setOrdersData(fetchedData);
+        }
       } catch (error) {
         console.error('Error fetching orders:', error);
+        if (!cancelled) {
+          setOrdersData(prev => ({ ...prev, orders: [], total: 0, totalPages: 0 }));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
-    fetchOrders();
+    const timeoutId = setTimeout(fetchOrders, 300);
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
-  }, []);
+  }, [debouncedSearch, dateFilter, customerFilter, ordersData.page, refreshTrigger]);
 
-  // Filter only BILLED orders
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      // Only show BILLED orders
-      if (order.status !== 'BILLED') {
-        return false;
-      }
+  const handlePageChange = (newPage: number) => {
+    setOrdersData(prev => ({ ...prev, page: newPage }));
+  };
 
-      const orderCode = order.id.slice(0, 8).toUpperCase();
-
-      const matchesSearch =
-        !searchQuery ||
-        orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customer?.code?.toLowerCase().includes(searchQuery.toLowerCase());
-
-      return matchesSearch;
-    });
-  }, [orders, searchQuery]);
+  // Server already filters by status, so we just use the orders directly
+  const filteredOrders = ordersData.orders;
 
   const formatDate = (date: Date) =>
     date.toLocaleDateString('en-US', {
@@ -74,8 +158,10 @@ function CompletedContent() {
 
   const clearFilters = () => {
     setSearchQuery("");
+    setDebouncedSearch('');
     setDateFilter("all");
     setCustomerFilter("all");
+    setOrdersData(prev => ({ ...prev, page: 1 }));
   };
 
   const getStatusConfig = () => ({
@@ -186,7 +272,11 @@ function CompletedContent() {
                     onChange={(e) => setCustomerFilter(e.target.value)}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="all">All Customers</option>
+                    {customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -209,7 +299,13 @@ function CompletedContent() {
           <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
             <div className="flex items-center gap-4">
               <p className="text-sm text-gray-600">
-                Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span> billed orders
+                Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span> of{' '}
+                <span className="font-semibold text-gray-800">{ordersData.total}</span> billed orders
+                {ordersData.totalPages > 1 && (
+                  <span>
+                    {' '}(Page {ordersData.page} of {ordersData.totalPages})
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -230,99 +326,170 @@ function CompletedContent() {
 
         {/* ORDERS GRID */}
         {!loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filteredOrders.map((order) => {
-              const statusConfig = getStatusConfig();
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {filteredOrders.map((order) => {
+                const statusConfig = getStatusConfig();
 
-              return (
-                <div
-                  key={order.id}
-                  onClick={() => router.push(`/admin/completed?selectedOrder=${order.id}`)}
-                  className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-indigo-300 transition-all duration-300 hover:-translate-y-1"
-                >
-                  {/* CARD HEADER */}
-                  <div className={`p-5 ${statusConfig.bgColor}`}>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors">
-                          {order.id.slice(0, 8).toUpperCase()}
-                        </h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <User className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm text-gray-700">{order.customer?.name}</span>
-                          <span className="text-xs px-2 py-1 bg-white/70 text-gray-700 rounded-full">
-                            {order.customer?.code}
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => router.push(`/admin/completed?selectedOrder=${order.id}`)}
+                    className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-indigo-300 transition-all duration-300 hover:-translate-y-1"
+                  >
+                    {/* CARD HEADER */}
+                    <div className={`p-5 ${statusConfig.bgColor}`}>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors">
+                            {order.code}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <User className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm text-gray-700">{order.customer?.name}</span>
+                          </div>
+                          {order.jobCode && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs px-2 py-0.5 bg-white/70 text-gray-600 rounded">
+                                Job: {order.jobCode}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1">
+                          <span
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
+                          >
+                            {statusConfig.icon}
+                            {statusConfig.label}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatDate(order.createdAt)}
                           </span>
                         </div>
                       </div>
-
-                      <div className="flex flex-col items-end gap-1">
-                        <span
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
-                        >
-                          {statusConfig.icon}
-                          {statusConfig.label}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {formatDate(order.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CARD BODY */}
-                  <div className="p-5 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Package className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs text-gray-500">Quantity</span>
-                        </div>
-                        <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4 text-gray-400" />
-                          <span className="text-xs text-gray-500">Processes</span>
-                        </div>
-                        <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
-                      </div>
                     </div>
 
-                    {/* RUNS SUMMARY */}
-                    <div className="pt-3 border-t border-gray-100">
-                      <div className="text-xs text-gray-500 mb-2">Processes:</div>
-                      <div className="space-y-2">
-                        {order.processes.map((process) => (
-                          <div key={process.id} className="flex items-center justify-between">
-                            <span className="text-sm text-gray-700 truncate">{process.name}</span>
-                            <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                              {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
-                            </span>
+                    {/* CARD BODY */}
+                    <div className="p-5 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-4 h-4 text-gray-400" />
+                            <span className="text-xs text-gray-500">Quantity</span>
                           </div>
-                        ))}
+                          <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="w-4 h-4 text-gray-400" />
+                            <span className="text-xs text-gray-500">Processes</span>
+                          </div>
+                          <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
+                        </div>
+                      </div>
+
+                      {/* RUNS SUMMARY */}
+                      <div className="pt-3 border-t border-gray-100">
+                        <div className="text-xs text-gray-500 mb-2">Processes:</div>
+                        <div className="space-y-2">
+                          {order.processes.map((process) => (
+                            <div key={process.id} className="flex items-center justify-between">
+                              <span className="text-sm text-gray-700 truncate">{process.name}</span>
+                              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
+                                {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
+
+                    {/* ACTION BUTTONS */}
+                    <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/admin/completed?selectedOrder=${order.id}`);
+                        }}
+                        className="w-full px-4 py-2.5 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <FileText className="w-4 h-4" />
+                        View Details
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* PAGINATION */}
+            {ordersData.totalPages >= 1 && (
+              <div className="flex items-center justify-center pt-6">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(ordersData.page - 1)}
+                    disabled={ordersData.page === 1}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {(() => {
+                      const totalPages = ordersData.totalPages;
+                      const currentPage = ordersData.page;
+                      const pages: (number | string)[] = [];
+
+                      if (totalPages <= 7) {
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        pages.push(1);
+                        if (currentPage > 3) pages.push('...');
+                        const start = Math.max(2, currentPage - 1);
+                        const end = Math.min(totalPages - 1, currentPage + 1);
+                        for (let i = start; i <= end; i++) {
+                          if (!pages.includes(i)) pages.push(i);
+                        }
+                        if (currentPage < totalPages - 2) pages.push('...');
+                        if (!pages.includes(totalPages)) pages.push(totalPages);
+                      }
+
+                      return pages.map((page, index) => {
+                        if (page === '...') {
+                          return <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">...</span>;
+                        }
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => handlePageChange(page as number)}
+                            className={`px-3 py-1 rounded-lg ${ordersData.page === page
+                              ? 'bg-indigo-600 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50'
+                              } transition-colors`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      });
+                    })()}
                   </div>
 
-                  {/* ACTION BUTTONS */}
-                  <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/admin/completed?selectedOrder=${order.id}`);
-                      }}
-                      className="w-full px-4 py-2.5 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <FileText className="w-4 h-4" />
-                      View Details
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => handlePageChange(ordersData.page + 1)}
+                    disabled={ordersData.page === ordersData.totalPages}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* EMPTY STATE */}

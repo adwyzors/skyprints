@@ -132,7 +132,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
   };
 
   // Check if process is Screen Printing New
-  const isScreenPrintingNew = (processName: string) => processName === "Screen Printing New";
+  const isScreenPrintingNew = (processName: string) => processName === "Screen Printing";
 
   // Loading state
   if (loading) {
@@ -172,7 +172,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                  {order.id.slice(0, 8).toUpperCase()}
+                  {order.code}
                 </h2>
                 <p className="text-gray-600">Billing Generation</p>
               </div>

@@ -6,6 +6,10 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         quantity: order.quantity,
         status: order.statusCode,
         createdAt: order.createdAt.toISOString(),
+        code: order.code,
+        jobCode: order.jobCode,
+        totalProcesses: order.totalProcesses,
+        completedProcesses: order.completedProcesses,
 
         customer: {
             id: order.customer.id,
@@ -16,7 +20,11 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         processes: order.processes.map((op: any) => ({
             id: op.id,
             name: op.process.name,
+            processId: op.process.id,
             status: op.statusCode,
+
+            totalRuns: op.totalRuns,
+            completedRuns: op.lifecycleCompletedRuns,
 
             runs: op.runs.map((run: any) => ({
                 id: run.id,
@@ -32,14 +40,16 @@ export function toOrderSummary(order: any): OrderSummaryDto {
                 ),
 
                 values: run.fields,
-
                 fields: run.runTemplate.fields,
             })),
         })),
     };
-
-
 }
+
+/* =========================================================
+ * LIFECYCLE VISUALIZATION HELPER
+ * ========================================================= */
+
 type LifecycleStatus = {
     code: string;
     isInitial: boolean;
@@ -50,22 +60,20 @@ function buildLifecycleProgress(
     statuses: LifecycleStatus[],
     currentCode: string,
 ) {
-    let hasReachedCurrent = false;
+    let reachedCurrent = false;
 
     return statuses.map(s => {
-        // current step
         if (s.code === currentCode) {
-            hasReachedCurrent = true;
-
+            reachedCurrent = true;
             return {
                 code: s.code,
-                completed: s.isTerminal, // ✅ terminal = completed
+                completed: s.isTerminal,
             };
         }
 
         return {
             code: s.code,
-            completed: !hasReachedCurrent, // only steps BEFORE current are completed
+            completed: !reachedCurrent,
         };
     });
 }

@@ -28,13 +28,13 @@ export default function AppHeader() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMounted]);
 
-const handleLogout = async () => {
-  try {
-    await logout();
-  } finally {
-    setShowProfileMenu(false);
-  }
-};
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      setShowProfileMenu(false);
+    }
+  };
 
   const handleViewProfile = () => {
     // Add view profile logic here
@@ -45,7 +45,7 @@ const handleLogout = async () => {
   // Don't render interactive buttons during SSR
   if (!isMounted) {
     return (
-      <header className="sticky top-0 z-50 bg-linear-to-r from-white to-gray-50 border-b border-gray-200 shadow-sm">
+      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Static version without interactive elements */}
@@ -95,7 +95,7 @@ const handleLogout = async () => {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-linear-to-r from-white to-gray-50 border-b border-gray-200 shadow-sm">
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* LEFT SECTION - LOGO & BRAND */}
