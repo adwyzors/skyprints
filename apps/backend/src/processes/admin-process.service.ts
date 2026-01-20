@@ -214,7 +214,7 @@ export class AdminProcessService {
                 /**
                  * Transition order (guarded inside transitionOrder)
                  */
-                await this.orderService.transitionOrderById(tx, op.orderId);
+                await this.orderService.transitionOrderById(this.prisma, op.orderId);
             }
 
             return { success: true };

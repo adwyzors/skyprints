@@ -14,7 +14,7 @@ export class BillingSnapshotService {
         private readonly prisma: PrismaService,
         private readonly calculator: BillingCalculatorService,
         private readonly contextResolver: BillingContextResolver,
-        private readonly orderService: OrdersService
+        private readonly ordersService: OrdersService
     ) { }
 
     /* =====================================================
@@ -255,22 +255,6 @@ export class BillingSnapshotService {
             }
         });
 
-        // -----------------------------------------------------
-        // 4️⃣ FIRST SNAPSHOT → TRANSITION ORDERS
-        // -----------------------------------------------------
-        if (finalized.version === 1) {
-            this.logger.log(
-                `[finalizeContextTx] First billing snapshot detected — transitioning ${context.orders.length} orders`
-            );
-
-            for (const o of context.orders) {
-                await this.orderService.transitionOrderById(
-                    tx,
-                    o.orderId
-                );
-            }
-        }
-
         return finalized;
     }
 
@@ -320,14 +304,10 @@ export class BillingSnapshotService {
     ===================================================== */
     async finalizeGroup(
         billingContextId: string,
-        inputs: Record<string, Record<string, Record<string, number>>>,
+        inputs: Record<string, any>,
         createdBy?: string
     ) {
-        this.logger.log(
-            `[finalizeGroup] billingContextId=${billingContextId}`
-        );
-
-        return this.prisma.$transaction((tx) =>
+        const result = await this.prisma.$transaction((tx) =>
             this.finalizeContextTx(
                 tx,
                 billingContextId,
@@ -335,7 +315,29 @@ export class BillingSnapshotService {
                 inputs
             )
         );
+
+        // 👇 OUTSIDE TRANSACTION
+        if (result.version === 1) {
+            this.logger.log(
+                `[finalizeGroup] Transitioning orders outside transaction`
+            );
+
+            const context = await this.prisma.billingContext.findUnique({
+                where: { id: billingContextId },
+                include: { orders: true }
+            });
+
+            for (const o of context!.orders) {
+                await this.ordersService.transitionOrderById(
+                    this.prisma, // ❗ NOT tx
+                    o.orderId
+                );
+            }
+        }
+
+        return result;
     }
+
 
     /* =====================================================
        PUBLIC — get latest snapshot
