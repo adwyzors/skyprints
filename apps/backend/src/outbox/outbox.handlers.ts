@@ -8,8 +8,7 @@ export class OutboxHandlers {
     private readonly logger = new Logger(OutboxHandlers.name);
 
     constructor(
-        private readonly prisma: PrismaService,
-        private readonly billingSnapshotWorker: BillingSnapshotWorker,
+        private readonly prisma: PrismaService
     ) { }
 
     async handle(event: {
@@ -32,8 +31,6 @@ export class OutboxHandlers {
                 return this.handleOrderProcessLifecycleTransition(event);
             case 'ORDER_LIFECYCLE_TRANSITION_REQUESTED':
                 return this.handleOrderLifecycleTransition(event);
-            case 'BILLING_SNAPSHOT_REQUESTED':
-                return this.billingSnapshotWorker.handle(event);
             default:
                 this.logger.warn(`Unhandled eventType=${event.eventType}`);
         }
@@ -89,6 +86,7 @@ export class OutboxHandlers {
 
         for (const process of processEntities) {
             const count = processCountMap.get(process.id)!;
+            const totalRuns = count * process.runDefs.length;
 
             const orderProcess = await this.prisma.orderProcess.upsert({
                 where: {
@@ -102,6 +100,9 @@ export class OutboxHandlers {
                     processId: process.id,
                     workflowTypeId: processWorkflow.id,
                     statusCode: initialProcessStatus.code,
+                    totalRuns,
+                    configCompletedRuns: 0,
+                    lifecycleCompletedRuns: 0,
                 },
                 update: {},
             });
@@ -416,23 +417,6 @@ export class OutboxHandlers {
                 return;
             }
 
-            const updated = await tx.orderProcess.updateMany({
-                where: {
-                    id: run.orderProcessId,
-                    lifecycleCompletionSent: false,
-                },
-                data: {
-                    lifecycleCompletionSent: true,
-                },
-            });
-
-            if (updated.count === 0) {
-                this.logger.debug(
-                    `ALL_RUNS_COMPLETED already emitted orderProcessId=${run.orderProcessId}`,
-                );
-                return;
-            }
-
             this.logger.log(
                 `ALL_RUNS_COMPLETED emitted orderProcessId=${run.orderProcessId}`,
             );
@@ -533,23 +517,6 @@ export class OutboxHandlers {
             if (!allCompleted) {
                 this.logger.debug(
                     `Not all OrderProcesses terminal orderId=${orderProcess.orderId}`,
-                );
-                return;
-            }
-
-            const updated = await tx.order.updateMany({
-                where: {
-                    id: orderProcess.orderId,
-                    lifecycleCompletionSent: false,
-                },
-                data: {
-                    lifecycleCompletionSent: true,
-                },
-            });
-
-            if (updated.count === 0) {
-                this.logger.debug(
-                    `Order lifecycle already emitted orderId=${orderProcess.orderId}`,
                 );
                 return;
             }

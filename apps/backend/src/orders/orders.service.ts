@@ -237,11 +237,12 @@ export class OrdersService {
         return this.prisma.$transaction(async (tx) => {
             const processIds = dto.processes.map(p => p.processId);
 
-            const validCount = await tx.process.count({
+            const processes = await tx.process.findMany({
                 where: { id: { in: processIds }, isEnabled: true },
+                select: { id: true },
             });
 
-            if (validCount !== processIds.length) {
+            if (processes.length !== processIds.length) {
                 throw new BadRequestException(
                     'One or more processes are disabled or invalid',
                 );
@@ -265,6 +266,9 @@ export class OrdersService {
                     workflowTypeId: workflow.id,
                     statusCode: initialStatus.code,
                     createdById: SYSTEM_USER_ID,
+
+                    totalProcesses: dto.processes.length,
+                    completedProcesses: 0,
                 },
             });
 
@@ -286,4 +290,87 @@ export class OrdersService {
             return { id: order.id, code };
         });
     }
+
+    /* =========================================================
+     * ORDER TRANSITION
+     * ========================================================= */
+
+    public async transitionOrderById(
+        tx: Prisma.TransactionClient,
+        orderId: string,
+    ): Promise<void> {
+        const order = await tx.order.findUnique({
+            where: { id: orderId },
+            select: {
+                id: true,
+                workflowTypeId: true,
+                statusCode: true,
+            },
+        });
+
+        if (!order) {
+            this.logger.error(`[ORDER][NOT_FOUND] order=${orderId}`);
+            return;
+        }
+
+        await this.transitionOrder(tx, order);
+    }
+
+    public async transitionOrder(
+        tx: Prisma.TransactionClient,
+        order: {
+            id: string;
+            workflowTypeId: string;
+            statusCode: string;
+        },
+    ): Promise<void> {
+
+        const wf = await tx.workflowType.findUnique({
+            where: { id: order.workflowTypeId },
+            select: {
+                id: true,
+                statuses: { select: { id: true, code: true } },
+                transitions: { select: { fromStatusId: true, toStatusId: true } },
+            },
+        });
+
+        if (!wf) {
+            throw new BadRequestException('Order workflow missing');
+        }
+
+        const current = wf.statuses.find(s => s.code === order.statusCode);
+        if (!current) {
+            throw new BadRequestException('Invalid order status');
+        }
+
+        const transition = wf.transitions.find(
+            t => t.fromStatusId === current.id,
+        );
+        if (!transition) {
+            this.logger.log(
+                `[ORDER][NO_TRANSITION] order=${order.id} status=${current.code}`,
+            );
+            return;
+        }
+
+        const toStatus = wf.statuses.find(
+            s => s.id === transition.toStatusId,
+        );
+        if (!toStatus) {
+            throw new BadRequestException('Invalid order transition target');
+        }
+
+        this.logger.log(
+            `[ORDER][TRANSITION] order=${order.id} ${current.code} → ${toStatus.code}`,
+        );
+
+        await tx.order.updateMany({
+            where: {
+                id: order.id,
+                statusCode: order.statusCode,
+            },
+            data: { statusCode: toStatus.code },
+        });
+    }
+
 }

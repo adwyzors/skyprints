@@ -19,15 +19,19 @@ export const OrderProcessRunSchema = z.object({
     values: z.record(z.string(), z.any()),
 
     fields: z.array(TemplateFieldSchema),
-    lifecycle: z.array(z.object({
-        code: z.string(),
-        completed: z.boolean(),
-    })).optional(),
+
+    lifecycle: z
+        .array(
+            z.object({
+                code: z.string(),
+                completed: z.boolean(),
+            }),
+        )
+        .optional(),
 });
 
 export type OrderProcessRunDto =
     z.infer<typeof OrderProcessRunSchema>;
-
 
 /* ---------------- ORDER PROCESS ---------------- */
 
@@ -36,9 +40,11 @@ export const OrderProcessSchema = z.object({
     name: z.string(),
     status: z.string(),
 
+    totalRuns: z.number().int(),
+    completedRuns: z.number().int().optional(),
+
     runs: z.array(OrderProcessRunSchema),
 });
-
 
 /* ---------------- ORDER ---------------- */
 
@@ -48,6 +54,9 @@ export const OrderSummarySchema = z.object({
     status: z.string(),
     createdAt: z.string(),
     code: z.string(),
+
+    totalProcesses: z.number().int(),
+    completedProcesses: z.number().int().optional(),
 
     customer: z.object({
         id: z.string().uuid(),

@@ -7,34 +7,36 @@ import { BillingController } from "./controller/billing.controller";
 import { FormulaCompiler } from "./formula/formula-compiler";
 import { MathOnlyFormulaEngine } from "./formula/math-only.formula.engine";
 
+import { OrdersModule } from "../orders/orders.module";
 import { BillingCalculatorService } from "./services/billing-calculator.service";
 import { BillingSnapshotService } from "./services/billing-snapshot.service";
 import { BillingService } from "./services/billing.service";
 import { BillingSnapshotWorker } from "./workers/billing-snapshot.worker";
 
 @Module({
-  controllers: [
-    BillingController,
-    BillingSnapshotController
-  ],
-  providers: [
-    PrismaService,
+    controllers: [
+        BillingController,
+        BillingSnapshotController
+    ],
+    providers: [
+        PrismaService,
 
-    // core services
-    BillingService,
-    BillingCalculatorService,
-    BillingSnapshotService,
+        // core services
+        BillingService,
+        BillingCalculatorService,
+        BillingSnapshotService,
 
-    // formula
-    FormulaCompiler,
-    MathOnlyFormulaEngine,
+        // formula
+        FormulaCompiler,
+        MathOnlyFormulaEngine,
 
-    // worker
-    BillingSnapshotWorker
-  ],
-  exports: [
-    BillingSnapshotWorker,
-    BillingService
-  ]
+        // worker
+        BillingSnapshotWorker
+    ],
+    exports: [
+        BillingSnapshotWorker,
+        BillingService
+    ],
+    imports: [OrdersModule]
 })
-export class BillingModule {}
+export class BillingModule { }

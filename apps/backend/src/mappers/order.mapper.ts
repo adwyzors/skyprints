@@ -8,6 +8,9 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         createdAt: order.createdAt.toISOString(),
         code: order.code,
 
+        totalProcesses: order.totalProcesses,
+        completedProcesses: order.completedProcesses,
+
         customer: {
             id: order.customer.id,
             code: order.customer.code,
@@ -18,6 +21,10 @@ export function toOrderSummary(order: any): OrderSummaryDto {
             id: op.id,
             name: op.process.name,
             status: op.statusCode,
+
+            /* ✅ PROCESS COUNTERS */
+            totalRuns: op.totalRuns,
+            completedRuns: op.lifecycleCompletedRuns,
 
             runs: op.runs.map((run: any) => ({
                 id: run.id,
@@ -33,14 +40,16 @@ export function toOrderSummary(order: any): OrderSummaryDto {
                 ),
 
                 values: run.fields,
-
                 fields: run.runTemplate.fields,
             })),
         })),
     };
-
-
 }
+
+/* =========================================================
+ * LIFECYCLE VISUALIZATION HELPER
+ * ========================================================= */
+
 type LifecycleStatus = {
     code: string;
     isInitial: boolean;
@@ -51,22 +60,20 @@ function buildLifecycleProgress(
     statuses: LifecycleStatus[],
     currentCode: string,
 ) {
-    let hasReachedCurrent = false;
+    let reachedCurrent = false;
 
     return statuses.map(s => {
-        // current step
         if (s.code === currentCode) {
-            hasReachedCurrent = true;
-
+            reachedCurrent = true;
             return {
                 code: s.code,
-                completed: s.isTerminal, // ✅ terminal = completed
+                completed: s.isTerminal,
             };
         }
 
         return {
             code: s.code,
-            completed: !hasReachedCurrent, // only steps BEFORE current are completed
+            completed: !reachedCurrent,
         };
     });
 }

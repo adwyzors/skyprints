@@ -193,12 +193,14 @@ model Order {
 
   workflowTypeId String
   statusCode     String
+  jobCode     String?
 
   createdById String
   createdBy   User     @relation(fields: [createdById], references: [id])
   customer    Customer @relation(fields: [customerId], references: [id])
 
-  lifecycleCompletionSent  Boolean  @default(false)
+  totalProcesses              Int      @default(0)
+  completedProcesses Int      @default(0)
 
   processes OrderProcess[]
 
@@ -224,8 +226,12 @@ model OrderProcess {
   workflowTypeId String
   statusCode     String
 
+  totalRuns              Int       @default(0)
+  configCompletedRuns    Int       @default(0)
+  lifecycleCompletedRuns Int       @default(0)
+
   configCompletedAt        DateTime?
-  lifecycleCompletionSent Boolean @default(false)
+  lifecycleCompletedAt   DateTime?
 
   order   Order   @relation(fields: [orderId], references: [id])
   process Process @relation(fields: [processId], references: [id])
