@@ -392,7 +392,7 @@ export class OrdersService {
             this.logger.log(`Order created id=${orderId}, code=${code}`);
 
             return { id: orderId, code };
-        }, { timeout: 30000 }); // 30 second timeout for large orders
+        }, { timeout: 10000 }); // TODO: fix timeout for large orders
     }
 
 
