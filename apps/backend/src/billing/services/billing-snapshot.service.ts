@@ -4,8 +4,13 @@ import { Prisma } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
 import { OrdersService } from "../../orders/orders.service";
+import {
+    isOrderBillingInputs,
+    OrderBillingInputs
+} from "../types/billing-snapshot.types";
 import { BillingCalculatorService } from "./billing-calculator.service";
 import { BillingContextResolver } from "./billing-context.resolver";
+
 @Injectable()
 export class BillingSnapshotService {
     private readonly logger = new Logger(BillingSnapshotService.name);
@@ -78,6 +83,126 @@ export class BillingSnapshotService {
             }
         });
     }
+
+    public async createGroupSnapshot(
+        billingContextId: string,
+        createdBy?: string
+    ) {
+        this.logger.log(
+            `[createGroupSnapshot] billingContextId=${billingContextId}`
+        );
+
+        return this.prisma.$transaction((tx) =>
+            this.createGroupSnapshotTx(
+                tx,
+                billingContextId,
+                createdBy
+            )
+        );
+    }
+
+
+    public async createGroupSnapshotTx(
+        tx: Prisma.TransactionClient,
+        billingContextId: string,
+        createdBy?: string
+    ) {
+        this.logger.debug(
+            `[createGroupSnapshotTx] billingContextId=${billingContextId}`
+        );
+
+        const context = await tx.billingContext.findUnique({
+            where: { id: billingContextId },
+            include: { orders: true }
+        });
+
+        if (!context || context.type !== "GROUP") {
+            throw new Error("Invalid GROUP billing context");
+        }
+
+        if (context.orders.length === 0) {
+            throw new Error(
+                "Cannot create group snapshot without orders"
+            );
+        }
+
+        const orderSnapshots: {
+            orderId: string;
+            inputs: OrderBillingInputs;
+        }[] = [];
+
+        for (const o of context.orders) {
+            const snapshot = await tx.billingSnapshot.findFirst({
+                where: {
+                    intent: "FINAL",
+                    billingContext: {
+                        type: "ORDER",
+                        orders: {
+                            some: { orderId: o.orderId }
+                        }
+                    }
+                },
+                orderBy: { version: "desc" }
+            });
+
+            if (!snapshot) {
+                throw new Error(
+                    `Missing FINAL snapshot for order=${o.orderId}`
+                );
+            }
+
+            if (!isOrderBillingInputs(snapshot.inputs)) {
+                throw new Error(
+                    `Invalid billing snapshot inputs for order=${o.orderId}`
+                );
+            }
+
+            orderSnapshots.push({
+                orderId: o.orderId,
+                inputs: snapshot.inputs
+            });
+        }
+
+        const calc =
+            await this.calculator.calculateForGroupFromSnapshots(
+                orderSnapshots
+            );
+
+        const version =
+            (await tx.billingSnapshot.count({
+                where: { billingContextId }
+            })) + 1;
+
+        const snapshot = tx.billingSnapshot.create({
+            data: {
+                billingContextId,
+                version,
+                intent: "FINAL",
+                isLatest: true,
+                inputs: calc.perOrderInputs,
+                result: calc.result,
+                currency: "INR",
+                calculationType: "RECALCULATED",
+                createdBy
+            }
+        });
+
+        if (version === 1) {
+            this.logger.log(
+                `[finalizeGroup] billingContextId=${billingContextId} transitioning order status snapshot.version=${version}`
+            )
+            await this.transitionOrdersForContext(
+                billingContextId
+            );
+        } else {
+            this.logger.log(
+                `[finalizeGroup] billingContextId=${billingContextId} NOT transitioning order status snapshot.version=${version}`
+            )
+        }
+
+        return snapshot;
+    }
+
 
     /* =====================================================
        PUBLIC — controller-safe
@@ -264,7 +389,7 @@ export class BillingSnapshotService {
     ===================================================== */
     async finalizeOrder(
         orderId: string,
-        inputs: Record<string, Record<string, number>>,
+        inputs: OrderBillingInputs,
         reason?: string,
         createdBy?: string
     ) {
@@ -297,11 +422,8 @@ export class BillingSnapshotService {
             };
         });
 
-        // 👇 OUTSIDE TRANSACTION
         if (result.snapshot.version === 1) {
-            await this.transitionOrdersForContext(
-                result.contextId
-            );
+            await this.transitionOrdersForContext(result.contextId);
         }
 
         return result.snapshot;
@@ -313,61 +435,38 @@ export class BillingSnapshotService {
     ===================================================== */
     async finalizeGroup(
         billingContextId: string,
-        inputs: Record<string, any>,
         createdBy?: string
     ) {
-        const result = await this.prisma.$transaction(async (tx) => {
-            const snapshot = await this.finalizeContextTx(
-                tx,
-                billingContextId,
-                createdBy,
-                inputs
-            );
+        this.logger.log(
+            `[finalizeGroup] billingContextId=${billingContextId}`
+        );
 
-            return {
-                snapshot,
-                contextId: billingContextId
-            };
-        });
-
-        // 👇 OUTSIDE TRANSACTION
-        if (result.snapshot.version === 1) {
-            await this.transitionOrdersForContext(
-                result.contextId
-            );
-        }
-
-        return result.snapshot;
+        return await this.prisma.$transaction((tx) =>
+            this.createGroupSnapshotTx(tx, billingContextId, createdBy)
+        );
     }
 
+
+    /* =====================================================
+       INTERNAL
+    ===================================================== */
     private async transitionOrdersForContext(
         billingContextId: string
     ) {
-        this.logger.log(
-            `[transitionOrdersForContext] billingContextId=${billingContextId}`
-        );
-
         const context = await this.prisma.billingContext.findUnique({
             where: { id: billingContextId },
             include: { orders: true }
         });
 
-        if (!context) {
-            this.logger.error(
-                `[transitionOrdersForContext] Context not found`
-            );
-            return;
-        }
+        if (!context) return;
 
         for (const o of context.orders) {
             await this.ordersService.transitionOrderById(
-                this.prisma, // ❗ OUTSIDE tx
+                this.prisma,
                 o.orderId
             );
         }
     }
-
-
 
     /* =====================================================
        PUBLIC — get latest snapshot
@@ -375,10 +474,6 @@ export class BillingSnapshotService {
     async getLatestSnapshot(
         dto: GetLatestBillingSnapshotDto
     ) {
-        this.logger.log(
-            `[getLatestSnapshot] orderId=${dto.orderId ?? "-"} billingContextId=${dto.billingContextId ?? "-"}`
-        );
-
         let context;
 
         if (dto.billingContextId) {
@@ -397,9 +492,6 @@ export class BillingSnapshotService {
         }
 
         if (!context) {
-            this.logger.error(
-                `[getLatestSnapshot] Billing context not found`
-            );
             throw new Error("Billing context not found");
         }
 
@@ -412,15 +504,8 @@ export class BillingSnapshotService {
         });
 
         if (!snapshot) {
-            this.logger.error(
-                `[getLatestSnapshot] No snapshot found billingContextId=${context.id}`
-            );
             throw new Error("No snapshot found");
         }
-
-        this.logger.debug(
-            `[getLatestSnapshot] Found snapshot id=${snapshot.id} version=${snapshot.version} intent=${snapshot.intent}`
-        );
 
         return {
             billingContextId: context.id,
