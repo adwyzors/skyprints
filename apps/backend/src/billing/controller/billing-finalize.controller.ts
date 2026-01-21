@@ -41,11 +41,9 @@ export class BillingController {
     @Post("finalize/group")
     finalizeGroup(@Body() body: {
         billingContextId: string;
-        inputs: Record<string, Record<string, Record<string, number>>>;
     }) {
         return this.service.finalizeGroup(
-            body.billingContextId,
-            body.inputs
+            body.billingContextId
         );
     }
 

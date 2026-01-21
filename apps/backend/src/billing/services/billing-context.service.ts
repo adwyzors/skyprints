@@ -1,26 +1,41 @@
 import type { CreateBillingContextDto } from "@app/contracts";
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
+import { BillingSnapshotService } from "./billing-snapshot.service";
 
 @Injectable()
 export class BillingContextService {
     private readonly logger = new Logger(BillingContextService.name);
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(private readonly prisma: PrismaService,
+        private readonly billingSnapshotService: BillingSnapshotService
+    ) { }
 
     async create(dto: CreateBillingContextDto) {
         this.logger.log(
-            `Creating billing context type=${dto.type}`
+            `Creating billing context type=${dto.type} name=${dto.name}`
         );
 
         const { orderIds = [], ...contextData } = dto;
 
-        return this.prisma.$transaction(async (tx) => {
-            // --------------------------------------------------
-            // 1️⃣ Validate orderIds (if provided)
-            // --------------------------------------------------
+        if (dto.type === "GROUP" && dto.name) {
+            const existing = await this.prisma.billingContext.findFirst({
+                where: {
+                    type: "GROUP",
+                    name: dto.name
+                }
+            });
+
+            if (existing) {
+                throw new BadRequestException(
+                    `Billing group with name '${dto.name}' already exists`
+                );
+            }
+        }
+
+        const result = await this.prisma.$transaction(async (tx) => {
             if (orderIds.length > 0) {
-                const existingOrders = await tx.order.findMany({
+                const validOrders = await tx.order.findMany({
                     where: {
                         id: { in: orderIds },
                         deletedAt: null
@@ -28,37 +43,20 @@ export class BillingContextService {
                     select: { id: true }
                 });
 
-                const existingIds = new Set(
-                    existingOrders.map(o => o.id)
-                );
-
-                const missing = orderIds.filter(
-                    id => !existingIds.has(id)
-                );
-
-                if (missing.length > 0) {
-                    this.logger.error(
-                        `Invalid orderIds: ${missing.join(", ")}`
-                    );
-
+                if (validOrders.length !== orderIds.length) {
                     throw new BadRequestException(
-                        `Invalid orderIds: ${missing.join(", ")}`
+                        "Invalid orderIds provided"
                     );
                 }
             }
 
-            // --------------------------------------------------
-            // 2️⃣ Create billing context
-            // --------------------------------------------------
             const context = await tx.billingContext.create({
                 data: {
                     ...contextData,
                     orders: orderIds.length
                         ? {
                             createMany: {
-                                data: orderIds.map(orderId => ({
-                                    orderId
-                                })),
+                                data: orderIds.map(orderId => ({ orderId })),
                                 skipDuplicates: true
                             }
                         }
@@ -67,12 +65,31 @@ export class BillingContextService {
             });
 
             this.logger.log(
-                `Billing context created id=${context.id} orders=${orderIds.length}`
+                `Billing context created id=${context.id}`
             );
 
-            return context;
+            return {
+                context,
+                shouldCreateGroupSnapshot:
+                    context.type === "GROUP" &&
+                    orderIds.length > 0
+            };
         });
+
+        if (result.shouldCreateGroupSnapshot) {
+            this.logger.log(
+                `Creating GROUP snapshot outside transaction context=${result.context.id}`
+            );
+
+            await this.billingSnapshotService.createGroupSnapshot(
+                result.context.id
+            );
+        }
+
+        return result.context;
     }
+
+
 
     async getAllContexts() {
         this.logger.log("Fetching all billing contexts");
