@@ -1,5 +1,5 @@
 import type { AddOrdersToBillingContextDto, CreateBillingContextDto } from "@app/contracts";
-import { Body, Controller, Delete, Param, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
 import { BillingContextService } from "../services/billing-context.service";
 
 @Controller("billing/contexts")
@@ -39,5 +39,15 @@ export class BillingContextController {
         @Param("orderId") orderId: string
     ) {
         return this.service.removeOrder(contextId, orderId);
+    }
+
+    @Get()
+    getAll() {
+        return this.service.getAllContexts();
+    }
+
+    @Get(":contextId")
+    getById(@Param("contextId") contextId: string) {
+        return this.service.getContextById(contextId);
     }
 }

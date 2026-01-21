@@ -48,4 +48,21 @@ export type GetLatestBillingSnapshotDto =
     z.infer<typeof GetLatestBillingSnapshotDto>;
 
 
+    export const BillingContextResponseSchema = z.object({
+    id: z.string().uuid(),
+    type: z.enum(["ORDER", "GROUP"]),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    metadata: z.any().optional(),
+
+    orderIds: z.array(z.string().uuid()),
+
+    latestSnapshot: BillingSnapshotResponseDto.nullable()
+});
+
+export type BillingContextResponseDto =
+    z.infer<typeof BillingContextResponseSchema>;
+
+
+
 

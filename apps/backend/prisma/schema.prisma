@@ -390,6 +390,7 @@ model BillingContext {
   updatedAt     DateTime @updatedAt
 
   @@index([type])
+  @@index([id])
 }
 
 model BillingContextOrder {

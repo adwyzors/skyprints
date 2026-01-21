@@ -74,6 +74,103 @@ export class BillingContextService {
         });
     }
 
+    async getAllContexts() {
+        this.logger.log("Fetching all billing contexts");
+
+        const contexts = await this.prisma.billingContext.findMany({
+            include: {
+                _count: {
+                    select: { orders: true }
+                },
+                snapshots: {
+                    where: { isLatest: true },
+                    take: 1
+                }
+            },
+            orderBy: { createdAt: "desc" },
+            where: { type: "GROUP" }
+        });
+
+        return contexts.map(ctx => {
+            const snapshot = ctx.snapshots[0];
+
+            return {
+                id: ctx.id,
+                type: ctx.type,
+                name: ctx.name,
+                description: ctx.description,
+                ordersCount: ctx._count.orders,
+
+                latestSnapshot: snapshot
+                    ? {
+                        id: snapshot.id,
+                        version: snapshot.version,
+                        intent: snapshot.intent,
+                        isDraft: snapshot.intent === "DRAFT",
+                        result: snapshot.result.toString(),
+                        currency: snapshot.currency,
+                        calculationType: snapshot.calculationType,
+                        createdAt: snapshot.createdAt
+                    }
+                    : null
+            };
+        });
+    }
+
+    async getContextById(contextId: string) {
+        this.logger.log(`Fetching billing context id=${contextId}`);
+
+        const context = await this.prisma.billingContext.findUnique({
+            where: { id: contextId },
+            include: {
+                orders: {
+                    select: {
+                        orderId: true
+                    }
+                },
+                snapshots: {
+                    where: { isLatest: true },
+                    take: 1
+                }
+            }
+        });
+
+        if (!context) {
+            throw new BadRequestException(
+                `Billing context not found: ${contextId}`
+            );
+        }
+
+        const snapshot = context.snapshots[0];
+
+        return {
+            id: context.id,
+            type: context.type,
+            name: context.name,
+            description: context.description,
+
+            orderIds: context.orders.map(o => o.orderId),
+
+            latestSnapshot: snapshot
+                ? {
+                    id: snapshot.id,
+                    version: snapshot.version,
+                    intent: snapshot.intent,
+                    isDraft: snapshot.intent === "DRAFT",
+
+                    inputs: snapshot.inputs,
+                    result: snapshot.result.toString(),
+                    currency: snapshot.currency,
+
+                    calculationType: snapshot.calculationType,
+                    reason: snapshot.reason,
+
+                    createdAt: snapshot.createdAt
+                }
+                : null
+        };
+    }
+
     removeOrder(contextId: string, orderId: string) {
         this.logger.log(
             `Removing order=${orderId} from context=${contextId}`

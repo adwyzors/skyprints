@@ -268,20 +268,14 @@ export class BillingSnapshotService {
         reason?: string,
         createdBy?: string
     ) {
-        this.logger.log(
-            `[finalizeOrder] orderId=${orderId}`
-        );
+        this.logger.log(`[finalizeOrder] orderId=${orderId}`);
 
-        return this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.$transaction(async (tx) => {
             const context =
                 await this.contextResolver.resolveOrderContext(
                     tx,
                     orderId
                 );
-
-            this.logger.debug(
-                `[finalizeOrder] Using billingContextId=${context.id}`
-            );
 
             await this.saveDraftTx(
                 tx,
@@ -291,13 +285,28 @@ export class BillingSnapshotService {
                 createdBy
             );
 
-            return this.finalizeContextTx(
+            const snapshot = await this.finalizeContextTx(
                 tx,
                 context.id,
                 createdBy
             );
+
+            return {
+                snapshot,
+                contextId: context.id
+            };
         });
+
+        // 👇 OUTSIDE TRANSACTION
+        if (result.snapshot.version === 1) {
+            await this.transitionOrdersForContext(
+                result.contextId
+            );
+        }
+
+        return result.snapshot;
     }
+
 
     /* =====================================================
        PUBLIC — finalize GROUP
@@ -307,36 +316,57 @@ export class BillingSnapshotService {
         inputs: Record<string, any>,
         createdBy?: string
     ) {
-        const result = await this.prisma.$transaction((tx) =>
-            this.finalizeContextTx(
+        const result = await this.prisma.$transaction(async (tx) => {
+            const snapshot = await this.finalizeContextTx(
                 tx,
                 billingContextId,
                 createdBy,
                 inputs
-            )
-        );
-
-        // 👇 OUTSIDE TRANSACTION
-        if (result.version === 1) {
-            this.logger.log(
-                `[finalizeGroup] Transitioning orders outside transaction`
             );
 
-            const context = await this.prisma.billingContext.findUnique({
-                where: { id: billingContextId },
-                include: { orders: true }
-            });
+            return {
+                snapshot,
+                contextId: billingContextId
+            };
+        });
 
-            for (const o of context!.orders) {
-                await this.ordersService.transitionOrderById(
-                    this.prisma, // ❗ NOT tx
-                    o.orderId
-                );
-            }
+        // 👇 OUTSIDE TRANSACTION
+        if (result.snapshot.version === 1) {
+            await this.transitionOrdersForContext(
+                result.contextId
+            );
         }
 
-        return result;
+        return result.snapshot;
     }
+
+    private async transitionOrdersForContext(
+        billingContextId: string
+    ) {
+        this.logger.log(
+            `[transitionOrdersForContext] billingContextId=${billingContextId}`
+        );
+
+        const context = await this.prisma.billingContext.findUnique({
+            where: { id: billingContextId },
+            include: { orders: true }
+        });
+
+        if (!context) {
+            this.logger.error(
+                `[transitionOrdersForContext] Context not found`
+            );
+            return;
+        }
+
+        for (const o of context.orders) {
+            await this.ordersService.transitionOrderById(
+                this.prisma, // ❗ OUTSIDE tx
+                o.orderId
+            );
+        }
+    }
+
 
 
     /* =====================================================
