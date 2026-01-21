@@ -2,14 +2,12 @@
 export interface BillingSnapshot {
   version: number;
   isLatest: boolean;
-  total: {
-    amount: string;
-    currency: string;
-  };
-  inputs: Array<{
-    runId: string;
-    values: Record<string, number>;
-  }>;
-  calculationType: 'INITIAL' | 'RECALCULATED' | 'MANUAL_ADJUSTMENT' | string; // Add string to union
+  result: string;
+  currency: string;
+  billingContextId?: string;
+  type?: string;
+  // inputs is an object keyed by runId: { runId: { new_rate: X, quantity: Y, ... } }
+  inputs: Record<string, Record<string, number>>;
+  calculationType: 'INITIAL' | 'RECALCULATED' | 'MANUAL_ADJUSTMENT' | string;
   createdAt: string;
 }
