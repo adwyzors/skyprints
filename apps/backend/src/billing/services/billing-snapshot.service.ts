@@ -132,7 +132,7 @@ export class BillingSnapshotService {
         }[] = [];
 
         for (const o of context.orders) {
-            const snapshot = await tx.billingSnapshot.findFirst({
+            let snapshot = await tx.billingSnapshot.findFirst({
                 where: {
                     intent: "FINAL",
                     billingContext: {

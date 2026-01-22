@@ -1,12 +1,13 @@
 "use client";
 //apps\frontend\src\app\admin\completed\page.tsx
 import CompletedOrderModal from "@/components/modals/CompletedOrderModal";
+import CreateGroupModal from "@/components/modals/CreateGroupModal";
 import { Order } from "@/domain/model/order.model";
 import { GetOrdersParams, getOrders } from "@/services/orders.service";
 import debounce from 'lodash/debounce';
-import { Calendar, CheckCircle, DollarSign, Download, FileText, Filter, Loader2, Package, Search, User, X } from "lucide-react";
+import { Calendar, CheckCircle, CheckSquare, DollarSign, Download, FileText, Filter, Loader2, Package, Search, User, Users, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 function CompletedContent() {
   const router = useRouter();
@@ -34,6 +35,11 @@ function CompletedContent() {
   const [showFilters, setShowFilters] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Selection mode state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<Map<string, Order>>(new Map());
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
 
   // Customer data from API
   const [customers, setCustomers] = useState<{ id: string; name: string; code?: string }[]>([
@@ -171,6 +177,48 @@ function CompletedContent() {
     bgColor: 'bg-indigo-50',
   });
 
+  // Selection helpers
+  const toggleOrderSelection = (order: Order) => {
+    setSelectedOrders((prev) => {
+      const newMap = new Map(prev);
+      if (newMap.has(order.id)) {
+        newMap.delete(order.id);
+      } else {
+        newMap.set(order.id, order);
+      }
+      return newMap;
+    });
+  };
+
+  const isOrderSelected = (orderId: string) => selectedOrders.has(orderId);
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedOrders(new Map());
+  };
+
+  const handleGroupCreated = () => {
+    exitSelectionMode();
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
+  // Compute display orders: selected orders pinned at top + search results (excluding already selected)
+  const displayOrders = useMemo(() => {
+    const selectedArray = Array.from(selectedOrders.values());
+    const selectedIds = new Set(selectedOrders.keys());
+
+    // Filter out already selected orders from the fetched results
+    const nonSelectedOrders = filteredOrders.filter((o) => !selectedIds.has(o.id));
+
+    // When searching, show selected orders first, then search results
+    if (debouncedSearch && selectedArray.length > 0) {
+      return [...selectedArray, ...nonSelectedOrders];
+    }
+
+    // When not searching, just show fetched orders (selected will be highlighted)
+    return filteredOrders;
+  }, [filteredOrders, selectedOrders, debouncedSearch]);
+
   if (!isMounted) {
     return null;
   }
@@ -186,13 +234,44 @@ function CompletedContent() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors">
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export CSV</span>
-            </button>
-            <div className="px-4 py-2.5 bg-indigo-100 text-indigo-800 rounded-xl text-sm font-medium">
-              {filteredOrders.length} billed orders
-            </div>
+            {!isSelectionMode ? (
+              <>
+                <button
+                  onClick={() => setIsSelectionMode(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 border border-indigo-200 text-indigo-700 font-medium rounded-xl hover:bg-indigo-50 transition-colors"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  Select
+                </button>
+                <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors">
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export CSV</span>
+                </button>
+                <div className="px-4 py-2.5 bg-indigo-100 text-indigo-800 rounded-xl text-sm font-medium">
+                  {filteredOrders.length} billed orders
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="px-4 py-2.5 bg-indigo-100 text-indigo-800 rounded-xl text-sm font-medium">
+                  {selectedOrders.size} selected
+                </div>
+                <button
+                  onClick={exitSelectionMode}
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setShowCreateGroupModal(true)}
+                  disabled={selectedOrders.size < 2}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
+                  <Users className="w-4 h-4" />
+                  Create Group
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -328,17 +407,27 @@ function CompletedContent() {
         {!loading && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {filteredOrders.map((order) => {
+              {displayOrders.map((order) => {
                 const statusConfig = getStatusConfig();
+                const isSelected = isOrderSelected(order.id);
 
                 return (
                   <div
                     key={order.id}
-                    onClick={() => router.push(`/admin/completed?selectedOrder=${order.id}`)}
-                    className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-indigo-300 transition-all duration-300 hover:-translate-y-1"
+                    onClick={() => {
+                      if (isSelectionMode) {
+                        toggleOrderSelection(order);
+                      } else {
+                        router.push(`/admin/completed?selectedOrder=${order.id}`);
+                      }
+                    }}
+                    className={`group bg-white rounded-2xl border overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${isSelected
+                      ? 'border-indigo-500 ring-2 ring-indigo-500 ring-offset-2'
+                      : 'border-gray-200 hover:border-indigo-300'
+                      }`}
                   >
                     {/* CARD HEADER */}
-                    <div className={`p-5 ${statusConfig.bgColor}`}>
+                    <div className={`p-5 ${statusConfig.bgColor} relative`}>
                       <div className="flex items-start justify-between">
                         <div>
                           <h3 className="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors">
@@ -357,16 +446,26 @@ function CompletedContent() {
                           )}
                         </div>
 
+                        {/* SELECTION CHECKBOX OR STATUS */}
                         <div className="flex flex-col items-end gap-1">
-                          <span
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
-                          >
-                            {statusConfig.icon}
-                            {statusConfig.label}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {formatDate(order.createdAt)}
-                          </span>
+                          {isSelectionMode ? (
+                            <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'
+                              }`}>
+                              {isSelected && <CheckCircle className="w-4 h-4 text-white" />}
+                            </div>
+                          ) : (
+                            <>
+                              <span
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
+                              >
+                                {statusConfig.icon}
+                                {statusConfig.label}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatDate(order.createdAt)}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -407,19 +506,21 @@ function CompletedContent() {
                       </div>
                     </div>
 
-                    {/* ACTION BUTTONS */}
-                    <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/admin/completed?selectedOrder=${order.id}`);
-                        }}
-                        className="w-full px-4 py-2.5 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <FileText className="w-4 h-4" />
-                        View Details
-                      </button>
-                    </div>
+                    {/* ACTION BUTTONS (Only show when NOT in selection mode) */}
+                    {!isSelectionMode && (
+                      <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/admin/completed?selectedOrder=${order.id}`);
+                          }}
+                          className="w-full px-4 py-2.5 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <FileText className="w-4 h-4" />
+                          View Details
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -519,6 +620,13 @@ function CompletedContent() {
         {selectedOrderId && (
           <CompletedOrderModal orderId={selectedOrderId} onClose={() => router.push('/admin/completed')} />
         )}
+
+        <CreateGroupModal
+          isOpen={showCreateGroupModal}
+          onClose={() => setShowCreateGroupModal(false)}
+          selectedOrders={Array.from(selectedOrders.values())}
+          onSuccess={handleGroupCreated}
+        />
       </div>
     </div>
   );

@@ -43,6 +43,7 @@ const tabs = [
     path: '/admin/customers',
     icon: <Users className="w-4 h-4" />,
     badge: null,
+
   },
   {
     label: 'Bills',
@@ -50,6 +51,7 @@ const tabs = [
     icon: <FileText className="w-4 h-4" />,
     badge: null,
   },
+
   // {
   //   label: 'Reports',
   //   path: '/admin/reports',

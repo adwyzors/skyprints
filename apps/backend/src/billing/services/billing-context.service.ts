@@ -77,6 +77,7 @@ export class BillingContextService {
         });
 
         if (result.shouldCreateGroupSnapshot) {
+            // try {
             this.logger.log(
                 `Creating GROUP snapshot outside transaction context=${result.context.id}`
             );
@@ -84,6 +85,28 @@ export class BillingContextService {
             await this.billingSnapshotService.createGroupSnapshot(
                 result.context.id
             );
+            // } catch (error) {
+            //     this.logger.error(
+            //         `Failed to create group snapshot for context=${result.context.id}, rolling back context creation`
+            //     );
+
+            //     // ⚠️ Cleanup: Delete relations first to satisfy FK constraints
+            //     try {
+            //         await this.prisma.billingContextOrder.deleteMany({
+            //             where: { billingContextId: result.context.id }
+            //         });
+
+            //         await this.prisma.billingContext.delete({
+            //             where: { id: result.context.id }
+            //         });
+            //     } catch (cleanupError) {
+            //         this.logger.error(
+            //             `Failed to cleanup context=${result.context.id}: ${cleanupError}`
+            //         );
+            //     }
+
+            //     throw error;
+            // }
         }
 
         return result.context;
@@ -91,24 +114,40 @@ export class BillingContextService {
 
 
 
-    async getAllContexts() {
-        this.logger.log("Fetching all billing contexts");
+    async getAllContexts(
+        page = 1,
+        limit = 12,
+        search = ""
+    ) {
+        this.logger.log(`Fetching billing contexts page=${page} limit=${limit} search=${search}`);
 
-        const contexts = await this.prisma.billingContext.findMany({
-            include: {
-                _count: {
-                    select: { orders: true }
+        const skip = (page - 1) * limit;
+
+        const where: any = {
+            type: "GROUP",
+            name: { contains: search, mode: 'insensitive' }
+        };
+
+        const [total, contexts] = await Promise.all([
+            this.prisma.billingContext.count({ where }),
+            this.prisma.billingContext.findMany({
+                skip,
+                take: limit,
+                where,
+                include: {
+                    _count: {
+                        select: { orders: true }
+                    },
+                    snapshots: {
+                        where: { isLatest: true },
+                        take: 1
+                    }
                 },
-                snapshots: {
-                    where: { isLatest: true },
-                    take: 1
-                }
-            },
-            orderBy: { createdAt: "desc" },
-            where: { type: "GROUP" }
-        });
+                orderBy: { createdAt: "desc" }
+            })
+        ]);
 
-        return contexts.map(ctx => {
+        const data = contexts.map(ctx => {
             const snapshot = ctx.snapshots[0];
 
             return {
@@ -117,7 +156,6 @@ export class BillingContextService {
                 name: ctx.name,
                 description: ctx.description,
                 ordersCount: ctx._count.orders,
-
                 latestSnapshot: snapshot
                     ? {
                         id: snapshot.id,
@@ -132,6 +170,18 @@ export class BillingContextService {
                     : null
             };
         });
+        const res = {
+            "data": data
+        }
+        return {
+            res,
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
 
     async getContextById(contextId: string) {
@@ -141,8 +191,43 @@ export class BillingContextService {
             where: { id: contextId },
             include: {
                 orders: {
-                    select: {
-                        orderId: true
+                    include: {
+                        order: {
+                            include: {
+                                customer: true,
+                                processes: {
+                                    include: {
+                                        process: true,
+                                        runs: {
+                                            include: {
+                                                runTemplate: true
+                                            }
+                                        }
+                                    }
+                                },
+                                billingContexts: {
+                                    where: {
+                                        billingContext: {
+                                            type: "ORDER"
+                                        }
+                                    },
+                                    take: 1,
+                                    orderBy: {
+                                        createdAt: 'desc'
+                                    },
+                                    include: {
+                                        billingContext: {
+                                            include: {
+                                                snapshots: {
+                                                    where: { isLatest: true },
+                                                    take: 1
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 snapshots: {
@@ -158,7 +243,7 @@ export class BillingContextService {
             );
         }
 
-        const snapshot = context.snapshots[0];
+        const groupSnapshot = context.snapshots[0];
 
         return {
             id: context.id,
@@ -166,23 +251,50 @@ export class BillingContextService {
             name: context.name,
             description: context.description,
 
-            orderIds: context.orders.map(o => o.orderId),
+            orders: context.orders.map(({ order }) => {
+                const orderSnapshot = order.billingContexts[0]?.billingContext?.snapshots[0];
+                return {
+                    id: order.id,
+                    code: order.code,
+                    status: order.statusCode,
+                    quantity: order.quantity,
+                    customer: {
+                        name: order.customer.name,
+                        code: order.customer.code
+                    },
+                    processes: order.processes.map(p => ({
+                        id: p.id,
+                        name: p.process.name,
+                        runs: p.runs.map(r => ({
+                            id: r.id,
+                            name: r.displayName || r.runTemplate.name,
+                            configStatus: r.statusCode
+                        }))
+                    })),
+                    billing: orderSnapshot ? {
+                        id: orderSnapshot.id,
+                        result: orderSnapshot.result.toString(), // Decimal to string
+                        currency: orderSnapshot.currency,
+                        inputs: orderSnapshot.inputs // Contains the run-wise rates
+                    } : null
+                };
+            }),
 
-            latestSnapshot: snapshot
+            latestSnapshot: groupSnapshot
                 ? {
-                    id: snapshot.id,
-                    version: snapshot.version,
-                    intent: snapshot.intent,
-                    isDraft: snapshot.intent === "DRAFT",
+                    id: groupSnapshot.id,
+                    version: groupSnapshot.version,
+                    intent: groupSnapshot.intent,
+                    isDraft: groupSnapshot.intent === "DRAFT",
 
-                    inputs: snapshot.inputs,
-                    result: snapshot.result.toString(),
-                    currency: snapshot.currency,
+                    inputs: groupSnapshot.inputs,
+                    result: groupSnapshot.result.toString(),
+                    currency: groupSnapshot.currency,
 
-                    calculationType: snapshot.calculationType,
-                    reason: snapshot.reason,
+                    calculationType: groupSnapshot.calculationType,
+                    reason: groupSnapshot.reason,
 
-                    createdAt: snapshot.createdAt
+                    createdAt: groupSnapshot.createdAt
                 }
                 : null
         };

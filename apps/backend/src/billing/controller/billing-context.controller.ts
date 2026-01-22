@@ -1,5 +1,6 @@
 import type { AddOrdersToBillingContextDto, CreateBillingContextDto } from "@app/contracts";
-import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Query, Res } from "@nestjs/common";
+import type { Response } from "express";
 import { BillingContextService } from "../services/billing-context.service";
 
 @Controller("billing/contexts")
@@ -42,8 +43,28 @@ export class BillingContextController {
     }
 
     @Get()
-    getAll() {
-        return this.service.getAllContexts();
+    async getAll(
+        @Query('page') page?: number,
+        @Query('limit') limit?: number,
+        @Query('search') search?: string,
+        @Res({ passthrough: true }) res?: Response
+    ) {
+        const result = await this.service.getAllContexts(
+            page ? Number(page) : 1,
+            limit ? Number(limit) : 12,
+            search || ""
+        );
+
+        // Set pagination metadata in headers
+        if (res) {
+            res.setHeader('x-page', result.meta.page.toString());
+            res.setHeader('x-limit', result.meta.limit.toString());
+            res.setHeader('x-total', result.meta.total.toString());
+            res.setHeader('x-total-pages', result.meta.totalPages.toString());
+        }
+
+        // Return only the data
+        return result.res;
     }
 
     @Get(":contextId")

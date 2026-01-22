@@ -23,7 +23,8 @@ export class BillingCalculatorService {
 
     async calculateForOrder(
         orderId: string,
-        runDynamicInputs: Record<string, Record<string, number>> = {}
+        runDynamicInputs: Record<string, Record<string, number>> = {},
+        allowDefaults = false
     ) {
         const orderProcesses = await this.prisma.orderProcess.findMany({
             where: { orderId },
@@ -52,12 +53,24 @@ export class BillingCalculatorService {
                 const requiredVars =
                     extractFormulaVariables(formula);
 
+                const missingVars: string[] = [];
                 for (const v of requiredVars) {
                     if (!(v in staticVars) && !(v in dynamicVars)) {
-                        throw new BadRequestException(
-                            `Missing variable "${v}" for run ${run.id}`
-                        );
+                        if (allowDefaults) {
+                            dynamicVars[v] = 0;
+                            this.logger.warn(
+                                `Defaulting missing variable "${v}" to 0 for run ${run.id}`
+                            );
+                        } else {
+                            missingVars.push(v);
+                        }
                     }
+                }
+
+                if (missingVars.length > 0) {
+                    throw new BadRequestException(
+                        `Missing variable "${missingVars[0]}" for run ${run.id}`
+                    );
                 }
 
                 const merged = {

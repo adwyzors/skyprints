@@ -112,17 +112,15 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
 
     try {
       const payload = buildPayload();
-      const response = await apiRequest<{ success: boolean }>(`/billing/finalize/order`, {
+      // The API returns the created snapshot object, not { success: boolean }
+      await apiRequest<any>(`/billing/finalize/order`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
 
-      if (response.success) {
-        onSuccess?.();
-        onClose();
-      } else {
-        setError("Failed to finalize billing. Please try again.");
-      }
+      // If apiRequest didn't throw, it was successful
+      onSuccess?.();
+      onClose();
     } catch (err) {
       console.error("Billing error:", err);
       setError(err instanceof Error ? err.message : "Failed to finalize billing");
