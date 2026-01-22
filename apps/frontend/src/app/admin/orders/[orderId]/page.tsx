@@ -1,29 +1,15 @@
 'use client';
 
-import { AlertCircle, ArrowLeft, Calculator, Edit2, FileText, Loader2, Save, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Calculator, ChevronDown, Edit2, FileText, Loader2, Save, X } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import ComingSoonConfig from '@/components/orders/ComingSoonConfig';
 import ScreenPrintingConfig from '@/components/orders/ScreenPrintingConfig';
+import { BillingSnapshot } from '@/domain/model/billing.model';
 import { Order } from '@/domain/model/order.model';
-import { getLatestBillingSnapshot, updateBillingSnapshot } from '@/services/billing.service';
+import { getLatestBillingSnapshot } from '@/services/billing.service';
 import { getOrderById } from '@/services/orders.service';
-
-interface BillingSnapshot {
-  version: number;
-  isLatest: boolean;
-  total: {
-    amount: string;
-    currency: string;
-  };
-  inputs: Array<{
-    runId: string;
-    values: Record<string, number>;
-  }>;
-  calculationType: string;
-  createdAt: string;
-}
 
 export default function OrderConfigPage() {
   const router = useRouter();
@@ -36,6 +22,19 @@ export default function OrderConfigPage() {
   const [editingRunId, setEditingRunId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, number>>({});
   const [isSavingBilling, setIsSavingBilling] = useState(false);
+  const [expandedBillingRuns, setExpandedBillingRuns] = useState<Set<string>>(new Set());
+
+  const toggleBillingRunExpansion = (runId: string) => {
+    setExpandedBillingRuns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(runId)) {
+        newSet.delete(runId);
+      } else {
+        newSet.add(runId);
+      }
+      return newSet;
+    });
+  };
 
   const showBillingView = useMemo(() => {
     if (!order) return false;
@@ -93,9 +92,10 @@ export default function OrderConfigPage() {
     }
   };
 
-  const handleEditBilling = (runId: string, values: Record<string, number>) => {
+  const handleEditBilling = (runId: string) => {
+    if (!billingData) return;
     setEditingRunId(runId);
-    setEditValues({ ...values });
+    setEditValues({ ...billingData.inputs[runId] });
   };
 
   const handleSaveBilling = async () => {
@@ -103,31 +103,36 @@ export default function OrderConfigPage() {
 
     setIsSavingBilling(true);
     try {
-      // Find the original input to preserve all its values
-      const originalInput = billingData.inputs.find(input => input.runId === editingRunId);
+      // Build payload matching the BillingModal format
+      // Only include the new_rate for all runs
+      const inputs: Record<string, { new_rate: number }> = {};
 
-      const updatedInputs = billingData.inputs.map(input =>
-        input.runId === editingRunId
-          ? {
-            ...input,
-            values: {
-              ...input.values,  // Keep original values
-              ...editValues     // Override with edited values (new_rate)
-            }
-          }
-          : input
-      );
+      Object.entries(billingData.inputs).forEach(([runId, values]) => {
+        if (runId === editingRunId) {
+          // Use the edited value
+          inputs[runId] = { new_rate: editValues['new_rate'] ?? values['new_rate'] ?? 0 };
+        } else {
+          // Keep existing rate
+          inputs[runId] = { new_rate: values['new_rate'] ?? 0 };
+        }
+      });
 
-      // Fix: Cast calculationType to the correct type
-      const updatedBilling: BillingSnapshot = {
-        ...billingData,
-        inputs: updatedInputs,
-        calculationType: 'MANUAL_ADJUSTMENT' as const
-      };
+      const payload = { orderId, inputs };
 
-      console.log('Saving billing data:', updatedBilling);
-      await updateBillingSnapshot(orderId, updatedBilling);
-      setBillingData(updatedBilling);
+      console.log('Saving billing data via finalize API:', payload);
+
+      // Use the same API as BillingModal
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/finalize/order`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save billing');
+      }
+
       setEditingRunId(null);
       await fetchAllData(); // Refresh to get recalculated totals
     } catch (err) {
@@ -239,7 +244,7 @@ export default function OrderConfigPage() {
                   <div className="flex items-center gap-2">
                     <Calculator className="w-4 h-4 text-gray-500" />
                     <span className="text-sm text-gray-600">
-                      Total: {billingData.total.amount} {billingData.total.currency}
+                      Total: {billingData.result} {billingData.currency}
                     </span>
                   </div>
                 )}
@@ -352,7 +357,7 @@ export default function OrderConfigPage() {
                 <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl">
                   <div className="text-sm text-gray-600 mb-1">Total Amount</div>
                   <div className="text-3xl font-bold text-gray-800">
-                    {billingData.total.amount} {billingData.total.currency}
+                    {billingData.result} {billingData.currency}
                   </div>
                   {billingData.version > 1 && (
                     <div className="text-xs text-gray-500 mt-2">
@@ -362,166 +367,146 @@ export default function OrderConfigPage() {
                 </div>
 
                 {/* RUN-WISE BREAKDOWN */}
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-700">Run-wise Breakdown</h4>
-                  {billingData.inputs.map((input, index) => {
-                    const runInfo = getRunById(input.runId);
+                <div className="space-y-2">
+                  <h4 className="font-medium text-gray-700 mb-3">Run-wise Breakdown</h4>
+                  {Object.entries(billingData.inputs).map(([runId, values], index) => {
+                    const runInfo = getRunById(runId);
+                    const isExpanded = expandedBillingRuns.has(runId) || editingRunId === runId;
+                    const newRate = values['new_rate'];
+
                     return (
                       <div
-                        key={input.runId}
-                        className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+                        key={runId}
+                        className="border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors"
                       >
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <div className="font-medium text-gray-800">
-                              {runInfo ? runInfo.run.displayName : `Run ${index + 1}`}
-                            </div>
-                            {runInfo && (
-                              <div className="text-sm text-gray-600">
-                                {runInfo.processName}
+                        {/* COLLAPSED HEADER - Always visible */}
+                        <div
+                          className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer"
+                          onClick={() => toggleBillingRunExpansion(runId)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            <div>
+                              <div className="font-medium text-gray-800 text-sm">
+                                {runInfo ? runInfo.run.displayName : `Run ${index + 1}`}
                               </div>
+                              {runInfo && (
+                                <div className="text-xs text-gray-500">
+                                  {runInfo.processName}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {newRate !== undefined && (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 text-sm font-medium rounded">
+                                ₹{newRate}/unit
+                              </span>
+                            )}
+                            {editingRunId !== runId && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditBilling(runId);
+                                  setExpandedBillingRuns(prev => new Set(prev).add(runId));
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                                Edit
+                              </button>
                             )}
                           </div>
-                          {editingRunId !== input.runId ? (
-                            <button
-                              onClick={() => handleEditBilling(input.runId, input.values)}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                              Edit
-                            </button>
-                          ) : (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={handleSaveBilling}
-                                disabled={isSavingBilling}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
-                              >
-                                {isSavingBilling ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Save className="w-4 h-4" />
-                                )}
-                                Save
-                              </button>
-                              <button
-                                onClick={handleCancelEdit}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
-                              >
-                                <X className="w-4 h-4" />
-                                Cancel
-                              </button>
-                            </div>
-                          )}
                         </div>
 
-                        {editingRunId === input.runId ? (
-                          <div className="space-y-4">
-                            {/* NEW RATE - Billing API Field (highlighted) */}
-                            <div className="p-4 bg-green-50 border-2 border-green-300 rounded-xl">
-                              <div className="flex items-center gap-2 mb-3">
-                                <div className="p-1.5 bg-green-600 rounded-lg">
-                                  <Calculator className="w-4 h-4 text-white" />
+                        {/* EXPANDED CONTENT */}
+                        {isExpanded && (
+                          <div className="p-4 border-t border-gray-200">
+                            {editingRunId === runId ? (
+                              <div className="space-y-4">
+                                {/* EDIT CONTROLS */}
+                                <div className="flex justify-end gap-2 mb-4">
+                                  <button
+                                    onClick={handleSaveBilling}
+                                    disabled={isSavingBilling}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+                                  >
+                                    {isSavingBilling ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <Save className="w-4 h-4" />
+                                    )}
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={handleCancelEdit}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+                                  >
+                                    <X className="w-4 h-4" />
+                                    Cancel
+                                  </button>
                                 </div>
-                                <div>
-                                  <div className="font-medium text-green-800">Billing Rate</div>
-                                  <div className="text-xs text-green-600">Saved via Billing API • Creates new version</div>
-                                </div>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-green-700 mb-1">
-                                  New Rate (₹ per unit)
-                                </label>
-                                <input
-                                  type="number"
-                                  value={editValues['new_rate'] ?? 0}
-                                  onChange={(e) =>
-                                    setEditValues(prev => ({
-                                      ...prev,
-                                      new_rate: parseFloat(e.target.value) || 0
-                                    }))
-                                  }
-                                  className="w-full px-4 py-3 border-2 border-green-400 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-lg font-semibold"
-                                />
-                              </div>
-                            </div>
 
-                            {/* OTHER FIELDS - Order API Fields */}
-                            <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                              <div className="flex items-center gap-2 mb-3">
-                                <div className="p-1.5 bg-gray-500 rounded-lg">
-                                  <FileText className="w-4 h-4 text-white" />
-                                </div>
-                                <div>
-                                  <div className="font-medium text-gray-700">Run Details</div>
-                                  <div className="text-xs text-gray-500">Read-only billing reference values</div>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                {Object.entries(editValues)
-                                  .filter(([key]) => key !== 'new_rate')
-                                  .map(([key, value]) => (
-                                    <div key={key} className="text-center p-3 bg-white border border-gray-200 rounded-lg">
-                                      <div className="text-xs text-gray-500 mb-1">
-                                        {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                      </div>
-                                      <div className="font-medium text-gray-800">
-                                        {key.includes('rate') || key.includes('amount') ? `₹${value}` : value}
-                                      </div>
+                                {/* NEW RATE INPUT */}
+                                <div className="p-4 bg-green-50 border-2 border-green-300 rounded-xl">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <div className="p-1.5 bg-green-600 rounded-lg">
+                                      <Calculator className="w-4 h-4 text-white" />
                                     </div>
-                                  ))}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {/* NEW RATE - Highlighted display */}
-                            {input.values['new_rate'] !== undefined && (
-                              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                                <div className="flex items-center justify-between">
-                                  <div className="text-sm text-green-700 font-medium">Billing Rate</div>
-                                  <div className="text-xl font-bold text-green-700">₹{input.values['new_rate']}/unit</div>
+                                    <div>
+                                      <div className="font-medium text-green-800">Billing Rate</div>
+                                      <div className="text-xs text-green-600">Saved via Billing API</div>
+                                    </div>
+                                  </div>
+                                  <input
+                                    type="number"
+                                    value={editValues['new_rate'] ?? 0}
+                                    onChange={(e) =>
+                                      setEditValues(prev => ({
+                                        ...prev,
+                                        new_rate: parseFloat(e.target.value) || 0
+                                      }))
+                                    }
+                                    className="w-full px-4 py-2 border-2 border-green-400 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-lg font-semibold"
+                                  />
+                                </div>
+
+                                {/* OTHER VALUES - Read-only */}
+                                <div className="grid grid-cols-2 gap-2">
+                                  {Object.entries(editValues)
+                                    .filter(([key]) => key !== 'new_rate')
+                                    .map(([key, value]) => (
+                                      <div key={key} className="text-center p-2 bg-gray-50 border border-gray-200 rounded">
+                                        <div className="text-xs text-gray-500">
+                                          {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                        </div>
+                                        <div className="font-medium text-gray-800 text-sm">
+                                          {key.includes('rate') || key.includes('amount') ? `₹${value}` : String(value)}
+                                        </div>
+                                      </div>
+                                    ))}
                                 </div>
                               </div>
-                            )}
-
-                            {/* OTHER VALUES */}
-                            <div className="grid grid-cols-3 gap-3">
-                              {Object.entries(input.values)
-                                .filter(([key]) => key !== 'new_rate')
-                                .map(([key, value]) => (
+                            ) : (
+                              <div className="grid grid-cols-3 gap-2">
+                                {Object.entries(values).map(([key, value]) => (
                                   <div key={key} className="text-center p-2 bg-gray-50 rounded">
                                     <div className="text-xs text-gray-600 mb-1">
                                       {key.replace(/_/g, ' ')}
                                     </div>
-                                    <div className="font-medium text-gray-800">
-                                      {key.includes('rate') || key.includes('amount') ? `₹${value}` : value}
+                                    <div className="font-medium text-gray-800 text-sm">
+                                      {key.includes('rate') || key.includes('amount') ? `₹${value}` : String(value)}
                                     </div>
                                   </div>
                                 ))}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
                     );
                   })}
                 </div>
-
-                {/* RECALCULATE BUTTON */}
-                {billingData.calculationType !== 'RECALCULATED' && (
-                  <div className="mt-6 pt-6 border-t border-gray-200">
-                    <button
-                      onClick={() => {
-                        // Implement recalculation logic here
-                        console.log('Recalculate billing');
-                      }}
-                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all"
-                    >
-                      <Calculator className="w-5 h-5" />
-                      Recalculate Billing
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* QUICK SUMMARY */}

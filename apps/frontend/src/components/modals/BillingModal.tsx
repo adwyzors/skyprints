@@ -88,20 +88,20 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
   const { totalAmount, originalTotal } = calculateTotals();
 
   // Build the API payload
-  const buildPayload = (): { runs: Record<string, { new_rate: number }> } => {
-    const runs: Record<string, { new_rate: number }> = {};
+  const buildPayload = (): { orderId: string; inputs: Record<string, { new_rate: number }> } => {
+    const inputs: Record<string, { new_rate: number }> = {};
 
-    if (!order) return { runs };
+    if (!order) return { orderId: '', inputs };
 
     order.processes.forEach(process => {
       process.runs.forEach(run => {
         const estimatedRate = (run.values?.['Estimated Rate'] as number) || 0;
         const billingRate = getBillingRate(run.id, estimatedRate);
-        runs[run.id] = { new_rate: billingRate };
+        inputs[run.id] = { new_rate: billingRate };
       });
     });
 
-    return { runs };
+    return { orderId: order.id, inputs };
   };
 
   const finalizeBilling = async () => {
@@ -112,7 +112,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
 
     try {
       const payload = buildPayload();
-      const response = await apiRequest<{ success: boolean }>(`/billing/snapshots/${order.id}`, {
+      const response = await apiRequest<{ success: boolean }>(`/billing/finalize/order`, {
         method: "POST",
         body: JSON.stringify(payload),
       });

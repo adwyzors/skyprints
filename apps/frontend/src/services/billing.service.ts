@@ -8,9 +8,11 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
  * Get latest billing snapshot - handles null response when no snapshot exists
  */
 export const getLatestBillingSnapshot = async (orderId: string): Promise<BillingSnapshot | null> => {
-  const response = await fetch(`${API_BASE_URL}/billing/snapshots/latest/${orderId}`, {
+  const response = await fetch(`${API_BASE_URL}/billing/snapshots/latest`, {
+    method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ orderId }),
   });
 
   if (!response.ok) {
