@@ -95,38 +95,38 @@ export class BillingCalculatorService {
         };
     }
 
-    async calculateForGroup(
-        orders: {
-            orderId: string;
-            runInputs: Record<string, Record<string, number>>;
-        }[]
-    ) {
-        let total = new Decimal(0);
-        const perOrder: Record<string, any> = {};
+    //async calculateForGroup(
+    //    orders: {
+    //        orderId: string;
+    //        runInputs: Record<string, Record<string, number>>;
+    //    }[]
+    //) {
+    //    let total = new Decimal(0);
+    //    const perOrder: Record<string, any> = {};
 
-        for (const { orderId, runInputs } of orders) {
-            const calc = await this.calculateForOrder(
-                orderId,
-                runInputs
-            );
+    //    for (const { orderId, runInputs } of orders) {
+    //        const calc = await this.calculateForOrder(
+    //            orderId,
+    //            runInputs
+    //        );
 
-            total = total.plus(calc.result);
+    //        total = total.plus(calc.result);
 
-            perOrder[orderId] = {
-                result: calc.result,
-                inputs: calc.inputs,
-                formula: calc.formula,
-                checksum: calc.checksum
-            };
-        }
+    //        perOrder[orderId] = {
+    //            result: calc.result,
+    //            inputs: calc.inputs,
+    //            formula: calc.formula,
+    //            checksum: calc.checksum
+    //        };
+    //    }
 
-        return {
-            result: total,
-            perOrder,
-            formula: "GROUP_AGGREGATE",
-            checksum: checksumFormula("GROUP_AGGREGATE")
-        };
-    }
+    //    return {
+    //        result: total,
+    //        perOrder,
+    //        formula: "GROUP_AGGREGATE",
+    //        checksum: checksumFormula("GROUP_AGGREGATE")
+    //    };
+    //}
 
     async calculateForGroupFromSnapshots(
         orders: {
