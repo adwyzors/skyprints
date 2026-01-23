@@ -114,3 +114,31 @@ export async function createOrder(
 
   return res;
 }
+
+/* =====================================================
+ * UPLOAD ORDER IMAGES
+ * ===================================================== */
+
+export async function uploadOrderImages(
+  orderId: string,
+  files: File[]
+): Promise<any> {
+  const formData = new FormData();
+
+  files.forEach((file) => {
+    formData.append('images', file);
+  });
+
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders/${orderId}/images`, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Failed to upload images' }));
+    throw new Error(error.message || 'Failed to upload images');
+  }
+
+  return res.json();
+}

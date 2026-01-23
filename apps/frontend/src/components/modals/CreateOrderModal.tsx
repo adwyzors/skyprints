@@ -3,7 +3,7 @@
 import { Customer } from '@/domain/model/customer.model';
 import { ProcessSummary } from '@/domain/model/process.model';
 import { getCustomers } from '@/services/customer.service';
-import { createOrder } from '@/services/orders.service';
+import { createOrder, uploadOrderImages } from '@/services/orders.service';
 import { getProcesses } from '@/services/process.service';
 import { NewOrderPayload } from '@/types/planning';
 import { useEffect, useMemo, useState } from 'react';
@@ -36,6 +36,8 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [processes, setProcesses] = useState<ProcessSummary[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
 
   /* ================= RESET FORM ================= */
   const resetForm = () => {
@@ -45,6 +47,8 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     setJobCode('');
     setProcessRows([]);
     setError(null);
+    setSelectedImages([]);
+    setImagePreviews([]);
   };
 
   /* ================= FETCH DATA ================= */
@@ -98,6 +102,54 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     [customers, selectedCustomerId],
   );
 
+  /* ================= IMAGE HANDLING ================= */
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const fileArray = Array.from(files);
+
+    // Restrict to 2 photos
+    if (selectedImages.length + fileArray.length > 2) {
+      setError('Maximum 2 photos allowed');
+      return;
+    }
+
+    // Validate file types
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const invalidFiles = fileArray.filter(file => !validTypes.includes(file.type));
+
+    if (invalidFiles.length > 0) {
+      setError('Only JPEG, PNG, and WebP images are allowed');
+      return;
+    }
+
+    // Validate file sizes (max 5MB per file)
+    const oversizedFiles = fileArray.filter(file => file.size > 5 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      setError('Each image must be less than 5MB');
+      return;
+    }
+
+    setError(null);
+    setSelectedImages(prev => [...prev, ...fileArray]);
+
+    // Create previews
+    fileArray.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreviews(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
   /* ================= CREATE ================= */
 
   const handleCreate = async () => {
@@ -148,6 +200,17 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
 
       // Create order
       const createdOrder = await createOrder(payload);
+
+      // Upload images if any are selected
+      if (selectedImages.length > 0 && createdOrder.id) {
+        try {
+          await uploadOrderImages(createdOrder.id, selectedImages);
+        } catch (imgError) {
+          console.error('Failed to upload images:', imgError);
+          // Don't fail the entire operation if image upload fails
+          setError('Order created but image upload failed. You can add images later.');
+        }
+      }
 
       // Pass the created order to parent
       onCreate(createdOrder);
@@ -353,6 +416,90 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                       disabled={loading}
                       className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
                     />
+                  </div>
+                </div>
+
+                {/* IMAGE UPLOAD */}
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-gray-700">Order Images (Optional)</label>
+                  <div className="space-y-3">
+                    {/* Upload Button */}
+                    {selectedImages.length < 2 && (
+                      <div>
+                        <input
+                          type="file"
+                          id="image-upload"
+                          accept="image/jpeg,image/jpg,image/png,image/webp"
+                          multiple
+                          onChange={handleImageSelect}
+                          disabled={loading}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor="image-upload"
+                          className="inline-flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:border-blue-500 hover:text-blue-600 cursor-pointer transition-all disabled:opacity-50"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                          Upload Images ({selectedImages.length}/2)
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Max 2 photos • JPEG, PNG, WebP • Max 5MB each
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Image Previews */}
+                    {imagePreviews.length > 0 && (
+                      <div className="grid grid-cols-2 gap-3">
+                        {imagePreviews.map((preview, index) => (
+                          <div
+                            key={index}
+                            className="relative group rounded-lg overflow-hidden border-2 border-gray-200 aspect-square"
+                          >
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              disabled={loading}
+                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs py-1 px-2 text-center">
+                              {selectedImages[index]?.name}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

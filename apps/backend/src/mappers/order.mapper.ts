@@ -8,6 +8,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         createdAt: order.createdAt.toISOString(),
         code: order.code,
         jobCode: order.jobCode,
+        images: order.images || [],
         totalProcesses: order.totalProcesses,
         completedProcesses: order.completedProcesses,
 

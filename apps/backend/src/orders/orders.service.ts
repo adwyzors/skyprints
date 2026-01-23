@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CloudflareService } from '../common/cloudflare.service';
 import { OrdersQueryDto } from '../dto/orders.query.dto';
 import { toOrderSummary } from '../mappers/order.mapper';
 import { OutboxService } from '../outbox/outbox.service';
@@ -20,6 +21,7 @@ export class OrdersService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly outbox: OutboxService,
+        private readonly cloudflare: CloudflareService,
     ) { }
 
     /* ========================== QUERY ========================== */
@@ -477,6 +479,46 @@ export class OrdersService {
             data: { statusCode: toStatus.code },
         });
         return toStatus.code;
+    }
+
+    /* ========================== IMAGE UPLOAD ========================== */
+
+    async uploadImages(orderId: string, files: Express.Multer.File[]) {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId, deletedAt: null },
+            select: { id: true, code: true, images: true },
+        });
+
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        const fileBuffers = files.map(file => file.buffer);
+        const filenames = files.map(file => file.originalname);
+
+        this.logger.log(`Uploading ${files.length} images for order ${order.code}`);
+
+        const imageUrls = await this.cloudflare.uploadFiles(
+            fileBuffers,
+            filenames,
+            `orders/${orderId}`,
+        );
+
+        const updatedImages = [...order.images, ...imageUrls];
+
+        await this.prisma.order.update({
+            where: { id: orderId },
+            data: { images: updatedImages },
+        });
+
+        this.logger.log(`Successfully uploaded ${imageUrls.length} images for order ${order.code}`);
+
+        return {
+            orderId: order.id,
+            orderCode: order.code,
+            uploadedImages: imageUrls,
+            totalImages: updatedImages.length,
+        };
     }
 
 }

@@ -56,6 +56,7 @@ export const OrderSummarySchema = z.object({
     createdAt: z.string(),
     code: z.string(),
     jobCode: z.string().optional().nullable(),
+    images: z.array(z.string().url()).default([]),
 
     totalProcesses: z.number().int(),
     completedProcesses: z.number().int().optional(),

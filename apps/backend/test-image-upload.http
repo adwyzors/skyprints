@@ -1,0 +1,27 @@
+### Test Image Upload API
+
+# Replace {ORDER_ID} with an actual order ID from your database
+
+### 1. Upload Single Image
+POST http://localhost:3001/api/v1/orders/{ORDER_ID}/images
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="images"; filename="test-image.jpg"
+Content-Type: image/jpeg
+
+< ./test-image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### 2. Get Order (verify images array)
+GET http://localhost:3001/api/v1/orders/{ORDER_ID}
+
+### 3. Get All Orders (check if images are included)
+GET http://localhost:3001/api/v1/orders
+
+###
+
+# Notes:
+# - Replace {ORDER_ID} with actual UUID
+# - For VS Code REST Client extension
+# - Or use Postman/Thunder Client with form-data

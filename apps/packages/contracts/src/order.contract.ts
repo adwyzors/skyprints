@@ -9,6 +9,7 @@ export const CreateOrderSchema = z.object({
     customerId: z.string().uuid(),
     quantity: z.number().int().positive(),
     jobCode: z.string().optional(),
+    images: z.array(z.string().url()).optional(),
     processes: z.array(CreateOrderProcessSchema).min(1),
 });
 
