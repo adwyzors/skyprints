@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OutboxService } from '../outbox/outbox.service';
 import { ConfigureRunDto } from './dto/configure-run.dto';
 import { RunFieldsValidator } from './run-fields.validator';
 
@@ -15,7 +14,6 @@ export class RunsService {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly outbox: OutboxService,
         private readonly fieldValidator: RunFieldsValidator,
     ) { }
 
@@ -174,13 +172,6 @@ export class RunsService {
             },
         });
 
-        await this.outbox.add({
-            aggregateType: 'RUN',
-            aggregateId: runId,
-            eventType: 'RUN_CONFIGURED',
-            payload: dto,
-        });
-
         return { status: 'CONFIGURED' };
     }
 
@@ -203,13 +194,6 @@ export class RunsService {
             data: {
                 locationId: location, // string UUID
             },
-        });
-
-        await this.outbox.add({
-            aggregateType: 'RUN',
-            aggregateId: runId,
-            eventType: 'RUN_LOCATION_UPDATED',
-            payload: { location },
         });
 
         return { status: 'LOCATION_UPDATED' };

@@ -9,7 +9,6 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrdersQueryDto } from '../dto/orders.query.dto';
 import { toOrderSummary } from '../mappers/order.mapper';
-import { OutboxService } from '../outbox/outbox.service';
 
 const SYSTEM_USER_ID = 'a98afcd6-e0d9-4948-afb8-11fb4d18185a';
 
@@ -19,7 +18,6 @@ export class OrdersService {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly outbox: OutboxService,
     ) { }
 
     /* ========================== QUERY ========================== */
