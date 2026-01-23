@@ -18,3 +18,5 @@ export * from './calculate-billing.contract';
 export * from './calculate-billing.read.contract';
 export * from './create-billing-snapshot.contract';
 
+export * from './delete-run-image.contract';
+

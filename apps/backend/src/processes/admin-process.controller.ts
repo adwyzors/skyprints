@@ -2,16 +2,20 @@ import type {
     ConfigureProcessRunDto,
     CreateProcessDto,
     ProcessDetailDto,
-    ProcessSummaryDto
+    ProcessSummaryDto, DeleteRunImageDto
 } from '@app/contracts';
 import {
     Body,
     Controller,
+    Delete,
     Get,
     Logger,
     Param,
     Post,
+    UploadedFiles,
+    UseInterceptors,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { toProcessDetail } from '../mappers/process.mapper';
 import { AdminProcessService } from './admin-process.service';
 
@@ -57,5 +61,36 @@ export class AdminProcessController {
             `[API] transition orderProcess=${orderProcessId} run=${processRunId}`,
         );
         return this.service.transition(orderProcessId, processRunId);
+    }
+
+    @Post(':orderProcessId/runs/:processRunId/configure/images')
+    @UseInterceptors(
+        FilesInterceptor('files', 2, {
+            limits: { fileSize: 3 * 1024 * 1024 },
+        }),
+    )
+    async uploadRunImages(
+        @Param('orderProcessId') orderProcessId: string,
+        @Param('processRunId') processRunId: string,
+        @UploadedFiles() files: Express.Multer.File[],
+    ) {
+        return this.service.uploadRunImages(processRunId, files ?? []);
+    }
+
+    @Delete(':orderProcessId/runs/:processRunId/images')
+    async deleteRunImage(
+        @Param('orderProcessId') orderProcessId: string,
+        @Param('processRunId') processRunId: string,
+        @Body() dto: DeleteRunImageDto,
+    ) {
+        this.logger.log(
+            `[API][DELETE_RUN_IMAGE] orderProcess=${orderProcessId} run=${processRunId}`,
+        );
+
+        return this.service.deleteRunImage(
+            orderProcessId,
+            processRunId,
+            dto.imageUrl,
+        );
     }
 }

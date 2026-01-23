@@ -20,3 +20,34 @@ export async function getProcessById(
 
     return mapProcessDetailDto(dto);
 }
+
+export async function uploadProcessRunImages(
+  orderProcessId: string,
+  processRunId: string,
+  files: File[],
+) {
+  const formData = new FormData();
+
+  files.forEach(file => {
+    formData.append('files', file); // IMPORTANT: must be "files"
+  });
+
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/order-process/${orderProcessId}/runs/${processRunId}/images`,
+    {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    },
+  );
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({
+      message: 'Failed to upload process run images',
+    }));
+    throw new Error(error.message);
+  }
+
+  return res.json();
+}
+

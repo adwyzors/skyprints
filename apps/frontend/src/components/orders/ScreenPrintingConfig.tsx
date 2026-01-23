@@ -235,15 +235,17 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       }
 
       const fieldDef = fieldConfigs.find(f => f.key === key);
-      const type = fieldDef?.type || 'string';
+      const type = fieldDef?.type || 'null';
 
       if (type === 'number') {
         apiValues[key] = Number(value);
       } else if (type === 'boolean') {
         apiValues[key] = Boolean(value);
-      } else {
+      } else if (type === 'string'){
         apiValues[key] = String(value);
-      }
+      }else{
+        apiValues[key]=value;
+      } 
     });
 
     // Calculate and add Estimated Amount (auto-calculated field)

@@ -216,6 +216,30 @@ export class CloudflareService {
         }
     }
 
+    async deleteFileByUrl(fileUrl: string): Promise<void> {
+        try {
+            const key = this.extractKeyFromUrl(fileUrl);
+
+            this.logger.log(`[R2][DELETE] key=${key}`);
+
+            await this.s3Client.send(
+                new DeleteObjectCommand({
+                    Bucket: this.bucketName,
+                    Key: key,
+                }),
+            );
+
+            this.logger.log(`[R2][DELETE_SUCCESS] key=${key}`);
+        } catch (error) {
+            this.logger.error(
+                `[R2][DELETE_FAILED] url=${fileUrl}`,
+                error,
+            );
+            throw new Error('File deletion failed');
+        }
+    }
+
+
     /**
      * Delete multiple files from Cloudflare R2
      * @param fileUrls - Array of public URLs to delete

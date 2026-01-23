@@ -7,17 +7,49 @@ import {
     BadRequestException,
     Injectable,
     Logger,
+    NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CloudflareService } from '../common/cloudflare.service';
 import { toProcessSummary } from '../mappers/process.mapper';
 import { OrdersService } from '../orders/orders.service';
+type SystemFieldValidator = (value: any) => boolean;
 
 @Injectable()
 export class AdminProcessService {
     private readonly logger = new Logger(AdminProcessService.name);
+    private static readonly SYSTEM_FIELDS = new Set<string>([
+        'images',
+    ]);
 
-    constructor(private readonly prisma: PrismaService, private readonly orderService: OrdersService) { }
+
+    private static readonly SYSTEM_FIELD_VALIDATORS: Record<
+        string,
+        (value: any) => any
+    > = {
+            images: (v: any) => {
+                if (v == null) return undefined; // ignore if absent
+
+                // normalize single URL → array
+                if (typeof v === 'string') {
+                    return [v];
+                }
+
+                if (Array.isArray(v) && v.every(i => typeof i === 'string')) {
+                    return v;
+                }
+
+                return null; // invalid
+            },
+        };
+
+
+
+    constructor(private readonly prisma: PrismaService,
+        private readonly orderService: OrdersService,
+        private readonly cloudflare: CloudflareService,
+    ) { }
 
     /* =========================================================
      * PROCESS CRUD
@@ -112,17 +144,25 @@ export class AdminProcessService {
                 throw new BadRequestException('Invalid process run');
             }
 
-            this.validateFields(
+            /* =====================================================
+             * FIELD VALIDATION + NORMALIZATION
+             * ===================================================== */
+            const normalizedFields = this.validateAndNormalizeFields(
                 run.runTemplate.fields as RunTemplateField[],
                 dto.fields,
             );
 
+            /* =====================================================
+             * WORKFLOW VALIDATION
+             * ===================================================== */
             const wf = run.runTemplate.configWorkflowType;
             if (!wf) {
                 throw new BadRequestException('Config workflow missing');
             }
 
-            const current = wf.statuses.find(s => s.code === run.statusCode);
+            const current = wf.statuses.find(
+                s => s.code === run.statusCode,
+            );
             if (!current || !current.isInitial) {
                 throw new BadRequestException('Invalid config state');
             }
@@ -138,21 +178,35 @@ export class AdminProcessService {
                 s => s.id === transition.toStatusId,
             );
             if (!toStatus) {
-                throw new BadRequestException('Invalid config transition target');
+                throw new BadRequestException(
+                    'Invalid config transition target',
+                );
             }
 
             this.logger.log(
                 `[CONFIG][RUN_TRANSITION] run=${run.id} ${current.code} → ${toStatus.code}`,
             );
 
+            /* =====================================================
+             * UPDATE PROCESS RUN
+             * ===================================================== */
+
+            const mergedFields = {
+                ...(run.fields as Record<string, any> ?? {}),
+                ...normalizedFields, // DTO explicitly overrides
+            };
+
             await tx.processRun.update({
                 where: { id: run.id },
                 data: {
-                    fields: dto.fields,
+                    fields: mergedFields,
                     statusCode: toStatus.code,
                 },
             });
 
+            /* =====================================================
+             * ORDER PROCESS PROGRESS (UNCHANGED)
+             * ===================================================== */
             const op = await tx.orderProcess.update({
                 where: { id: run.orderProcessId },
                 data: { configCompletedRuns: { increment: 1 } },
@@ -183,14 +237,9 @@ export class AdminProcessService {
                 this.logger.log(
                     `[CONFIG][ORDER_PROCESS_COMPLETED] orderProcess=${op.id}`,
                 );
-                await this.transitionOrderProcess(tx, op);
-                /* ============================================================
- * 6️⃣ CHECK IF ALL ORDER PROCESSES ARE CONFIG COMPLETED
- * ============================================================ */
 
-                /**
-                 * If ANY order process still has incomplete config → stop
-                 */
+                await this.transitionOrderProcess(tx, op);
+
                 const remaining = await tx.orderProcess.count({
                     where: {
                         orderId: op.orderId,
@@ -198,27 +247,138 @@ export class AdminProcessService {
                     },
                 });
 
-                if (remaining > 0) {
+                if (remaining === 0) {
                     this.logger.log(
-                        `[CONFIG][ORDER_NOT_READY] order=${op.orderId} remainingProcesses=${remaining}`,
+                        `[CONFIG][ALL_ORDER_PROCESSES_CONFIGURED] order=${op.orderId}`,
                     );
-                    return { success: true };
+                    await this.orderService.transitionOrderById(
+                        this.prisma,
+                        op.orderId,
+                    );
                 }
-
-                this.logger.log(
-                    `[CONFIG][ALL_ORDER_PROCESSES_CONFIGURED] order=${op.orderId}`,
-                );
-
-
-
-                /**
-                 * Transition order (guarded inside transitionOrder)
-                 */
-                await this.orderService.transitionOrderById(this.prisma, op.orderId);
             }
 
             return { success: true };
         });
+    }
+
+
+    async deleteRunImage(
+        orderProcessId: string,
+        processRunId: string,
+        imageUrl: string,
+    ) {
+        const run = await this.prisma.processRun.findFirst({
+            where: {
+                id: processRunId,
+                orderProcessId,
+            },
+            select: {
+                id: true,
+                fields: true,
+            },
+        });
+
+        if (!run) {
+            throw new NotFoundException('Process run not found');
+        }
+
+        const images = (run.fields as any)?.images ?? [];
+
+        if (!images.includes(imageUrl)) {
+            throw new BadRequestException(
+                'Image not linked to this process run',
+            );
+        }
+
+        // 1️⃣ Delete from Cloudflare R2
+        await this.cloudflare.deleteFileByUrl(imageUrl);
+
+        // 2️⃣ Remove from DB
+        const updatedImages = images.filter(
+            (url: string) => url !== imageUrl,
+        );
+
+        await this.prisma.processRun.update({
+            where: { id: run.id },
+            data: {
+                fields: {
+                    ...(run.fields as Record<string, any>),
+                    images: updatedImages,
+                },
+            },
+        });
+
+        this.logger.log(
+            `[RUN_IMAGE_DELETED] run=${run.id}`,
+        );
+
+        return {
+            processRunId: run.id,
+            deletedImage: imageUrl,
+            remainingImages: updatedImages.length,
+        };
+    }
+
+
+    async uploadRunImages(
+        processRunId: string,
+        files: Express.Multer.File[],
+    ) {
+        if (!files.length) {
+            throw new BadRequestException('No images uploaded');
+        }
+
+        if (files.length > 2) {
+            throw new BadRequestException('Maximum 2 images allowed');
+        }
+
+        const run = await this.prisma.processRun.findUnique({
+            where: { id: processRunId },
+            select: {
+                id: true,
+                fields: true,
+                orderProcess: {
+                    select: { orderId: true },
+                },
+            },
+        });
+
+        if (!run) {
+            throw new NotFoundException('Process run not found');
+        }
+
+        const buffers = files.map(f => f.buffer);
+        const filenames = files.map(f => f.originalname);
+
+        this.logger.log(
+            `[RUN_IMAGES][UPLOAD] run=${run.id} count=${files.length}`,
+        );
+
+        const urls = await this.cloudflare.uploadFiles(
+            buffers,
+            filenames,
+            `orders/${run.orderProcess.orderId}/runs/${run.id}`,
+        );
+
+        const existingImages =
+            (run.fields as any)?.images ?? [];
+
+        const updatedFields = {
+            ...(run.fields as Record<string, any>),
+            images: [...existingImages, ...urls].slice(0, 2),
+        };
+
+        await this.prisma.processRun.update({
+            where: { id: run.id },
+            data: { fields: updatedFields },
+        });
+
+        return {
+            processRunId: run.id,
+            uploadedImages: urls,
+            totalImages: updatedFields.images.length,
+        };
     }
 
     /* =========================================================
@@ -490,28 +650,92 @@ export class AdminProcessService {
      * FIELD VALIDATION
      * ========================================================= */
 
-    private validateFields(
+    private validateAndNormalizeFields(
         templateFields: RunTemplateField[],
         inputFields: Record<string, any>,
-    ) {
-        const map = new Map(templateFields.map(f => [f.key, f]));
+    ): Record<string, any> {
+        const templateMap = new Map(
+            templateFields.map(f => [f.key, f]),
+        );
 
-        for (const f of templateFields) {
-            if (f.required && !(f.key in inputFields)) {
-                throw new BadRequestException(`Missing field ${f.key}`);
-            }
-        }
+        const normalized: Record<string, any> = {};
 
-        for (const [k, v] of Object.entries(inputFields)) {
-            const expected = map.get(k);
-            if (!expected) {
-                throw new BadRequestException(`Unknown field ${k}`);
-            }
-            if (typeof v !== expected.type) {
+        /* =====================================================
+         * 1️⃣ Required field validation (template-owned)
+         * ===================================================== */
+        for (const field of templateFields) {
+            if (field.required && !(field.key in inputFields)) {
                 throw new BadRequestException(
-                    `Invalid type for ${k}, expected ${expected.type}`,
+                    `Missing field ${field.key}`,
                 );
             }
         }
+
+        /* =====================================================
+         * 2️⃣ Input validation & normalization
+         * ===================================================== */
+        for (const [key, value] of Object.entries(inputFields)) {
+
+            /* -----------------------------------------------
+             * SYSTEM FIELDS (images, attachments, etc.)
+             * ----------------------------------------------- */
+            const systemValidator =
+                AdminProcessService.SYSTEM_FIELD_VALIDATORS[key];
+            if (systemValidator) {
+                const normalizedValue = systemValidator(value);
+
+                if (normalizedValue === null) {
+                    throw new BadRequestException(
+                        `Invalid value for system field ${key}`,
+                    );
+                }
+
+                if (normalizedValue !== undefined) {
+                    normalized[key] = normalizedValue;
+                }
+
+                continue;
+            }
+
+
+            /* -----------------------------------------------
+             * TEMPLATE FIELDS
+             * ----------------------------------------------- */
+            const expected = templateMap.get(key);
+
+            if (!expected) {
+                throw new BadRequestException(
+                    `Unknown field ${key}`,
+                );
+            }
+
+            switch (expected.type) {
+                case 'string':
+                    if (typeof value !== 'string') {
+                        throw new BadRequestException(
+                            `Invalid type for ${key}, expected string`,
+                        );
+                    }
+                    break;
+
+                case 'number':
+                    if (typeof value !== 'number') {
+                        throw new BadRequestException(
+                            `Invalid type for ${key}, expected number`,
+                        );
+                    }
+                    break;
+
+                default:
+                    throw new BadRequestException(
+                        `Unsupported field type ${expected.type} for ${key}`,
+                    );
+            }
+
+            normalized[key] = value;
+        }
+
+        return normalized;
     }
+
 }
