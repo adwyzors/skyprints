@@ -13,7 +13,6 @@ import { BillingModule } from './billing/billing.module';
 import { CustomersModule } from './customers/customers.module';
 import { JobsModule } from './jobs/jobs.module';
 import { OrdersModule } from './orders/orders.module';
-import { OutboxModule } from './outbox/outbox.module';
 import { ProcessesModule } from './processes/processes.module';
 import { RunTemplatesModule } from './run-templates/run-templates.module';
 import { RunsModule } from './runs/runs.module';
@@ -27,7 +26,6 @@ import { WorkflowModule } from './workflow/workflow.module';
             `apps/backend/.env.${process.env.NODE_ENV || 'local'}`,
         ]
     }), PrismaModule,
-        OutboxModule,
     ScheduleModule.forRoot(),
         WorkflowModule,
         OrdersModule,

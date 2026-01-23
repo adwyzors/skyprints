@@ -26,7 +26,7 @@ export class AdminProcessService {
     async create(dto: CreateProcessDto) {
         this.logger.log(`[PROCESS][CREATE] name=${dto.name}`);
 
-        return this.prisma.$transaction(async tx => {
+        return this.prisma.transaction(async tx => {
             const process = await tx.process.create({
                 data: {
                     name: dto.name,
@@ -79,7 +79,7 @@ export class AdminProcessService {
             `[CONFIG][START] orderProcessId=${orderProcessId} processRunId=${processRunId}`,
         );
 
-        return this.prisma.$transaction(async tx => {
+        return this.prisma.transaction(async tx => {
 
             const run = await tx.processRun.findFirst({
                 where: { id: processRunId, orderProcessId },
@@ -292,7 +292,7 @@ export class AdminProcessService {
             `[LIFECYCLE][START] orderProcessId=${orderProcessId} processRunId=${processRunId}`,
         );
 
-        return this.prisma.$transaction(async tx => {
+        return this.prisma.transaction(async tx => {
             const run = await tx.processRun.findFirst({
                 where: { id: processRunId, orderProcessId },
                 select: {

@@ -10,7 +10,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CloudflareService } from '../common/cloudflare.service';
 import { OrdersQueryDto } from '../dto/orders.query.dto';
 import { toOrderSummary } from '../mappers/order.mapper';
-import { OutboxService } from '../outbox/outbox.service';
 
 const SYSTEM_USER_ID = 'a98afcd6-e0d9-4948-afb8-11fb4d18185a';
 
@@ -20,7 +19,6 @@ export class OrdersService {
 
     constructor(
         private readonly prisma: PrismaService,
-        private readonly outbox: OutboxService,
         private readonly cloudflare: CloudflareService,
     ) { }
 
@@ -108,7 +106,7 @@ export class OrdersService {
             }),
         };
 
-        const [total, orders] = await this.prisma.$transaction([
+        const [total, orders] = await this.prisma.transaction([
             this.prisma.order.count({ where }),
 
             this.prisma.order.findMany({
@@ -236,7 +234,7 @@ export class OrdersService {
     }
 
     async create(dto: CreateOrderDto) {
-        return this.prisma.$transaction(async (tx) => {
+        return this.prisma.transaction(async (tx) => {
             const processIds = dto.processes.map(p => p.processId);
 
             const processes = await tx.process.findMany({

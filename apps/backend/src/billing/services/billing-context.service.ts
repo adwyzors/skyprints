@@ -33,7 +33,7 @@ export class BillingContextService {
             }
         }
 
-        const result = await this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.transaction(async (tx) => {
             if (orderIds.length > 0) {
                 const validOrders = await tx.order.findMany({
                     where: {
@@ -325,7 +325,7 @@ export class BillingContextService {
 
         const uniqueOrderIds = [...new Set(orderIds)];
 
-        return this.prisma.$transaction(async (tx) => {
+        return this.prisma.transaction(async (tx) => {
             const existing = await tx.billingContextOrder.findMany({
                 where: {
                     billingContextId: contextId,

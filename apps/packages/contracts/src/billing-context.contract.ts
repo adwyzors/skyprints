@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const CreateBillingContextSchema = z.object({
     type: z.enum(["ORDER", "GROUP"]),
-    name: z.string().optional(),
+    name: z.string(),
     description: z.string().optional(),
     metadata: z.any().optional(),
 

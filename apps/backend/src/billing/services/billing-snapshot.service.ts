@@ -92,18 +92,16 @@ export class BillingSnapshotService {
             `[createGroupSnapshot] billingContextId=${billingContextId}`
         );
 
-        return this.prisma.$transaction((tx) =>
-            this.createGroupSnapshotTx(
-                tx,
-                billingContextId,
-                createdBy
-            )
+        // 🔹 NO TRANSACTION HERE
+        return this.createGroupSnapshotTx(
+            billingContextId,
+            createdBy
         );
     }
 
 
+
     public async createGroupSnapshotTx(
-        tx: Prisma.TransactionClient,
         billingContextId: string,
         createdBy?: string
     ) {
@@ -111,7 +109,10 @@ export class BillingSnapshotService {
             `[createGroupSnapshotTx] billingContextId=${billingContextId}`
         );
 
-        const context = await tx.billingContext.findUnique({
+        /* -------------------------------
+           1️⃣ READ context + orders (NO TX)
+        ------------------------------- */
+        const context = await this.prisma.billingContext.findUnique({
             where: { id: billingContextId },
             include: { orders: true }
         });
@@ -126,24 +127,48 @@ export class BillingSnapshotService {
             );
         }
 
-        const orderSnapshots: {
+        /* -------------------------------
+           2️⃣ READ FINAL snapshots (NO TX)
+           — include orders so we can match by orderId
+        ------------------------------- */
+        const orderSnapshots = await this.prisma.billingSnapshot.findMany({
+            where: {
+                intent: "FINAL",
+                billingContext: {
+                    type: "ORDER",
+                    orders: {
+                        some: {
+                            orderId: {
+                                in: context.orders.map(o => o.orderId)
+                            }
+                        }
+                    }
+                }
+            },
+            include: {
+                billingContext: {
+                    include: {
+                        orders: true
+                    }
+                }
+            },
+            orderBy: { version: "desc" }
+        });
+
+        /* -------------------------------
+           3️⃣ BUILD per-order inputs
+        ------------------------------- */
+        const inputs: {
             orderId: string;
             inputs: OrderBillingInputs;
         }[] = [];
 
         for (const o of context.orders) {
-            let snapshot = await tx.billingSnapshot.findFirst({
-                where: {
-                    intent: "FINAL",
-                    billingContext: {
-                        type: "ORDER",
-                        orders: {
-                            some: { orderId: o.orderId }
-                        }
-                    }
-                },
-                orderBy: { version: "desc" }
-            });
+            const snapshot = orderSnapshots.find(s =>
+                s.billingContext.orders.some(
+                    ord => ord.orderId === o.orderId
+                )
+            );
 
             if (!snapshot) {
                 throw new Error(
@@ -157,51 +182,57 @@ export class BillingSnapshotService {
                 );
             }
 
-            orderSnapshots.push({
+            inputs.push({
                 orderId: o.orderId,
-                inputs: snapshot.inputs
+                inputs: snapshot.inputs as OrderBillingInputs
             });
         }
 
+        /* -------------------------------
+           4️⃣ CALCULATE (NO TX)
+        ------------------------------- */
         const calc =
-            await this.calculator.calculateForGroupFromSnapshots(
-                orderSnapshots
-            );
+            await this.calculator.calculateForGroupFromSnapshots(inputs);
 
-        const version =
-            (await tx.billingSnapshot.count({
-                where: { billingContextId }
-            })) + 1;
+        /* -------------------------------
+           5️⃣ WRITE snapshot (SHORT TX)
+        ------------------------------- */
+        const snapshot = await this.prisma.transaction(async (tx) => {
+            const version =
+                (await tx.billingSnapshot.count({
+                    where: { billingContextId }
+                })) + 1;
 
-        const snapshot = tx.billingSnapshot.create({
-            data: {
-                billingContextId,
-                version,
-                intent: "FINAL",
-                isLatest: true,
-                inputs: calc.perOrderInputs,
-                result: calc.result,
-                currency: "INR",
-                calculationType: "RECALCULATED",
-                createdBy
-            }
+            return tx.billingSnapshot.create({
+                data: {
+                    billingContextId,
+                    version,
+                    intent: "FINAL",
+                    isLatest: true,
+                    inputs: calc.perOrderInputs,
+                    result: calc.result,
+                    currency: "INR",
+                    calculationType: "RECALCULATED",
+                    createdBy
+                }
+            });
         });
 
-        if (version === 1) {
+        if (snapshot.version === 1) {
             this.logger.log(
-                `[finalizeGroup] billingContextId=${billingContextId} transitioning order status snapshot.version=${version}`
-            )
-            await this.transitionOrdersForContext(
-                billingContextId
+                `[finalizeGroup] billingContextId=${billingContextId} transitioning order status snapshot.version=${snapshot.version}`
             );
+            await this.transitionOrdersForContext(billingContextId);
         } else {
             this.logger.log(
-                `[finalizeGroup] billingContextId=${billingContextId} NOT transitioning order status snapshot.version=${version}`
-            )
+                `[finalizeGroup] billingContextId=${billingContextId} NOT transitioning order status snapshot.version=${snapshot.version}`
+            );
         }
 
         return snapshot;
     }
+
+
 
 
     /* =====================================================
@@ -217,7 +248,7 @@ export class BillingSnapshotService {
             `[saveDraft] billingContextId=${billingContextId}`
         );
 
-        return this.prisma.$transaction((tx) =>
+        return this.prisma.transaction((tx) =>
             this.saveDraftTx(
                 tx,
                 billingContextId,
@@ -233,144 +264,17 @@ export class BillingSnapshotService {
     ===================================================== */
     private async finalizeContextTx(
         tx: Prisma.TransactionClient,
-        billingContextId: string,
-        createdBy?: string,
-        requestInputs?: Record<string, any>
+        draftId: string,
+        result: Decimal,
+        snapshotInputs: any,
+        createdBy?: string
     ) {
         this.logger.log(
-            `[finalizeContextTx] Start billingContextId=${billingContextId} requestInputs=${requestInputs ? "YES" : "NO"}`
+            `[finalizeContextTx] Finalizing snapshot id=${draftId}`
         );
 
-        const context = await tx.billingContext.findUnique({
-            where: { id: billingContextId },
-            include: {
-                orders: true,
-                snapshots: {
-                    where: {
-                        intent: "DRAFT",
-                        isLatest: true
-                    }
-                }
-            }
-        });
-
-        if (!context) {
-            this.logger.error(
-                `[finalizeContextTx] Billing context NOT FOUND id=${billingContextId}`
-            );
-            throw new Error("Billing context not found");
-        }
-
-        this.logger.debug(
-            `[finalizeContextTx] Context found type=${context.type} orders=${context.orders.length}`
-        );
-
-        let draft = context.snapshots[0];
-
-        // -----------------------------------------------------
-        // 1️⃣ Decide source of inputs
-        // -----------------------------------------------------
-        let effectiveInputs: any;
-
-        if (requestInputs) {
-            this.logger.debug(
-                `[finalizeContextTx] Request inputs provided — persisting as DRAFT`
-            );
-
-            if (draft) {
-                this.logger.debug(
-                    `[finalizeContextTx] Updating existing DRAFT id=${draft.id}`
-                );
-
-                draft = await tx.billingSnapshot.update({
-                    where: { id: draft.id },
-                    data: {
-                        inputs: requestInputs,
-                        createdBy
-                    }
-                });
-            } else {
-                this.logger.debug(
-                    `[finalizeContextTx] Creating new DRAFT from request inputs`
-                );
-
-                draft = await this.saveDraftTx(
-                    tx,
-                    context.id,
-                    requestInputs,
-                    undefined,
-                    createdBy
-                );
-            }
-
-            effectiveInputs = requestInputs;
-        } else {
-            if (!draft) {
-                this.logger.error(
-                    `[finalizeContextTx] No DRAFT snapshot found and no inputs provided`
-                );
-                throw new Error(
-                    "No DRAFT snapshot found and no inputs provided"
-                );
-            }
-
-            this.logger.debug(
-                `[finalizeContextTx] No request inputs — using existing DRAFT id=${draft.id}`
-            );
-
-            effectiveInputs = draft.inputs;
-        }
-
-        // -----------------------------------------------------
-        // 2️⃣ Calculate billing
-        // -----------------------------------------------------
-        this.logger.debug(
-            `[finalizeContextTx] Calculating billing using DRAFT id=${draft.id}`
-        );
-
-        let result: Decimal;
-        let snapshotInputs: any;
-
-        if (context.type === "ORDER") {
-            const orderId = context.orders[0].orderId;
-
-            this.logger.debug(
-                `[finalizeContextTx] ORDER calculation orderId=${orderId}`
-            );
-
-            const calc = await this.calculator.calculateForOrder(
-                orderId,
-                effectiveInputs as Record<string, Record<string, number>>
-            );
-
-            result = calc.result;
-            snapshotInputs = calc.inputs;
-        } else {
-            this.logger.debug(
-                `[finalizeContextTx] GROUP calculation orders=${context.orders.length}`
-            );
-
-            const calc = await this.calculator.calculateForGroup(
-                context.orders.map(o => ({
-                    orderId: o.orderId,
-                    runInputs:
-                        (effectiveInputs as Record<string, any>)?.[o.orderId] ?? {}
-                }))
-            );
-
-            result = calc.result;
-            snapshotInputs = calc.perOrder;
-        }
-
-        // -----------------------------------------------------
-        // 3️⃣ Finalize snapshot
-        // -----------------------------------------------------
-        this.logger.log(
-            `[finalizeContextTx] Finalizing snapshot id=${draft.id}`
-        );
-
-        const finalized = await tx.billingSnapshot.update({
-            where: { id: draft.id },
+        return tx.billingSnapshot.update({
+            where: { id: draftId },
             data: {
                 intent: "FINAL",
                 inputs: snapshotInputs,
@@ -379,9 +283,8 @@ export class BillingSnapshotService {
                 createdBy
             }
         });
-
-        return finalized;
     }
+
 
 
     /* =====================================================
@@ -395,14 +298,17 @@ export class BillingSnapshotService {
     ) {
         this.logger.log(`[finalizeOrder] orderId=${orderId}`);
 
-        const result = await this.prisma.$transaction(async (tx) => {
+        /* -------------------------------
+           1️⃣ Resolve context + save DRAFT
+        ------------------------------- */
+        const { contextId, draftId } = await this.prisma.transaction(async (tx) => {
             const context =
                 await this.contextResolver.resolveOrderContext(
                     tx,
                     orderId
                 );
 
-            await this.saveDraftTx(
+            const draft = await this.saveDraftTx(
                 tx,
                 context.id,
                 inputs,
@@ -410,24 +316,43 @@ export class BillingSnapshotService {
                 createdBy
             );
 
-            const snapshot = await this.finalizeContextTx(
-                tx,
-                context.id,
-                createdBy
-            );
-
             return {
-                snapshot,
-                contextId: context.id
+                contextId: context.id,
+                draftId: draft.id
             };
         });
 
-        if (result.snapshot.version === 1) {
-            await this.transitionOrdersForContext(result.contextId);
+        /* -------------------------------
+           2️⃣ CALCULATE (NO TX)
+        ------------------------------- */
+        const calc = await this.calculator.calculateForOrder(
+            orderId,
+            inputs
+        );
+
+        /* -------------------------------
+           3️⃣ FINALIZE (SHORT TX)
+        ------------------------------- */
+        const snapshot = await this.prisma.transaction((tx) =>
+            this.finalizeContextTx(
+                tx,
+                draftId,
+                calc.result,
+                calc.inputs,
+                createdBy
+            )
+        );
+
+        /* -------------------------------
+           4️⃣ TRANSITION ORDERS (NO TX)
+        ------------------------------- */
+        if (snapshot.version === 1) {
+            await this.transitionOrdersForContext(contextId);
         }
 
-        return result.snapshot;
+        return snapshot;
     }
+
 
 
     /* =====================================================
@@ -441,8 +366,8 @@ export class BillingSnapshotService {
             `[finalizeGroup] billingContextId=${billingContextId}`
         );
 
-        return await this.prisma.$transaction((tx) =>
-            this.createGroupSnapshotTx(tx, billingContextId, createdBy)
+        return await this.prisma.transaction((tx) =>
+            this.createGroupSnapshotTx(billingContextId, createdBy)
         );
     }
 

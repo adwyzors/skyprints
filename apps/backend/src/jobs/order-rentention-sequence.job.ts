@@ -37,7 +37,7 @@ export class OrderRetentionAndSequenceJob {
          * - concurrent cron runs
          * - concurrent order creation
          */
-        await this.prisma.$transaction(async (tx) => {
+        await this.prisma.transaction(async (tx) => {
             /**
              * 1️⃣ Fetch sequence state (FOR MEMORY)
              */
