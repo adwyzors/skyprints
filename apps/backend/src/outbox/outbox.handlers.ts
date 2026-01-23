@@ -101,7 +101,7 @@ export class OutboxHandlers {
             `Config transition START runId=${run.id} ${current.code} → ${transition.toStatus.code}`,
         );
 
-        await this.prisma.$transaction(async tx => {
+        await this.prisma.transaction(async tx => {
             await tx.processRun.update({
                 where: { id: run.id },
                 data: { statusCode: transition.toStatus.code },
@@ -151,7 +151,7 @@ export class OutboxHandlers {
             `All config runs terminal → attempting CONFIG_COMPLETE emission orderProcessId=${run.orderProcessId}`,
         );
 
-        await this.prisma.$transaction(async tx => {
+        await this.prisma.transaction(async tx => {
             const updated = await tx.orderProcess.updateMany({
                 where: {
                     id: run.orderProcessId,
@@ -253,7 +253,7 @@ export class OutboxHandlers {
             `Lifecycle transition START runId=${run.id} ${current.code} → ${transition.toStatus.code}`,
         );
 
-        await this.prisma.$transaction(async tx => {
+        await this.prisma.transaction(async tx => {
             await tx.processRun.update({
                 where: { id: run.id },
                 data: { lifeCycleStatusCode: transition.toStatus.code },
@@ -320,7 +320,7 @@ export class OutboxHandlers {
             `ORDER_PROCESS_LIFECYCLE_TRANSITION_REQUESTED orderProcessId=${event.aggregateId}`,
         );
 
-        await this.prisma.$transaction(async tx => {
+        await this.prisma.transaction(async tx => {
             const orderProcess = await tx.orderProcess.findUnique({
                 where: { id: event.aggregateId },
             });
@@ -464,7 +464,7 @@ export class OutboxHandlers {
             `Order transition START orderId=${order.id} ${current.code} → ${transition.toStatus.code}`,
         );
 
-        await this.prisma.$transaction(async tx => {
+        await this.prisma.transaction(async tx => {
             await tx.order.update({
                 where: { id: order.id },
                 data: { statusCode: transition.toStatus.code },

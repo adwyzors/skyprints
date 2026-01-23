@@ -376,7 +376,7 @@ enum CalculationType {
 model BillingContext {
   id            String   @id @default(uuid())
   type          BillingContextType
-  name          String?
+  name          String
   description   String?
 
   orders        BillingContextOrder[]

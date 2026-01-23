@@ -15,7 +15,7 @@ export class RunTemplatesService {
     constructor(private readonly prisma: PrismaService) { }
 
     async create(dto: CreateRunTemplateDto) {
-        return this.prisma.$transaction(async (tx) => {
+        return this.prisma.transaction(async (tx) => {
             this.logger.log(`Creating RunTemplate ${dto.name}`);
 
             // 1. Attach formulaKey, keep UI key unchanged

@@ -92,7 +92,7 @@ export class BillingSnapshotService {
             `[createGroupSnapshot] billingContextId=${billingContextId}`
         );
 
-        return this.prisma.$transaction((tx) =>
+        return this.prisma.transaction((tx) =>
             this.createGroupSnapshotTx(
                 tx,
                 billingContextId,
@@ -217,7 +217,7 @@ export class BillingSnapshotService {
             `[saveDraft] billingContextId=${billingContextId}`
         );
 
-        return this.prisma.$transaction((tx) =>
+        return this.prisma.transaction((tx) =>
             this.saveDraftTx(
                 tx,
                 billingContextId,
@@ -395,7 +395,7 @@ export class BillingSnapshotService {
     ) {
         this.logger.log(`[finalizeOrder] orderId=${orderId}`);
 
-        const result = await this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.transaction(async (tx) => {
             const context =
                 await this.contextResolver.resolveOrderContext(
                     tx,
@@ -441,7 +441,7 @@ export class BillingSnapshotService {
             `[finalizeGroup] billingContextId=${billingContextId}`
         );
 
-        return await this.prisma.$transaction((tx) =>
+        return await this.prisma.transaction((tx) =>
             this.createGroupSnapshotTx(tx, billingContextId, createdBy)
         );
     }

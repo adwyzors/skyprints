@@ -106,7 +106,7 @@ export class OrdersService {
             }),
         };
 
-        const [total, orders] = await this.prisma.$transaction([
+        const [total, orders] = await this.prisma.transaction([
             this.prisma.order.count({ where }),
 
             this.prisma.order.findMany({
@@ -234,7 +234,7 @@ export class OrdersService {
     }
 
     async create(dto: CreateOrderDto) {
-        return this.prisma.$transaction(async (tx) => {
+        return this.prisma.transaction(async (tx) => {
             const processIds = dto.processes.map(p => p.processId);
 
             const processes = await tx.process.findMany({
