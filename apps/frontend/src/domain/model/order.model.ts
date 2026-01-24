@@ -9,6 +9,7 @@ export interface Order {
     totalProcesses: number;
     completedProcesses: number;
     createdAt: Date;
+    images: string[];
 
     customer: {
         id: string;

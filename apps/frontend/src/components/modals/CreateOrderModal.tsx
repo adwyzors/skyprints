@@ -3,7 +3,7 @@
 import { Customer } from '@/domain/model/customer.model';
 import { ProcessSummary } from '@/domain/model/process.model';
 import { getCustomers } from '@/services/customer.service';
-import { createOrder, uploadOrderImages } from '@/services/orders.service';
+import { createOrder } from '@/services/orders.service';
 import { getProcesses } from '@/services/process.service';
 import { NewOrderPayload } from '@/types/planning';
 import { useEffect, useMemo, useState } from 'react';
@@ -196,21 +196,12 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
         })),
         // Only include jobCode if it has a value
         ...(jobCode.trim() ? { jobCode: jobCode.trim() } : {}),
+        // Include images directly in payload
+        images: selectedImages,
       };
 
-      // Create order
+      // Create order with images in a single call
       const createdOrder = await createOrder(payload);
-
-      // Upload images if any are selected
-      if (selectedImages.length > 0 && createdOrder.id) {
-        try {
-          await uploadOrderImages(createdOrder.id, selectedImages);
-        } catch (imgError) {
-          console.error('Failed to upload images:', imgError);
-          // Don't fail the entire operation if image upload fails
-          setError('Order created but image upload failed. You can add images later.');
-        }
-      }
 
       // Pass the created order to parent
       onCreate(createdOrder);
