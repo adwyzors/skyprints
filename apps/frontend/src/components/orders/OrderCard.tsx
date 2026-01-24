@@ -15,9 +15,10 @@ import { useCallback, useEffect, useState } from 'react';
 
 interface OrderCardProps {
     order: Order;
+    active?: boolean;
 }
 
-export default function OrderCard({ order }: OrderCardProps) {
+export default function OrderCard({ order, active = true }: OrderCardProps) {
     const router = useRouter();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
@@ -75,7 +76,7 @@ export default function OrderCard({ order }: OrderCardProps) {
 
     // Auto-slide effect
     useEffect(() => {
-        if (!hasImages || images.length <= 1 || isPaused) return;
+        if (!active || !hasImages || images.length <= 1 || isPaused) return;
 
         const interval = setInterval(() => {
             nextImage();

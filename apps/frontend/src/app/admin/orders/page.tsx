@@ -709,55 +709,61 @@ function AdminOrdersContent() {
         {/* ORDERS GRID/TABLE VIEW */}
         {!loading && (
           <>
-            {viewMode === 'grid' ? (
+            {/* GRID VIEW */}
+            <div className={viewMode === 'grid' ? 'block' : 'hidden'}>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
                 {filteredOrders.map((order) => (
-                  <OrderCard key={order.id} order={order} />
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    active={viewMode === 'grid'}
+                  />
                 ))}
               </div>
-            ) : (
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Sr. No.
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Order Code
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Job Code
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Date
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Quantity
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Customer
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredOrders.map((order, index) => (
-                        <OrderTableRow
-                          key={order.id}
-                          order={order}
-                          index={(ordersData.page - 1) * pageSize + index + 1}
-                          onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            </div>
+
+            {/* TABLE VIEW */}
+            <div className={`bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm ${viewMode === 'table' ? 'block' : 'hidden'}`}>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Sr. No.
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Order Code
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Job Code
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Quantity
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Customer
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredOrders.map((order, index) => (
+                      <OrderTableRow
+                        key={order.id}
+                        order={order}
+                        index={(ordersData.page - 1) * pageSize + index + 1}
+                        onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
+            </div>
 
             {/* PAGINATION */}
             {ordersData.totalPages >= 1 && (
