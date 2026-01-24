@@ -10,6 +10,7 @@ import {
   CheckCircle,
   ChevronRight,
   Circle,
+  FileText,
   Settings
 } from "lucide-react";
 import ConfigurationModal from "./ConfigurationModal";
@@ -21,6 +22,7 @@ import ConfigurationModal from "./ConfigurationModal";
 export interface ViewOrderModalProps {
   orderId: string;
   onClose: () => void;
+  onOrderUpdate?: () => void;
 }
 
 /* =================================================
@@ -40,7 +42,7 @@ export interface ViewOrderModalProps {
 
 import { transitionLifeCycle } from "@/services/run.service";
 
-export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps) {
+export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: ViewOrderModalProps) {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
@@ -236,8 +238,26 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
       });
 
       if (response.success) {
-        // Update local state immediately - no need to refetch from server
-        updateLifecycleStatus(processId, runId, nextStatusCode);
+        if (nextStatusCode === 'COMPLETE' || nextStatusCode === 'COMPLETED') {
+          // If the order is complete, we must refetch to get the final state
+          await fetchOrder();
+          // Notify parent to refresh the orders list
+          if (onOrderUpdate) {
+            onOrderUpdate();
+          }
+        } else {
+          // Update local state immediately - no need to refetch from server
+          updateLifecycleStatus(processId, runId, nextStatusCode);
+
+          // If order was PRODUCTION_READY, it's now IN_PRODUCTION
+          if (order.status === 'PRODUCTION_READY') {
+            setOrder(prev => prev ? { ...prev, status: 'IN_PRODUCTION' } : null);
+            // Notify parent for status change (optional, but good for keeping list in sync)
+            if (onOrderUpdate) {
+              onOrderUpdate();
+            }
+          }
+        }
       }
     } catch (err) {
       console.error("Failed to transition:", err);
@@ -322,6 +342,22 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
                   {order.status}
                 </span>
               </div>
+
+              {/* STATUS ACTION BUTTON */}
+              {(order.status === 'COMPLETE' || order.status === 'COMPLETED') && (
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      router.push(`/admin/billing?selectedOrder=${order.id}`);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Rate Config
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="mt-8">

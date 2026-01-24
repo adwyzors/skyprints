@@ -427,7 +427,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                   <div className="font-medium text-gray-700 mb-2">Run Values</div>
                                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                                     {Object.entries(run.values || {})
-                                      .filter(([key]) => !['New Rate', 'New Amount'].includes(key))
+                                      .filter(([key]) => !['New Rate', 'New Amount', 'images', 'Images'].includes(key))
                                       .map(([key, value]) => (
                                         <div key={key} className="flex justify-between">
                                           <span className="text-gray-500 capitalize">{key.replace(/([A-Z_])/g, ' $1').replace(/_/g, ' ')}:</span>

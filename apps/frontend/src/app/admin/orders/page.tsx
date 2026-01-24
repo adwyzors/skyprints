@@ -1,8 +1,15 @@
 'use client';
 
+import CreateOrderModal from '@/components/modals/CreateOrderModal';
+import ViewOrderModal from '@/components/modals/ViewOrderModal';
+import OrderCard from '@/components/orders/OrderCard';
+import OrdersViewToggle from '@/components/orders/OrdersViewToggle';
+import OrderTableRow from '@/components/orders/OrderTableRow';
+import PageSizeSelector from '@/components/orders/PageSizeSelector';
+import { Order } from '@/domain/model/order.model';
+import { GetOrdersParams, getOrders } from '@/services/orders.service';
 import debounce from 'lodash/debounce';
 import {
-  Calendar,
   CheckCircle,
   ChevronRight,
   Clock,
@@ -10,21 +17,15 @@ import {
   FileText,
   Filter,
   Loader2,
-  MoreVertical,
   Package,
   Plus,
   Search,
   Settings,
   User,
-  X,
+  X
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
-
-import CreateOrderModal from '@/components/modals/CreateOrderModal';
-import ViewOrderModal from '@/components/modals/ViewOrderModal';
-import { Order } from '@/domain/model/order.model';
-import { GetOrdersParams, getOrders } from '@/services/orders.service';
 
 /* =================================================
    COMPONENT
@@ -54,6 +55,8 @@ function AdminOrdersContent() {
   const [openCreate, setOpenCreate] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [pageSize, setPageSize] = useState(12);
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -111,6 +114,30 @@ function AdminOrdersContent() {
     return () => debouncedSearchUpdate.cancel();
   }, [searchQuery, debouncedSearchUpdate]);
 
+  // API Cache with 2-second TTL
+  const cacheRef = useState<{ [key: string]: { data: any; timestamp: number } }>({});
+  const CACHE_TTL = 2000; // 2 seconds
+
+  const getCacheKey = (params: GetOrdersParams) => {
+    return JSON.stringify(params);
+  };
+
+  const getCachedData = (key: string) => {
+    const cached = cacheRef[0][key];
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
+    return null;
+  };
+
+  const setCachedData = (key: string, data: any) => {
+    cacheRef[0][key] = { data, timestamp: Date.now() };
+  };
+
+  const clearCache = () => {
+    cacheRef[0] = {};
+  };
+
   // Main data fetching effect
   useEffect(() => {
     let cancelled = false;
@@ -125,8 +152,17 @@ function AdminOrdersContent() {
         // Build query params
         const params: GetOrdersParams = {
           page: ordersData.page,
-          limit: ordersData.limit,
+          limit: pageSize,
         };
+
+        // Check cache first
+        const cacheKey = getCacheKey(params);
+        const cachedResult = getCachedData(cacheKey);
+        if (cachedResult && !cancelled) {
+          setOrdersData(cachedResult);
+          setLoading(false);
+          return;
+        }
 
         // Add status filters - send comma-separated statuses
         if (statusFilter.length > 0) {
@@ -172,6 +208,7 @@ function AdminOrdersContent() {
         const fetchedData = await getOrders(params);
         if (!cancelled) {
           setOrdersData(fetchedData);
+          setCachedData(cacheKey, fetchedData);
         }
       } catch (error) {
         console.error('Error fetching orders:', error);
@@ -188,13 +225,19 @@ function AdminOrdersContent() {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [debouncedSearch, statusFilter, dateFilter, customerFilter, ordersData.page, refreshTrigger]);
+  }, [debouncedSearch, statusFilter, dateFilter, customerFilter, ordersData.page, pageSize, refreshTrigger]);
 
   /* ================= HANDLERS ================= */
 
   const handleOrderCreated = () => {
+    clearCache();
     setRefreshTrigger((prev) => prev + 1);
     setOpenCreate(false);
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setOrdersData((prev) => ({ ...prev, page: 1, limit: newSize }));
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -254,6 +297,165 @@ function AdminOrdersContent() {
     if (total === 0) return 0;
 
     return Math.round((completed / total) * 100);
+  };
+
+  /* ================= OLD ORDER CARD COMPONENT (UNUSED - kept for reference) ================= */
+
+  const _OldOrderCard = ({ order }: { order: Order }) => {
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+    const statusConfig = getStatusConfig(order.status);
+    const processSummary = getProcessSummary(order);
+
+    const images = order.images || [];
+    const hasImages = images.length > 0;
+
+    const nextImage = useCallback((e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    }, [images.length]);
+
+    const prevImage = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    };
+
+    // Auto-slide effect
+    useEffect(() => {
+      if (!hasImages || images.length <= 1 || isPaused) return;
+
+      const interval = setInterval(() => {
+        nextImage();
+      }, 4000); // Auto-slide every 4 seconds
+
+      return () => clearInterval(interval);
+    }, [hasImages, images.length, isPaused, nextImage]);
+
+    return (
+      <div
+        onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
+        className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1 flex flex-col relative"
+      >
+        {/* STATUS BADGE - TOP RIGHT CORNER */}
+        <div className="absolute top-3 right-3 z-10">
+          <span
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 shadow-md ${statusConfig.color}`}
+          >
+            {statusConfig.icon}
+            <span className="truncate">{statusConfig.label}</span>
+          </span>
+        </div>
+
+        {/* IMAGE CAROUSEL - OPTIMIZED FOR FAST LOADING */}
+        <div
+          className="relative w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden"
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
+          {hasImages ? (
+            <>
+              {/* Render all images with absolute positioning for crossfade */}
+              {images.map((image, index) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={`Order ${order.code}`}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out ${index === currentImageIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                    }`}
+                  loading="lazy"
+                  decoding="async"
+                />
+              ))}
+
+              {images.length > 1 && (
+                <>
+                  {/* Previous Arrow */}
+                  <button
+                    onClick={prevImage}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all hover:scale-110 z-20"
+                    aria-label="Previous image"
+                  >
+                    <ChevronRight className="w-5 h-5 text-gray-800 rotate-180" />
+                  </button>
+                  {/* Next Arrow */}
+                  <button
+                    onClick={nextImage}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all hover:scale-110 z-20"
+                    aria-label="Next image"
+                  >
+                    <ChevronRight className="w-5 h-5 text-gray-800" />
+                  </button>
+                  {/* Image Counter */}
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-medium z-20">
+                    {currentImageIndex + 1} / {images.length}
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+              <Package className="w-16 h-16 mb-2" />
+              <span className="text-sm font-medium">No images uploaded</span>
+            </div>
+          )}
+        </div>
+
+        {/* ORDER DETAILS SECTION */}
+        <div className="p-4 space-y-3 flex-1">
+          {/* Order Code & Job Code */}
+          <div>
+            <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition-colors truncate">
+              {order.code}
+            </h3>
+            {order.jobCode && (
+              <div className="flex items-center gap-2 mt-1">
+                <FileText className="w-3.5 h-3.5 text-gray-500" />
+                <span className="text-xs text-gray-600">Job: {order.jobCode}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Customer Name */}
+          <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
+            <User className="w-4 h-4 text-gray-500 flex-shrink-0" />
+            <span className="text-sm text-gray-700 truncate font-medium">
+              {order.customer?.name}
+            </span>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-gray-50 rounded-lg p-2.5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Package className="w-3.5 h-3.5 text-gray-500" />
+                <span className="text-xs text-gray-500">Quantity</span>
+              </div>
+              <p className="text-base font-bold text-gray-800">{order.quantity}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-2.5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Settings className="w-3.5 h-3.5 text-gray-500" />
+                <span className="text-xs text-gray-500">Processes</span>
+              </div>
+              <p className="text-base font-bold text-gray-800">{order.totalProcesses}</p>
+            </div>
+          </div>
+
+          {/* Subtle Configure Link */}
+          <div className="pt-2 border-t border-gray-100">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/admin/orders/${order.id}`);
+              }}
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors"
+            >
+              Configure order →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const getStatusConfig = (status: string) => {
@@ -487,21 +689,11 @@ function AdminOrdersContent() {
               <p className="text-sm text-gray-600">
                 Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span>{' '}
                 of <span className="font-semibold text-gray-800">{ordersData.total}</span> orders
-                {ordersData.totalPages > 1 && (
-                  <span>
-                    {' '}
-                    (Page {ordersData.page} of {ordersData.totalPages})
-                  </span>
-                )}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <Calendar className="w-5 h-5 text-gray-600" />
-              </button>
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <MoreVertical className="w-5 h-5 text-gray-600" />
-              </button>
+            <div className="flex items-center gap-3">
+              <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
+              <OrdersViewToggle view={viewMode} onViewChange={setViewMode} />
             </div>
           </div>
         </div>
@@ -514,147 +706,69 @@ function AdminOrdersContent() {
           </div>
         )}
 
-        {/* ORDERS GRID - IMPROVED LAYOUT */}
+        {/* ORDERS GRID/TABLE VIEW */}
         {!loading && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
-              {filteredOrders.map((order) => {
-                const statusConfig = getStatusConfig(order.status);
-                const processSummary = getProcessSummary(order);
-                const progressPercentage = getCompletionProgress(order);
-                const progressColor =
-                  progressPercentage < 30
-                    ? 'from-red-500 to-red-600'
-                    : progressPercentage < 70
-                      ? 'from-yellow-500 to-yellow-600'
-                      : 'from-green-500 to-green-600';
-
-                return (
-                  <div
+            {/* GRID VIEW */}
+            <div className={viewMode === 'grid' ? 'block' : 'hidden'}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+                {filteredOrders.map((order) => (
+                  <OrderCard
                     key={order.id}
-                    onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
-                    className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1 flex flex-col"
-                  >
-                    {/* CARD HEADER */}
-                    <div className={`p-5 ${statusConfig.bgColor}`}>
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition-colors truncate">
-                            {order.code}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <User className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                            <span className="text-sm text-gray-700 truncate">
-                              {order.customer?.name}
-                            </span>
-                          </div>
-                          {order.jobCode && (
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
-                                Job: {order.jobCode}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                    order={order}
+                    active={viewMode === 'grid'}
+                  />
+                ))}
+              </div>
+            </div>
 
-                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          <span
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
-                          >
-                            {statusConfig.icon}
-                            <span className="truncate">{statusConfig.label}</span>
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {formatDate(order.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CARD BODY */}
-                    <div className="p-5 space-y-4 flex-1">
-                      {/* QUANTITY & PROCESS INFO */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Package className="w-4 h-4 text-gray-400" />
-                            <span className="text-xs text-gray-500">Quantity</span>
-                          </div>
-                          <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Settings className="w-4 h-4 text-gray-400" />
-                            <span className="text-xs text-gray-500">Processes</span>
-                          </div>
-                          <p className="text-lg font-bold text-gray-800">{order.totalProcesses}</p>
-                        </div>
-                      </div>
-
-                      {/* PROGRESS BAR */}
-                      <div>
-                        <div className="flex justify-between text-xs text-gray-600 mb-1.5">
-                          <span>Production Progress</span>
-                          <span className="font-medium">{progressPercentage}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                          <div
-                            className={`bg-gradient-to-r ${progressColor} h-2 rounded-full transition-all duration-700`}
-                            style={{ width: `${progressPercentage}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* RUNS OVERVIEW */}
-                      <div className="pt-3 border-t border-gray-100">
-                        <div className="text-xs text-gray-500 mb-2">Runs by Process:</div>
-                        <div className="space-y-2">
-                          {order.processes.slice(0, 3).map((process) => (
-                            <div key={process.id} className="flex items-center justify-between">
-                              <span className="text-sm text-gray-700 truncate">{process.name}</span>
-                              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full flex-shrink-0">
-                                {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          ))}
-                          {order.processes.length > 3 && (
-                            <div className="text-xs text-gray-500 pt-1">
-                              +{order.processes.length - 3} more processes
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CARD FOOTER */}
-                    <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500 truncate mr-2">
-                          {processSummary.configuredRuns}/{processSummary.totalRuns} runs configured
-                        </span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/admin/orders/${order.id}`);
-                            }}
-                            className="px-3 py-1.5 text-xs bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
-                          >
-                            Configure
-                          </button>
-                          <ChevronRight className="w-4 h-4 text-gray-400" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* TABLE VIEW */}
+            <div className={`bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm ${viewMode === 'table' ? 'block' : 'hidden'}`}>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Sr. No.
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Order Code
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Job Code
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Quantity
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Customer
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredOrders.map((order, index) => (
+                      <OrderTableRow
+                        key={order.id}
+                        order={order}
+                        index={(ordersData.page - 1) * pageSize + index + 1}
+                        onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* PAGINATION */}
             {ordersData.totalPages >= 1 && (
               <div className="flex items-center justify-center pt-6">
+
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePageChange(ordersData.page - 1)}
@@ -786,7 +900,14 @@ function AdminOrdersContent() {
         />
 
         {selectedOrderId && (
-          <ViewOrderModal orderId={selectedOrderId} onClose={() => router.push('/admin/orders')} />
+          <ViewOrderModal
+            orderId={selectedOrderId}
+            onClose={() => router.push('/admin/orders')}
+            onOrderUpdate={() => {
+              clearCache();
+              setRefreshTrigger((prev) => prev + 1);
+            }}
+          />
         )}
       </div>
     </div>

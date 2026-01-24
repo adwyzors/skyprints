@@ -50,6 +50,7 @@ export interface OrderBillingSummary {
       id: string;
       name: string;
       configStatus: string;
+      values?: Record<string, any>;
     }[];
   }[];
   billing: {

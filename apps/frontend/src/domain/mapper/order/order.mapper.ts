@@ -14,7 +14,8 @@ export const mapOrderSummaryDtoToOrder = (
     processes: dto.processes.map(mapOrderProcessDto),
     completedProcesses: dto.completedProcesses ?? 0,
     totalProcesses: dto.totalProcesses,
-    jobCode: dto.jobCode ?? ""
+    jobCode: dto.jobCode ?? "",
+    images: dto.images ?? []
 });
 
 const mapOrderProcessDto = (

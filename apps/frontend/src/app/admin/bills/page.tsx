@@ -1,10 +1,14 @@
 "use client";
 
+import BillingContextCard from "@/components/billing/BillingContextCard";
+import BillingContextTable from "@/components/billing/BillingContextTable";
 import BillingGroupModal from "@/components/modals/BillingGroupModal";
-import { BillingContext, GetBillingContextsResponse } from '@/domain/model/billing.model';
+import OrdersViewToggle from "@/components/orders/OrdersViewToggle";
+import PageSizeSelector from "@/components/orders/PageSizeSelector";
+import { GetBillingContextsResponse } from '@/domain/model/billing.model';
 import { getBillingContexts } from '@/services/billing.service';
 import debounce from 'lodash/debounce';
-import { Calendar, ChevronLeft, ChevronRight, CreditCard, FileText, Loader2, Package, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, Loader2, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
@@ -24,6 +28,9 @@ function BillsPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const selectedGroupId = searchParams.get('SelectedGroup');
+
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+    const [pageSize, setPageSize] = useState(12);
 
     const [data, setData] = useState<GetBillingContextsResponse>({
         data: [],
@@ -58,7 +65,7 @@ function BillsPageContent() {
             try {
                 const response = await getBillingContexts({
                     page: data.page,
-                    limit: 12,
+                    limit: pageSize,
                     search: debouncedSearch
                 });
                 setData(response);
@@ -69,12 +76,17 @@ function BillsPageContent() {
             }
         };
         fetchContexts();
-    }, [data.page, debouncedSearch]);
+    }, [data.page, debouncedSearch, pageSize]);
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= data.totalPages) {
             setData((prev) => ({ ...prev, page: newPage }));
         }
+    };
+
+    const handlePageSizeChange = (newSize: number) => {
+        setPageSize(newSize);
+        setData((prev) => ({ ...prev, page: 1 })); // Reset to page 1 on size change
     };
 
     const handleContextClick = (id: string) => {
@@ -97,25 +109,34 @@ function BillsPageContent() {
                     <p className="text-gray-600 mt-1">Manage and view all billing groups</p>
                 </div>
 
-                {/* SEARCH BAR */}
+                {/* TOOLBAR */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-5 shadow-sm">
-                    <div className="relative">
-                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search billing groups by name..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery("")}
-                                className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-lg"
-                            >
-                                <X className="w-4 h-4 text-gray-400" />
-                            </button>
-                        )}
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                        {/* SEARCH BAR */}
+                        <div className="relative flex-1 w-full">
+                            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search billing groups by name..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-lg"
+                                >
+                                    <X className="w-4 h-4 text-gray-400" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* CONTROLS */}
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                            <OrdersViewToggle view={viewMode} onViewChange={setViewMode} />
+                            <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
+                        </div>
                     </div>
                 </div>
 
@@ -135,13 +156,29 @@ function BillsPageContent() {
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                        {data.data.map((context) => (
-                            <div key={context.id} onClick={() => handleContextClick(context.id)} className="cursor-pointer">
-                                <BillingContextCard context={context} />
+                    <>
+                        {/* GRID VIEW */}
+                        {viewMode === 'grid' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                {data.data.map((context) => (
+                                    <BillingContextCard
+                                        key={context.id}
+                                        context={context}
+                                        onClick={() => handleContextClick(context.id)}
+                                    />
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        )}
+
+                        {/* TABLE VIEW */}
+                        {viewMode === 'table' && (
+                            <BillingContextTable
+                                data={data.data}
+                                startIndex={(data.page - 1) * pageSize}
+                                onRowClick={handleContextClick}
+                            />
+                        )}
+                    </>
                 )}
 
                 {/* PAGINATION */}
@@ -166,9 +203,9 @@ function BillsPageContent() {
                         <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-sm text-gray-700">
-                                    Showing <span className="font-medium">{(data.page - 1) * 12 + 1}</span> to{' '}
+                                    Showing <span className="font-medium">{(data.page - 1) * pageSize + 1}</span> to{' '}
                                     <span className="font-medium">
-                                        {Math.min(data.page * 12, data.total)}
+                                        {Math.min(data.page * pageSize, data.total)}
                                     </span>{' '}
                                     of <span className="font-medium">{data.total}</span> results
                                 </p>
@@ -183,7 +220,12 @@ function BillsPageContent() {
                                         <span className="sr-only">Previous</span>
                                         <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                                     </button>
+                                    {/* Pagination logic could be improved for large number of pages, similar to orders page */}
+                                    {/* Using simple array for now as per previous implementation, but respecting totalPages */}
                                     {[...Array(data.totalPages)].map((_, i) => (
+                                        // Show limited pages if too many, but here we keep it simple or user might want the ellipsis logic
+                                        // Reuse ellipsis logic if requested, or wait for feedback. 
+                                        // Original had simple map. Using simple map for now.
                                         <button
                                             key={i + 1}
                                             onClick={() => handlePageChange(i + 1)}
@@ -215,79 +257,6 @@ function BillsPageContent() {
                 onClose={handleCloseModal}
                 groupId={selectedGroupId || ''}
             />
-        </div>
-    );
-}
-
-function BillingContextCard({ context }: { context: BillingContext }) {
-    const formatDate = (dateStr?: string) => {
-        if (!dateStr) return 'N/A';
-        return new Date(dateStr).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-    };
-
-    const formatCurrency = (amount: string | number) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 0
-        }).format(Number(amount));
-    };
-
-    const isDraft = context.latestSnapshot?.isDraft ?? true;
-
-    return (
-        <div className="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl hover:border-indigo-300 transition-all duration-300 hover:-translate-y-1">
-            <div className="p-5 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h3 className="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors line-clamp-1">
-                            {context.name}
-                        </h3>
-                        {context.description && (
-                            <p className="text-sm text-gray-500 mt-1 line-clamp-1">{context.description}</p>
-                        )}
-                    </div>
-                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${isDraft
-                        ? 'bg-yellow-50 text-yellow-700 border-yellow-100'
-                        : 'bg-green-50 text-green-700 border-green-100'
-                        }`}>
-                        {isDraft ? 'DRAFT' : 'FINAL'}
-                    </span>
-                </div>
-            </div>
-
-            <div className="p-5 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                            <Package className="w-4 h-4 text-gray-400" />
-                            <span className="text-xs text-gray-500">Orders</span>
-                        </div>
-                        <p className="text-lg font-bold text-gray-800">{context.ordersCount}</p>
-                    </div>
-
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                            <CreditCard className="w-4 h-4 text-gray-400" />
-                            <span className="text-xs text-gray-500">Total</span>
-                        </div>
-                        <p className="text-lg font-bold text-indigo-600">
-                            {context.latestSnapshot ? formatCurrency(context.latestSnapshot.result) : '-'}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-                    <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5" />
-                        <span>Created {formatDate(context.latestSnapshot?.createdAt)}</span>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }
