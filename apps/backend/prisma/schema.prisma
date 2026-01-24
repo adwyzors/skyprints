@@ -15,17 +15,22 @@ model User {
   id            String   @id @default(uuid())
   email         String   @unique
   name          String
-  role          String   @default("OPERATOR")
   isActive      Boolean  @default(true)
 
   assignedRuns  ProcessRun[]
   createdOrders Order[]
   notifications Notification[]
 
+  locationId String?  @unique
+  location   Location? @relation(fields: [locationId], references: [id])
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
 
+  @@index([email])
   @@index([isActive])
+  @@index([isActive, name])
 }
 
 ///////////////////////////////
@@ -291,9 +296,12 @@ model Location {
   type        String  @default("WORKSTATION")
   isActive    Boolean @default(true)
 
-  runs        ProcessRun[]
+  // Inverse 1–1
+  user User?
 
-  createdAt   DateTime @default(now())
+  runs ProcessRun[]
+
+  createdAt DateTime @default(now())
 
   @@index([isActive])
 }

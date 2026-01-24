@@ -2,7 +2,7 @@
 CREATE TYPE "BillingContextType" AS ENUM ('ORDER', 'GROUP');
 
 -- CreateEnum
-CREATE TYPE "BillingSnapshotState" AS ENUM ('DRAFT', 'FINAL');
+CREATE TYPE "BillingSnapshotIntent" AS ENUM ('DRAFT', 'FINAL');
 
 -- CreateEnum
 CREATE TYPE "CalculationType" AS ENUM ('INITIAL', 'RECALCULATED');
@@ -12,10 +12,11 @@ CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "role" TEXT NOT NULL DEFAULT 'OPERATOR',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "locationId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -123,6 +124,7 @@ CREATE TABLE "Order" (
     "workflowTypeId" TEXT NOT NULL,
     "statusCode" TEXT NOT NULL,
     "jobCode" TEXT,
+    "images" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "createdById" TEXT NOT NULL,
     "totalProcesses" INTEGER NOT NULL DEFAULT 0,
     "completedProcesses" INTEGER NOT NULL DEFAULT 0,
@@ -226,11 +228,8 @@ CREATE TABLE "Notification" (
 CREATE TABLE "BillingContext" (
     "id" TEXT NOT NULL,
     "type" "BillingContextType" NOT NULL,
-    "name" TEXT,
+    "name" TEXT NOT NULL,
     "description" TEXT,
-    "isFinalized" BOOLEAN NOT NULL DEFAULT false,
-    "finalizedAt" TIMESTAMP(3),
-    "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -253,7 +252,7 @@ CREATE TABLE "BillingSnapshot" (
     "billingContextId" TEXT NOT NULL,
     "version" INTEGER NOT NULL,
     "isLatest" BOOLEAN NOT NULL DEFAULT true,
-    "state" "BillingSnapshotState" NOT NULL,
+    "intent" "BillingSnapshotIntent" NOT NULL,
     "inputs" JSONB NOT NULL,
     "result" DECIMAL(18,4) NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'INR',
@@ -269,7 +268,16 @@ CREATE TABLE "BillingSnapshot" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "User_locationId_key" ON "User"("locationId");
+
+-- CreateIndex
+CREATE INDEX "User_email_idx" ON "User"("email");
+
+-- CreateIndex
 CREATE INDEX "User_isActive_idx" ON "User"("isActive");
+
+-- CreateIndex
+CREATE INDEX "User_isActive_name_idx" ON "User"("isActive", "name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Customer_code_key" ON "Customer"("code");
@@ -341,31 +349,7 @@ CREATE INDEX "Order_workflowTypeId_idx" ON "Order"("workflowTypeId");
 CREATE UNIQUE INDEX "Order_code_deletedAt_key" ON "Order"("code", "deletedAt");
 
 -- CreateIndex
-CREATE INDEX "OrderProcess_orderId_idx" ON "OrderProcess"("orderId");
-
--- CreateIndex
-CREATE INDEX "OrderProcess_processId_idx" ON "OrderProcess"("processId");
-
--- CreateIndex
-CREATE INDEX "OrderProcess_workflowTypeId_idx" ON "OrderProcess"("workflowTypeId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "OrderProcess_orderId_processId_key" ON "OrderProcess"("orderId", "processId");
-
--- CreateIndex
-CREATE INDEX "ProcessRun_orderProcessId_idx" ON "ProcessRun"("orderProcessId");
-
--- CreateIndex
-CREATE INDEX "ProcessRun_runTemplateId_idx" ON "ProcessRun"("runTemplateId");
-
--- CreateIndex
-CREATE INDEX "ProcessRun_assignedUserId_idx" ON "ProcessRun"("assignedUserId");
-
--- CreateIndex
-CREATE INDEX "ProcessRun_locationId_idx" ON "ProcessRun"("locationId");
-
--- CreateIndex
-CREATE INDEX "ProcessRun_lifecycleWorkflowTypeId_idx" ON "ProcessRun"("lifecycleWorkflowTypeId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ProcessRun_orderProcessId_runNumber_key" ON "ProcessRun"("orderProcessId", "runNumber");
@@ -395,10 +379,7 @@ CREATE INDEX "Notification_userId_isRead_createdAt_idx" ON "Notification"("userI
 CREATE INDEX "BillingContext_type_idx" ON "BillingContext"("type");
 
 -- CreateIndex
-CREATE INDEX "BillingContext_isFinalized_idx" ON "BillingContext"("isFinalized");
-
--- CreateIndex
-CREATE INDEX "BillingContextOrder_orderId_idx" ON "BillingContextOrder"("orderId");
+CREATE INDEX "BillingContext_id_idx" ON "BillingContext"("id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "BillingContextOrder_billingContextId_orderId_key" ON "BillingContextOrder"("billingContextId", "orderId");
@@ -407,10 +388,10 @@ CREATE UNIQUE INDEX "BillingContextOrder_billingContextId_orderId_key" ON "Billi
 CREATE INDEX "BillingSnapshot_billingContextId_isLatest_idx" ON "BillingSnapshot"("billingContextId", "isLatest");
 
 -- CreateIndex
-CREATE INDEX "BillingSnapshot_state_idx" ON "BillingSnapshot"("state");
-
--- CreateIndex
 CREATE UNIQUE INDEX "BillingSnapshot_billingContextId_version_key" ON "BillingSnapshot"("billingContextId", "version");
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_locationId_fkey" FOREIGN KEY ("locationId") REFERENCES "Location"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "WorkflowStatus" ADD CONSTRAINT "WorkflowStatus_workflowTypeId_fkey" FOREIGN KEY ("workflowTypeId") REFERENCES "WorkflowType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -443,7 +424,7 @@ ALTER TABLE "Order" ADD CONSTRAINT "Order_createdById_fkey" FOREIGN KEY ("create
 ALTER TABLE "Order" ADD CONSTRAINT "Order_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "OrderProcess" ADD CONSTRAINT "OrderProcess_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "OrderProcess" ADD CONSTRAINT "OrderProcess_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OrderProcess" ADD CONSTRAINT "OrderProcess_processId_fkey" FOREIGN KEY ("processId") REFERENCES "Process"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -455,7 +436,7 @@ ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_assignedUserId_fkey" FOREIGN
 ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_locationId_fkey" FOREIGN KEY ("locationId") REFERENCES "Location"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_orderProcessId_fkey" FOREIGN KEY ("orderProcessId") REFERENCES "OrderProcess"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_orderProcessId_fkey" FOREIGN KEY ("orderProcessId") REFERENCES "OrderProcess"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_runTemplateId_fkey" FOREIGN KEY ("runTemplateId") REFERENCES "RunTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -470,7 +451,7 @@ ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY
 ALTER TABLE "BillingContextOrder" ADD CONSTRAINT "BillingContextOrder_billingContextId_fkey" FOREIGN KEY ("billingContextId") REFERENCES "BillingContext"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "BillingContextOrder" ADD CONSTRAINT "BillingContextOrder_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BillingContextOrder" ADD CONSTRAINT "BillingContextOrder_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "BillingSnapshot" ADD CONSTRAINT "BillingSnapshot_billingContextId_fkey" FOREIGN KEY ("billingContextId") REFERENCES "BillingContext"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
