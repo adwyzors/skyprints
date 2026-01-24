@@ -216,8 +216,8 @@ function BillingContent() {
       <div className="p-4 md:p-6 lg:p-8 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Billing</h1>
-            <p className="text-gray-600 mt-1">Generate invoices for completed orders</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Rate Configuration</h1>
+            <p className="text-gray-600 mt-1">Configure rates for completed orders</p>
           </div>
 
           <div className="flex items-center gap-3">

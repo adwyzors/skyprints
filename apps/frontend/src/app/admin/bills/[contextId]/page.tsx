@@ -252,6 +252,42 @@ export default function BillingContextDetailPage() {
                                 <span className="text-xl font-bold text-indigo-600 block">
                                     {details.latestSnapshot ? formatCurrency(details.latestSnapshot.result) : '-'}
                                 </span>
+                                {(() => {
+                                    // Calculate dynamic total
+                                    let currentTotal = 0;
+                                    let originalTotal = 0;
+
+                                    details.orders.forEach(order => {
+                                        const snapshot = order.billing;
+                                        order.processes.forEach(p => {
+                                            p.runs.forEach(r => {
+                                                const input = snapshot?.inputs?.[r.id];
+                                                const qty = input?.quantity ?? (r.values?.['Quantity'] as number) ?? 0;
+                                                const baseRate = input?.new_rate ?? input?.['new_rate'] ?? (r.values?.['Estimated Rate'] as number) ?? 0;
+
+                                                const draftRate = draftInputs[order.id]?.[r.id]?.new_rate;
+                                                const effectiveRate = draftRate !== undefined ? draftRate : baseRate;
+
+                                                currentTotal += effectiveRate * qty;
+                                                originalTotal += baseRate * qty;
+                                            });
+                                        });
+                                    });
+
+                                    const diff = currentTotal - originalTotal;
+
+                                    if (diff === 0) return null;
+
+                                    return (
+                                        <div className="mt-1 flex flex-col items-end">
+                                            <span className={`text-sm font-medium ${diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                {diff > 0 ? '+' : ''}{formatCurrency(diff)}
+                                            </span>
+                                            <span className="text-lg font-bold text-gray-900">{formatCurrency(currentTotal)}</span>
+
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>
@@ -393,6 +429,12 @@ export default function BillingContextDetailPage() {
                                                                                     <span className="text-sm font-bold text-gray-900 block py-1.5">
                                                                                         {formatCurrency(displayTotal)}
                                                                                     </span>
+                                                                                    {isEdited && displayTotal !== (currentRate * qty) && (
+                                                                                        <span className={`text-xs block font-medium ${displayTotal > (currentRate * qty) ? 'text-green-600' : 'text-red-600'}`}>
+                                                                                            {displayTotal > (currentRate * qty) ? '+' : ''}
+                                                                                            {formatCurrency(displayTotal - (currentRate * qty))}
+                                                                                        </span>
+                                                                                    )}
                                                                                 </div>
                                                                             </div>
                                                                         </div>

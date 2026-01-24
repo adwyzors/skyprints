@@ -900,7 +900,14 @@ function AdminOrdersContent() {
         />
 
         {selectedOrderId && (
-          <ViewOrderModal orderId={selectedOrderId} onClose={() => router.push('/admin/orders')} />
+          <ViewOrderModal
+            orderId={selectedOrderId}
+            onClose={() => router.push('/admin/orders')}
+            onOrderUpdate={() => {
+              clearCache();
+              setRefreshTrigger((prev) => prev + 1);
+            }}
+          />
         )}
       </div>
     </div>

@@ -136,9 +136,6 @@ function BillsPageContent() {
                         <div className="flex items-center gap-3 w-full md:w-auto">
                             <OrdersViewToggle view={viewMode} onViewChange={setViewMode} />
                             <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
-                            <div className="hidden md:flex items-center text-sm text-gray-500 whitespace-nowrap px-2">
-                                <span className="font-semibold text-gray-800">{data.total}</span> groups
-                            </div>
                         </div>
                     </div>
                 </div>
