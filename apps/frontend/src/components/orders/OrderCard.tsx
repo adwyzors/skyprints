@@ -16,9 +16,11 @@ import { useCallback, useEffect, useState } from 'react';
 interface OrderCardProps {
     order: Order;
     active?: boolean;
+    showConfigure?: boolean;
+    onClick?: () => void;
 }
 
-export default function OrderCard({ order, active = true }: OrderCardProps) {
+export default function OrderCard({ order, active = true, showConfigure = true, onClick }: OrderCardProps) {
     const router = useRouter();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
@@ -45,6 +47,21 @@ export default function OrderCard({ order, active = true }: OrderCardProps) {
             case 'IN_PRODUCTION':
                 return {
                     label: 'In Production',
+                    color: 'bg-green-50 text-green-700 border-green-200',
+                    bgColor: 'bg-green-50/30',
+                    icon: <CheckCircle className="w-3.5 h-3.5" />,
+                };
+            case 'COMPLETE':
+            case 'COMPLETED':
+                return {
+                    label: 'Rate Config',
+                    color: 'bg-purple-50 text-purple-700 border-purple-200',
+                    bgColor: 'bg-purple-50/30',
+                    icon: <Clock className="w-3.5 h-3.5" />,
+                };
+            case 'BILLED':
+                return {
+                    label: 'Billed',
                     color: 'bg-green-50 text-green-700 border-green-200',
                     bgColor: 'bg-green-50/30',
                     icon: <CheckCircle className="w-3.5 h-3.5" />,
@@ -99,7 +116,7 @@ export default function OrderCard({ order, active = true }: OrderCardProps) {
 
             {/* CARD CONTENT - isolated stacking context */}
             <div
-                onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
+                onClick={onClick || (() => router.push(`/admin/orders?selectedOrder=${order.id}`))}
                 className="group bg-white rounded-2xl border border-gray-200 cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1 flex flex-col isolate"
             >
                 {/* IMAGE CAROUSEL */}
@@ -187,17 +204,19 @@ export default function OrderCard({ order, active = true }: OrderCardProps) {
                     </div>
 
                     {/* ACTION */}
-                    <div className="pt-2 border-t border-gray-100">
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/admin/orders/${order.id}`);
-                            }}
-                            className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors flex items-center gap-0.5"
-                        >
-                            Configure order <ChevronRight className="w-3 h-3" />
-                        </button>
-                    </div>
+                    {showConfigure && (
+                        <div className="pt-2 border-t border-gray-100">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.push(`/admin/orders/${order.id}`);
+                                }}
+                                className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors flex items-center gap-0.5"
+                            >
+                                Configure order <ChevronRight className="w-3 h-3" />
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -2,10 +2,11 @@
 //apps\frontend\src\app\admin\completed\page.tsx
 import CompletedOrderModal from "@/components/modals/CompletedOrderModal";
 import CreateGroupModal from "@/components/modals/CreateGroupModal";
+import OrderCard from "@/components/orders/OrderCard";
 import { Order } from "@/domain/model/order.model";
 import { GetOrdersParams, getOrders } from "@/services/orders.service";
 import debounce from 'lodash/debounce';
-import { Calendar, CheckCircle, CheckSquare, DollarSign, Download, FileText, Filter, Loader2, Package, Search, User, Users, X } from "lucide-react";
+import { Calendar, CheckCircle, CheckSquare, Download, FileText, Filter, Loader2, Search, Users, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -408,8 +409,12 @@ function CompletedContent() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {displayOrders.map((order) => {
-                const statusConfig = getStatusConfig();
                 const isSelected = isOrderSelected(order.id);
+                // If selection mode is active, we might want to keep some custom UI or wrap OrderCard?
+                // The user asked for "same card as orders page", but completed page has selection logic.
+                // The OrderCard supports "onClick", so we can wrap it.
+                // However, OrderCard component handles its own display. 
+                // Let's use OrderCard but wrap it for selection mode overlay.
 
                 return (
                   <div
@@ -421,104 +426,21 @@ function CompletedContent() {
                         router.push(`/admin/completed?selectedOrder=${order.id}`);
                       }
                     }}
-                    className={`group bg-white rounded-2xl border overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${isSelected
-                      ? 'border-indigo-500 ring-2 ring-indigo-500 ring-offset-2'
-                      : 'border-gray-200 hover:border-indigo-300'
+                    className={`relative rounded-2xl transition-all duration-300 ${isSelected
+                      ? 'ring-2 ring-indigo-500 ring-offset-2'
+                      : ''
                       }`}
                   >
-                    {/* CARD HEADER */}
-                    <div className={`p-5 ${statusConfig.bgColor} relative`}>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors">
-                            {order.code}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <User className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm text-gray-700">{order.customer?.name}</span>
+                    <OrderCard order={order} showConfigure={false} />
+
+                    {/* Selection Overlay */}
+                    {isSelectionMode && (
+                      <div className={`absolute inset-0 z-40 rounded-2xl cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50/10' : 'bg-transparent hover:bg-gray-50/10'}`}>
+                        <div className="absolute top-3 right-3">
+                          <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'}`}>
+                            {isSelected && <CheckSquare className="w-4 h-4 text-white" />}
                           </div>
-                          {order.jobCode && (
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs px-2 py-0.5 bg-white/70 text-gray-600 rounded">
-                                Job: {order.jobCode}
-                              </span>
-                            </div>
-                          )}
                         </div>
-
-                        {/* SELECTION CHECKBOX OR STATUS */}
-                        <div className="flex flex-col items-end gap-1">
-                          {isSelectionMode ? (
-                            <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'
-                              }`}>
-                              {isSelected && <CheckCircle className="w-4 h-4 text-white" />}
-                            </div>
-                          ) : (
-                            <>
-                              <span
-                                className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
-                              >
-                                {statusConfig.icon}
-                                {statusConfig.label}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {formatDate(order.createdAt)}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* CARD BODY */}
-                    <div className="p-5 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Package className="w-4 h-4 text-gray-400" />
-                            <span className="text-xs text-gray-500">Quantity</span>
-                          </div>
-                          <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="w-4 h-4 text-gray-400" />
-                            <span className="text-xs text-gray-500">Processes</span>
-                          </div>
-                          <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
-                        </div>
-                      </div>
-
-                      {/* RUNS SUMMARY */}
-                      <div className="pt-3 border-t border-gray-100">
-                        <div className="text-xs text-gray-500 mb-2">Processes:</div>
-                        <div className="space-y-2">
-                          {order.processes.map((process) => (
-                            <div key={process.id} className="flex items-center justify-between">
-                              <span className="text-sm text-gray-700 truncate">{process.name}</span>
-                              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                                {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ACTION BUTTONS (Only show when NOT in selection mode) */}
-                    {!isSelectionMode && (
-                      <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/admin/completed?selectedOrder=${order.id}`);
-                          }}
-                          className="w-full px-4 py-2.5 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                        >
-                          <FileText className="w-4 h-4" />
-                          View Details
-                        </button>
                       </div>
                     )}
                   </div>

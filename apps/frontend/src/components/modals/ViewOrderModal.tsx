@@ -236,8 +236,18 @@ export default function ViewOrderModal({ orderId, onClose }: ViewOrderModalProps
       });
 
       if (response.success) {
-        // Update local state immediately - no need to refetch from server
-        updateLifecycleStatus(processId, runId, nextStatusCode);
+        if (nextStatusCode === 'COMPLETE' || nextStatusCode === 'COMPLETED') {
+          // If the order is complete, we must refetch to get the final state
+          await fetchOrder();
+        } else {
+          // Update local state immediately - no need to refetch from server
+          updateLifecycleStatus(processId, runId, nextStatusCode);
+
+          // If order was PRODUCTION_READY, it's now IN_PRODUCTION
+          if (order.status === 'PRODUCTION_READY') {
+            setOrder(prev => prev ? { ...prev, status: 'IN_PRODUCTION' } : null);
+          }
+        }
       }
     } catch (err) {
       console.error("Failed to transition:", err);
