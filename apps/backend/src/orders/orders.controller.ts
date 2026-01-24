@@ -28,9 +28,38 @@ export class OrdersController {
     }
 
     @Post()
-    async create(@Body() dto: CreateOrderDto) {
-        this.logger.log(`Creating order for customerId=${dto.customerId}`);
-        return this.service.create(dto);
+    @UseInterceptors(
+        FilesInterceptor('images', 5, {
+            limits: { fileSize: 3 * 1024 * 1024 },
+        }),
+    )
+    async create(
+        @Body() dto: CreateOrderDto,
+        @UploadedFiles() files?: Express.Multer.File[],
+    ) {
+        if (typeof dto.processes === 'string') {
+            try {
+                dto.processes = JSON.parse(dto.processes);
+            } catch {
+                throw new BadRequestException('Invalid JSON in processes');
+            }
+        }
+
+
+        // convert quantity to number
+        if (typeof dto.quantity === 'string') {
+            const qty = Number(dto.quantity);
+            if (Number.isNaN(qty)) {
+                throw new BadRequestException('Invalid quantity');
+            }
+            dto.quantity = qty;
+        }
+
+        this.logger.log(
+            `Creating order for customerId=${dto.customerId}, images=${files?.length ?? 0}`,
+        );
+
+        return this.service.createWithImages(dto, files ?? []);
     }
 
     @Get(':id')
@@ -38,17 +67,17 @@ export class OrdersController {
         return this.service.getById(orderId);
     }
 
-    @Post(':id/images')
-    @UseInterceptors(FilesInterceptor('images', 10)) // Max 10 images
-    async uploadImages(
-        @Param('id') orderId: string,
-        @UploadedFiles() files: Express.Multer.File[],
-    ) {
-        if (!files || files.length === 0) {
-            throw new BadRequestException('No images provided');
-        }
+    //@Post(':id/images')
+    //@UseInterceptors(FilesInterceptor('images', 5)) // Max 5 images
+    //async uploadImages(
+    //    @Param('id') orderId: string,
+    //    @UploadedFiles() files: Express.Multer.File[],
+    //) {
+    //    if (!files || files.length === 0) {
+    //        throw new BadRequestException('No images provided');
+    //    }
 
-        this.logger.log(`Uploading ${files.length} images for order ${orderId}`);
-        return this.service.uploadImages(orderId, files);
-    }
+    //    this.logger.log(`Uploading ${files.length} images for order ${orderId}`);
+    //    return this.service.uploadImages(orderId, files);
+    //}
 }

@@ -263,6 +263,186 @@ export class AdminProcessService {
     }
 
 
+    async configureWithImages(
+        orderProcessId: string,
+        processRunId: string,
+        dto: ConfigureProcessRunDto,
+        files: Express.Multer.File[],
+    ) {
+        return this.prisma.transaction(async tx => {
+
+            /* =====================================================
+             * LOAD RUN + TEMPLATE
+             * ===================================================== */
+            const run = await tx.processRun.findFirst({
+                where: { id: processRunId, orderProcessId },
+                select: {
+                    id: true,
+                    statusCode: true,
+                    fields: true,
+                    orderProcessId: true,
+                    orderProcess: {
+                        select: { orderId: true },
+                    },
+                    runTemplate: {
+                        select: {
+                            fields: true,
+                            configWorkflowType: {
+                                select: {
+                                    id: true,
+                                    statuses: {
+                                        select: { id: true, code: true, isInitial: true },
+                                    },
+                                    transitions: {
+                                        select: { fromStatusId: true, toStatusId: true },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            if (!run) {
+                throw new BadRequestException('Invalid process run');
+            }
+
+            /* =====================================================
+             * FIELD VALIDATION
+             * ===================================================== */
+            const normalizedFields = this.validateAndNormalizeFields(
+                run.runTemplate.fields as RunTemplateField[],
+                dto.fields,
+            );
+
+            /* =====================================================
+             * IMAGE UPLOAD (OPTIONAL)
+             * ===================================================== */
+            let uploadedUrls: string[] = [];
+
+            if (files.length) {
+                if (files.length > 2) {
+                    throw new BadRequestException('Maximum 2 images allowed');
+                }
+
+                const buffers = files.map(f => f.buffer);
+                const filenames = files.map(f => f.originalname);
+
+                uploadedUrls = await this.cloudflare.uploadFiles(
+                    buffers,
+                    filenames,
+                    `orders/${run.orderProcess.orderId}/runs/${run.id}`,
+                );
+            }
+
+            /* =====================================================
+             * MERGE FIELDS
+             * ===================================================== */
+            const existingImages = (run.fields as any)?.images ?? [];
+
+            const mergedFields = {
+                ...(run.fields as Record<string, any> ?? {}),
+                ...normalizedFields,
+                images: [...existingImages, ...uploadedUrls].slice(0, 2),
+            };
+
+            /* =====================================================
+             * WORKFLOW VALIDATION
+             * ===================================================== */
+            const wf = run.runTemplate.configWorkflowType;
+            if (!wf) {
+                throw new BadRequestException('Config workflow missing');
+            }
+
+            const current = wf.statuses.find(s => s.code === run.statusCode);
+            if (!current || !current.isInitial) {
+                throw new BadRequestException('Invalid config state');
+            }
+
+            const transition = wf.transitions.find(
+                t => t.fromStatusId === current.id,
+            );
+            if (!transition) {
+                throw new BadRequestException('No config transition');
+            }
+
+            const toStatus = wf.statuses.find(
+                s => s.id === transition.toStatusId,
+            );
+            if (!toStatus) {
+                throw new BadRequestException('Invalid transition target');
+            }
+
+            /* =====================================================
+             * UPDATE RUN
+             * ===================================================== */
+            await tx.processRun.update({
+                where: { id: run.id },
+                data: {
+                    fields: mergedFields,
+                    statusCode: toStatus.code,
+                },
+            });
+
+            /* =====================================================
+             * ORDER PROCESS PROGRESS (UNCHANGED)
+             * ===================================================== */
+            const op = await tx.orderProcess.update({
+                where: { id: run.orderProcessId },
+                data: { configCompletedRuns: { increment: 1 } },
+                select: {
+                    id: true,
+                    orderId: true,
+                    totalRuns: true,
+                    configCompletedRuns: true,
+                    workflowTypeId: true,
+                    statusCode: true,
+                },
+            });
+
+            this.logger.log(
+                `[CONFIG][ORDER_PROCESS_PROGRESS] orderProcess=${op.id} ${op.configCompletedRuns}/${op.totalRuns}`,
+            );
+
+            const finalized = await tx.orderProcess.updateMany({
+                where: {
+                    id: op.id,
+                    configCompletedRuns: op.totalRuns,
+                    configCompletedAt: null,
+                },
+                data: { configCompletedAt: new Date() },
+            });
+
+            if (finalized.count === 1) {
+                this.logger.log(
+                    `[CONFIG][ORDER_PROCESS_COMPLETED] orderProcess=${op.id}`,
+                );
+
+                await this.transitionOrderProcess(tx, op);
+
+                const remaining = await tx.orderProcess.count({
+                    where: {
+                        orderId: op.orderId,
+                        configCompletedAt: null,
+                    },
+                });
+
+                if (remaining === 0) {
+                    this.logger.log(
+                        `[CONFIG][ALL_ORDER_PROCESSES_CONFIGURED] order=${op.orderId}`,
+                    );
+                    await this.orderService.transitionOrderById(
+                        this.prisma,
+                        op.orderId,
+                    );
+                }
+            }
+
+            return { success: true };
+        });
+    }
+
+
     async deleteRunImage(
         orderProcessId: string,
         processRunId: string,

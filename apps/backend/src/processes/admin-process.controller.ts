@@ -1,10 +1,12 @@
 import type {
     ConfigureProcessRunDto,
     CreateProcessDto,
+    DeleteRunImageDto,
     ProcessDetailDto,
-    ProcessSummaryDto, DeleteRunImageDto
+    ProcessSummaryDto
 } from '@app/contracts';
 import {
+    BadRequestException,
     Body,
     Controller,
     Delete,
@@ -41,15 +43,36 @@ export class AdminProcessController {
     }
 
     @Post(':orderProcessId/runs/:processRunId/configure')
+    @UseInterceptors(
+        FilesInterceptor('images', 2, {
+            limits: { fileSize: 5 * 1024 * 1024 },
+        }),
+    )
     async configure(
         @Param('orderProcessId') orderProcessId: string,
         @Param('processRunId') processRunId: string,
         @Body() dto: ConfigureProcessRunDto,
+        @UploadedFiles() files?: Express.Multer.File[],
     ) {
+
         this.logger.log(
-            `[API] configure orderProcess=${orderProcessId} run=${processRunId}`,
+            `[API] configure orderProcess=${orderProcessId} run=${processRunId} files=${files?.length ?? 0}`,
         );
-        return this.service.configure(orderProcessId, processRunId, dto);
+
+        if (typeof dto.fields === 'string') {
+            try {
+                dto.fields = JSON.parse(dto.fields);
+            } catch {
+                throw new BadRequestException('Invalid JSON in fields');
+            }
+        }
+
+        return this.service.configureWithImages(
+            orderProcessId,
+            processRunId,
+            dto,
+            files ?? [],
+        );
     }
 
     @Post(':orderProcessId/runs/:processRunId/transition')
@@ -63,21 +86,7 @@ export class AdminProcessController {
         return this.service.transition(orderProcessId, processRunId);
     }
 
-    @Post(':orderProcessId/runs/:processRunId/configure/images')
-    @UseInterceptors(
-        FilesInterceptor('files', 2, {
-            limits: { fileSize: 3 * 1024 * 1024 },
-        }),
-    )
-    async uploadRunImages(
-        @Param('orderProcessId') orderProcessId: string,
-        @Param('processRunId') processRunId: string,
-        @UploadedFiles() files: Express.Multer.File[],
-    ) {
-        return this.service.uploadRunImages(processRunId, files ?? []);
-    }
-
-    @Delete(':orderProcessId/runs/:processRunId/images')
+    @Delete(':orderProcessId/runs/:processRunId/configure/images')
     async deleteRunImage(
         @Param('orderProcessId') orderProcessId: string,
         @Param('processRunId') processRunId: string,
