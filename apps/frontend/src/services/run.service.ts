@@ -5,7 +5,9 @@ export async function configureRun(
     processId: string,
     runId: string,
     fields: Record<string, any>,
-    images?: File[]
+    images?: File[],
+    executorId?: string,
+    reviewerId?: string
 ) {
     const formData = new FormData();
     formData.append('fields', JSON.stringify(fields));
@@ -14,6 +16,14 @@ export async function configureRun(
         images.forEach((image) => {
             formData.append('images', image);
         });
+    }
+
+    if (executorId) {
+        formData.append('executorId', executorId);
+    }
+
+    if (reviewerId) {
+        formData.append('reviewerId', reviewerId);
     }
 
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/process/${processId}/runs/${runId}/configure`, {
