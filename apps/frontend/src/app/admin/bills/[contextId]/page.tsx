@@ -68,16 +68,60 @@ export default function BillingContextDetailPage() {
 
 
     const handleFinalize = async () => {
-        if (!safeContextId) return;
+        if (!safeContextId || !details) return;
         if (!confirm("Are you sure you want to finalize this billing group? This will apply rates to all orders.")) {
             return;
         }
 
         setFinalizing(true);
         try {
+            // Prepare payload: checks modified orders and ensures ALL runs for those orders are included
+            const inputsToSend: Record<string, Record<string, { new_rate: number }>> = {};
+            const modifiedOrderIds = Object.keys(draftInputs);
+
+            if (modifiedOrderIds.length === 0) {
+                // Nothing to save? Or maybe just finalize without inputs?
+                // If the user clicked finalize without edits, we might still want to call API 
+                // but typically 'inputs' would be empty. 
+                // Proceeding with empty inputs if nothing modified.
+            }
+
+            modifiedOrderIds.forEach(orderId => {
+                const order = details.orders.find(o => o.id === orderId);
+                if (!order) return;
+
+                inputsToSend[orderId] = {};
+
+                // Iterate through ALL runs of the modified order
+                order.processes.forEach(process => {
+                    process.runs.forEach(run => {
+                        // 1. Check if there is a draft edit
+                        const draftValue = draftInputs[orderId]?.[run.id];
+
+                        if (draftValue && draftValue.new_rate !== undefined) {
+                            inputsToSend[orderId][run.id] = { new_rate: draftValue.new_rate };
+                        } else {
+                            // 2. No draft edit -> use current value (Snapshot OR Estimated)
+                            const snapshotInputs = order.billing?.inputs || {};
+                            const currentInput = snapshotInputs[run.id];
+
+                            let rate = 0;
+                            if (currentInput) {
+                                rate = currentInput.new_rate ?? currentInput['new_rate'] ?? 0;
+                            } else {
+                                // Fallback to estimated rate from run values
+                                rate = Number(run.values?.['Estimated Rate']) || 0;
+                            }
+
+                            inputsToSend[orderId][run.id] = { new_rate: rate };
+                        }
+                    });
+                });
+            });
+
             const payload = {
                 billingContextId: safeContextId,
-                inputs: draftInputs
+                inputs: inputsToSend
             };
 
             await finalizeBillingGroupWithInputs(payload);
