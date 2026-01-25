@@ -315,7 +315,7 @@ function BillingContent() {
               Showing{' '}
               <span className="font-semibold text-gray-800">{filteredOrders.length}</span> of{' '}
               <span className="font-semibold text-gray-800">{ordersData.total}</span>{' '}
-              completed orders
+              orders
               {ordersData.totalPages > 1 && (
                 <span>
                   {' '}(Page {ordersData.page} of {ordersData.totalPages})

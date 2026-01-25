@@ -230,8 +230,8 @@ function CompletedContent() {
         {/* HEADER SECTION */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Completed Orders</h1>
-            <p className="text-gray-600 mt-1">View all billed and completed orders</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Billed Orders</h1>
+            <p className="text-gray-600 mt-1">View all billed orders</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -380,7 +380,7 @@ function CompletedContent() {
             <div className="flex items-center gap-4">
               <p className="text-sm text-gray-600">
                 Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span> of{' '}
-                <span className="font-semibold text-gray-800">{ordersData.total}</span> billed orders
+                <span className="font-semibold text-gray-800">{ordersData.total}</span> orders
                 {ordersData.totalPages > 1 && (
                   <span>
                     {' '}(Page {ordersData.page} of {ordersData.totalPages})
