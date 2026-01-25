@@ -1,8 +1,9 @@
 import type { GetLatestBillingSnapshotDto } from "@app/contracts";
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { BillingSnapshotIntent, Prisma } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
+import { ContextLogger } from "../../common/logger/context.logger";
 import { OrdersService } from "../../orders/orders.service";
 import {
     isOrderBillingInputs,
@@ -10,7 +11,6 @@ import {
 } from "../types/billing-snapshot.types";
 import { BillingCalculatorService } from "./billing-calculator.service";
 import { BillingContextResolver } from "./billing-context.resolver";
-import { ContextLogger } from "../../common/logger/context.logger";
 
 @Injectable()
 export class BillingSnapshotService {
@@ -30,8 +30,9 @@ export class BillingSnapshotService {
         tx: Prisma.TransactionClient,
         billingContextId: string,
         inputs: any,
+        intent: BillingSnapshotIntent,
         reason?: string,
-        createdBy?: string
+        createdBy?: string,
     ) {
         this.logger.debug(
             `[saveDraftTx] billingContextId=${billingContextId} createdBy=${createdBy ?? "system"}`
@@ -40,14 +41,14 @@ export class BillingSnapshotService {
         const last = await tx.billingSnapshot.findFirst({
             where: {
                 billingContextId,
-                intent: "DRAFT",
+                intent: intent,
                 isLatest: true
             }
         });
 
         if (last) {
             this.logger.debug(
-                `[saveDraftTx] Updating existing DRAFT snapshot id=${last.id}`
+                `[saveDraftTx] Updating existing DRAFT snapshot id=${last.id} with intent=${intent}`
             );
 
             return tx.billingSnapshot.update({
@@ -74,7 +75,7 @@ export class BillingSnapshotService {
                 billingContextId,
                 version,
                 isLatest: true,
-                intent: "DRAFT",
+                intent: intent,
                 inputs,
                 result: new Prisma.Decimal(0),
                 currency: "INR",
@@ -93,9 +94,9 @@ export class BillingSnapshotService {
             `[createGroupSnapshot] billingContextId=${billingContextId}`
         );
 
-        // 🔹 NO TRANSACTION HERE
         return this.createGroupSnapshotTx(
             billingContextId,
+            {},
             createdBy
         );
     }
@@ -104,6 +105,7 @@ export class BillingSnapshotService {
 
     public async createGroupSnapshotTx(
         billingContextId: string,
+        inputRequest: Record<string, Record<string, Record<string, number>>>,
         createdBy?: string
     ) {
         this.logger.debug(
@@ -127,6 +129,43 @@ export class BillingSnapshotService {
                 "Cannot create group snapshot without orders"
             );
         }
+
+        /* -------------------------------
+        1️⃣.a FINALIZE orders if inputs provided (NO TX)
+        ------------------------------- */
+        if (
+            inputRequest &&
+            Object.keys(inputRequest).length > 0
+        ) {
+            this.logger.log(
+                `[createGroupSnapshotTx] Finalizing ${Object.keys(inputRequest).length} orders before group snapshot`
+            );
+
+            for (const [orderId, orderInputs] of Object.entries(inputRequest)) {
+                // Defensive validation
+                if (!orderInputs || Object.keys(orderInputs).length === 0) {
+                    this.logger.warn(
+                        `[createGroupSnapshotTx] Skipping empty inputs for orderId=${orderId}`
+                    );
+                    continue;
+                }
+
+                if (!isOrderBillingInputs(orderInputs)) {
+                    throw new Error(
+                        `Invalid OrderBillingInputs for orderId=${orderId}`
+                    );
+                }
+
+                await this.finalizeOrder(
+                    orderId,
+                    orderInputs as OrderBillingInputs,
+                    BillingSnapshotIntent.FINAL,
+                    "GROUP_RECALCULATION",
+                    createdBy,
+                );
+            }
+        }
+
 
         /* -------------------------------
            2️⃣ READ FINAL snapshots (NO TX)
@@ -239,26 +278,26 @@ export class BillingSnapshotService {
     /* =====================================================
        PUBLIC — controller-safe
     ===================================================== */
-    async saveDraft(
-        billingContextId: string,
-        inputs: any,
-        reason?: string,
-        createdBy?: string
-    ) {
-        this.logger.log(
-            `[saveDraft] billingContextId=${billingContextId}`
-        );
+    //async saveDraft(
+    //    billingContextId: string,
+    //    inputs: any,
+    //    reason?: string,
+    //    createdBy?: string
+    //) {
+    //    this.logger.log(
+    //        `[saveDraft] billingContextId=${billingContextId}`
+    //    );
 
-        return this.prisma.transaction((tx) =>
-            this.saveDraftTx(
-                tx,
-                billingContextId,
-                inputs,
-                reason,
-                createdBy
-            )
-        );
-    }
+    //    return this.prisma.transaction((tx) =>
+    //        this.saveDraftTx(
+    //            tx,
+    //            billingContextId,
+    //            inputs,
+    //            reason,
+    //            createdBy
+    //        )
+    //    );
+    //}
 
     /* =====================================================
        INTERNAL — finalize context
@@ -294,8 +333,9 @@ export class BillingSnapshotService {
     async finalizeOrder(
         orderId: string,
         inputs: OrderBillingInputs,
+        intent: BillingSnapshotIntent,
         reason?: string,
-        createdBy?: string
+        createdBy?: string,
     ) {
         this.logger.log(`[finalizeOrder] orderId=${orderId}`);
 
@@ -313,8 +353,9 @@ export class BillingSnapshotService {
                 tx,
                 context.id,
                 inputs,
+                intent,
                 reason,
-                createdBy
+                createdBy,
             );
 
             return {
@@ -361,15 +402,10 @@ export class BillingSnapshotService {
     ===================================================== */
     async finalizeGroup(
         billingContextId: string,
+        inputs: Record<string, Record<string, Record<string, number>>>,
         createdBy?: string
     ) {
-        this.logger.log(
-            `[finalizeGroup] billingContextId=${billingContextId}`
-        );
-
-        return await this.prisma.transaction((tx) =>
-            this.createGroupSnapshotTx(billingContextId, createdBy)
-        );
+        return await this.createGroupSnapshotTx(billingContextId, inputs, createdBy);
     }
 
 
