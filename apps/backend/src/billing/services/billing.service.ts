@@ -1,7 +1,6 @@
 import {
     BadRequestException,
     Injectable,
-    Logger,
     NotFoundException
 } from "@nestjs/common";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
@@ -9,10 +8,11 @@ import { FormulaCompiler } from "../formula/formula-compiler";
 import { MathOnlyFormulaEngine } from "../formula/math-only.formula.engine";
 import { extractNumericVariables } from "../utils/field-mapper";
 import { extractFormulaVariables } from "../utils/formula-variable-extractor";
+import { ContextLogger } from "../../common/logger/context.logger";
 
 @Injectable()
 export class BillingService {
-    private readonly logger = new Logger(BillingService.name);
+    private readonly logger = new ContextLogger(BillingService.name);
 
     constructor(
         private readonly prisma: PrismaService,

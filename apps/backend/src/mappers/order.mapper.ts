@@ -12,6 +12,14 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         totalProcesses: order.totalProcesses,
         completedProcesses: order.completedProcesses,
 
+        // ✅ CREATED / ASSIGNED USER
+        createdBy: order.createdBy
+            ? {
+                id: order.createdBy.id,
+                name: order.createdBy.name,
+            }
+            : null,
+
         customer: {
             id: order.customer.id,
             code: order.customer.code,
@@ -34,6 +42,20 @@ export function toOrderSummary(order: any): OrderSummaryDto {
 
                 configStatus: run.statusCode,
                 lifecycleStatus: run.lifeCycleStatusCode,
+
+                executor: run.executor
+                    ? {
+                        id: run.executor.id,
+                        name: run.executor.name,
+                    }
+                    : null,
+
+                reviewer: run.reviewer
+                    ? {
+                        id: run.reviewer.id,
+                        name: run.reviewer.name,
+                    }
+                    : null,
 
                 lifecycle: buildLifecycleProgress(
                     run.runTemplate.lifecycleWorkflowType.statuses,

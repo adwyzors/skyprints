@@ -3,17 +3,18 @@ import {
     ExecutionContext,
     Inject,
     Injectable,
-    Logger,
-    UnauthorizedException,
+    UnauthorizedException
 } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 import { JwtHeader } from 'jsonwebtoken';
 import { JwksClient } from 'jwks-rsa';
+import { RequestContextStore } from '../../common/context/request-context.store';
+import { ContextLogger } from '../../common/logger/context.logger';
 import { JWKS_PROVIDER } from '../jwt/jwks.provider';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-    private readonly logger = new Logger(JwtAuthGuard.name);
+    private readonly logger = new ContextLogger(JwtAuthGuard.name);
 
     constructor(
         @Inject(JWKS_PROVIDER)
@@ -32,14 +33,23 @@ export class JwtAuthGuard implements CanActivate {
         try {
             const decoded = await this.verify(token);
 
-            req.user = {
-                id: decoded.sub,
-                email: decoded.email,
-                permissions: decoded.permissions ?? [],
-                realmRoles: decoded.realm_access?.roles ?? [],
+            const user = {
+                id: decoded.sub as string,
+                email: decoded.email as string,
+                permissions: (decoded.permissions ?? []) as string[],
+                roles: (decoded.realm_access?.roles ?? []) as string[],
             };
 
-            this.logger.debug(`Authenticated user=${decoded.sub}`);
+
+            // Attach to request (for controllers / decorators)
+            req.user = user;
+
+            // Attach to AsyncLocalStorage context
+            const store = RequestContextStore.getStore();
+            if (store) {
+                store.user = user;
+            }
+
             return true;
         } catch (err: any) {
             this.logger.error(
@@ -81,9 +91,9 @@ export class JwtAuthGuard implements CanActivate {
                 },
                 {
                     algorithms: ['RS256'],
-                    issuer: process.env.TOKEN_ISSUER, // must match `iss`
-                    audience: process.env.TOKEN_AUDIENCE, // TODO: set it to client_id
-                    clockTolerance: 5, // handles minor clock drift
+                    issuer: process.env.TOKEN_ISSUER,
+                    audience: process.env.TOKEN_AUDIENCE,
+                    clockTolerance: 5,
                 },
                 (err, decoded) => {
                     if (err) {

@@ -1,5 +1,5 @@
 import type { GetLatestBillingSnapshotDto } from "@app/contracts";
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
@@ -10,10 +10,11 @@ import {
 } from "../types/billing-snapshot.types";
 import { BillingCalculatorService } from "./billing-calculator.service";
 import { BillingContextResolver } from "./billing-context.resolver";
+import { ContextLogger } from "../../common/logger/context.logger";
 
 @Injectable()
 export class BillingSnapshotService {
-    private readonly logger = new Logger(BillingSnapshotService.name);
+    private readonly logger = new ContextLogger(BillingSnapshotService.name);
 
     constructor(
         private readonly prisma: PrismaService,

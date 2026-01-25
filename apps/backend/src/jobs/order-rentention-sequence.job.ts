@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { ContextLogger } from '../common/logger/context.logger';
 
 @Injectable()
 export class OrderRetentionAndSequenceJob {
-    private readonly logger = new Logger(
+    private readonly logger = new ContextLogger(
         OrderRetentionAndSequenceJob.name,
     );
 

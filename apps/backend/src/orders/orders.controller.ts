@@ -5,20 +5,21 @@ import {
     Body,
     Controller,
     Get,
-    Logger,
     Param,
     Post,
     Query,
     UploadedFiles,
-    UseInterceptors,
+    UseInterceptors
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { RequestContextStore } from '../common/context/request-context.store';
 import { OrdersQueryDto } from '../dto/orders.query.dto';
 import { OrdersService } from './orders.service';
+import { ContextLogger } from '../common/logger/context.logger';
 
 @Controller('orders')
 export class OrdersController {
-    private readonly logger = new Logger(OrdersController.name);
+    private readonly logger = new ContextLogger(OrdersController.name);
 
     constructor(private readonly service: OrdersService) { }
 
@@ -37,6 +38,8 @@ export class OrdersController {
         @Body() dto: CreateOrderDto,
         @UploadedFiles() files?: Express.Multer.File[],
     ) {
+        const ctx = RequestContextStore.getStore();
+
         if (typeof dto.processes === 'string') {
             try {
                 dto.processes = JSON.parse(dto.processes);
@@ -45,8 +48,6 @@ export class OrdersController {
             }
         }
 
-
-        // convert quantity to number
         if (typeof dto.quantity === 'string') {
             const qty = Number(dto.quantity);
             if (Number.isNaN(qty)) {
@@ -56,28 +57,15 @@ export class OrdersController {
         }
 
         this.logger.log(
-            `Creating order for customerId=${dto.customerId}, images=${files?.length ?? 0}`,
+            `[CREATE_ORDER] cid=${ctx?.correlationId} customerId=${dto.customerId} images=${files?.length ?? 0}`,
         );
 
         return this.service.createWithImages(dto, files ?? []);
     }
 
+
     @Get(':id')
     async get(@Param('id') orderId: string) {
         return this.service.getById(orderId);
     }
-
-    //@Post(':id/images')
-    //@UseInterceptors(FilesInterceptor('images', 5)) // Max 5 images
-    //async uploadImages(
-    //    @Param('id') orderId: string,
-    //    @UploadedFiles() files: Express.Multer.File[],
-    //) {
-    //    if (!files || files.length === 0) {
-    //        throw new BadRequestException('No images provided');
-    //    }
-
-    //    this.logger.log(`Uploading ${files.length} images for order ${orderId}`);
-    //    return this.service.uploadImages(orderId, files);
-    //}
 }

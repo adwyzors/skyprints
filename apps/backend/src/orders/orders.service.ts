@@ -2,13 +2,14 @@ import type { CreateOrderDto } from '@app/contracts';
 import {
     BadRequestException,
     Injectable,
-    Logger,
-    NotFoundException,
+    NotFoundException
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CloudflareService } from '../common/cloudflare.service';
+import { RequestContextStore } from '../common/context/request-context.store';
+import { ContextLogger } from '../common/logger/context.logger';
 import { OrdersQueryDto } from '../dto/orders.query.dto';
 import { toOrderSummary } from '../mappers/order.mapper';
 
@@ -17,7 +18,7 @@ const SYSTEM_USER_ID = 'a98afcd6-e0d9-4948-afb8-11fb4d18185a';
 
 @Injectable()
 export class OrdersService {
-    private readonly logger = new Logger(OrdersService.name);
+    private readonly logger = new ContextLogger(OrdersService.name);
 
     constructor(
         private readonly prisma: PrismaService,
@@ -118,6 +119,13 @@ export class OrdersService {
                 orderBy: { createdAt: 'desc' },
 
                 include: {
+                    createdBy: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
+
                     customer: {
                         select: { id: true, code: true, name: true },
                     },
@@ -148,12 +156,25 @@ export class OrdersService {
                                             },
                                         },
                                     },
+                                    executor: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                        },
+                                    },
+                                    reviewer: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                        },
+                                    },
                                 },
                             },
                         },
                     },
                 },
-            }),
+            })
+
         ]);
 
         return {
@@ -173,9 +194,17 @@ export class OrdersService {
         const order = await this.prisma.order.findUnique({
             where: { id: orderId, deletedAt: null },
             include: {
+                createdBy: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+
                 customer: {
                     select: { id: true, code: true, name: true },
                 },
+
                 processes: {
                     include: {
                         process: {
@@ -203,12 +232,25 @@ export class OrdersService {
                                         },
                                     },
                                 },
+                                executor: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                    },
+                                },
+                                reviewer: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                    },
+                                },
                             },
                         },
                     },
                 },
             },
         });
+
 
         if (!order) {
             throw new NotFoundException('Order not found');
@@ -240,12 +282,23 @@ export class OrdersService {
         dto: CreateOrderDto,
         files: Express.Multer.File[],
     ) {
+        const ctx = RequestContextStore.getStore();
+
+        if (!ctx?.user) {
+            throw new BadRequestException('User context missing');
+        }
+        const ctxuser = ctx.user;
+
         /* =====================================================
          * 1️⃣ Generate Order ID upfront (SAFE)
          * ===================================================== */
         const orderId = randomUUID();
 
         let uploadedImageUrls: string[] = [];
+
+        this.logger.log(
+            `[ORDER_INIT] cid=${ctx.correlationId} user=${ctx.user.id} orderId=${orderId}`,
+        );
 
         /* =====================================================
          * 2️⃣ Upload images OUTSIDE transaction
@@ -263,9 +316,6 @@ export class OrdersService {
         }
 
         try {
-            /* =====================================================
-             * 3️⃣ FAST DB TRANSACTION (NO I/O)
-             * ===================================================== */
             return await this.prisma.transaction(async (tx) => {
 
                 const processIds = dto.processes.map(p => p.processId);
@@ -295,7 +345,7 @@ export class OrdersService {
                 const code = await this.generateOrderCode(tx);
 
                 /* =====================================================
-                 * CREATE ORDER (WITH PRE-GENERATED ID)
+                 * CREATE ORDER (USER FROM CONTEXT)
                  * ===================================================== */
                 const order = await tx.order.create({
                     data: {
@@ -305,7 +355,7 @@ export class OrdersService {
                         quantity: dto.quantity,
                         workflowTypeId: workflow.id,
                         statusCode: initialStatus.code,
-                        createdById: SYSTEM_USER_ID,
+                        createdById: ctxuser.id,
                         totalProcesses: dto.processes.length,
                         completedProcesses: 0,
                         images: uploadedImageUrls,
@@ -314,7 +364,7 @@ export class OrdersService {
                 });
 
                 this.logger.log(
-                    `ORDER_CREATED start orderId=${order.id}, processes=${dto.processes.length}`,
+                    `[ORDER_CREATED] orderId=${order.id} code=${code}`,
                 );
 
                 /* =====================================================
@@ -421,180 +471,20 @@ export class OrdersService {
                 this.logger.log(`Order created id=${order.id}, code=${code}`);
 
                 return { id: order.id, code };
-            }, { timeout: 10000 });
+            });
         } catch (err) {
-            /* =====================================================
-             * 4️⃣ COMPENSATING CLEANUP
-             * ===================================================== */
             if (uploadedImageUrls.length > 0) {
                 await this.cloudflare.deleteFiles(uploadedImageUrls);
             }
+
+            this.logger.error(
+                `[ORDER_FAILED] cid=${ctx?.correlationId} orderId=${orderId}`,
+                err?.stack,
+            );
+
             throw err;
         }
     }
-
-
-    //async create(dto: CreateOrderDto) {
-    //    return this.prisma.transaction(async (tx) => {
-    //        const processIds = dto.processes.map(p => p.processId);
-
-    //        const processes = await tx.process.findMany({
-    //            where: { id: { in: processIds }, isEnabled: true },
-    //            select: { id: true },
-    //        });
-
-    //        if (processes.length !== processIds.length) {
-    //            throw new BadRequestException(
-    //                'One or more processes are disabled or invalid',
-    //            );
-    //        }
-
-    //        const workflow = await tx.workflowType.findUniqueOrThrow({
-    //            where: { code: 'ORDER' },
-    //        });
-
-    //        const initialStatus = await tx.workflowStatus.findFirstOrThrow({
-    //            where: {
-    //                workflowTypeId: workflow.id,
-    //                isInitial: true,
-    //            },
-    //        });
-
-    //        const code = await this.generateOrderCode(tx);
-
-    //        const order = await tx.order.create({
-    //            data: {
-    //                code,
-    //                customerId: dto.customerId,
-    //                quantity: dto.quantity,
-    //                workflowTypeId: workflow.id,
-    //                statusCode: initialStatus.code,
-    //                createdById: SYSTEM_USER_ID,
-    //                totalProcesses: dto.processes.length,
-    //                completedProcesses: 0,
-    //                ...(dto.jobCode ? { jobCode: dto.jobCode } : {}),
-    //            },
-    //        });
-
-    //        const orderId = order.id;
-
-    //        this.logger.log(
-    //            `ORDER_CREATED start orderId=${orderId}, processes=${dto.processes.length}`,
-    //        );
-
-    //        const processCountMap = new Map(
-    //            dto.processes.map(p => [p.processId, p.count]),
-    //        );
-
-    //        const processEntities = await tx.process.findMany({
-    //            where: { id: { in: processIds } },
-    //            include: {
-    //                runDefs: {
-    //                    orderBy: { sortOrder: 'asc' },
-    //                    include: {
-    //                        runTemplate: {
-    //                            include: {
-    //                                lifecycleWorkflowType: {
-    //                                    include: { statuses: true },
-    //                                },
-    //                            },
-    //                        },
-    //                    },
-    //                },
-    //            },
-    //        });
-
-    //        const processWorkflow = await tx.workflowType.findUniqueOrThrow({
-    //            where: { code: 'ORDER_PROCESS' },
-    //        });
-
-    //        const initialProcessStatus =
-    //            await tx.workflowStatus.findFirstOrThrow({
-    //                where: {
-    //                    workflowTypeId: processWorkflow.id,
-    //                    isInitial: true,
-    //                },
-    //            });
-
-    //        for (const process of processEntities) {
-    //            const count = processCountMap.get(process.id)!;
-    //            const totalRuns = count * process.runDefs.length;
-
-    //            const orderProcess = await tx.orderProcess.upsert({
-    //                where: {
-    //                    orderId_processId: {
-    //                        orderId,
-    //                        processId: process.id,
-    //                    },
-    //                },
-    //                create: {
-    //                    orderId,
-    //                    processId: process.id,
-    //                    workflowTypeId: processWorkflow.id,
-    //                    statusCode: initialProcessStatus.code,
-    //                    totalRuns,
-    //                    configCompletedRuns: 0,
-    //                    lifecycleCompletedRuns: 0,
-    //                },
-    //                update: {},
-    //            });
-
-    //            const existingRuns = await tx.processRun.count({
-    //                where: { orderProcessId: orderProcess.id },
-    //            });
-
-    //            if (existingRuns > 0) {
-    //                this.logger.warn(
-    //                    `ProcessRuns already exist, skipping creation orderProcessId=${orderProcess.id}`,
-    //                );
-    //                continue;
-    //            }
-
-    //            let runNumber = 1;
-
-    //            for (let batch = 0; batch < count; batch++) {
-    //                for (const def of process.runDefs) {
-    //                    const template = def.runTemplate;
-
-    //                    const initialConfigStatus =
-    //                        await tx.workflowStatus.findFirstOrThrow({
-    //                            where: {
-    //                                workflowTypeId:
-    //                                    template.configWorkflowTypeId,
-    //                                isInitial: true,
-    //                            },
-    //                        });
-
-    //                    const initialLifecycleStatus =
-    //                        template.lifecycleWorkflowType.statuses.find(
-    //                            s => s.isInitial,
-    //                        )!;
-
-    //                    await tx.processRun.create({
-    //                        data: {
-    //                            orderProcessId: orderProcess.id,
-    //                            runTemplateId: template.id,
-    //                            runNumber: runNumber++,
-    //                            displayName: `${def.displayName} (${batch + 1})`,
-    //                            configWorkflowTypeId:
-    //                                template.configWorkflowTypeId,
-    //                            lifecycleWorkflowTypeId:
-    //                                template.lifecycleWorkflowTypeId,
-    //                            statusCode: initialConfigStatus.code,
-    //                            lifeCycleStatusCode:
-    //                                initialLifecycleStatus.code,
-    //                            fields: {},
-    //                        },
-    //                    });
-    //                }
-    //            }
-    //        }
-
-    //        this.logger.log(`Order created id=${orderId}, code=${code}`);
-
-    //        return { id: orderId, code };
-    //    }, { timeout: 10000 }); // TODO: fix timeout for large orders
-    //}
 
 
     /* =========================================================

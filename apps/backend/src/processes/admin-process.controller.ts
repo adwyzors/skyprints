@@ -11,19 +11,19 @@ import {
     Controller,
     Delete,
     Get,
-    Logger,
     Param,
     Post,
     UploadedFiles,
-    UseInterceptors,
+    UseInterceptors
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { toProcessDetail } from '../mappers/process.mapper';
 import { AdminProcessService } from './admin-process.service';
+import { ContextLogger } from '../common/logger/context.logger';
 
 @Controller('process')
 export class AdminProcessController {
-    private readonly logger = new Logger(AdminProcessController.name);
+    private readonly logger = new ContextLogger(AdminProcessController.name);
 
     constructor(private readonly service: AdminProcessService) { }
 

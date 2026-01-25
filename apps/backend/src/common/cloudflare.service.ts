@@ -4,14 +4,15 @@ import {
     PutObjectCommandInput,
     S3Client,
 } from '@aws-sdk/client-s3';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import sharp from 'sharp';
+import { ContextLogger } from './logger/context.logger';
 
 @Injectable()
 export class CloudflareService {
-    private readonly logger = new Logger(CloudflareService.name);
+    private readonly logger = new ContextLogger(CloudflareService.name);
     private readonly s3Client: S3Client;
     private readonly bucketName: string;
     private readonly publicUrl: string;

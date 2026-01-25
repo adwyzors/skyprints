@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 export const ConfigureProcessRunSchema = z.object({
     fields: z.record(z.string(), z.any()),
+
+    executorId: z.string().uuid().optional(),
+    reviewerId: z.string().uuid().optional(),
 });
 
 export type ConfigureProcessRunDto =

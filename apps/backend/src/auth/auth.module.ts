@@ -30,5 +30,10 @@ import { KeycloakService } from "./keycloak/keycloak.service";
             useClass: PermissionsGuard,
         },
     ],
+    exports: [
+        AuthGuard,
+        JwtAuthGuard,
+        PublicAuthGuard, 
+    ],
 })
 export class AuthModule { }

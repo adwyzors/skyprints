@@ -1,16 +1,16 @@
 import {
     BadRequestException,
-    Injectable,
-    Logger,
+    Injectable
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigureRunDto } from './dto/configure-run.dto';
 import { RunFieldsValidator } from './run-fields.validator';
+import { ContextLogger } from '../common/logger/context.logger';
 
 @Injectable()
 export class RunsService {
-    private readonly logger = new Logger(RunsService.name);
+    private readonly logger = new ContextLogger(RunsService.name);
 
     constructor(
         private readonly prisma: PrismaService,

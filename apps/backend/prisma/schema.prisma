@@ -17,21 +17,25 @@ model User {
   name          String
   isActive      Boolean  @default(true)
 
-  assignedRuns  ProcessRun[]
   createdOrders Order[]
   notifications Notification[]
 
-  locationId String?  @unique
+  locationId String?   @unique
   location   Location? @relation(fields: [locationId], references: [id])
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  role      String
+
+  executedProcessRuns ProcessRun[] @relation("ProcessRunExecutor")
+  reviewedProcessRuns ProcessRun[] @relation("ProcessRunReviewer")
 
   @@index([email])
-  @@index([isActive])
-  @@index([isActive, name])
+  @@index([role, isActive, deletedAt])
+  @@index([name, isActive, deletedAt])
 }
+
 
 ///////////////////////////////
 // CUSTOMERS
@@ -269,16 +273,17 @@ model ProcessRun {
 
   fields Json
 
-  assignedUserId String?
-  locationId     String?
+  executorId String?
+  reviewerId String?
+  locationId String?
 
-  assignedUser User?     @relation(fields: [assignedUserId], references: [id])
-  location     Location? @relation(fields: [locationId], references: [id])
+  executor User? @relation("ProcessRunExecutor", fields: [executorId], references: [id])
+  reviewer User? @relation("ProcessRunReviewer", fields: [reviewerId], references: [id])
+
+  location Location? @relation(fields: [locationId], references: [id])
 
   orderProcess OrderProcess @relation(fields: [orderProcessId], references: [id], onDelete: Cascade)
-
-
-  runTemplate RunTemplate @relation(fields: [runTemplateId], references: [id])
+  runTemplate  RunTemplate  @relation(fields: [runTemplateId], references: [id])
 
   @@unique([orderProcessId, runNumber])
 }

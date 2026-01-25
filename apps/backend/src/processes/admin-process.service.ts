@@ -6,19 +6,19 @@ import {
 import {
     BadRequestException,
     Injectable,
-    Logger,
-    NotFoundException,
+    NotFoundException
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CloudflareService } from '../common/cloudflare.service';
+import { ContextLogger } from '../common/logger/context.logger';
 import { toProcessSummary } from '../mappers/process.mapper';
 import { OrdersService } from '../orders/orders.service';
 type SystemFieldValidator = (value: any) => boolean;
 
 @Injectable()
 export class AdminProcessService {
-    private readonly logger = new Logger(AdminProcessService.name);
+    private readonly logger = new ContextLogger(AdminProcessService.name);
     private static readonly SYSTEM_FIELDS = new Set<string>([
         'images',
     ]);
@@ -98,171 +98,6 @@ export class AdminProcessService {
         return processes.map(toProcessSummary);
     }
 
-    /* =========================================================
-     * CONFIGURE RUN (SYNC)
-     * ========================================================= */
-
-    async configure(
-        orderProcessId: string,
-        processRunId: string,
-        dto: ConfigureProcessRunDto,
-    ) {
-        this.logger.log(
-            `[CONFIG][START] orderProcessId=${orderProcessId} processRunId=${processRunId}`,
-        );
-
-        return this.prisma.transaction(async tx => {
-
-            const run = await tx.processRun.findFirst({
-                where: { id: processRunId, orderProcessId },
-                select: {
-                    id: true,
-                    statusCode: true,
-                    fields: true,
-                    orderProcessId: true,
-                    runTemplate: {
-                        select: {
-                            fields: true,
-                            configWorkflowType: {
-                                select: {
-                                    id: true,
-                                    statuses: {
-                                        select: { id: true, code: true, isInitial: true },
-                                    },
-                                    transitions: {
-                                        select: { fromStatusId: true, toStatusId: true },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-
-            if (!run) {
-                this.logger.error('[CONFIG][INVALID_RUN]');
-                throw new BadRequestException('Invalid process run');
-            }
-
-            /* =====================================================
-             * FIELD VALIDATION + NORMALIZATION
-             * ===================================================== */
-            const normalizedFields = this.validateAndNormalizeFields(
-                run.runTemplate.fields as RunTemplateField[],
-                dto.fields,
-            );
-
-            /* =====================================================
-             * WORKFLOW VALIDATION
-             * ===================================================== */
-            const wf = run.runTemplate.configWorkflowType;
-            if (!wf) {
-                throw new BadRequestException('Config workflow missing');
-            }
-
-            const current = wf.statuses.find(
-                s => s.code === run.statusCode,
-            );
-            if (!current || !current.isInitial) {
-                throw new BadRequestException('Invalid config state');
-            }
-
-            const transition = wf.transitions.find(
-                t => t.fromStatusId === current.id,
-            );
-            if (!transition) {
-                throw new BadRequestException('No config transition');
-            }
-
-            const toStatus = wf.statuses.find(
-                s => s.id === transition.toStatusId,
-            );
-            if (!toStatus) {
-                throw new BadRequestException(
-                    'Invalid config transition target',
-                );
-            }
-
-            this.logger.log(
-                `[CONFIG][RUN_TRANSITION] run=${run.id} ${current.code} → ${toStatus.code}`,
-            );
-
-            /* =====================================================
-             * UPDATE PROCESS RUN
-             * ===================================================== */
-
-            const mergedFields = {
-                ...(run.fields as Record<string, any> ?? {}),
-                ...normalizedFields, // DTO explicitly overrides
-            };
-
-            await tx.processRun.update({
-                where: { id: run.id },
-                data: {
-                    fields: mergedFields,
-                    statusCode: toStatus.code,
-                },
-            });
-
-            /* =====================================================
-             * ORDER PROCESS PROGRESS (UNCHANGED)
-             * ===================================================== */
-            const op = await tx.orderProcess.update({
-                where: { id: run.orderProcessId },
-                data: { configCompletedRuns: { increment: 1 } },
-                select: {
-                    id: true,
-                    orderId: true,
-                    totalRuns: true,
-                    configCompletedRuns: true,
-                    workflowTypeId: true,
-                    statusCode: true,
-                },
-            });
-
-            this.logger.log(
-                `[CONFIG][ORDER_PROCESS_PROGRESS] orderProcess=${op.id} ${op.configCompletedRuns}/${op.totalRuns}`,
-            );
-
-            const finalized = await tx.orderProcess.updateMany({
-                where: {
-                    id: op.id,
-                    configCompletedRuns: op.totalRuns,
-                    configCompletedAt: null,
-                },
-                data: { configCompletedAt: new Date() },
-            });
-
-            if (finalized.count === 1) {
-                this.logger.log(
-                    `[CONFIG][ORDER_PROCESS_COMPLETED] orderProcess=${op.id}`,
-                );
-
-                await this.transitionOrderProcess(tx, op);
-
-                const remaining = await tx.orderProcess.count({
-                    where: {
-                        orderId: op.orderId,
-                        configCompletedAt: null,
-                    },
-                });
-
-                if (remaining === 0) {
-                    this.logger.log(
-                        `[CONFIG][ALL_ORDER_PROCESSES_CONFIGURED] order=${op.orderId}`,
-                    );
-                    await this.orderService.transitionOrderById(
-                        this.prisma,
-                        op.orderId,
-                    );
-                }
-            }
-
-            return { success: true };
-        });
-    }
-
-
     async configureWithImages(
         orderProcessId: string,
         processRunId: string,
@@ -314,6 +149,33 @@ export class AdminProcessService {
                 run.runTemplate.fields as RunTemplateField[],
                 dto.fields,
             );
+            /* =====================================================
+            * EXECUTOR / REVIEWER VALIDATION
+            * ===================================================== */
+            if (dto.executorId || dto.reviewerId) {
+                // Collect unique user IDs only
+                const userIds = Array.from(
+                    new Set(
+                        [dto.executorId, dto.reviewerId].filter(Boolean),
+                    ),
+                ) as string[];
+
+                const users = await tx.user.findMany({
+                    where: {
+                        id: { in: userIds },
+                        deletedAt: null,
+                        isActive: true,
+                    },
+                    select: { id: true },
+                });
+
+                if (users.length !== userIds.length) {
+                    throw new BadRequestException(
+                        'Invalid executor or reviewer',
+                    );
+                }
+            }
+
 
             /* =====================================================
              * IMAGE UPLOAD (OPTIONAL)
@@ -381,6 +243,14 @@ export class AdminProcessService {
                 data: {
                     fields: mergedFields,
                     statusCode: toStatus.code,
+
+                    ...(dto.executorId !== undefined && {
+                        executorId: dto.executorId,
+                    }),
+
+                    ...(dto.reviewerId !== undefined && {
+                        reviewerId: dto.reviewerId,
+                    }),
                 },
             });
 
@@ -728,8 +598,6 @@ export class AdminProcessService {
             /**
              * Start order lifecycle exactly once
              */
-            this.logger.log(orderSnapshot.lifecycleStartedAt);
-            this.logger.log('----------');
 
             let orderStatus: string = orderSnapshot.statusCode;
 
@@ -741,9 +609,6 @@ export class AdminProcessService {
                     },
                     data: { lifecycleStartedAt: new Date() },
                 });
-
-                this.logger.log(started.count);
-                this.logger.log('----------');
 
                 if (started.count === 1) {
                     this.logger.log(

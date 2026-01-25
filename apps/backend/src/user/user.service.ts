@@ -5,14 +5,15 @@ import type {
 import {
     BadRequestException,
     Injectable,
-    Logger,
-    NotFoundException,
+    NotFoundException
 } from '@nestjs/common';
 import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { ContextLogger } from '../common/logger/context.logger';
+import { UsersQueryDto } from '../dto/users-query.dto';
 
 @Injectable()
 export class UserService {
-    private readonly log = new Logger(UserService.name);
+    private readonly log = new ContextLogger(UserService.name);
 
     constructor(private readonly prisma: PrismaService) { }
 
@@ -21,19 +22,27 @@ export class UserService {
     ============================ */
 
     async syncUser(dto: SyncUserDto) {
+        const now = new Date();
+
         const user = await this.prisma.user.upsert({
             where: { email: dto.email },
             update: {
                 name: dto.name,
+                role: dto.role,
                 isActive: true,
                 deletedAt: null,
+                updatedAt: now,
             },
             create: {
+                id: dto.id,
                 email: dto.email,
                 name: dto.name,
+                role: dto.role,
+                isActive: true,
+                createdAt: now,
+                updatedAt: now,
             },
         });
-
         this.log.log(`User synced email=${user.email}`);
         return user;
     }
@@ -102,4 +111,46 @@ export class UserService {
             `Location assigned email=${dto.email} location=${location.code}`
         );
     }
+
+    async getAll(query: UsersQueryDto) {
+        const { role } = query;
+
+        // Normalize roles (ADMIN,OPERATOR → [ADMIN, OPERATOR])
+        const roles = role
+            ? role
+                .split(',')
+                .map(r => r.trim())
+                .filter(Boolean)
+            : undefined;
+
+        const where = {
+            deletedAt: null,
+            ...(roles?.length === 1 && { role: roles[0] }),
+            ...(roles && roles.length > 1 && {
+                role: { in: roles },
+            }),
+        };
+
+        const users = await this.prisma.user.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                isActive: true,
+                createdAt: true,
+                deletedAt: false,
+            },
+        });
+
+        return {
+            data: users,
+            meta: {
+                total: users.length,
+            },
+        };
+    }
+
 }

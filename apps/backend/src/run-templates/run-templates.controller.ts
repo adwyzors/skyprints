@@ -4,16 +4,16 @@ import {
     Body,
     Controller,
     Get,
-    Logger,
     Param,
-    Post,
+    Post
 } from '@nestjs/common';
 import { toRunTemplateDetail } from '../mappers/run-template.mapper';
 import { RunTemplatesService } from './run-templates.service';
+import { ContextLogger } from '../common/logger/context.logger';
 
 @Controller('/runs/templates')
 export class RunTemplatesController {
-    private readonly logger = new Logger(RunTemplatesController.name);
+    private readonly logger = new ContextLogger(RunTemplatesController.name);
 
     constructor(
         private readonly service: RunTemplatesService,

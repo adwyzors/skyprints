@@ -8,8 +8,11 @@ import {
     Body,
     Controller,
     Delete,
+    Get,
     Post,
+    Query,
 } from '@nestjs/common';
+import { UsersQueryDto } from '../dto/users-query.dto';
 import { UserService } from './user.service';
 
 @Controller('internal/users')
@@ -42,5 +45,10 @@ export class UserController {
             throw new BadRequestException(parsed.error.flatten());
         }
         return this.service.assignLocation(parsed.data);
+    }
+
+    @Get()
+    async getAll(@Query() query: UsersQueryDto) {
+        return this.service.getAll(query);
     }
 }

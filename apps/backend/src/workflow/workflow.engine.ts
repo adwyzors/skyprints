@@ -1,15 +1,15 @@
 import {
-    Injectable,
     BadRequestException,
-    Logger,
+    Injectable
 } from '@nestjs/common';
 import { WorkflowEngine } from './interfaces/workflow-engine.interface';
-import { WorkflowRepository } from './workflow.repository';
 import { evalCondition } from './utils/eval-condition';
+import { WorkflowRepository } from './workflow.repository';
+import { ContextLogger } from '../common/logger/context.logger';
 
 @Injectable()
 export class DynamicWorkflowEngine implements WorkflowEngine {
-    private readonly logger = new Logger(DynamicWorkflowEngine.name);
+    private readonly logger = new ContextLogger(DynamicWorkflowEngine.name);
 
     constructor(
         private readonly repo: WorkflowRepository,

@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+/* ---------------- COMMON ---------------- */
+
+export const UserSummarySchema = z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+});
+
 /* ---------------- PROCESS RUN ---------------- */
 
 export const TemplateFieldSchema = z.object({
@@ -16,8 +23,10 @@ export const OrderProcessRunSchema = z.object({
     configStatus: z.string(),
     lifecycleStatus: z.string(),
 
-    values: z.record(z.string(), z.any()),
+    executor: UserSummarySchema.nullable().optional(),
+    reviewer: UserSummarySchema.nullable().optional(),
 
+    values: z.record(z.string(), z.any()),
     fields: z.array(TemplateFieldSchema),
 
     lifecycle: z
@@ -60,6 +69,8 @@ export const OrderSummarySchema = z.object({
 
     totalProcesses: z.number().int(),
     completedProcesses: z.number().int().optional(),
+
+    createdBy: UserSummarySchema.nullable(),
 
     customer: z.object({
         id: z.string().uuid(),

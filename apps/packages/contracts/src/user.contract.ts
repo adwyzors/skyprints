@@ -4,8 +4,10 @@ import { z } from 'zod';
  * Create / Sync user
  */
 export const SyncUserSchema = z.object({
+    id: z.string().uuid(),
     email: z.string().email(),
     name: z.string().min(1),
+    role: z.string().min(1),
 });
 
 export type SyncUserDto = z.infer<typeof SyncUserSchema>;

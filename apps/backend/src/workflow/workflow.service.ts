@@ -1,5 +1,6 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { WorkflowEngine } from './interfaces/workflow-engine.interface';
+import { ContextLogger } from '../common/logger/context.logger';
 
 export interface OutboxPort {
     add(event: {
@@ -15,7 +16,7 @@ export const OUTBOX_PORT = Symbol('OUTBOX_PORT');
 
 @Injectable()
 export class WorkflowService {
-    private readonly logger = new Logger(WorkflowService.name);
+    private readonly logger = new ContextLogger(WorkflowService.name);
 
     constructor(
         @Inject(WORKFLOW_ENGINE)

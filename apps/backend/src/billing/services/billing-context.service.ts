@@ -1,11 +1,12 @@
 import type { CreateBillingContextDto } from "@app/contracts";
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
 import { BillingSnapshotService } from "./billing-snapshot.service";
+import { ContextLogger } from "../../common/logger/context.logger";
 
 @Injectable()
 export class BillingContextService {
-    private readonly logger = new Logger(BillingContextService.name);
+    private readonly logger = new ContextLogger(BillingContextService.name);
 
     constructor(private readonly prisma: PrismaService,
         private readonly billingSnapshotService: BillingSnapshotService

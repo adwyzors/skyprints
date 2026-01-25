@@ -1,37 +1,46 @@
 import {
-  CallHandler,
-  ExecutionContext,
-  Injectable,
-  NestInterceptor,
+    CallHandler,
+    ExecutionContext,
+    Injectable,
+    NestInterceptor,
 } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 
 @Injectable()
 export class PaginationInterceptor implements NestInterceptor {
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<any> {
-    const response = context.switchToHttp().getResponse();
+    intercept(
+        context: ExecutionContext,
+        next: CallHandler,
+    ): Observable<any> {
+        const response = context.switchToHttp().getResponse();
 
-    return next.handle().pipe(
-      map((result) => {
-        // If no meta → return as-is
-        if (!result || !result.meta) {
-          return result;
-        }
+        return next.handle().pipe(
+            map((result) => {
+                // If no meta → return as-is
+                if (!result || !result.meta) {
+                    return result;
+                }
 
-        const { page, limit, total, totalPages } = result.meta;
+                const { page, limit, total, totalPages } = result.meta;
 
-        // ✅ Standard pagination headers
-        response.setHeader('X-Page', page);
-        response.setHeader('X-Limit', limit);
-        response.setHeader('X-Total-Count', total);
-        response.setHeader('X-Total-Pages', totalPages);
+                if (page !== undefined) {
+                    response.setHeader('X-Page', String(page));
+                }
 
-        // ✅ Body contains ONLY data
-        return result.data;
-      }),
-    );
-  }
+                if (limit !== undefined) {
+                    response.setHeader('X-Limit', String(limit));
+                }
+
+                if (total !== undefined) {
+                    response.setHeader('X-Total-Count', String(total));
+                }
+
+                if (totalPages !== undefined) {
+                    response.setHeader('X-Total-Pages', String(totalPages));
+                }
+
+                return result.data ?? result;
+            }),
+        );
+    }
 }
