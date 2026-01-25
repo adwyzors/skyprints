@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@app/contracts": "*",
     "@types/lodash": "^4.17.23",
     "clsx": "^2.1.1",
     "geist": "^1.5.1",

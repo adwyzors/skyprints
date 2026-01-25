@@ -1,0 +1,6 @@
+{
+    "version": 2,
+    "buildCommand": "npm run vercel-build",
+    "outputDirectory": "apps/frontend/.next",
+    "framework": "nextjs"
+}
