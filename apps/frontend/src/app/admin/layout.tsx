@@ -1,15 +1,7 @@
 'use client';
 
 import AppHeader from '@/components/layout/AppHeader';
-import {
-  Calendar,
-  CheckCircle,
-  CreditCard,
-  FileText,
-  Package,
-  Plus,
-  Users
-} from 'lucide-react';
+import { Calendar, CheckCircle, CreditCard, FileText, Package, Plus, Users } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -27,15 +19,21 @@ const tabs = [
     badge: null,
   },
   {
-    label: 'Rate Config',
+    label: 'Rates',
     path: '/admin/billing',
     icon: <CreditCard className="w-4 h-4" />,
     badge: null,
   },
   {
-    label: 'Completed',
+    label: 'Bills',
     path: '/admin/completed',
     icon: <CheckCircle className="w-4 h-4" />,
+    badge: null,
+  },
+  {
+    label: 'Groups',
+    path: '/admin/bills',
+    icon: <FileText className="w-4 h-4" />,
     badge: null,
   },
   {
@@ -44,12 +42,7 @@ const tabs = [
     icon: <Users className="w-4 h-4" />,
     badge: null,
   },
-  {
-    label: 'Bills',
-    path: '/admin/bills',
-    icon: <FileText className="w-4 h-4" />,
-    badge: null,
-  },
+
   // {
   //   label: 'Reports',
   //   path: '/admin/reports',
@@ -109,14 +102,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   return (
                     <div
                       key={tab.path}
-                      className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg mx-1 ${active ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-600'
-                        }`}
+                      className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg mx-1 ${
+                        active ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-600'
+                      }`}
                     >
                       <span className={`${active ? 'text-blue-600' : 'text-gray-500'}`}>
                         {tab.icon}
                       </span>
                       <span>{tab.label}</span>
-
                     </div>
                   );
                 })}
@@ -149,10 +142,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <button
                     key={tab.path}
                     onClick={() => router.push(tab.path)}
-                    className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg mx-1 transition-all duration-200 ${active
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
+                    className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg mx-1 transition-all duration-200 ${
+                      active
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
                   >
                     <span className={`${active ? 'text-blue-600' : 'text-gray-500'}`}>
                       {tab.icon}
@@ -162,8 +156,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     {/* BADGE */}
                     {hasBadge && (
                       <span
-                        className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center ${active ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
-                          }`}
+                        className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center ${
+                          active ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+                        }`}
                       >
                         {tab.badge}
                       </span>

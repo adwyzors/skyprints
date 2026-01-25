@@ -1,20 +1,20 @@
 import {
     Controller,
     Get,
-    Logger,
     Post,
     Query,
     Req,
     Res,
-    UnauthorizedException,
+    UnauthorizedException
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { KeycloakService } from './keycloak/keycloak.service';
+import { ContextLogger } from '../common/logger/context.logger';
 @Controller('auth')
 export class AuthController {
-    private readonly logger = new Logger(AuthController.name);
+    private readonly logger = new ContextLogger(AuthController.name);
 
     constructor(
         private readonly auth: AuthService,

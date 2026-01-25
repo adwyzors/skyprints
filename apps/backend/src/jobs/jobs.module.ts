@@ -1,8 +1,9 @@
-import { Logger, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { OrderRetentionAndSequenceJob } from './order-rentention-sequence.job';
+import { ContextLogger } from '../common/logger/context.logger';
 
-const logger = new Logger('JobsModule');
+const logger = new ContextLogger('JobsModule');
 
 const jobsEnabled = process.env.JOBS_ENABLED === 'true';
 

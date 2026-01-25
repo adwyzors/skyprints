@@ -1,5 +1,6 @@
-import { BadRequestException, Logger } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { evaluate } from 'mathjs';
+import { ContextLogger } from '../../common/logger/context.logger';
 
 /**
  * Evaluates workflow transition conditions safely.
@@ -14,32 +15,32 @@ import { evaluate } from 'mathjs';
  *  - Access to globals
  */
 export function evalCondition(
-  expression: string,
-  context: Record<string, unknown>,
+    expression: string,
+    context: Record<string, unknown>,
 ): boolean {
-  const logger = new Logger('WorkflowConditionEvaluator');
+    const logger = new ContextLogger('WorkflowConditionEvaluator');
 
-  try {
-    const result = evaluate(expression, context);
+    try {
+        const result = evaluate(expression, context);
 
-    if (typeof result !== 'boolean') {
-      logger.warn(
-        `Condition did not return boolean: ${expression}`,
-      );
-      throw new BadRequestException(
-        'Transition condition must evaluate to boolean',
-      );
+        if (typeof result !== 'boolean') {
+            logger.warn(
+                `Condition did not return boolean: ${expression}`,
+            );
+            throw new BadRequestException(
+                'Transition condition must evaluate to boolean',
+            );
+        }
+
+        return result;
+    } catch (err) {
+        logger.error(
+            `Condition evaluation failed: ${expression}`,
+            err instanceof Error ? err.stack : undefined,
+        );
+
+        throw new BadRequestException(
+            'Invalid transition condition',
+        );
     }
-
-    return result;
-  } catch (err) {
-    logger.error(
-      `Condition evaluation failed: ${expression}`,
-      err instanceof Error ? err.stack : undefined,
-    );
-
-    throw new BadRequestException(
-      'Invalid transition condition',
-    );
-  }
 }

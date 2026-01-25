@@ -1,12 +1,11 @@
 import { Module } from "@nestjs/common";
-import { OutboxModule } from "../outbox/outbox.module";
+import { CloudflareService } from "../common/cloudflare.service";
 import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 
 @Module({
     controllers: [OrdersController],
-    providers: [OrdersService],
-    imports: [OutboxModule],
+    providers: [OrdersService, CloudflareService],
     exports: [OrdersService],
 
 })

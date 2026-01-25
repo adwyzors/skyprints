@@ -1,12 +1,14 @@
 "use client";
 //apps\frontend\src\app\admin\completed\page.tsx
 import CompletedOrderModal from "@/components/modals/CompletedOrderModal";
+import CreateGroupModal from "@/components/modals/CreateGroupModal";
+import OrderCard from "@/components/orders/OrderCard";
 import { Order } from "@/domain/model/order.model";
 import { GetOrdersParams, getOrders } from "@/services/orders.service";
 import debounce from 'lodash/debounce';
-import { Calendar, CheckCircle, DollarSign, Download, FileText, Filter, Loader2, Package, Search, User, X } from "lucide-react";
+import { Calendar, CheckCircle, CheckSquare, Download, FileText, Filter, Loader2, Search, Users, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 function CompletedContent() {
   const router = useRouter();
@@ -34,6 +36,11 @@ function CompletedContent() {
   const [showFilters, setShowFilters] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Selection mode state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<Map<string, Order>>(new Map());
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
 
   // Customer data from API
   const [customers, setCustomers] = useState<{ id: string; name: string; code?: string }[]>([
@@ -171,6 +178,48 @@ function CompletedContent() {
     bgColor: 'bg-indigo-50',
   });
 
+  // Selection helpers
+  const toggleOrderSelection = (order: Order) => {
+    setSelectedOrders((prev) => {
+      const newMap = new Map(prev);
+      if (newMap.has(order.id)) {
+        newMap.delete(order.id);
+      } else {
+        newMap.set(order.id, order);
+      }
+      return newMap;
+    });
+  };
+
+  const isOrderSelected = (orderId: string) => selectedOrders.has(orderId);
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedOrders(new Map());
+  };
+
+  const handleGroupCreated = () => {
+    exitSelectionMode();
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
+  // Compute display orders: selected orders pinned at top + search results (excluding already selected)
+  const displayOrders = useMemo(() => {
+    const selectedArray = Array.from(selectedOrders.values());
+    const selectedIds = new Set(selectedOrders.keys());
+
+    // Filter out already selected orders from the fetched results
+    const nonSelectedOrders = filteredOrders.filter((o) => !selectedIds.has(o.id));
+
+    // When searching, show selected orders first, then search results
+    if (debouncedSearch && selectedArray.length > 0) {
+      return [...selectedArray, ...nonSelectedOrders];
+    }
+
+    // When not searching, just show fetched orders (selected will be highlighted)
+    return filteredOrders;
+  }, [filteredOrders, selectedOrders, debouncedSearch]);
+
   if (!isMounted) {
     return null;
   }
@@ -181,18 +230,49 @@ function CompletedContent() {
         {/* HEADER SECTION */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Completed Orders</h1>
-            <p className="text-gray-600 mt-1">View all billed and completed orders</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Billed Orders</h1>
+            <p className="text-gray-600 mt-1">View all billed orders</p>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors">
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export CSV</span>
-            </button>
-            <div className="px-4 py-2.5 bg-indigo-100 text-indigo-800 rounded-xl text-sm font-medium">
-              {filteredOrders.length} billed orders
-            </div>
+            {!isSelectionMode ? (
+              <>
+                <button
+                  onClick={() => setIsSelectionMode(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 border border-indigo-200 text-indigo-700 font-medium rounded-xl hover:bg-indigo-50 transition-colors"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                  Select
+                </button>
+                <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors">
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export CSV</span>
+                </button>
+                <div className="px-4 py-2.5 bg-indigo-100 text-indigo-800 rounded-xl text-sm font-medium">
+                  {filteredOrders.length} billed orders
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="px-4 py-2.5 bg-indigo-100 text-indigo-800 rounded-xl text-sm font-medium">
+                  {selectedOrders.size} selected
+                </div>
+                <button
+                  onClick={exitSelectionMode}
+                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setShowCreateGroupModal(true)}
+                  disabled={selectedOrders.size < 2}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
+                  <Users className="w-4 h-4" />
+                  Create Group
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -300,7 +380,7 @@ function CompletedContent() {
             <div className="flex items-center gap-4">
               <p className="text-sm text-gray-600">
                 Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span> of{' '}
-                <span className="font-semibold text-gray-800">{ordersData.total}</span> billed orders
+                <span className="font-semibold text-gray-800">{ordersData.total}</span> orders
                 {ordersData.totalPages > 1 && (
                   <span>
                     {' '}(Page {ordersData.page} of {ordersData.totalPages})
@@ -328,98 +408,41 @@ function CompletedContent() {
         {!loading && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {filteredOrders.map((order) => {
-                const statusConfig = getStatusConfig();
+              {displayOrders.map((order) => {
+                const isSelected = isOrderSelected(order.id);
+                // If selection mode is active, we might want to keep some custom UI or wrap OrderCard?
+                // The user asked for "same card as orders page", but completed page has selection logic.
+                // The OrderCard supports "onClick", so we can wrap it.
+                // However, OrderCard component handles its own display. 
+                // Let's use OrderCard but wrap it for selection mode overlay.
 
                 return (
                   <div
                     key={order.id}
-                    onClick={() => router.push(`/admin/completed?selectedOrder=${order.id}`)}
-                    className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-indigo-300 transition-all duration-300 hover:-translate-y-1"
+                    onClick={() => {
+                      if (isSelectionMode) {
+                        toggleOrderSelection(order);
+                      } else {
+                        router.push(`/admin/completed?selectedOrder=${order.id}`);
+                      }
+                    }}
+                    className={`relative rounded-2xl transition-all duration-300 ${isSelected
+                      ? 'ring-2 ring-indigo-500 ring-offset-2'
+                      : ''
+                      }`}
                   >
-                    {/* CARD HEADER */}
-                    <div className={`p-5 ${statusConfig.bgColor}`}>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors">
-                            {order.code}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <User className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm text-gray-700">{order.customer?.name}</span>
-                          </div>
-                          {order.jobCode && (
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs px-2 py-0.5 bg-white/70 text-gray-600 rounded">
-                                Job: {order.jobCode}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                    <OrderCard order={order} showConfigure={false} />
 
-                        <div className="flex flex-col items-end gap-1">
-                          <span
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
-                          >
-                            {statusConfig.icon}
-                            {statusConfig.label}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {formatDate(order.createdAt)}
-                          </span>
+                    {/* Selection Overlay */}
+                    {isSelectionMode && (
+                      <div className={`absolute inset-0 z-40 rounded-2xl cursor-pointer transition-colors ${isSelected ? 'bg-indigo-50/10' : 'bg-transparent hover:bg-gray-50/10'}`}>
+                        <div className="absolute top-3 right-3">
+                          <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-gray-300'}`}>
+                            {isSelected && <CheckSquare className="w-4 h-4 text-white" />}
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    {/* CARD BODY */}
-                    <div className="p-5 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Package className="w-4 h-4 text-gray-400" />
-                            <span className="text-xs text-gray-500">Quantity</span>
-                          </div>
-                          <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="w-4 h-4 text-gray-400" />
-                            <span className="text-xs text-gray-500">Processes</span>
-                          </div>
-                          <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
-                        </div>
-                      </div>
-
-                      {/* RUNS SUMMARY */}
-                      <div className="pt-3 border-t border-gray-100">
-                        <div className="text-xs text-gray-500 mb-2">Processes:</div>
-                        <div className="space-y-2">
-                          {order.processes.map((process) => (
-                            <div key={process.id} className="flex items-center justify-between">
-                              <span className="text-sm text-gray-700 truncate">{process.name}</span>
-                              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                                {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ACTION BUTTONS */}
-                    <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/admin/completed?selectedOrder=${order.id}`);
-                        }}
-                        className="w-full px-4 py-2.5 text-sm font-medium bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <FileText className="w-4 h-4" />
-                        View Details
-                      </button>
-                    </div>
+                    )}
                   </div>
                 );
               })}
@@ -519,6 +542,13 @@ function CompletedContent() {
         {selectedOrderId && (
           <CompletedOrderModal orderId={selectedOrderId} onClose={() => router.push('/admin/completed')} />
         )}
+
+        <CreateGroupModal
+          isOpen={showCreateGroupModal}
+          onClose={() => setShowCreateGroupModal(false)}
+          selectedOrders={Array.from(selectedOrders.values())}
+          onSuccess={handleGroupCreated}
+        />
       </div>
     </div>
   );

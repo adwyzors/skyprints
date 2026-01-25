@@ -8,8 +8,17 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         createdAt: order.createdAt.toISOString(),
         code: order.code,
         jobCode: order.jobCode,
+        images: order.images || [],
         totalProcesses: order.totalProcesses,
         completedProcesses: order.completedProcesses,
+
+        // ✅ CREATED / ASSIGNED USER
+        createdBy: order.createdBy
+            ? {
+                id: order.createdBy.id,
+                name: order.createdBy.name,
+            }
+            : null,
 
         customer: {
             id: order.customer.id,
@@ -33,6 +42,20 @@ export function toOrderSummary(order: any): OrderSummaryDto {
 
                 configStatus: run.statusCode,
                 lifecycleStatus: run.lifeCycleStatusCode,
+
+                executor: run.executor
+                    ? {
+                        id: run.executor.id,
+                        name: run.executor.name,
+                    }
+                    : null,
+
+                reviewer: run.reviewer
+                    ? {
+                        id: run.reviewer.id,
+                        name: run.reviewer.name,
+                    }
+                    : null,
 
                 lifecycle: buildLifecycleProgress(
                     run.runTemplate.lifecycleWorkflowType.statuses,

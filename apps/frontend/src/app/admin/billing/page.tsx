@@ -1,19 +1,17 @@
 'use client';
-//apps\frontend\src\app\admin\billing\page.tsx
 import BillingModal from '@/components/modals/BillingModal';
+import OrderCard from '@/components/orders/OrderCard';
+//apps\frontend\src\app\admin\billing\page.tsx
 import { Order } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrders } from '@/services/orders.service';
 import debounce from 'lodash/debounce';
 import {
   Calendar,
   CheckCircle,
-  DollarSign,
   FileText,
   Filter,
   Loader2,
-  Package,
   Search,
-  User,
   X,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -218,8 +216,8 @@ function BillingContent() {
       <div className="p-4 md:p-6 lg:p-8 space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Billing</h1>
-            <p className="text-gray-600 mt-1">Generate invoices for completed orders</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Rate Configuration</h1>
+            <p className="text-gray-600 mt-1">Configure rates for completed orders</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -317,7 +315,7 @@ function BillingContent() {
               Showing{' '}
               <span className="font-semibold text-gray-800">{filteredOrders.length}</span> of{' '}
               <span className="font-semibold text-gray-800">{ordersData.total}</span>{' '}
-              completed orders
+              orders
               {ordersData.totalPages > 1 && (
                 <span>
                   {' '}(Page {ordersData.page} of {ordersData.totalPages})
@@ -344,103 +342,15 @@ function BillingContent() {
         {!loading && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {filteredOrders.map((order) => {
-                const statusConfig = getStatusConfig(order.status);
-
-                return (
-                  <div
-                    key={order.id}
+              {filteredOrders.map((order) => (
+                <div key={order.id}>
+                  <OrderCard
+                    order={order}
+                    showConfigure={false}
                     onClick={() => router.push(`/admin/billing?selectedOrder=${order.id}`)}
-                    className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-green-300 transition-all duration-300 hover:-translate-y-1"
-                  >
-                    {/* Card Header */}
-                    <div className={`p-5 ${statusConfig.bgColor}`}>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-bold text-lg text-gray-800 group-hover:text-green-600 transition-colors">
-                            {order.code}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <User className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm text-gray-700">{order.customer?.name}</span>
-                          </div>
-                          {order.jobCode && (
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs px-2 py-0.5 bg-white/70 text-gray-600 rounded">
-                                Job: {order.jobCode}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col items-end gap-1">
-                          <span
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 ${statusConfig.color}`}
-                          >
-                            {statusConfig.icon}
-                            {statusConfig.label}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {formatDate(order.createdAt)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card Body */}
-                    <div className="p-5 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Package className="w-4 h-4 text-gray-400" />
-                            <span className="text-xs text-gray-500">Quantity</span>
-                          </div>
-                          <p className="text-lg font-bold text-gray-800">{order.quantity}</p>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="w-4 h-4 text-gray-400" />
-                            <span className="text-xs text-gray-500">Processes</span>
-                          </div>
-                          <p className="text-lg font-bold text-gray-800">{order.processes.length}</p>
-                        </div>
-                      </div>
-
-                      {/* Runs Overview */}
-                      <div className="pt-3 border-t border-gray-100">
-                        <div className="text-xs text-gray-500 mb-2">Production Summary:</div>
-                        <div className="space-y-2">
-                          {order.processes.map((process) => (
-                            <div key={process.id} className="flex items-center justify-between">
-                              <span className="text-sm text-gray-700 truncate">
-                                {process.name}
-                              </span>
-                              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                                {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card Footer */}
-                    <div className="px-5 py-4 border-t border-gray-100 bg-gray-50">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/admin/billing?selectedOrder=${order.id}`);
-                        }}
-                        className="w-full px-4 py-2.5 text-sm font-medium bg-linear-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all flex items-center justify-center gap-2"
-                      >
-                        <DollarSign className="w-4 h-4" />
-                        View & Bill Order
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                  />
+                </div>
+              ))}
             </div>
 
             {/* PAGINATION */}

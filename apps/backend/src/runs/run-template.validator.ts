@@ -1,13 +1,13 @@
 import {
-    Injectable,
     BadRequestException,
-    Logger,
+    Injectable
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ContextLogger } from '../common/logger/context.logger';
 
 @Injectable()
 export class RunTemplateValidator {
-    private readonly logger = new Logger(RunTemplateValidator.name);
+    private readonly logger = new ContextLogger(RunTemplateValidator.name);
 
     constructor(private readonly prisma: PrismaService) { }
 

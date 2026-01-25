@@ -33,26 +33,80 @@ export default function ConfigurationModal({
             <head>
               <title>Run ${run.runNumber} - ${processName}</title>
               <style>
-                @page { size: landscape; margin: 1cm; }
-                body { font-family: Arial, sans-serif; padding: 20px; }
-                h1 { font-size: 18px; margin-bottom: 10px; color: #1f2937; }
-                h2 { font-size: 14px; margin-bottom: 20px; color: #6b7280; }
-                table { width: 100%; border-collapse: collapse; }
-                th, td { padding: 10px 15px; text-align: left; border: 1px solid #000; }
+                @page { size: landscape; margin: 0.5cm; }
+                body { font-family: Arial, sans-serif; padding: 20px; width: 100%; box-sizing: border-box; }
+                h1 { font-size: 18px; margin-bottom: 5px; color: #1f2937; }
+                h2 { font-size: 14px; margin-bottom: 15px; color: #6b7280; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 15px; page-break-inside: avoid; }
+                th, td { padding: 8px 12px; text-align: left; border: 1px solid #000; font-size: 12px; }
                 th { background-color: #f0f0f0; font-weight: 600; color: #000; }
                 td { background-color: #fff; color: #000; }
-                .highlight { background-color: #dbeafe !important; font-weight: bold; }
+                
+                /* Print optimizations */
+                .print-container { 
+                    width: 100%;
+                    page-break-inside: avoid;
+                    break-inside: avoid;
+                }
+                
+                img { max-width: 100%; height: auto; display: block; }
+                
+                /* Grid for images in print */
+                .grid-cols-2 { 
+                    display: flex; 
+                    flex-wrap: wrap; 
+                    gap: 12px; 
+                    page-break-inside: avoid;
+                    margin-top: 15px;
+                }
+                .grid-cols-2 > div { 
+                    width: 48%; 
+                    page-break-inside: avoid;
+                    border: 1px solid #ddd;
+                }
               </style>
             </head>
             <body>
-              <h1>Run ${run.runNumber} - ${processName}</h1>
-              <h2>${orderCode} • ${customerName}</h2>
-              ${printContent.innerHTML}
+              <div class="print-container">
+                  <h1>Run ${run.runNumber} - ${processName}</h1>
+                  <h2>${orderCode} • ${customerName}</h2>
+                  ${printContent.innerHTML}
+              </div>
+              <script>
+                // Wait for all images to load before printing
+                window.onload = function() {
+                    const images = document.getElementsByTagName('img');
+                    let loadedCount = 0;
+                    
+                    function checkAllLoaded() {
+                        loadedCount++;
+                        if (loadedCount >= images.length) {
+                            setTimeout(() => {
+                                window.print();
+                                window.close();
+                            }, 500); // Small delay to ensure rendering
+                        }
+                    }
+
+                    if (images.length === 0) {
+                        window.print();
+                        window.close();
+                    } else {
+                        for (let i = 0; i < images.length; i++) {
+                            if (images[i].complete) {
+                                checkAllLoaded();
+                            } else {
+                                images[i].onload = checkAllLoaded;
+                                images[i].onerror = checkAllLoaded;
+                            }
+                        }
+                    }
+                };
+              </script>
             </body>
           </html>
         `);
                 printWindow.document.close();
-                printWindow.print();
             }
         }
     };
@@ -112,9 +166,8 @@ export default function ConfigurationModal({
                     </div>
                 </div>
 
-                {/* Modal Body - Configuration Table */}
                 <div className="p-6 max-h-[60vh] overflow-y-auto" ref={printRef}>
-                    <table className="w-full border-collapse border border-gray-800">
+                    <table className="w-full border-collapse border border-gray-800 mb-6">
                         <tbody>
                             {gridData.map((row, rowIndex) => (
                                 <tr key={`row-${rowIndex}`} className="border-b border-gray-800">
@@ -148,7 +201,26 @@ export default function ConfigurationModal({
                         </tbody>
                     </table>
 
-                    {requiredFields.length === 0 && (
+                    {/* IMAGES SECTION */}
+                    {run.values?.images && Array.isArray(run.values.images) && run.values.images.length > 0 && (
+                        <div className="mt-6 border-t border-gray-200 pt-6">
+                            <h4 className="font-bold text-gray-800 mb-4">Reference Images</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                {run.values.images.map((imgUrl: string, index: number) => (
+                                    <div key={index} className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                                        <img
+                                            src={imgUrl}
+                                            alt={`Reference ${index + 1}`}
+                                            className="w-full h-auto object-contain max-h-[300px]"
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {requiredFields.length === 0 && (!run.values?.images || run.values.images.length === 0) && (
                         <div className="text-center py-8 text-gray-500">
                             No configuration data available for this run.
                         </div>

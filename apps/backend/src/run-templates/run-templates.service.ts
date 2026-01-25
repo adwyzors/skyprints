@@ -1,21 +1,21 @@
 import { CreateRunTemplateDto } from '@app/contracts';
 import {
     BadRequestException,
-    Injectable,
-    Logger,
+    Injectable
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { validateBillingFormula } from './formula/formula-validator';
 import { attachFormulaKeys } from './utils/field-normalizer';
+import { ContextLogger } from '../common/logger/context.logger';
 
 @Injectable()
 export class RunTemplatesService {
-    private readonly logger = new Logger(RunTemplatesService.name);
+    private readonly logger = new ContextLogger(RunTemplatesService.name);
 
     constructor(private readonly prisma: PrismaService) { }
 
     async create(dto: CreateRunTemplateDto) {
-        return this.prisma.$transaction(async (tx) => {
+        return this.prisma.transaction(async (tx) => {
             this.logger.log(`Creating RunTemplate ${dto.name}`);
 
             // 1. Attach formulaKey, keep UI key unchanged

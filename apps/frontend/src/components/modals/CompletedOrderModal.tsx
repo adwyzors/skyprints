@@ -54,11 +54,12 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
     let newAmount = estimatedAmount;
 
     if (billingSnapshot?.inputs) {
-      const snapshotInput = billingSnapshot.inputs.find(input => input.runId === run.id);
-      if (snapshotInput?.values) {
+      // inputs is an object keyed by runId: { runId: { new_rate: X } }
+      const snapshotInput = billingSnapshot.inputs[run.id];
+      if (snapshotInput) {
         // Billing API uses snake_case keys
-        newRate = snapshotInput.values['new_rate'] ?? snapshotInput.values['New Rate'] ?? estimatedRate;
-        const snapshotQuantity = snapshotInput.values['quantity'] ?? quantity;
+        newRate = snapshotInput['new_rate'] ?? snapshotInput['New Rate'] ?? estimatedRate;
+        const snapshotQuantity = snapshotInput['quantity'] ?? quantity;
         newAmount = snapshotQuantity * newRate;
 
         console.log('Using billing snapshot - newRate:', newRate, 'qty:', snapshotQuantity, 'newAmount:', newAmount);

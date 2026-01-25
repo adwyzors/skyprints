@@ -27,4 +27,5 @@ export interface NewOrderPayload {
   quantity: number;
   processes: ProcessConfig[];
   jobCode?: string;
+  images?: File[];
 }

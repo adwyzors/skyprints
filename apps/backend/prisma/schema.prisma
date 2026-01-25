@@ -15,18 +15,27 @@ model User {
   id            String   @id @default(uuid())
   email         String   @unique
   name          String
-  role          String   @default("OPERATOR")
   isActive      Boolean  @default(true)
 
-  assignedRuns  ProcessRun[]
   createdOrders Order[]
   notifications Notification[]
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  locationId String?   @unique
+  location   Location? @relation(fields: [locationId], references: [id])
 
-  @@index([isActive])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  role      String
+
+  executedProcessRuns ProcessRun[] @relation("ProcessRunExecutor")
+  reviewedProcessRuns ProcessRun[] @relation("ProcessRunReviewer")
+
+  @@index([email])
+  @@index([role, isActive, deletedAt])
+  @@index([name, isActive, deletedAt])
 }
+
 
 ///////////////////////////////
 // CUSTOMERS
@@ -184,7 +193,6 @@ model ProcessRunDefinition {
 
 model Order {
   id         String @id @default(uuid())
-
   code       String
   deletedAt  DateTime?
 
@@ -193,16 +201,19 @@ model Order {
 
   workflowTypeId String
   statusCode     String
-  jobCode     String?
+  jobCode        String?
+  images         String[] @default([])
 
   createdById String
   createdBy   User     @relation(fields: [createdById], references: [id])
   customer    Customer @relation(fields: [customerId], references: [id])
 
-  totalProcesses              Int      @default(0)
-  completedProcesses Int      @default(0)
+  totalProcesses       Int @default(0)
+  completedProcesses   Int @default(0)
 
   processes OrderProcess[]
+
+  billingContexts BillingContextOrder[]
 
   createdAt DateTime @default(now())
   lifecycleStartedAt DateTime?
@@ -231,19 +242,17 @@ model OrderProcess {
   configCompletedRuns    Int       @default(0)
   lifecycleCompletedRuns Int       @default(0)
 
-  configCompletedAt        DateTime?
+  configCompletedAt      DateTime?
   lifecycleCompletedAt   DateTime?
 
-  order   Order   @relation(fields: [orderId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   process Process @relation(fields: [processId], references: [id])
 
   runs ProcessRun[]
 
   @@unique([orderId, processId])
-  @@index([orderId])
-  @@index([processId])
-  @@index([workflowTypeId])
 }
+
 
 ///////////////////////////////
 // PROCESS RUN
@@ -264,22 +273,21 @@ model ProcessRun {
 
   fields Json
 
-  assignedUserId String?
-  locationId     String?
+  executorId String?
+  reviewerId String?
+  locationId String?
 
-  assignedUser User?     @relation(fields: [assignedUserId], references: [id])
-  location     Location? @relation(fields: [locationId], references: [id])
+  executor User? @relation("ProcessRunExecutor", fields: [executorId], references: [id])
+  reviewer User? @relation("ProcessRunReviewer", fields: [reviewerId], references: [id])
 
-  orderProcess OrderProcess @relation(fields: [orderProcessId], references: [id])
+  location Location? @relation(fields: [locationId], references: [id])
+
+  orderProcess OrderProcess @relation(fields: [orderProcessId], references: [id], onDelete: Cascade)
   runTemplate  RunTemplate  @relation(fields: [runTemplateId], references: [id])
 
   @@unique([orderProcessId, runNumber])
-  @@index([orderProcessId])
-  @@index([runTemplateId])
-  @@index([assignedUserId])
-  @@index([locationId])
-  @@index([lifecycleWorkflowTypeId])
 }
+
 
 ///////////////////////////////
 // LOCATIONS
@@ -293,9 +301,12 @@ model Location {
   type        String  @default("WORKSTATION")
   isActive    Boolean @default(true)
 
-  runs        ProcessRun[]
+  // Inverse 1–1
+  user User?
 
-  createdAt   DateTime @default(now())
+  runs ProcessRun[]
+
+  createdAt DateTime @default(now())
 
   @@index([isActive])
 }
@@ -361,33 +372,74 @@ model Notification {
 ///////////////////////////////
 // BILLING
 ///////////////////////////////
+enum BillingContextType {
+  ORDER
+  GROUP
+}
+
+enum BillingSnapshotIntent {
+  DRAFT
+  FINAL
+}
+
+enum CalculationType {
+  INITIAL
+  RECALCULATED
+}
+
+model BillingContext {
+  id            String   @id @default(uuid())
+  type          BillingContextType
+  name          String
+  description   String?
+
+  orders        BillingContextOrder[]
+  snapshots     BillingSnapshot[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([type])
+  @@index([id])
+}
+
+model BillingContextOrder {
+  id               String @id @default(uuid())
+  billingContextId String
+  orderId          String
+
+  billingContext BillingContext @relation(fields: [billingContextId], references: [id])
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+
+  createdAt DateTime @default(now())
+
+  @@unique([billingContextId, orderId])
+}
 
 model BillingSnapshot {
-  id              String   @id @default(uuid())
+  id               String   @id @default(uuid())
 
-  orderId         String
-  version         Int
-  isLatest        Boolean  @default(true)
+  billingContextId String
+  version          Int
+  isLatest         Boolean  @default(true)
 
-  formula         String
-  formulaChecksum String
+  intent           BillingSnapshotIntent
 
-  inputs          Json
-  result          Decimal  @db.Decimal(18, 4)
-  currency        String   @default("INR")
+  inputs           Json
+  result           Decimal  @db.Decimal(18, 4)
+  currency         String   @default("INR")
 
-  source          BillingSource
-  reason          String?
+  calculationType  CalculationType
+  reason           String?
 
-  createdBy       String?
-  createdAt       DateTime @default(now())
+  createdBy        String?
+  createdAt        DateTime @default(now())
 
-  @@unique([orderId, version])
-  @@index([orderId, isLatest])
+  billingContext BillingContext @relation(fields: [billingContextId], references: [id])
+
+  @@unique([billingContextId, version])
+  @@index([billingContextId, isLatest])
 }
 
-enum BillingSource {
-  SYSTEM
-  MANUAL
-  RECALCULATION
-}

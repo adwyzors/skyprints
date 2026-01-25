@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import axios from 'axios';
+import { ContextLogger } from '../../common/logger/context.logger';
 @Injectable()
 export class KeycloakService {
-    private readonly logger = new Logger(KeycloakService.name);
+    private readonly logger = new ContextLogger(KeycloakService.name);
 
     async exchangeCode(code: string) {
         this.logger.log('Exchanging authorization code for tokens');

@@ -88,20 +88,20 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
   const { totalAmount, originalTotal } = calculateTotals();
 
   // Build the API payload
-  const buildPayload = (): { runs: Record<string, { new_rate: number }> } => {
-    const runs: Record<string, { new_rate: number }> = {};
+  const buildPayload = (): { orderId: string; inputs: Record<string, { new_rate: number }> } => {
+    const inputs: Record<string, { new_rate: number }> = {};
 
-    if (!order) return { runs };
+    if (!order) return { orderId: '', inputs };
 
     order.processes.forEach(process => {
       process.runs.forEach(run => {
         const estimatedRate = (run.values?.['Estimated Rate'] as number) || 0;
         const billingRate = getBillingRate(run.id, estimatedRate);
-        runs[run.id] = { new_rate: billingRate };
+        inputs[run.id] = { new_rate: billingRate };
       });
     });
 
-    return { runs };
+    return { orderId: order.id, inputs };
   };
 
   const finalizeBilling = async () => {
@@ -112,17 +112,15 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
 
     try {
       const payload = buildPayload();
-      const response = await apiRequest<{ success: boolean }>(`/billing/snapshots/${order.id}`, {
+      // The API returns the created snapshot object, not { success: boolean }
+      await apiRequest<any>(`/billing/finalize/order`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
 
-      if (response.success) {
-        onSuccess?.();
-        onClose();
-      } else {
-        setError("Failed to finalize billing. Please try again.");
-      }
+      // If apiRequest didn't throw, it was successful
+      onSuccess?.();
+      onClose();
     } catch (err) {
       console.error("Billing error:", err);
       setError(err instanceof Error ? err.message : "Failed to finalize billing");
@@ -429,7 +427,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                   <div className="font-medium text-gray-700 mb-2">Run Values</div>
                                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                                     {Object.entries(run.values || {})
-                                      .filter(([key]) => !['New Rate', 'New Amount'].includes(key))
+                                      .filter(([key]) => !['New Rate', 'New Amount', 'images', 'Images'].includes(key))
                                       .map(([key, value]) => (
                                         <div key={key} className="flex justify-between">
                                           <span className="text-gray-500 capitalize">{key.replace(/([A-Z_])/g, ' $1').replace(/_/g, ' ')}:</span>

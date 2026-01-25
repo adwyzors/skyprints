@@ -1,66 +1,54 @@
-import Image from "next/image";
+'use client';
+
+import { ArrowRight } from 'lucide-react';
+import { Cinzel } from 'next/font/google';
+import Link from 'next/link';
+
+const cinzel = Cinzel({ subsets: ['latin'] });
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
+    <main className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
+      {/* BACKGROUND IMAGE WITH OVERLAY */}
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: "url('/bg-artistic.jpg')"
+        }}
+      >
+        {/* Lighter overlay for white background image */}
+        <div className="absolute inset-0 bg-white/30 backdrop-blur-[1px]" />
+      </div>
 
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+      {/* CONTENT */}
+      <div className="relative z-10 flex flex-col items-center text-center p-6 space-y-10 animate-in fade-in zoom-in duration-1000">
+
+        {/* LOGO / TITLE */}
+        <div className="space-y-2">
+          <h1 className={`${cinzel.className} text-6xl md:text-8xl font-bold text-gray-900 tracking-tight drop-shadow-sm`}>
+            SkyPrints
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <div className="h-0.5 w-24 bg-gray-900 mx-auto rounded-full opacity-60" />
+          <p className={`${cinzel.className} text-xl md:text-2xl text-gray-800 font-medium tracking-widest uppercase mt-4`}>
+            The Art of Printing
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        {/* ACTION BUTTON */}
+        <Link
+          href="/admin/orders"
+          className="group relative inline-flex items-center gap-3 px-10 py-4 bg-gray-900 text-white rounded-none border border-gray-900 transition-all duration-300 hover:bg-transparent hover:text-gray-900 hover:shadow-xl"
+        >
+          <span className={`${cinzel.className} text-lg font-semibold tracking-wider`}>Enter Atelier</span>
+          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+        </Link>
+
+      </div>
+
+      {/* FOOTER */}
+      <div className="absolute bottom-6 text-gray-600 text-xs font-medium tracking-widest uppercase z-10">
+        © {new Date().getFullYear()} SkyPrints. Est. 2024
+      </div>
+    </main>
   );
 }

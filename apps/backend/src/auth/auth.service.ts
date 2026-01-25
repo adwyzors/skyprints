@@ -1,12 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { ContextLogger } from '../common/logger/context.logger';
 import {
     cookieOptions
 } from './utils/cookie-domain.util';
 
 @Injectable()
 export class AuthService {
-    private readonly logger = new Logger(AuthService.name);
+    private readonly logger = new ContextLogger(AuthService.name);
 
     setAuthCookies(res: Response, tokens: any, req: Request) {
         this.setAccessCookie(res, tokens.access_token, req);
