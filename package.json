@@ -10,9 +10,9 @@
     },
     "scripts": {
         "vercel-build": "npm run build:contracts && npm run build:frontend",
-        "build:contracts": "npm --workspace @app/contracts run build",
+        "build:contracts": "npm --workspace apps/packages/contracts run build",
         "build:backend": "npm --workspace apps/backend run build",
-        "build:frontend": "npm --workspace @app/frontend run build",
+        "build:frontend": "npm --workspace apps/frontend run build",
         "build": "npm run build:contracts && npm run build:backend && npm run build:frontend",
         "dev:backend": "npm run dev --workspace apps/backend",
         "dev:frontend": "npm run dev --workspace apps/frontend",
