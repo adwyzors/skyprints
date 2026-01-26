@@ -3,31 +3,21 @@
     "private": true,
     "workspaces": [
         "apps/*",
-        "apps/packages/*/*"
+        "apps/packages/*"
     ],
     "engines": {
         "node": ">=20 <21"
     },
     "scripts": {
-        "vercel-build": "npm run build:contracts && npm run build:frontend",
         "build:contracts": "npm --workspace apps/packages/contracts run build",
         "build:backend": "npm --workspace apps/backend run build",
         "build:frontend": "npm --workspace apps/frontend run build",
         "build": "npm run build:contracts && npm run build:backend && npm run build:frontend",
-        "dev:backend": "npm run dev --workspace apps/backend",
-        "dev:frontend": "npm run dev --workspace apps/frontend",
-        "start:backend": "npm run start --workspace apps/backend",
-        "start:frontend": "npm run start --workspace apps/frontend",
-        "start:all": "npm run dev:backend & npm run dev:frontend"
+        "dev:backend": "npm --workspace apps/backend run dev",
+        "dev:frontend": "npm --workspace apps/frontend run dev"
     },
     "devDependencies": {
-        "@alloc/quick-lru": "^5.2.0",
-        "eslint": "^9.39.2",
-        "object-hash": "^3.0.0",
-        "prettier": "^3.7.4",
-        "prisma": "^6.19.1",
-        "next": "14.2.5",
-        "react": "18.2.0",
-        "react-dom": "18.2.0"
+        "prisma": "6.19.2",
+        "typescript": "^5.9.3"
     }
 }

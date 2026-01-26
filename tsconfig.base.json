@@ -2,18 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@shared/*": [
-        "packages/shared/src/*"
-      ],
-      "@contracts/*": [
-        "packages/contracts/dist/*"
-      ],
-      "@app/contracts": [
-        "packages/contracts/dist/index"
-      ],
-      "@app/contracts/*": [
-        "packages/contracts/dist/*"
-      ]
+      "@shared/*": ["apps/packages/shared/src/*"]
     }
   }
 }

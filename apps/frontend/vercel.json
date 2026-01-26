@@ -1,5 +1,0 @@
-{
-    "buildCommand": "cd ../.. && npm run build:contracts && cd apps/frontend && npm run build",
-    "installCommand": "cd ../.. && npm ci",
-    "framework": "nextjs"
-}
