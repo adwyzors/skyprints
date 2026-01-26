@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
-import { OrderRetentionAndSequenceJob } from './order-rentention-sequence.job';
+//import { OrderRetentionAndSequenceJob } from './order-rentention-sequence.job';
 import { ContextLogger } from '../common/logger/context.logger';
 
 const logger = new ContextLogger('JobsModule');
@@ -8,17 +7,17 @@ const logger = new ContextLogger('JobsModule');
 const jobsEnabled = process.env.JOBS_ENABLED === 'true';
 
 @Module({
-    imports: jobsEnabled ? [ScheduleModule.forRoot()] : [],
-    providers: jobsEnabled
-        ? [OrderRetentionAndSequenceJob]
-        : [],
+    //imports: jobsEnabled ? [ScheduleModule.forRoot()] : [],
+    //providers: jobsEnabled
+    //    ? [OrderRetentionAndSequenceJob]
+    //    : [],
 })
 export class JobsModule {
     constructor() {
-        if (jobsEnabled) {
-            logger.log('JobsModule ENABLED');
-        } else {
-            logger.warn('JobsModule DISABLED via JOBS_ENABLED=false');
-        }
+        //if (jobsEnabled) {
+        //    logger.log('JobsModule ENABLED');
+        //} else {
+        //    logger.warn('JobsModule DISABLED via JOBS_ENABLED=false');
+        //}
     }
 }
