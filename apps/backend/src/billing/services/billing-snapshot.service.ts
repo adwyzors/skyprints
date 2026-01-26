@@ -424,7 +424,7 @@ export class BillingSnapshotService {
 
         for (const o of context.orders) {
             await this.ordersService.transitionOrderById(
-                this.prisma,
+                this.prisma.client,
                 o.orderId
             );
         }

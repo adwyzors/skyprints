@@ -24,7 +24,7 @@
         "src/*"
       ],
       "@app/contracts": [
-        "../packages/contracts/src/index.ts"
+        "./src/contracts/index.ts"
       ]
     },
     "plugins": [
