@@ -302,7 +302,7 @@ export class AdminProcessService {
                         `[CONFIG][ALL_ORDER_PROCESSES_CONFIGURED] order=${op.orderId}`,
                     );
                     await this.orderService.transitionOrderById(
-                        this.prisma,
+                        this.prisma.client,
                         op.orderId,
                     );
                 }
