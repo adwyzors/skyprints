@@ -6,7 +6,7 @@
     "private": true,
     "license": "UNLICENSED",
     "scripts": {
-        "build": "npm run build --workspace=@app/contracts && npm run prisma:generate && tsc",
+        "build": "npm run prisma:generate && tsc",
         "prisma:generate": "prisma generate",
         "dev": "nest start --watch",
         "start:prod": "node dist/main.js",
