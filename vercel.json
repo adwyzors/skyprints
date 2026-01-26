@@ -1,6 +1,15 @@
 {
     "version": 2,
-    "framework": "nextjs",
-    "buildCommand": "npm run build:contracts && npm run build:frontend",
-    "outputDirectory": "apps/frontend/.next"
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/apps/backend/api/index.ts"
+        }
+    ],
+    "buildCommand": "npm run build:contracts && npm run build:backend",
+    "functions": {
+        "apps/backend/api/index.ts": {
+            "includeFiles": "apps/backend/dist/**"
+        }
+    }
 }
