@@ -52,7 +52,7 @@ export class CloudflareService {
     private async compressImage(
         file: Buffer,
         filename: string,
-        targetSizeKB: number = 50,
+        targetSizeKB: number = 100, // Updated to match frontend target
     ): Promise<Buffer> {
         const targetSizeBytes = targetSizeKB * 1024;
         const extension = this.getFileExtension(filename);

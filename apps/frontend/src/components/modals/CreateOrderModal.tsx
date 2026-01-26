@@ -104,7 +104,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
 
   /* ================= IMAGE HANDLING ================= */
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
@@ -125,24 +125,66 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
       return;
     }
 
-    // Validate file sizes (max 5MB per file)
+    // Validate original file sizes (max 5MB per file just as a sane limit before compression)
     const oversizedFiles = fileArray.filter(file => file.size > 5 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       setError('Each image must be less than 5MB');
       return;
     }
 
+    setLoading(true);
     setError(null);
-    setSelectedImages(prev => [...prev, ...fileArray]);
 
-    // Create previews
-    fileArray.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreviews(prev => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
+    try {
+      const compressedFilesPromises = fileArray.map(async (file) => {
+        const options = {
+          maxSizeMB: 0.1, // 100KB
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          fileType: 'image/webp',
+          initialQuality: 0.8,
+        };
+
+        try {
+          // Dynamic import to avoid SSR issues if any (though this is a client component)
+          const imageCompression = (await import('browser-image-compression')).default;
+
+          console.log(`Compressing ${file.name} (${(file.size / 1024).toFixed(2)} KB)...`);
+          const compressedBlob = await imageCompression(file, options);
+
+          // Create a new File object from the compressed blob
+          const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+            type: 'image/webp',
+            lastModified: Date.now(),
+          });
+
+          console.log(`Compressed to ${compressedFile.name} (${(compressedFile.size / 1024).toFixed(2)} KB)`);
+          return compressedFile;
+        } catch (error) {
+          console.error("Compression failed for", file.name, error);
+          return file; // Fallback to original if compression fails
+        }
+      });
+
+      const compressedFiles = await Promise.all(compressedFilesPromises);
+
+      setSelectedImages(prev => [...prev, ...compressedFiles]);
+
+      // Create previews
+      compressedFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreviews(prev => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+
+    } catch (err) {
+      console.error("Image processing error", err);
+      setError('Failed to process images');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const removeImage = (index: number) => {

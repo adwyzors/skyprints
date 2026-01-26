@@ -11,6 +11,7 @@
   "dependencies": {
     "@app/contracts": "*",
     "@types/lodash": "^4.17.23",
+    "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
     "geist": "^1.5.1",
     "jwt-decode": "^4.0.0",

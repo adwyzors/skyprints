@@ -24,7 +24,6 @@ import React, { useEffect, useState } from 'react';
 import { Order } from '@/domain/model/order.model';
 import { ProcessRun } from '@/domain/model/run.model';
 import { configureRun } from '@/services/run.service';
-import { getManagers, User as ManagerUser } from '@/services/user.service';
 
 interface ScreenPrintingConfigProps {
   order: Order;
@@ -99,39 +98,11 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
     return Math.round((filled.length / fields.length) * 100);
   };
 
-  // State for specific run manager selections (temproary state while editing)
-  const [runManagers, setRunManagers] = useState<Record<string, { executorId?: string; reviewerId?: string }>>({});
-  const [managers, setManagers] = useState<ManagerUser[]>([]);
-  const [loadingManagers, setLoadingManagers] = useState(false);
-
-  useEffect(() => {
-    const loadManagers = async () => {
-      setLoadingManagers(true);
-      try {
-        const users = await getManagers();
-        setManagers(users);
-      } catch (err) {
-        console.error('Failed to load managers', err);
-      } finally {
-        setLoadingManagers(false);
-      }
-    };
-    loadManagers();
-  }, []);
-
-  const handleManagerSelect = (runId: string, type: 'executorId' | 'reviewerId', userId: string) => {
-    setRunManagers(prev => ({
-      ...prev,
-      [runId]: {
-        ...prev[runId],
-        [type]: userId
-      }
-    }));
-  };
+  /* ================= IMAGE HANDLING ================= */
 
   /* ================= IMAGE HANDLING ================= */
 
-  const handleImageSelect = (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
@@ -153,30 +124,70 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       return;
     }
 
-    // Validate file sizes (max 5MB per file)
+    // Validate original file sizes (max 5MB per file)
     const oversizedFiles = fileArray.filter(file => file.size > 5 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       alert('Each image must be less than 5MB');
       return;
     }
 
-    // Update state
-    setRunImages(prev => ({
-      ...prev,
-      [runId]: [...(prev[runId] || []), ...fileArray]
-    }));
+    // Temporarily set loading/saving state if you had a global loading state, 
+    // but here we might just have to handle it async. 
+    // For better UX, we could set a local loading state for this run, but for now we'll just process.
+    console.log(`Processing ${fileArray.length} images for run ${runId}...`);
 
-    // Create previews
-    fileArray.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreviews(prev => ({
-          ...prev,
-          [runId]: [...(prev[runId] || []), reader.result as string]
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
+    try {
+      const compressedFilesPromises = fileArray.map(async (file) => {
+        const options = {
+          maxSizeMB: 0.1, // 100KB
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          fileType: 'image/webp',
+          initialQuality: 0.8,
+        };
+
+        try {
+          const imageCompression = (await import('browser-image-compression')).default;
+          console.log(`Compressing ${file.name} (${(file.size / 1024).toFixed(2)} KB)...`);
+          const compressedBlob = await imageCompression(file, options);
+
+          const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+            type: 'image/webp',
+            lastModified: Date.now(),
+          });
+
+          console.log(`Compressed to ${compressedFile.name} (${(compressedFile.size / 1024).toFixed(2)} KB)`);
+          return compressedFile;
+        } catch (error) {
+          console.error("Compression failed for", file.name, error);
+          return file;
+        }
+      });
+
+      const compressedFiles = await Promise.all(compressedFilesPromises);
+
+      // Update state
+      setRunImages(prev => ({
+        ...prev,
+        [runId]: [...(prev[runId] || []), ...compressedFiles]
+      }));
+
+      // Create previews
+      compressedFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreviews(prev => ({
+            ...prev,
+            [runId]: [...(prev[runId] || []), reader.result as string]
+          }));
+        };
+        reader.readAsDataURL(file);
+      });
+
+    } catch (err) {
+      console.error("Image processing error", err);
+      setError('Failed to process images');
+    }
   };
 
   const removeImage = (runId: string, index: number) => {
@@ -251,16 +262,8 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
     });
   };
 
-  // Function to update run configStatus and managers locally
-  const updateRunState = (
-    processId: string,
-    runId: string,
-    updates: {
-      configStatus?: string;
-      executor?: { id: string; name: string } | null;
-      reviewer?: { id: string; name: string } | null;
-    }
-  ) => {
+  // Function to update run configStatus locally
+  const updateRunConfigStatus = (processId: string, runId: string, newStatus: string) => {
     setLocalOrder((prev) => {
       if (!prev) return prev;
 
@@ -274,7 +277,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                 if (run.id === runId) {
                   return {
                     ...run,
-                    ...updates
+                    configStatus: newStatus
                   };
                 }
                 return run;
@@ -286,18 +289,15 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       };
 
       // Check if ALL runs in ALL processes are complete
-      // Only check if we are updating status
-      if (updates.configStatus) {
-        const allRunsComplete = updatedOrder.processes.every(process =>
-          process.runs.every(run => run.configStatus === 'COMPLETE')
-        );
+      const allRunsComplete = updatedOrder.processes.every(process =>
+        process.runs.every(run => run.configStatus === 'COMPLETE')
+      );
 
-        if (allRunsComplete) {
-          return {
-            ...updatedOrder,
-            status: 'Production_Ready'
-          };
-        }
+      if (allRunsComplete) {
+        return {
+          ...updatedOrder,
+          status: 'Production_Ready'
+        };
       }
 
       return updatedOrder;
@@ -351,38 +351,13 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       // Send the values object AND images to configureRun
       // Get images for this run if any
       const images = runImages[runId] || [];
-      const managerSelection = runManagers[runId];
 
-      const executorId = managerSelection?.executorId ?? run.executor?.id;
-      const reviewerId = managerSelection?.reviewerId ?? run.reviewer?.id;
-
-      const response = await configureRun(
-        localOrder.id,
-        processId,
-        runId,
-        apiValues,
-        images,
-        executorId,
-        reviewerId
-      );
+      const response = await configureRun(localOrder.id, processId, runId, apiValues, images);
 
       // Check if API returned success
       if (response && response.success === true) {
-        // Resolve full manager objects for local update
-        const selectedExecutor = executorId
-          ? managers.find(u => u.id === executorId) || run.executor
-          : run.executor;
-
-        const selectedReviewer = reviewerId
-          ? managers.find(u => u.id === reviewerId) || run.reviewer
-          : run.reviewer;
-
-        // Update local state immediately with status AND managers
-        updateRunState(processId, runId, {
-          configStatus: "COMPLETE",
-          executor: selectedExecutor ? { id: selectedExecutor.id, name: selectedExecutor.name } : null,
-          reviewer: selectedReviewer ? { id: selectedReviewer.id, name: selectedReviewer.name } : null,
-        });
+        // Update local state immediately
+        updateRunConfigStatus(processId, runId, "COMPLETE");
 
         // Clear images for this run from state
         setRunImages(prev => {
@@ -395,13 +370,6 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
           delete newState[runId];
           return newState;
         });
-        // Clear manager selection temp state
-        setRunManagers(prev => {
-          const newState = { ...prev };
-          delete newState[runId];
-          return newState;
-        });
-
 
         // Notify parent component
         if (onSaveSuccess) {
@@ -434,78 +402,6 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
     }
     return pairs;
   };
-
-
-
-  // Improved Manager Select using a simple filterable dropdown logic
-  const SearchableManagerSelect = ({
-    label,
-    valueId,
-    onChange,
-    users
-  }: {
-    label: string;
-    valueId?: string;
-    onChange: (id: string) => void;
-    users: ManagerUser[];
-  }) => {
-    const [search, setSearch] = useState('');
-    const [isOpen, setIsOpen] = useState(false);
-
-    // Initialize search with current selected user name if any
-    useEffect(() => {
-      if (valueId) {
-        const u = users.find(u => u.id === valueId);
-        if (u) setSearch(u.name);
-      } else {
-        setSearch('');
-      }
-    }, [valueId, users]);
-
-    const filtered = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()));
-
-    return (
-      <div className="relative">
-        <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-        <input
-          type="text"
-          value={search}
-          onFocus={() => setIsOpen(true)}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setIsOpen(true);
-            // If clear, clear selection
-            if (e.target.value === '') onChange('');
-          }}
-          onBlur={() => {
-            // Delay hide to allow click
-            setTimeout(() => setIsOpen(false), 200);
-          }}
-          placeholder={`Search ${label}...`}
-          className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-        />
-        {isOpen && filtered.length > 0 && (
-          <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded shadow-lg max-h-40 overflow-y-auto">
-            {filtered.map(u => (
-              <div
-                key={u.id}
-                className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer text-gray-700"
-                onMouseDown={(e) => {
-                  e.preventDefault(); // Prevent blur
-                  onChange(u.id);
-                  setSearch(u.name);
-                  setIsOpen(false);
-                }}
-              >
-                {u.name}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
 
   // Function to render form or view based on run status
   const renderRunFormOrView = (process: any, run: ProcessRun) => {
@@ -580,31 +476,6 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                   </div>
                 ));
               })()}
-              {/* Managed By & Reviewed By Read Only */}
-              <div className="grid grid-cols-4 border-t border-gray-300 divide-x divide-gray-300">
-                <div className="bg-gray-50 p-1.5">
-                  <div className="flex items-center gap-1">
-                    <User className="w-3 h-3" />
-                    <label className="text-xs font-medium text-gray-700">Executor</label>
-                  </div>
-                </div>
-                <div className="p-1.5 bg-white">
-                  <div className="w-full text-sm border border-gray-200 bg-gray-50 rounded px-2 py-1 font-medium text-gray-700">
-                    {run.executor?.name || <span className="text-gray-400">Not assigned</span>}
-                  </div>
-                </div>
-                <div className="bg-gray-50 p-1.5">
-                  <div className="flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" />
-                    <label className="text-xs font-medium text-gray-700">Reviewer</label>
-                  </div>
-                </div>
-                <div className="p-1.5 bg-white">
-                  <div className="w-full text-sm border border-gray-200 bg-gray-50 rounded px-2 py-1 font-medium text-gray-700">
-                    {run.reviewer?.name || <span className="text-gray-400">Not assigned</span>}
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* DISPLAY IMAGES IF AVAILABLE (READ-ONLY) */}
@@ -648,10 +519,6 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       // Show EDITABLE form for unconfigured runs
       const currentImages = runImages[run.id] || [];
       const currentPreviews = imagePreviews[run.id] || [];
-      const currentManagerSelection = runManagers[run.id] || {
-        executorId: run.executor?.id,
-        reviewerId: run.reviewer?.id
-      };
 
       return (
         <div className="bg-gray-50 border border-gray-300 rounded p-3">
@@ -667,21 +534,6 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
               >
                 <X className="w-4 h-4" />
               </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <SearchableManagerSelect
-                label="Executor"
-                users={managers}
-                valueId={currentManagerSelection.executorId}
-                onChange={(id) => handleManagerSelect(run.id, 'executorId', id)}
-              />
-              <SearchableManagerSelect
-                label="Reviewer"
-                users={managers}
-                valueId={currentManagerSelection.reviewerId}
-                onChange={(id) => handleManagerSelect(run.id, 'reviewerId', id)}
-              />
             </div>
 
             {/* EDITABLE COMPACT FORM TABLE */}
