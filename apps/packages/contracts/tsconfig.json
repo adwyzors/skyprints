@@ -5,6 +5,7 @@
     "declaration": true,
     "declarationMap": true,
     "module": "CommonJS",
+    "moduleResolution": "node",
     "target": "ES2020",
     "strict": true,
     "skipLibCheck": true,
