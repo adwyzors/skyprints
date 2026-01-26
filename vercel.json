@@ -2,7 +2,7 @@
     "version": 2,
     "builds": [
         {
-            "src": "apps/backend/dist/main.js",
+            "src": "apps/backend/api/index.ts",
             "use": "@vercel/node",
             "config": {
                 "includeFiles": [
@@ -16,7 +16,7 @@
     "rewrites": [
         {
             "source": "/(.*)",
-            "destination": "/apps/backend/dist/main.js"
+            "destination": "/apps/backend/api/index.ts"
         }
     ],
     "installCommand": "npm install",
