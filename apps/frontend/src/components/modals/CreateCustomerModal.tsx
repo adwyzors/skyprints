@@ -1,0 +1,184 @@
+'use client';
+
+import { createCustomer } from '@/services/customer.service';
+import { CreateCustomerDto } from '@app/contracts';
+import { Loader2, Users, X } from 'lucide-react';
+import { useState } from 'react';
+
+interface CreateCustomerModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSuccess: () => void;
+}
+
+export default function CreateCustomerModal({
+    isOpen,
+    onClose,
+    onSuccess,
+}: CreateCustomerModalProps) {
+    const [formData, setFormData] = useState<CreateCustomerDto>({
+        name: '',
+        code: '',
+        email: '',
+        phone: '',
+        address: '',
+    });
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    if (!isOpen) return null;
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+
+        if (!formData.name || !formData.code) {
+            setError('Name and Code are required.');
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            await createCustomer({
+                ...formData,
+                email: formData.email || undefined,
+                phone: formData.phone || undefined,
+                address: formData.address || undefined
+            });
+            onSuccess();
+            onClose();
+            // Reset form
+            setFormData({ name: '', code: '', email: '', phone: '', address: '' });
+        } catch (err: any) {
+            console.error('Failed to create customer:', err);
+            setError(err.message || 'Failed to create customer');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="bg-blue-600 p-6 text-white text-center relative">
+                    <button
+                        onClick={onClose}
+                        className="absolute top-4 right-4 p-1 rounded-full hover:bg-white/20 transition-colors"
+                    >
+                        <X className="w-5 h-5 text-white" />
+                    </button>
+                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+                        <Users className="w-6 h-6 text-white" />
+                    </div>
+                    <h2 className="text-2xl font-bold">Add New Customer</h2>
+                    <p className="text-blue-100 text-sm mt-1">Enter customer details below</p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Code <span className="text-red-500">*</span></label>
+                            <input
+                                type="text"
+                                name="code"
+                                placeholder="CUST-001"
+                                value={formData.code}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Name <span className="text-red-500">*</span></label>
+                            <input
+                                type="text"
+                                name="name"
+                                placeholder="e.g. Acme Corp"
+                                value={formData.name}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Email (Optional)</label>
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder="contact@acme.com"
+                            value={formData.email || ''}
+                            onChange={handleChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Phone (Optional)</label>
+                        <input
+                            type="tel"
+                            name="phone"
+                            placeholder="+1 (555) 000-0000"
+                            value={formData.phone || ''}
+                            onChange={handleChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">Address (Optional)</label>
+                        <input
+                            type="text"
+                            name="address"
+                            placeholder="123 Business Rd, City"
+                            value={formData.address || ''}
+                            onChange={handleChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        />
+                    </div>
+
+                    {error && (
+                        <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-center">
+                            <p className="text-sm text-red-600 font-medium">{error}</p>
+                        </div>
+                    )}
+
+                    <div className="pt-2 flex gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isSubmitting}
+                            className="flex-1 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium rounded-xl transition-colors disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Creating...
+                                </>
+                            ) : (
+                                'Create Customer'
+                            )}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}

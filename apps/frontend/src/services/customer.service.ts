@@ -1,11 +1,22 @@
-// services/orders.service.ts
+// services/customer.service.ts
 import { mapCustomerSummaryDtosToCustomers } from "@/domain/mapper/customer/customer.mapper";
 import { Customer } from "@/domain/model/customer.model";
-import { CustomerSummarySchema, CustomerSummaryDto } from "@app/contracts";
+import { CreateCustomerDto, CustomerSummaryDto, CustomerSummarySchema } from "@app/contracts";
 import { apiRequest } from "./api.service";
 
-export async function getCustomers(): Promise<Customer[]> {
-    const res = await apiRequest<CustomerSummaryDto[]>("/customers");
+export async function createCustomer(dto: CreateCustomerDto): Promise<void> {
+    await apiRequest("/customers", {
+        method: "POST",
+        body: JSON.stringify(dto),
+    });
+}
+
+export async function getCustomers(cookieHeader?: string): Promise<Customer[]> {
+    const res = await apiRequest<CustomerSummaryDto[]>("/customers", {
+        headers: {
+            Cookie: cookieHeader || "",
+        },
+    });
 
     const dto = CustomerSummarySchema.array().parse(res);
 

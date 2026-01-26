@@ -28,8 +28,10 @@ async function bootstrap() {
     );
 
     const port = process.env.PORT ? Number(process.env.PORT) : 3001;
-    //await app.listen(port, '0.0.0.0');
-    
+    if (process.env.NODE_ENV === "local") {
+        await app.listen(port, '0.0.0.0');
+    }
+
 
     console.log(`Backend running on port ${port}`);
 }
