@@ -2,12 +2,13 @@
     "version": 2,
     "builds": [
         {
-            "src": "apps/backend/api/index.ts",
+            "src": "apps/backend/dist/main.js",
             "use": "@vercel/node",
             "config": {
                 "includeFiles": [
                     "apps/backend/dist/**",
-                    "apps/packages/contracts/dist/**"
+                    "apps/packages/contracts/dist/**",
+                    "node_modules/.prisma/**"
                 ]
             }
         }
@@ -15,8 +16,9 @@
     "rewrites": [
         {
             "source": "/(.*)",
-            "destination": "/apps/backend/api/index.ts"
+            "destination": "/apps/backend/dist/main.js"
         }
     ],
-    "installCommand": "npm install && npm run build:contracts && cd apps/backend && npx prisma generate"
+    "installCommand": "npm install",
+    "buildCommand": "npm run build:contracts && npm --workspace apps/backend run build"
 }
