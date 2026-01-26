@@ -1,6 +1,8 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+// Register tsconfig paths to verify module resolution in serverless environment
+import 'tsconfig-paths/register';
 import { AppModule } from '../src/app.module';
 import { PaginationInterceptor } from '../src/common/interceptors/pagination-meta.interceptor';
 

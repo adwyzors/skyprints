@@ -8,7 +8,9 @@
                 "includeFiles": [
                     "apps/backend/dist/**",
                     "apps/packages/contracts/dist/**",
-                    "node_modules/.prisma/**"
+                    "node_modules/.prisma/**",
+                    "tsconfig.base.json",
+                    "apps/backend/tsconfig.json"
                 ]
             }
         }
