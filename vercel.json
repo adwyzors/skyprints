@@ -1,15 +1,21 @@
 {
     "version": 2,
+    "builds": [
+        {
+            "src": "apps/backend/api/index.ts",
+            "use": "@vercel/node",
+            "config": {
+                "includeFiles": [
+                    "apps/backend/dist/**"
+                ]
+            }
+        }
+    ],
     "rewrites": [
         {
             "source": "/(.*)",
             "destination": "/apps/backend/api/index.ts"
         }
     ],
-    "buildCommand": "npm run build:contracts && npm run build:backend",
-    "functions": {
-        "apps/backend/api/index.ts": {
-            "includeFiles": "apps/backend/dist/**"
-        }
-    }
+    "buildCommand": "npm run build:contracts && npm run build:backend"
 }
