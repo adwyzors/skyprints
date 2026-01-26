@@ -100,7 +100,9 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
 
   /* ================= IMAGE HANDLING ================= */
 
-  const handleImageSelect = (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  /* ================= IMAGE HANDLING ================= */
+
+  const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
@@ -122,30 +124,70 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       return;
     }
 
-    // Validate file sizes (max 5MB per file)
+    // Validate original file sizes (max 5MB per file)
     const oversizedFiles = fileArray.filter(file => file.size > 5 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       alert('Each image must be less than 5MB');
       return;
     }
 
-    // Update state
-    setRunImages(prev => ({
-      ...prev,
-      [runId]: [...(prev[runId] || []), ...fileArray]
-    }));
+    // Temporarily set loading/saving state if you had a global loading state, 
+    // but here we might just have to handle it async. 
+    // For better UX, we could set a local loading state for this run, but for now we'll just process.
+    console.log(`Processing ${fileArray.length} images for run ${runId}...`);
 
-    // Create previews
-    fileArray.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreviews(prev => ({
-          ...prev,
-          [runId]: [...(prev[runId] || []), reader.result as string]
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
+    try {
+      const compressedFilesPromises = fileArray.map(async (file) => {
+        const options = {
+          maxSizeMB: 0.1, // 100KB
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          fileType: 'image/webp',
+          initialQuality: 0.8,
+        };
+
+        try {
+          const imageCompression = (await import('browser-image-compression')).default;
+          console.log(`Compressing ${file.name} (${(file.size / 1024).toFixed(2)} KB)...`);
+          const compressedBlob = await imageCompression(file, options);
+
+          const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+            type: 'image/webp',
+            lastModified: Date.now(),
+          });
+
+          console.log(`Compressed to ${compressedFile.name} (${(compressedFile.size / 1024).toFixed(2)} KB)`);
+          return compressedFile;
+        } catch (error) {
+          console.error("Compression failed for", file.name, error);
+          return file;
+        }
+      });
+
+      const compressedFiles = await Promise.all(compressedFilesPromises);
+
+      // Update state
+      setRunImages(prev => ({
+        ...prev,
+        [runId]: [...(prev[runId] || []), ...compressedFiles]
+      }));
+
+      // Create previews
+      compressedFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreviews(prev => ({
+            ...prev,
+            [runId]: [...(prev[runId] || []), reader.result as string]
+          }));
+        };
+        reader.readAsDataURL(file);
+      });
+
+    } catch (err) {
+      console.error("Image processing error", err);
+      setError('Failed to process images');
+    }
   };
 
   const removeImage = (runId: string, index: number) => {
