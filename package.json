@@ -14,9 +14,11 @@
         "build:frontend": "npm --workspace apps/frontend run build",
         "build": "npm run build:contracts && npm run build:backend && npm run build:frontend",
         "dev:backend": "npm --workspace apps/backend run dev",
-        "dev:frontend": "npm --workspace apps/frontend run dev"
+        "dev:frontend": "npm --workspace apps/frontend run dev",
+        "postinstall": "npm run build --workspace=@app/contracts && npm run prisma:generate --workspace=@app/backend"
     },
     "devDependencies": {
+        "prisma": "6.19.2",
         "typescript": "^5.9.3"
     }
 }
