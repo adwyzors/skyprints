@@ -8,6 +8,14 @@ export interface ProcessRun {
     code: string;
     completed: boolean;
   }>;
+  executor?: {
+    id: string;
+    name: string;
+  } | null;
+  reviewer?: {
+    id: string;
+    name: string;
+  } | null;
   values: Record<string, string | number | null>; // Changed from fields
   fields: Array<{ // This is now an array, not in runTemplate
     key: string;
@@ -17,7 +25,7 @@ export interface ProcessRun {
 }
 
 export interface RunField {
-    key: string;
-    type: string;
-    required: boolean;
+  key: string;
+  type: string;
+  required: boolean;
 }

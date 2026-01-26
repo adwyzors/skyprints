@@ -12,6 +12,8 @@ export const mapProcessRunDto = (
     lifecycle: dto.lifecycle ?? [],
     values: dto.values,
     fields: dto.fields.map(mapRunField),
+    executor: dto.executor ? { id: dto.executor.id, name: dto.executor.name } : null,
+    reviewer: dto.reviewer ? { id: dto.reviewer.id, name: dto.reviewer.name } : null,
 });
 
 const mapRunField = (field: any): RunField => ({

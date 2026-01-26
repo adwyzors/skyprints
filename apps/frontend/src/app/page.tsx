@@ -47,7 +47,7 @@ export default function Home() {
 
       {/* FOOTER */}
       <div className="absolute bottom-6 text-gray-600 text-xs font-medium tracking-widest uppercase z-10">
-        © {new Date().getFullYear()} SkyPrints. Est. 2024
+        © {new Date().getFullYear()} SkyPrints. Est. 2015
       </div>
     </main>
   );
