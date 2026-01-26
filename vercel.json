@@ -17,5 +17,5 @@
             "destination": "/apps/backend/api/index.ts"
         }
     ],
-    "buildCommand": "npm run build:contracts && npm run build:backend"
+    "installCommand": "npm install && npm run build:contracts && cd apps/backend && npx prisma generate"
 }
