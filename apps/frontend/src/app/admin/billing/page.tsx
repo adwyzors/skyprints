@@ -345,7 +345,10 @@ function BillingContent() {
               {filteredOrders.map((order) => (
                 <div key={order.id}>
                   <OrderCard
-                    order={order}
+                    order={{
+                      ...order,
+                      totalRuns: order.processes?.reduce((sum, p) => sum + (p.runs?.length || 0), 0) || 0
+                    }}
                     showConfigure={false}
                     onClick={() => router.push(`/admin/billing?selectedOrder=${order.id}`)}
                   />

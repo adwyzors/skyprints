@@ -83,3 +83,22 @@ export const OrderSummarySchema = z.object({
 
 export type OrderSummaryDto =
     z.infer<typeof OrderSummarySchema>;
+
+export const OrderCardSchema = z.object({
+    id: z.string().uuid(),
+    code: z.string(),
+    quantity: z.number(),
+    status: z.string(),
+    jobCode: z.string().optional().nullable(),
+    createdAt: z.string(),
+    images: z.array(z.string().url()).default([]),
+    customer: z.object({
+        id: z.string().uuid(),
+        name: z.string(),
+        code: z.string(),
+    }),
+    totalRuns: z.number().int(),
+});
+
+export type OrderCardDto =
+    z.infer<typeof OrderCardSchema>;
