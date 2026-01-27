@@ -6,20 +6,16 @@ import type {
     ProcessSummaryDto
 } from '@app/contracts';
 import {
-    BadRequestException,
     Body,
     Controller,
     Delete,
     Get,
     Param,
-    Post,
-    UploadedFiles,
-    UseInterceptors
+    Post
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { ContextLogger } from '../common/logger/context.logger';
 import { toProcessDetail } from '../mappers/process.mapper';
 import { AdminProcessService } from './admin-process.service';
-import { ContextLogger } from '../common/logger/context.logger';
 
 @Controller('process')
 export class AdminProcessController {
@@ -43,35 +39,21 @@ export class AdminProcessController {
     }
 
     @Post(':orderProcessId/runs/:processRunId/configure')
-    @UseInterceptors(
-        FilesInterceptor('images', 2, {
-            limits: { fileSize: 5 * 1024 * 1024 },
-        }),
-    )
+    @Post(':orderProcessId/runs/:processRunId/configure')
     async configure(
         @Param('orderProcessId') orderProcessId: string,
         @Param('processRunId') processRunId: string,
         @Body() dto: ConfigureProcessRunDto,
-        @UploadedFiles() files?: Express.Multer.File[],
     ) {
 
         this.logger.log(
-            `[API] configure orderProcess=${orderProcessId} run=${processRunId} files=${files?.length ?? 0}`,
+            `[API] configure orderProcess=${orderProcessId} run=${processRunId} images=${dto.images?.length ?? 0}`,
         );
-
-        if (typeof dto.fields === 'string') {
-            try {
-                dto.fields = JSON.parse(dto.fields);
-            } catch {
-                throw new BadRequestException('Invalid JSON in fields');
-            }
-        }
 
         return this.service.configureWithImages(
             orderProcessId,
             processRunId,
             dto,
-            files ?? [],
         );
     }
 

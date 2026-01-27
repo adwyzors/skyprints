@@ -23,6 +23,7 @@ import React, { useEffect, useState } from 'react';
 
 import { Order } from '@/domain/model/order.model';
 import { ProcessRun } from '@/domain/model/run.model';
+import { apiRequest } from "@/services/api.service";
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
 
@@ -393,6 +394,32 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       // Send the values object AND images to configureRun
       // Get images for this run if any
       const images = runImages[runId] || [];
+      const imageUrls: string[] = [];
+
+      if (images.length > 0) {
+        console.log(`Starting upload for ${images.length} images...`);
+        const uploadPromises = images.map(async (file) => {
+          // A. Get Presigned URL
+          const { uploadUrl, publicUrl } = await apiRequest<{ uploadUrl: string; publicUrl: string }>(
+            `/orders/upload-url?filename=${encodeURIComponent(file.name)}`
+          );
+
+          // B. Upload File to Cloudflare (PUT)
+          await fetch(uploadUrl, {
+            method: 'PUT',
+            body: file,
+            headers: {
+              'Content-Type': file.type,
+            },
+          });
+
+          return publicUrl;
+        });
+
+        const uploaded = await Promise.all(uploadPromises);
+        imageUrls.push(...uploaded);
+      }
+
       const managerSelection = runManagers[runId];
 
       const executorId = managerSelection?.executorId ?? run.executor?.id;
@@ -403,7 +430,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
         processId,
         runId,
         apiValues,
-        images,
+        imageUrls,
         executorId,
         reviewerId
       );

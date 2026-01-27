@@ -5,39 +5,39 @@ export async function configureRun(
     processId: string,
     runId: string,
     fields: Record<string, any>,
-    images?: File[],
+    images?: string[],
     executorId?: string,
     reviewerId?: string
 ) {
-    const formData = new FormData();
-    formData.append('fields', JSON.stringify(fields));
+    const payload: any = {
+        fields,
+    };
 
     if (images && images.length > 0) {
-        images.forEach((image) => {
-            formData.append('images', image);
-        });
+        payload.images = images;
     }
 
     if (executorId) {
-        formData.append('executorId', executorId);
+        payload.executorId = executorId;
     }
 
     if (reviewerId) {
-        formData.append('reviewerId', reviewerId);
+        payload.reviewerId = reviewerId;
     }
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/process/${processId}/runs/${runId}/configure`, {
-        method: "POST",
-        body: formData,
-        credentials: 'include',
-    });
+    // Using specialized endpoint for process run configuration
+    const res = await apiRequest<{ success: boolean }>(
+        `/process/${processId}/runs/${runId}/configure`,
+        {
+            method: "POST",
+            body: JSON.stringify(payload),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }
+    );
 
-    if (!res.ok) {
-        const error = await res.json().catch(() => ({ message: 'Failed to configure run' }));
-        throw new Error(error.message || 'Failed to configure run');
-    }
-
-    return res.json();
+    return res;
 }
 
 export async function transitionLifeCycle(

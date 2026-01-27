@@ -102,7 +102,6 @@ export class AdminProcessService {
         orderProcessId: string,
         processRunId: string,
         dto: ConfigureProcessRunDto,
-        files: Express.Multer.File[],
     ) {
         return this.prisma.transaction(async tx => {
 
@@ -178,23 +177,12 @@ export class AdminProcessService {
 
 
             /* =====================================================
-             * IMAGE UPLOAD (OPTIONAL)
+             * IMAGES (FROM DTO)
              * ===================================================== */
-            let uploadedUrls: string[] = [];
+            const uploadedUrls: string[] = dto.images ?? [];
 
-            if (files.length) {
-                if (files.length > 2) {
-                    throw new BadRequestException('Maximum 2 images allowed');
-                }
-
-                const buffers = files.map(f => f.buffer);
-                const filenames = files.map(f => f.originalname);
-
-                uploadedUrls = await this.cloudflare.uploadFiles(
-                    buffers,
-                    filenames,
-                    `orders/${run.orderProcess.orderId}/runs/${run.id}`,
-                );
+            if (uploadedUrls.length > 2) {
+                throw new BadRequestException('Maximum 2 images allowed');
             }
 
             /* =====================================================
