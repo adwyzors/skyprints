@@ -25,7 +25,5 @@ export interface OrderProcess {
     processId: string;
     name: string;
     status: string;
-    totalRuns?: number;
-    completedRuns?: number;
-    runs?: ProcessRun[];
+    runs: ProcessRun[];
 }

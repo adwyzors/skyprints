@@ -134,6 +134,42 @@ export class OrdersService {
                             process: {
                                 select: { id: true, name: true },
                             },
+                            runs: {
+                                orderBy: { runNumber: 'asc' },
+                                include: {
+                                    runTemplate: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                            fields: true,
+                                            lifecycleWorkflowType: {
+                                                include: {
+                                                    statuses: {
+                                                        orderBy: { createdAt: 'asc' },
+                                                        select: {
+                                                            code: true,
+                                                            isInitial: true,
+                                                            isTerminal: true,
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    executor: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                        },
+                                    },
+                                    reviewer: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                        },
+                                    },
+                                },
+                            },
                         },
                     },
                 },

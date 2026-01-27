@@ -35,7 +35,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
             totalRuns: op.totalRuns,
             completedRuns: op.lifecycleCompletedRuns,
 
-            runs: op.runs?.map((run: any) => ({
+            runs: op.runs.map((run: any) => ({
                 id: run.id,
                 runNumber: run.runNumber,
                 displayName: run.displayName,
@@ -64,7 +64,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
 
                 values: run.fields,
                 fields: run.runTemplate.fields,
-            })) || [],
+            })),
         })),
     };
 }
