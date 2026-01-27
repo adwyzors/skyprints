@@ -88,4 +88,9 @@ export class OrdersController {
     async get(@Param('id') orderId: string) {
         return this.service.getById(orderId);
     }
+
+    @Post(':id/production-ready')
+    async setProductionReady(@Param('id') orderId: string) {
+        return this.service.setProductionReady(orderId);
+    }
 }

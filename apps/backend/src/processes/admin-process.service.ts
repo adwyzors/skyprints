@@ -243,58 +243,16 @@ export class AdminProcessService {
             });
 
             /* =====================================================
-             * ORDER PROCESS PROGRESS (UNCHANGED)
+             * ORDER PROCESS PROGRESS (INCREMENT ONLY)
              * ===================================================== */
-            const op = await tx.orderProcess.update({
+            // We increment configCompletedRuns for visibility/progress bars,
+            // but we DO NOT trigger any transitions here to save performance.
+            // The "Production Ready" action will come from a separate API call.
+            await tx.orderProcess.update({
                 where: { id: run.orderProcessId },
                 data: { configCompletedRuns: { increment: 1 } },
-                select: {
-                    id: true,
-                    orderId: true,
-                    totalRuns: true,
-                    configCompletedRuns: true,
-                    workflowTypeId: true,
-                    statusCode: true,
-                },
+                select: { id: true },
             });
-
-            this.logger.log(
-                `[CONFIG][ORDER_PROCESS_PROGRESS] orderProcess=${op.id} ${op.configCompletedRuns}/${op.totalRuns}`,
-            );
-
-            const finalized = await tx.orderProcess.updateMany({
-                where: {
-                    id: op.id,
-                    configCompletedRuns: op.totalRuns,
-                    configCompletedAt: null,
-                },
-                data: { configCompletedAt: new Date() },
-            });
-
-            if (finalized.count === 1) {
-                this.logger.log(
-                    `[CONFIG][ORDER_PROCESS_COMPLETED] orderProcess=${op.id}`,
-                );
-
-                await this.transitionOrderProcess(tx, op);
-
-                const remaining = await tx.orderProcess.count({
-                    where: {
-                        orderId: op.orderId,
-                        configCompletedAt: null,
-                    },
-                });
-
-                if (remaining === 0) {
-                    this.logger.log(
-                        `[CONFIG][ALL_ORDER_PROCESSES_CONFIGURED] order=${op.orderId}`,
-                    );
-                    await this.orderService.transitionOrderById(
-                        this.prisma.client,
-                        op.orderId,
-                    );
-                }
-            }
 
             return { success: true };
         });

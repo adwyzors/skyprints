@@ -9,7 +9,7 @@ import ScreenPrintingConfig from '@/components/orders/ScreenPrintingConfig';
 import { BillingSnapshot } from '@/domain/model/billing.model';
 import { Order } from '@/domain/model/order.model';
 import { getLatestBillingSnapshot } from '@/services/billing.service';
-import { getOrderById } from '@/services/orders.service';
+import { getOrderById, setProductionReady } from '@/services/orders.service';
 
 export default function OrderConfigPage() {
   const router = useRouter();
@@ -571,7 +571,17 @@ export default function OrderConfigPage() {
 
                 {configuredRunsCount === allRuns.length && (
                   <button
-                    onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        await setProductionReady(order.id);
+                        router.push(`/admin/orders?selectedOrder=${order.id}`);
+                      } catch (err) {
+                        console.error(err);
+                        alert("Failed to transition order");
+                        setLoading(false);
+                      }
+                    }}
                     className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-lg hover:from-green-700 hover:to-green-800 transition-all shadow-sm hover:shadow flex items-center gap-2"
                   >
                     <span>Production Ready</span>

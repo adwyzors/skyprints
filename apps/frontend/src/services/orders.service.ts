@@ -185,3 +185,9 @@ export async function createOrder(
   });
 }
 
+export async function setProductionReady(orderId: string): Promise<{ success: boolean }> {
+  // Added leading slash to prevent URL concatenation issues (e.g. /api/v1orders)
+  return apiRequest(`/orders/${orderId}/production-ready`, {
+    method: 'POST',
+  });
+}
