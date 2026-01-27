@@ -62,6 +62,7 @@ export async function apiRequest<T>(
     options: RequestInit = {},
     retry = true,
 ): Promise<T> {
+    const start = Date.now();
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         credentials: 'include',
@@ -70,6 +71,8 @@ export async function apiRequest<T>(
             ...options.headers,
         },
     });
+    const duration = Date.now() - start;
+    console.log(`[Frontend] ${options.method || 'GET'} ${endpoint} took ${duration}ms`);
 
     // 🔁 AUTO REFRESH ON 401
     if (response.status === 401 && retry) {
@@ -99,6 +102,7 @@ export async function apiRequestWithHeaders<T>(
     options: RequestInit = {},
     retry = true,
 ): Promise<{ data: T; headers: Headers }> {
+    const start = Date.now();
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         credentials: 'include',
@@ -107,6 +111,8 @@ export async function apiRequestWithHeaders<T>(
             ...options.headers,
         },
     });
+    const duration = Date.now() - start;
+    console.log(`[Frontend] ${options.method || 'GET'} ${endpoint} took ${duration}ms`);
 
     // 🔁 AUTO REFRESH ON 401
     if (response.status === 401 && retry) {

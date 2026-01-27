@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { PaginationInterceptor } from './common/interceptors/pagination-meta.interceptor';
 
 async function bootstrap() {
@@ -17,7 +18,7 @@ async function bootstrap() {
         exposedHeaders: ['x-total-count', 'x-total-pages', 'x-page', 'x-limit'],
     });
 
-    app.useGlobalInterceptors(new PaginationInterceptor());
+    app.useGlobalInterceptors(new PaginationInterceptor(), new LoggingInterceptor());
 
     app.useGlobalPipes(
         new ValidationPipe({
