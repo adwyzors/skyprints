@@ -12,16 +12,31 @@ import {
     UseInterceptors
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { CloudflareService } from '../common/cloudflare.service';
 import { RequestContextStore } from '../common/context/request-context.store';
+import { ContextLogger } from '../common/logger/context.logger';
 import { OrdersQueryDto } from '../dto/orders.query.dto';
 import { OrdersService } from './orders.service';
-import { ContextLogger } from '../common/logger/context.logger';
 
 @Controller('orders')
 export class OrdersController {
     private readonly logger = new ContextLogger(OrdersController.name);
 
-    constructor(private readonly service: OrdersService) { }
+    constructor(
+        private readonly service: OrdersService,
+        private readonly cloudflare: CloudflareService,
+    ) { }
+
+    @Get('upload-url')
+    async getUploadUrl(
+        @Query('filename') filename: string,
+        @Query('folder') folder: string = 'orders',
+    ) {
+        if (!filename) {
+            throw new BadRequestException('Filename is required');
+        }
+        return this.cloudflare.getPresignedUrl(folder, filename);
+    }
 
     @Get()
     async getAll(@Query() query: OrdersQueryDto) {

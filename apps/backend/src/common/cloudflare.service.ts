@@ -290,4 +290,35 @@ export class CloudflareService {
         const imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
         return imageExtensions.includes(extension.toLowerCase());
     }
+
+    /**
+     * Generate a presigned URL for direct frontend upload
+     */
+    async getPresignedUrl(
+        folder: string = 'orders',
+        filename: string = 'image.jpg',
+    ): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
+        const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
+
+        const extension = this.getFileExtension(filename);
+        const uniqueFilename = `${folder}/${randomUUID()}.${extension}`;
+
+        const command = new PutObjectCommand({
+            Bucket: this.bucketName,
+            Key: uniqueFilename,
+            ContentType: this.getContentType(extension),
+        });
+
+        const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
+        const publicUrl = `${this.publicUrl}/${uniqueFilename}`;
+
+        return { uploadUrl, publicUrl, key: uniqueFilename };
+    }
+    /**
+     * Validate if a URL belongs to this Cloudflare R2 bucket configuration
+     */
+    isValidImageUrl(url: string): boolean {
+        if (!url) return false;
+        return url.startsWith(this.publicUrl);
+    }
 }

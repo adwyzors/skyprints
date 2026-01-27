@@ -100,43 +100,52 @@ export async function getOrderById(id: string): Promise<Order> {
 export async function createOrder(
   payload: NewOrderPayload
 ): Promise<any> {
-  const formData = new FormData();
+  const imageUrls: string[] = [];
 
-  // Add required fields
-  formData.append('customerId', payload.customerId);
-  formData.append('quantity', payload.quantity.toString());
-  formData.append('processes', JSON.stringify(payload.processes));
-
-  // Add optional fields
-  if (payload.jobCode) {
-    formData.append('jobCode', payload.jobCode);
-  }
-
-  // Add images
+  // 1. Upload Images Directly to Cloudflare (if any)
   if (payload.images && payload.images.length > 0) {
-    payload.images.forEach((file) => {
-      formData.append('images', file);
+    console.log(`Starting upload for ${payload.images.length} images...`);
+
+    // Upload in parallel
+    const uploadPromises = payload.images.map(async (file) => {
+      // A. Get Presigned URL
+      const { uploadUrl, publicUrl } = await apiRequest<{ uploadUrl: string; publicUrl: string }>(
+        `/orders/upload-url?filename=${encodeURIComponent(file.name)}`
+      );
+
+      // B. Upload File to Cloudflare (PUT)
+      // Note: No Auth headers for this request, it's presigned
+      await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      return publicUrl;
     });
+
+    const uploadedUrls = await Promise.all(uploadPromises);
+    imageUrls.push(...uploadedUrls);
+    console.log('All images uploaded successfully:', imageUrls);
   }
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orders`, {
+  // 2. Submit Order to Backend (JSON)
+  const orderPayload = {
+    customerId: payload.customerId,
+    quantity: payload.quantity,
+    processes: payload.processes,
+    jobCode: payload.jobCode,
+    images: imageUrls, // Send URLs instead of files
+  };
+
+  return apiRequest('/orders', {
     method: 'POST',
-    body: formData,
-    credentials: 'include',
-    // Do not set Content-Type header when using FormData; browser sets it automatically with boundary
     headers: {
-      // Add Authorization header if needed, assuming it's handled globally or we need to add it here
-      // For now, let's assume apiRequestWithHeaders handles auth but we are using fetch directly
-      // We might need to get the token. 
-      // Checking api.service.ts implementation in next step to be sure about Auth.
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify(orderPayload),
   });
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: 'Failed to create order' }));
-    throw new Error(error.message || 'Failed to create order');
-  }
-
-  return res.json();
 }
 

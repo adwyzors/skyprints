@@ -294,36 +294,65 @@ export class OrdersService {
          * ===================================================== */
         const orderId = randomUUID();
 
-        let uploadedImageUrls: string[] = [];
+        let uploadedImageUrls: string[] = dto.images || [];
+
+        // Validate URLs
+        if (uploadedImageUrls.some(url => !this.cloudflare.isValidImageUrl(url))) {
+            throw new BadRequestException('Invalid image URLs provided');
+        }
 
         this.logger.log(
-            `[ORDER_INIT] cid=${ctx.correlationId} user=${ctx.user.id} orderId=${orderId}`,
+            `[ORDER_INIT] cid=${ctx.correlationId} user=${ctx.user.id} orderId=${orderId} preUploaded=${uploadedImageUrls.length}`,
         );
 
         /* =====================================================
          * 2️⃣ Upload images OUTSIDE transaction
          * ===================================================== */
         if (files.length > 0) {
-            if (files.length > 5) {
+            if (uploadedImageUrls.length + files.length > 5) {
                 throw new BadRequestException('Maximum 5 images allowed');
             }
 
-            uploadedImageUrls = await this.cloudflare.uploadFiles(
+            const newUrls = await this.cloudflare.uploadFiles(
                 files.map(f => f.buffer),
                 files.map(f => f.originalname),
                 `orders/${orderId}`,
             );
+            uploadedImageUrls = [...uploadedImageUrls, ...newUrls];
         }
 
         try {
             return await this.prisma.transaction(async (tx) => {
-
                 const processIds = dto.processes.map(p => p.processId);
 
-                const processes = await tx.process.findMany({
-                    where: { id: { in: processIds }, isEnabled: true },
-                    select: { id: true },
-                });
+                // PARALLEL FETCH 1: Processes and Global Workflows
+                const [processes, workflow, processWorkflow] = await Promise.all([
+                    tx.process.findMany({
+                        where: { id: { in: processIds }, isEnabled: true },
+                        include: {
+                            runDefs: {
+                                orderBy: { sortOrder: 'asc' },
+                                include: {
+                                    runTemplate: {
+                                        include: {
+                                            lifecycleWorkflowType: {
+                                                include: { statuses: true },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    }),
+                    tx.workflowType.findUniqueOrThrow({
+                        where: { code: 'ORDER' },
+                        include: { statuses: true }
+                    }),
+                    tx.workflowType.findUniqueOrThrow({
+                        where: { code: 'ORDER_PROCESS' },
+                        include: { statuses: true }
+                    }),
+                ]);
 
                 if (processes.length !== processIds.length) {
                     throw new BadRequestException(
@@ -331,21 +360,38 @@ export class OrdersService {
                     );
                 }
 
-                const workflow = await tx.workflowType.findUniqueOrThrow({
-                    where: { code: 'ORDER' },
+                // EXTRACT INITIAL STATUSES
+                const initialStatus = workflow.statuses.find(s => s.isInitial);
+                if (!initialStatus) throw new Error('Order Initial Status not found');
+
+                const initialProcessStatus = processWorkflow.statuses.find(s => s.isInitial);
+                if (!initialProcessStatus) throw new Error('OrderProcess Initial Status not found');
+
+
+                // PARALLEL FETCH 2: Config Statuses for Runs
+                const configWorkflowTypeIds = [
+                    ...new Set(
+                        processes.flatMap(p =>
+                            p.runDefs.map(d => d.runTemplate.configWorkflowTypeId)
+                        )
+                    )
+                ];
+
+                const configStatuses = await tx.workflowStatus.findMany({
+                    where: {
+                        workflowTypeId: { in: configWorkflowTypeIds },
+                        isInitial: true
+                    }
                 });
 
-                const initialStatus = await tx.workflowStatus.findFirstOrThrow({
-                    where: {
-                        workflowTypeId: workflow.id,
-                        isInitial: true,
-                    },
-                });
+                const configStatusMap = new Map(
+                    configStatuses.map(s => [s.workflowTypeId, s.code])
+                );
 
                 const code = await this.generateOrderCode(tx);
 
                 /* =====================================================
-                 * CREATE ORDER (USER FROM CONTEXT)
+                 * CREATE ORDER
                  * ===================================================== */
                 const order = await tx.order.create({
                     data: {
@@ -363,60 +409,25 @@ export class OrdersService {
                     },
                 });
 
-                this.logger.log(
-                    `[ORDER_CREATED] orderId=${order.id} code=${code}`,
-                );
+                this.logger.log(`[ORDER_CREATED] orderId=${order.id} code=${code}`);
 
                 /* =====================================================
-                 * ORDER PROCESS + RUN CREATION (UNCHANGED)
+                 * BULK CREATE PROCESSES & RUNS
                  * ===================================================== */
-
                 const processCountMap = new Map(
                     dto.processes.map(p => [p.processId, p.count]),
                 );
 
-                const processEntities = await tx.process.findMany({
-                    where: { id: { in: processIds } },
-                    include: {
-                        runDefs: {
-                            orderBy: { sortOrder: 'asc' },
-                            include: {
-                                runTemplate: {
-                                    include: {
-                                        lifecycleWorkflowType: {
-                                            include: { statuses: true },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                });
+                const runsToCreate: Prisma.ProcessRunCreateManyInput[] = [];
 
-                const processWorkflow = await tx.workflowType.findUniqueOrThrow({
-                    where: { code: 'ORDER_PROCESS' },
-                });
-
-                const initialProcessStatus =
-                    await tx.workflowStatus.findFirstOrThrow({
-                        where: {
-                            workflowTypeId: processWorkflow.id,
-                            isInitial: true,
-                        },
-                    });
-
-                for (const process of processEntities) {
+                // Create OrderProcesses in Parallel
+                await Promise.all(processes.map(async (process) => {
                     const count = processCountMap.get(process.id)!;
                     const totalRuns = count * process.runDefs.length;
 
-                    const orderProcess = await tx.orderProcess.upsert({
-                        where: {
-                            orderId_processId: {
-                                orderId,
-                                processId: process.id,
-                            },
-                        },
-                        create: {
+                    // Create OrderProcess
+                    const orderProcess = await tx.orderProcess.create({
+                        data: {
                             orderId,
                             processId: process.id,
                             workflowTypeId: processWorkflow.id,
@@ -425,50 +436,46 @@ export class OrdersService {
                             configCompletedRuns: 0,
                             lifecycleCompletedRuns: 0,
                         },
-                        update: {},
+                        select: { id: true }
                     });
 
+                    // Generate Runs in Memory
                     let runNumber = 1;
-
                     for (let batch = 0; batch < count; batch++) {
                         for (const def of process.runDefs) {
                             const template = def.runTemplate;
 
-                            const initialConfigStatus =
-                                await tx.workflowStatus.findFirstOrThrow({
-                                    where: {
-                                        workflowTypeId:
-                                            template.configWorkflowTypeId,
-                                        isInitial: true,
-                                    },
-                                });
+                            const initialConfigCode = configStatusMap.get(template.configWorkflowTypeId);
+                            if (!initialConfigCode) {
+                                throw new Error(`Initial status for config workflow ${template.configWorkflowTypeId} not found`);
+                            }
 
-                            const initialLifecycleStatus =
-                                template.lifecycleWorkflowType.statuses.find(
-                                    s => s.isInitial,
-                                )!;
+                            const initialLifecycleStatus = template.lifecycleWorkflowType.statuses.find(s => s.isInitial);
+                            if (!initialLifecycleStatus) {
+                                throw new Error(`Initial status for lifecycle workflow ${template.lifecycleWorkflowType} not found`);
+                            }
 
-                            await tx.processRun.create({
-                                data: {
-                                    orderProcessId: orderProcess.id,
-                                    runTemplateId: template.id,
-                                    runNumber: runNumber++,
-                                    displayName: `${def.displayName} (${batch + 1})`,
-                                    configWorkflowTypeId:
-                                        template.configWorkflowTypeId,
-                                    lifecycleWorkflowTypeId:
-                                        template.lifecycleWorkflowTypeId,
-                                    statusCode: initialConfigStatus.code,
-                                    lifeCycleStatusCode:
-                                        initialLifecycleStatus.code,
-                                    fields: {},
-                                },
+                            runsToCreate.push({
+                                orderProcessId: orderProcess.id,
+                                runTemplateId: template.id,
+                                runNumber: runNumber++,
+                                displayName: `${def.displayName} (${batch + 1})`,
+                                configWorkflowTypeId: template.configWorkflowTypeId,
+                                lifecycleWorkflowTypeId: template.lifecycleWorkflowTypeId,
+                                statusCode: initialConfigCode,
+                                lifeCycleStatusCode: initialLifecycleStatus.code,
+                                fields: {},
                             });
                         }
                     }
-                }
+                }));
 
-                this.logger.log(`Order created id=${order.id}, code=${code}`);
+                // BULK INSERT RUNS
+                if (runsToCreate.length > 0) {
+                    await tx.processRun.createMany({
+                        data: runsToCreate,
+                    });
+                }
 
                 return { id: order.id, code };
             });
