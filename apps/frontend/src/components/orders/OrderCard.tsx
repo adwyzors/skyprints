@@ -199,7 +199,7 @@ export default function OrderCard({ order, active = true, showConfigure = true, 
                         </div>
                         <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded text-xs font-medium text-gray-700">
                             <Settings className="w-3.5 h-3.5 text-gray-400" />
-                            <span>Runs: {order.processes?.reduce((acc, p) => acc + (p.runs?.length || 0), 0) || 0}</span>
+                            <span>Processes: {order.totalProcesses}</span>
                         </div>
                     </div>
 
