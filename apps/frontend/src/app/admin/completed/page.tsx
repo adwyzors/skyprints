@@ -431,7 +431,13 @@ function CompletedContent() {
                       : ''
                       }`}
                   >
-                    <OrderCard order={order} showConfigure={false} />
+                    <OrderCard
+                      order={{
+                        ...order,
+                        totalRuns: order.processes?.reduce((sum, p) => sum + (p.runs?.length || 0), 0) || 0
+                      }}
+                      showConfigure={false}
+                    />
 
                     {/* Selection Overlay */}
                     {isSelectionMode && (
