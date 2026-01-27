@@ -1,6 +1,6 @@
 // services/orders.service.ts
 import { mapOrderSummaryDtoToOrder } from "@/domain/mapper/order/order.mapper";
-import { Order } from "@/domain/model/order.model";
+import { Order, OrderCardData } from "@/domain/model/order.model";
 import { NewOrderPayload } from "@/types/planning";
 import {
   OrderSummaryDto,
@@ -12,14 +12,22 @@ export interface GetOrdersParams {
   page?: number;
   limit?: number;
   status?: string;
-  search?: string;
   customerId?: string;
+  search?: string;
   fromDate?: string;
   toDate?: string;
 }
 
 export interface GetOrdersResponse {
   orders: Order[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface GetOrderCardsResponse {
+  orders: OrderCardData[];
   total: number;
   page: number;
   limit: number;
@@ -49,20 +57,17 @@ export async function getOrders(params: GetOrdersParams = {}): Promise<GetOrders
 
   const { data: res, headers } = await apiRequestWithHeaders<any>(url);
 
-  // Extract orders array from response (handle different formats)
-  let ordersArray: OrderSummaryDto[];
+  // Extract orders array from response
+  let ordersArray: OrderSummaryDto[] = [];
   if (res.data && Array.isArray(res.data)) {
     ordersArray = res.data;
   } else if (Array.isArray(res)) {
     ordersArray = res;
   } else if (res.orders && Array.isArray(res.orders)) {
     ordersArray = res.orders;
-  } else {
-    console.error('Unexpected API response format:', res);
-    throw new Error('Invalid response format from server');
   }
 
-  // Extract pagination from headers
+  // Extract pagination
   const total = parseInt(headers.get('x-total-count') || String(ordersArray.length), 10);
   const page = parseInt(headers.get('x-page') || String(requestedPage), 10);
   const limit = parseInt(headers.get('x-limit') || String(requestedLimit), 10);
@@ -70,14 +75,45 @@ export async function getOrders(params: GetOrdersParams = {}): Promise<GetOrders
 
   const dtos = OrderSummarySchema.array().parse(ordersArray);
 
-  console.log('Orders API - Pagination:', { page, limit, total, totalPages, ordersCount: dtos.length });
-
   return {
     orders: dtos.map(mapOrderSummaryDtoToOrder),
     total,
     page,
     limit,
     totalPages,
+  };
+}
+
+export async function getOrderCards(params: GetOrdersParams = {}): Promise<GetOrderCardsResponse> {
+  const queryParams = new URLSearchParams();
+  const requestedPage = params.page || 1;
+  const requestedLimit = params.limit || 12;
+
+  queryParams.append('page', requestedPage.toString());
+  queryParams.append('limit', requestedLimit.toString());
+  if (params.status && params.status !== 'all') queryParams.append('status', params.status);
+  if (params.search) queryParams.append('search', params.search);
+  if (params.customerId) queryParams.append('customerId', params.customerId);
+  if (params.fromDate) queryParams.append('fromDate', params.fromDate);
+  if (params.toDate) queryParams.append('toDate', params.toDate);
+
+  const queryString = queryParams.toString();
+  const url = queryString ? `/orders/cards?${queryString}` : '/orders/cards';
+
+  // Use apiRequestWithHeaders because PaginationInterceptor moves meta to headers and returns data as body
+  const { data: res, headers } = await apiRequestWithHeaders<OrderCardData[]>(url);
+
+  const total = parseInt(headers.get('x-total-count') || '0', 10);
+  const page = parseInt(headers.get('x-page') || String(requestedPage), 10);
+  const limit = parseInt(headers.get('x-limit') || String(requestedLimit), 10);
+  const totalPages = parseInt(headers.get('x-total-pages') || '0', 10);
+
+  return {
+    orders: res || [],
+    total,
+    page,
+    limit,
+    totalPages
   };
 }
 

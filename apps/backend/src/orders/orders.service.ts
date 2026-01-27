@@ -188,6 +188,124 @@ export class OrdersService {
         };
     }
 
+    async getOrderCards(query: OrdersQueryDto) {
+        const {
+            page = 1,
+            limit = 12,
+            status,
+            customerId,
+            search,
+            fromDate,
+            toDate,
+        } = query;
+
+        const skip = (page - 1) * limit;
+
+        /* ==========================
+         * DATE NORMALIZATION
+         * ========================== */
+        let from: Date | undefined;
+        let to: Date | undefined;
+
+        if (fromDate) {
+            from = new Date(fromDate);
+            if (isNaN(from.getTime())) {
+                throw new BadRequestException('Invalid fromDate');
+            }
+            from.setHours(0, 0, 0, 0);
+        }
+
+        if (toDate) {
+            to = new Date(toDate);
+            if (isNaN(to.getTime())) {
+                throw new BadRequestException('Invalid toDate');
+            }
+            to.setHours(23, 59, 59, 999);
+        }
+
+        /* ==========================
+         * STATUS NORMALIZATION
+         * ========================== */
+        const statusCodes = status
+            ? status
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean)
+            : undefined;
+
+        /* ==========================
+         * WHERE CLAUSE
+         * ========================== */
+        const where: Prisma.OrderWhereInput = {
+            deletedAt: null,
+            ...(statusCodes?.length === 1 && { statusCode: statusCodes[0] }),
+            ...(statusCodes && statusCodes.length > 1 && { statusCode: { in: statusCodes } }),
+            ...(customerId && { customerId }),
+            ...(search && {
+                code: { contains: search, mode: 'insensitive' },
+            }),
+            ...((from || to) && {
+                createdAt: {
+                    ...(from && { gte: from }),
+                    ...(to && { lte: to }),
+                },
+            }),
+        };
+
+        const [total, orders] = await this.prisma.transaction([
+            this.prisma.order.count({ where }),
+            this.prisma.order.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+                select: {
+                    id: true,
+                    code: true,
+                    quantity: true,
+                    statusCode: true,
+                    jobCode: true,
+                    createdAt: true,
+                    images: true,
+                    customer: {
+                        select: {
+                            id: true,
+                            name: true,
+                            code: true,
+                        },
+                    },
+                    processes: {
+                        select: {
+                            totalRuns: true,
+                        },
+                    },
+                },
+            }),
+        ]);
+
+        const mappedOrders = orders.map(order => ({
+            id: order.id,
+            code: order.code,
+            quantity: order.quantity,
+            status: order.statusCode,
+            jobCode: order.jobCode,
+            createdAt: order.createdAt,
+            images: order.images,
+            customer: order.customer,
+            totalRuns: order.processes.reduce((sum, p) => sum + p.totalRuns, 0),
+        }));
+
+        return {
+            data: mappedOrders,
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
+    }
+
     /* ========================== GET BY ID ========================== */
 
     async getById(orderId: string) {

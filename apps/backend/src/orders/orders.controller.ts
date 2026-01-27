@@ -38,6 +38,11 @@ export class OrdersController {
         return this.cloudflare.getPresignedUrl(folder, filename);
     }
 
+    @Get('cards')
+    async getOrderCards(@Query() query: OrdersQueryDto) {
+        return this.service.getOrderCards(query);
+    }
+
     @Get()
     async getAll(@Query() query: OrdersQueryDto) {
         return this.service.getAll(query);

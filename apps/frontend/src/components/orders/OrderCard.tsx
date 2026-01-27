@@ -1,6 +1,6 @@
 'use client';
 
-import { Order } from '@/domain/model/order.model';
+import { OrderCardData } from '@/domain/model/order.model';
 import {
     CheckCircle,
     ChevronRight,
@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 interface OrderCardProps {
-    order: Order;
+    order: OrderCardData;
     active?: boolean;
     showConfigure?: boolean;
     onClick?: () => void;
@@ -25,8 +25,12 @@ export default function OrderCard({ order, active = true, showConfigure = true, 
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
 
+    if (!order) return null;
+
     const images = order.images || [];
     const hasImages = images.length > 0;
+
+    // ... (keep existing helper functions like getStatusConfig) ...
 
     const getStatusConfig = (status: string) => {
         switch (status) {
@@ -199,7 +203,7 @@ export default function OrderCard({ order, active = true, showConfigure = true, 
                         </div>
                         <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded text-xs font-medium text-gray-700">
                             <Settings className="w-3.5 h-3.5 text-gray-400" />
-                            <span>Runs: {order.processes?.reduce((acc, p) => acc + (p.runs?.length || 0), 0) || 0}</span>
+                            <span>Runs: {order.totalRuns}</span>
                         </div>
                     </div>
 

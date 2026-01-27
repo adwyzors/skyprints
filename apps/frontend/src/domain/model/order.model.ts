@@ -27,3 +27,19 @@ export interface OrderProcess {
     status: string;
     runs: ProcessRun[];
 }
+
+export interface OrderCardData {
+    id: string;
+    code: string;
+    quantity: number;
+    status: string;
+    jobCode: string;
+    createdAt: Date | string;
+    images: string[];
+    customer: {
+        id: string;
+        name: string;
+        code: string;
+    };
+    totalRuns: number;
+}

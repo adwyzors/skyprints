@@ -1,15 +1,17 @@
 'use client';
 
-import { Order } from '@/domain/model/order.model';
+import { OrderCardData } from '@/domain/model/order.model';
 import { CheckCircle, Clock, Settings } from 'lucide-react';
 
 interface OrderTableRowProps {
-    order: Order;
+    order: OrderCardData;
     index: number;
     onClick: () => void;
 }
 
 export default function OrderTableRow({ order, index, onClick }: OrderTableRowProps) {
+    if (!order) return null;
+
     const getStatusConfig = (status: string) => {
         switch (status) {
             case 'CONFIGURE':

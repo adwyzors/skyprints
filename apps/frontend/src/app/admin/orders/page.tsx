@@ -6,22 +6,16 @@ import OrderCard from '@/components/orders/OrderCard';
 import OrdersViewToggle from '@/components/orders/OrdersViewToggle';
 import OrderTableRow from '@/components/orders/OrderTableRow';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
-import { Order } from '@/domain/model/order.model';
-import { GetOrdersParams, getOrders } from '@/services/orders.service';
+import { OrderCardData } from '@/domain/model/order.model';
+import { GetOrdersParams, getOrderCards } from '@/services/orders.service';
 import debounce from 'lodash/debounce';
 import {
-  CheckCircle,
-  ChevronRight,
-  Clock,
   Download,
-  FileText,
   Filter,
   Loader2,
   Package,
   Plus,
   Search,
-  Settings,
-  User,
   X
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -39,7 +33,7 @@ function AdminOrdersContent() {
   /* ================= STATE ================= */
 
   const [ordersData, setOrdersData] = useState<{
-    orders: Order[];
+    orders: OrderCardData[];
     total: number;
     page: number;
     limit: number;
@@ -125,7 +119,7 @@ function AdminOrdersContent() {
   const getCachedData = (key: string) => {
     const cached = cacheRef[0][key];
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.data;
+      return cached.data
     }
     return null;
   };
@@ -205,7 +199,7 @@ function AdminOrdersContent() {
           }
         }
 
-        const fetchedData = await getOrders(params);
+        const fetchedData = await getOrderCards(params);
         if (!cancelled) {
           setOrdersData(fetchedData);
           setCachedData(cacheKey, fetchedData);
@@ -266,243 +260,6 @@ function AdminOrdersContent() {
     setCustomerFilter('all');
     setDebouncedSearch('');
     setOrdersData((prev) => ({ ...prev, page: 1 }));
-  };
-
-  const getProcessSummary = (order: Order) => {
-    const totalRuns = order.processes.reduce((sum, p) => sum + p.runs.length, 0);
-
-    const configuredRuns = order.processes.reduce(
-      (sum, p) => sum + p.runs.filter((r) => r.configStatus === 'CONFIGURED').length,
-      0,
-    );
-
-    return { configuredRuns, totalRuns };
-  };
-  const getCompletionProgress = (order: Order): number => {
-    let total = 0;
-    let completed = 0;
-
-    order.processes.forEach((process) => {
-      process.runs.forEach((run) => {
-        // lifecycle
-        total += run.lifecycle.length;
-        completed += run.lifecycle.filter((step) => step.completed).length;
-
-        // fields
-        total += run.fields.length - 1;
-        completed += run.fields.filter((field) => run.values?.[field.key] != null).length;
-      });
-    });
-
-    if (total === 0) return 0;
-
-    return Math.round((completed / total) * 100);
-  };
-
-  /* ================= OLD ORDER CARD COMPONENT (UNUSED - kept for reference) ================= */
-
-  const _OldOrderCard = ({ order }: { order: Order }) => {
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [isPaused, setIsPaused] = useState(false);
-    const statusConfig = getStatusConfig(order.status);
-    const processSummary = getProcessSummary(order);
-
-    const images = order.images || [];
-    const hasImages = images.length > 0;
-
-    const nextImage = useCallback((e?: React.MouseEvent) => {
-      if (e) e.stopPropagation();
-      setCurrentImageIndex((prev) => (prev + 1) % images.length);
-    }, [images.length]);
-
-    const prevImage = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-    };
-
-    // Auto-slide effect
-    useEffect(() => {
-      if (!hasImages || images.length <= 1 || isPaused) return;
-
-      const interval = setInterval(() => {
-        nextImage();
-      }, 4000); // Auto-slide every 4 seconds
-
-      return () => clearInterval(interval);
-    }, [hasImages, images.length, isPaused, nextImage]);
-
-    return (
-      <div
-        onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
-        className="group bg-white rounded-2xl border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1 flex flex-col relative"
-      >
-        {/* STATUS BADGE - TOP RIGHT CORNER */}
-        <div className="absolute top-3 right-3 z-10">
-          <span
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 shadow-md ${statusConfig.color}`}
-          >
-            {statusConfig.icon}
-            <span className="truncate">{statusConfig.label}</span>
-          </span>
-        </div>
-
-        {/* IMAGE CAROUSEL - OPTIMIZED FOR FAST LOADING */}
-        <div
-          className="relative w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-        >
-          {hasImages ? (
-            <>
-              {/* Render all images with absolute positioning for crossfade */}
-              {images.map((image, index) => (
-                <img
-                  key={index}
-                  src={image}
-                  alt={`Order ${order.code}`}
-                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-in-out ${index === currentImageIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
-                    }`}
-                  loading="lazy"
-                  decoding="async"
-                />
-              ))}
-
-              {images.length > 1 && (
-                <>
-                  {/* Previous Arrow */}
-                  <button
-                    onClick={prevImage}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all hover:scale-110 z-20"
-                    aria-label="Previous image"
-                  >
-                    <ChevronRight className="w-5 h-5 text-gray-800 rotate-180" />
-                  </button>
-                  {/* Next Arrow */}
-                  <button
-                    onClick={nextImage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all hover:scale-110 z-20"
-                    aria-label="Next image"
-                  >
-                    <ChevronRight className="w-5 h-5 text-gray-800" />
-                  </button>
-                  {/* Image Counter */}
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-medium z-20">
-                    {currentImageIndex + 1} / {images.length}
-                  </div>
-                </>
-              )}
-            </>
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
-              <Package className="w-16 h-16 mb-2" />
-              <span className="text-sm font-medium">No images uploaded</span>
-            </div>
-          )}
-        </div>
-
-        {/* ORDER DETAILS SECTION */}
-        <div className="p-4 space-y-3 flex-1">
-          {/* Order Code & Job Code */}
-          <div>
-            <h3 className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition-colors truncate">
-              {order.code}
-            </h3>
-            {order.jobCode && (
-              <div className="flex items-center gap-2 mt-1">
-                <FileText className="w-3.5 h-3.5 text-gray-500" />
-                <span className="text-xs text-gray-600">Job: {order.jobCode}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Customer Name */}
-          <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-            <User className="w-4 h-4 text-gray-500 flex-shrink-0" />
-            <span className="text-sm text-gray-700 truncate font-medium">
-              {order.customer?.name}
-            </span>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gray-50 rounded-lg p-2.5">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Package className="w-3.5 h-3.5 text-gray-500" />
-                <span className="text-xs text-gray-500">Quantity</span>
-              </div>
-              <p className="text-base font-bold text-gray-800">{order.quantity}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-2.5">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Settings className="w-3.5 h-3.5 text-gray-500" />
-                <span className="text-xs text-gray-500">Processes</span>
-              </div>
-              <p className="text-base font-bold text-gray-800">{order.totalProcesses}</p>
-            </div>
-          </div>
-
-          {/* Subtle Configure Link */}
-          <div className="pt-2 border-t border-gray-100">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push(`/admin/orders/${order.id}`);
-              }}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors"
-            >
-              Configure order →
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case 'COMPLETED':
-        return {
-          color: 'bg-green-100 text-green-800 border-green-200',
-          icon: <CheckCircle className="w-4 h-4" />,
-          label: 'Completed',
-          bgColor: 'bg-green-50',
-        };
-      case 'IN_PRODUCTION':
-        return {
-          color: 'bg-blue-100 text-blue-800 border-blue-200',
-          icon: <Settings className="w-4 h-4" />,
-          label: 'In Production',
-          bgColor: 'bg-blue-50',
-        };
-      case 'PRODUCTION_READY':
-        return {
-          color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-          icon: <Clock className="w-4 h-4" />,
-          label: 'Ready',
-          bgColor: 'bg-yellow-50',
-        };
-      case 'CONFIGURE':
-        return {
-          color: 'bg-purple-100 text-purple-800 border-purple-200',
-          icon: <Package className="w-4 h-4" />,
-          label: 'Configure',
-          bgColor: 'bg-purple-50',
-        };
-      case 'BILLED':
-        return {
-          color: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-          icon: <FileText className="w-4 h-4" />,
-          label: 'Billed',
-          bgColor: 'bg-indigo-50',
-        };
-      default:
-        return {
-          color: 'bg-gray-100 text-gray-800 border-gray-200',
-          icon: <Clock className="w-4 h-4" />,
-          label: status,
-          bgColor: 'bg-gray-50',
-        };
-    }
   };
 
   /* ================= FILTERED ORDERS ================= */
