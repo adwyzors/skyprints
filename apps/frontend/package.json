@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@app/contracts": "*",
+    "@react-pdf/renderer": "^4.3.2",
     "@types/lodash": "^4.17.23",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",

@@ -2,9 +2,13 @@
 
 import { BillingContextDetails } from "@/domain/model/billing.model";
 import { getBillingContextById } from "@/services/billing.service";
-import { Calendar, ChevronDown, CreditCard, ExternalLink, Loader2, Package, X } from "lucide-react";
+import { Calendar, ChevronDown, CreditCard, Download, ExternalLink, Loader2, Package, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
+// Import for PDF generation
+import InvoicePDF from '@/components/billing/InvoicePDF';
+import { pdf } from '@react-pdf/renderer';
 
 interface BillingGroupModalProps {
     isOpen: boolean;
@@ -32,6 +36,90 @@ export default function BillingGroupModal({
         }
     }, [isOpen, groupId]);
 
+    const handleDownloadInvoice = async () => {
+        if (!details) return;
+
+        try {
+            // Calculate total amount from all orders
+            const totalAmount = details.orders.reduce((sum, order) => {
+                return sum + (Number(order.billing?.result) || 0);
+            }, 0);
+
+            // Calculate GST amounts (2.5% each for CGST and SGST)
+            const cgstAmount = (totalAmount * 2.5) / 100;
+            const sgstAmount = (totalAmount * 2.5) / 100;
+
+            // Calculate TDS (2% if tds is true)
+
+            // const tdsAmount = details.orders[0]?.customer?.tds ? (totalAmount * 2) / 100 : 0;   remove later
+            const tdsAmount = 0
+
+            // Calculate final total
+            const finalTotal = totalAmount + cgstAmount + sgstAmount + tdsAmount;
+
+            // Create invoice data
+            const invoiceData = {
+                // Header based on tax existence
+                // heading: details.orders[0]?.customer?.tax ? "Tax Invoice" : "Delivery Challan", remove later
+                heading: "Delivery Challan",
+
+                // Company details
+                companyName: "Sky Art Prints LLP",
+                companyAddress: "13, Bhavani Complex, Bhavani Shankar Road, Dadar West, Mumbai 400053",
+                msmeReg: "MSME Reg#: UDYAM-MH-19-0217047",
+
+                // gstin: details.orders[0]?.customer?.gst || "NA",  remove later
+                gstin: "NA",
+
+                // Customer details
+                billTo: details.orders[0]?.customer?.name || "NA",
+                // address: details.orders[0]?.customer?.address || "NA", remove later
+                address: "NA",
+                date: details.latestSnapshot?.createdAt ?
+                    new Date(details.latestSnapshot.createdAt).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    }) : "NA",
+                billNumber: details.name || "NA",
+
+                // Orders table data
+                items: details.orders.map((order, index) => ({
+                    srNo: index + 1,
+                    orderCode: order.code, // Using order.code as per data structure
+                    quantity: order.quantity,
+                    rate: order.billing?.result && order.quantity > 0 ?
+                        (Number(order.billing.result) / order.quantity).toFixed(2) : "0.00",
+                    amount: order.billing?.result || "0"
+                })),
+
+                // Calculations
+                subtotal: totalAmount.toFixed(2),
+                cgstAmount: cgstAmount.toFixed(2),
+                sgstAmount: sgstAmount.toFixed(2),
+                tdsAmount: tdsAmount.toFixed(2),
+                total: finalTotal.toFixed(2)
+            };
+
+            // Generate PDF blob
+            const blob = await pdf(<InvoicePDF invoiceData={invoiceData} />).toBlob();
+
+            // Create download link
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `invoice_${details.name}_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error("Error generating invoice:", error);
+            alert("Failed to generate invoice. Please try again.");
+        }
+    };
+
     if (!isOpen) return null;
 
     const formatDate = (dateStr?: string) => {
@@ -58,12 +146,23 @@ export default function BillingGroupModal({
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between p-6 border-b border-gray-100 shrink-0">
                     <h2 className="text-xl font-bold text-gray-800">Billing Group Details</h2>
-                    <button
-                        onClick={onClose}
-                        className="p-2 -mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {details && !loading && (
+                            <button
+                                onClick={handleDownloadInvoice}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                <Download className="w-4 h-4" />
+                                Download Invoice
+                            </button>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="p-2 -mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-6 overflow-y-auto">
@@ -195,7 +294,6 @@ function OrderGroupItem({ order, formatCurrency }: { order: any, formatCurrency:
                             <div className="pl-3.5 space-y-2">
                                 {process.runs.map((run: any) => {
                                     const input = order.billing?.inputs?.[run.id];
-                                    // If no input found, fallback to 0 or estimates if available, but for billing modal we expect inputs
                                     const rate = input?.new_rate ?? 0;
                                     const qty = input?.quantity ?? 0;
                                     const amount = rate * qty;
