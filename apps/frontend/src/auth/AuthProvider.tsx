@@ -1,15 +1,13 @@
-"use client";
+'use client';
 
-import { usePathname } from "next/navigation";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { AuthUser } from "./auth.types";
-import { fetchMe, redirectToLogin } from "./authClient";
-import { PUBLIC_ROUTES } from "./publicRoutes";
+import { usePathname, useRouter } from 'next/navigation';
+import { createContext, useEffect, useRef, useState } from 'react';
+import { AuthUser } from './auth.types';
+import { fetchMe, redirectToLogin } from './authClient';
+import { PUBLIC_ROUTES } from './publicRoutes';
 
 function isPublicRoute(pathname: string) {
-  return PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
-  );
+  return PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(route + '/'));
 }
 
 interface AuthContextType {
@@ -24,14 +22,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const redirectedRef = useRef(false);
 
+  const redirectedRef = useRef(false);
   const requiresAuth = !isPublicRoute(pathname);
 
   useEffect(() => {
-    // 🟢 Public route → no auth check
     if (!requiresAuth) {
       setLoading(false);
       return;
@@ -40,23 +39,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function loadUser() {
       setLoading(true);
 
-      const me = await fetchMe();
+      const result = await fetchMe();
 
-      if (!me && !redirectedRef.current) {
-        redirectedRef.current = true;
-        redirectToLogin(pathname);
-        return;
+      switch (result.status) {
+        case 'ok':
+          setUser(result.user);
+          setLoading(false);
+          return;
+
+        case 'unauthenticated':
+          if (!redirectedRef.current) {
+            redirectedRef.current = true;
+            redirectToLogin(pathname);
+          }
+          return;
+
+        case 'forbidden':
+          router.replace('/403'); // 👈 forbidden page
+          return;
+
+        default:
+          router.replace('/error');
+          return;
       }
-
-      setUser(me);
-      setLoading(false);
     }
 
     loadUser();
-  }, [pathname, requiresAuth]);
+  }, [pathname, requiresAuth, router]);
 
-  const hasPermission = (permission: string) =>
-    !!user?.permissions.includes(permission);
+  const hasPermission = (permission: string) => !!user?.permissions?.includes(permission);
 
   return (
     <AuthContext.Provider
@@ -66,9 +77,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasPermission,
         loading,
         refresh: async () => {
-          if (requiresAuth) {
-            const me = await fetchMe();
-            setUser(me);
+          if (!requiresAuth) return;
+
+          const result = await fetchMe();
+          if (result.status === 'ok') {
+            setUser(result.user);
           }
         },
       }}
@@ -76,12 +89,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used inside AuthProvider");
-  }
-  return ctx;
 }

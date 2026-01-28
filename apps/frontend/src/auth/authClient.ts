@@ -8,21 +8,37 @@ function log(msg: string, extra?: any) {
     }
 }
 
-export async function fetchMe(): Promise<AuthUser | null> {
-    const res = await fetch(`${API}/auth/me`, {
-        credentials: "include",
-    });
+export type FetchMeResult =
+    | { status: "ok"; user: AuthUser }
+    | { status: "unauthenticated" }
+    | { status: "forbidden" }
+    | { status: "error" };
 
-    if (res.status === 401) {
-        return null;
+export async function fetchMe(): Promise<FetchMeResult> {
+    try {
+        const res = await fetch(`${API}/auth/me`, {
+            credentials: "include",
+        });
+
+        if (res.status === 401) {
+            return { status: "unauthenticated" };
+        }
+
+        if (res.status === 403) {
+            return { status: "forbidden" };
+        }
+
+        if (!res.ok) {
+            return { status: "error" };
+        }
+
+        const user = await res.json();
+        return { status: "ok", user };
+    } catch {
+        return { status: "error" };
     }
-
-    if (!res.ok) {
-        return null;
-    }
-
-    return res.json();
 }
+
 
 
 async function refreshToken(): Promise<boolean> {
