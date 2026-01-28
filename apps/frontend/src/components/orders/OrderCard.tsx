@@ -114,7 +114,7 @@ export default function OrderCard({ order, active = true, showConfigure = true, 
                     className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 shadow-md ${statusConfig.color}`}
                 >
                     {statusConfig.icon}
-                    <span className="truncate">{statusConfig.label}</span>
+                    <span className="truncate">{statusConfig.label === "Billed" ? "Billing Ready" : statusConfig.label}</span>
                 </span>
             </div>
 

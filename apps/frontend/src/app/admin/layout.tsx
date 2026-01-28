@@ -19,19 +19,19 @@ const tabs = [
     badge: null,
   },
   {
-    label: 'Rates',
+    label: 'Rate Confirmation',
     path: '/admin/billing',
     icon: <CreditCard className="w-4 h-4" />,
     badge: null,
   },
   {
-    label: 'Bills',
+    label: 'Billing Ready',
     path: '/admin/completed',
     icon: <CheckCircle className="w-4 h-4" />,
     badge: null,
   },
   {
-    label: 'Groups',
+    label: 'Bills',
     path: '/admin/bills',
     icon: <FileText className="w-4 h-4" />,
     badge: null,

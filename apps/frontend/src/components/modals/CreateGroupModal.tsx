@@ -93,8 +93,8 @@ export default function CreateGroupModal({
           <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
             <Users className="w-6 h-6 text-white" />
           </div>
-          <h2 className="text-2xl font-bold">Create Group</h2>
-          <p className="text-indigo-100 text-sm mt-1">Grouping {selectedOrders.length} orders</p>
+          <h2 className="text-2xl font-bold">Create Invoice</h2>
+          <p className="text-indigo-100 text-sm mt-1">Invoicing {selectedOrders.length} orders</p>
         </div>
 
         {/* Body */}
@@ -102,7 +102,7 @@ export default function CreateGroupModal({
           {/* Auto-generated Info Card */}
           <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-500 font-medium">Group Name</span>
+              <span className="text-sm text-gray-500 font-medium">Invoice ID</span>
               <span className="text-sm font-mono font-bold text-gray-800 bg-white px-2 py-1 rounded border border-gray-200">
                 {name}
               </span>
@@ -168,7 +168,7 @@ export default function CreateGroupModal({
                 Saving...
               </>
             ) : (
-              'Save Group'
+              'Create Invoice'
             )}
           </button>
 
