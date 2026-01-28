@@ -78,7 +78,7 @@ export class AuthService {
 
         return {
             id: authUser.id,
-            alternameEmail: authUser.email,
+            alternateEmail: authUser.email,
             roles: authUser.permissions ?? [],
             user,
         };
