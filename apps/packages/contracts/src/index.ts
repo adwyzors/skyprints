@@ -1,3 +1,4 @@
+export * from './process-run.read.contract';
 export * from './process.contract';
 export * from './process.read.contract';
 
@@ -20,5 +21,5 @@ export * from './create-billing-snapshot.contract';
 
 export * from './delete-run-image.contract';
 
-export * from './user.contract'
+export * from './user.contract';
 

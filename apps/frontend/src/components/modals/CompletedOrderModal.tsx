@@ -482,7 +482,7 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
                               <div className="text-sm font-medium text-gray-700 mb-2">Run Details</div>
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                 {Object.entries(run.values || {})
-                                  .filter(([key]) => !['New Rate', 'New Amount'].includes(key))
+                                  .filter(([key]) => !['New Rate', 'New Amount', 'images'].includes(key))
                                   .map(([key, value]) => (
                                     <div key={key} className="bg-white border border-gray-200 rounded p-3">
                                       <div className="text-xs text-gray-500">{key}</div>

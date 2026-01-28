@@ -1,17 +1,19 @@
 import {
     ConfigureProcessRunDto,
     CreateProcessDto,
-    RunTemplateField,
+    ProcessRunListItemDto,
+    RunTemplateField
 } from '@app/contracts';
 import {
     BadRequestException,
     Injectable,
     NotFoundException
 } from '@nestjs/common';
-import { OrderStatus, ProcessRunStatus } from '@prisma/client';
+import { OrderStatus, Prisma, ProcessRunStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CloudflareService } from '../common/cloudflare.service';
 import { ContextLogger } from '../common/logger/context.logger';
+import { ProcessRunsQueryDto } from '../dto/process-runs.query.dto';
 import { toProcessSummary } from '../mappers/process.mapper';
 import { OrdersService } from '../orders/orders.service';
 type SystemFieldValidator = (value: any) => boolean;
@@ -96,6 +98,89 @@ export class AdminProcessService {
             orderBy: { name: 'asc' },
         });
         return processes.map(toProcessSummary);
+    }
+
+    async getAllRuns(query: ProcessRunsQueryDto) {
+        const {
+            page = 1,
+            limit = 20,
+            search,
+            status
+        } = query;
+
+        const skip = (page - 1) * limit;
+
+        /* ==========================
+         * WHERE CLAUSE
+         * ========================== */
+        const where: Prisma.ProcessRunWhereInput = {
+            ...(status && {
+                statusCode: { in: status.split(',') as ProcessRunStatus[] }
+            }),
+            ...(search && {
+                OR: [
+                    {
+                        orderProcess: {
+                            order: {
+                                code: { contains: search, mode: 'insensitive' }
+                            }
+                        }
+                    },
+                    {
+                        orderProcess: {
+                            order: {
+                                customer: {
+                                    name: { contains: search, mode: 'insensitive' }
+                                }
+                            }
+                        }
+                    },
+                    {
+                        runTemplate: {
+                            name: { contains: search, mode: 'insensitive' }
+                        }
+                    }
+                ]
+            })
+        };
+
+        const [total, runs] = await this.prisma.transaction([
+            this.prisma.processRun.count({ where }),
+            this.prisma.processRun.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: { id: 'desc' },
+                include: {
+                    orderProcess: {
+                        select: {
+                            order: {
+                                select: {
+                                    code: true,
+                                    id: true,
+                                    customer: {
+                                        select: { name: true }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    runTemplate: {
+                        select: { name: true }
+                    }
+                },
+            })
+        ]);
+
+        return {
+            data: runs as unknown as ProcessRunListItemDto[],
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            }
+        };
     }
 
     async configure(

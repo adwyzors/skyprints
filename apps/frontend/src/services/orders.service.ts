@@ -191,3 +191,9 @@ export async function setProductionReady(orderId: string): Promise<{ success: bo
     method: 'POST',
   });
 }
+
+export async function startProduction(orderId: string): Promise<{ success: boolean }> {
+  return apiRequest(`/orders/${orderId}/start-production`, {
+    method: 'POST',
+  });
+}

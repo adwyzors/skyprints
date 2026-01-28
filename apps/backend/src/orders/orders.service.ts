@@ -592,6 +592,23 @@ export class OrdersService {
         });
     }
 
+    async startProduction(orderId: string) {
+        return this.prisma.transaction(async tx => {
+            const order = await tx.order.findUnique({
+                where: { id: orderId },
+            });
+
+            if (!order) throw new NotFoundException('Order not found');
+
+            await tx.order.update({
+                where: { id: orderId },
+                data: { statusCode: OrderStatus.IN_PRODUCTION }
+            });
+
+            return { success: true };
+        });
+    }
+
 
     /* =========================================================
      * ORDER TRANSITION

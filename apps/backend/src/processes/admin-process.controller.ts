@@ -3,6 +3,7 @@ import type {
     CreateProcessDto,
     DeleteRunImageDto,
     ProcessDetailDto,
+    ProcessRunListItemDto,
     ProcessSummaryDto,
     TransitionProcessRunDto
 } from '@app/contracts';
@@ -12,9 +13,11 @@ import {
     Delete,
     Get,
     Param,
-    Post
+    Post,
+    Query
 } from '@nestjs/common';
 import { ContextLogger } from '../common/logger/context.logger';
+import { ProcessRunsQueryDto } from '../dto/process-runs.query.dto';
 import { toProcessDetail } from '../mappers/process.mapper';
 import { AdminProcessService } from './admin-process.service';
 
@@ -23,6 +26,15 @@ export class AdminProcessController {
     private readonly logger = new ContextLogger(AdminProcessController.name);
 
     constructor(private readonly service: AdminProcessService) { }
+
+
+    @Get('runs')
+    async getRuns(@Query() query: ProcessRunsQueryDto): Promise<{
+        data: ProcessRunListItemDto[];
+        meta: { page: number; limit: number; total: number; totalPages: number };
+    }> {
+        return this.service.getAllRuns(query);
+    }
 
     @Post()
     create(@Body() dto: CreateProcessDto) {
