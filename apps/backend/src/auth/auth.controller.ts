@@ -8,10 +8,10 @@ import {
     UnauthorizedException
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { ContextLogger } from '../common/logger/context.logger';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { KeycloakService } from './keycloak/keycloak.service';
-import { ContextLogger } from '../common/logger/context.logger';
 @Controller('auth')
 export class AuthController {
     private readonly logger = new ContextLogger(AuthController.name);
@@ -127,10 +127,17 @@ export class AuthController {
     }
 
     @Get('me')
-    me(@Req() req: any) {
+    async me(@Req() req: any) {
+        const authUser = req.user;
+
+        if (!authUser?.id) {
+            throw new UnauthorizedException('Unauthenticated');
+        }
+
         this.logger.debug(
-            `Me endpoint accessed (user=${req.user?.id ?? 'anonymous'})`,
+            `[ME] authUserId=${authUser.id}`,
         );
-        return req.user;
+
+        return this.auth.getMe(authUser);
     }
 }
