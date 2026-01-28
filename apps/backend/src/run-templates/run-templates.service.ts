@@ -3,10 +3,11 @@ import {
     BadRequestException,
     Injectable
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ContextLogger } from '../common/logger/context.logger';
 import { validateBillingFormula } from './formula/formula-validator';
 import { attachFormulaKeys } from './utils/field-normalizer';
-import { ContextLogger } from '../common/logger/context.logger';
 
 @Injectable()
 export class RunTemplatesService {
@@ -87,31 +88,43 @@ export class RunTemplatesService {
         return template;
     }
 
-    private async createWorkflow(tx, code: string, states: string[]) {
-        const wf = await tx.workflowType.create({ data: { code } });
+    private async createWorkflow(
+        tx: Prisma.TransactionClient,
+        code: string,
+        states: string[],
+    ) {
+        // 1️⃣ Idempotent workflow
+        const wf = await tx.workflowType.upsert({
+            where: { code },
+            update: {},
+            create: { code },
+        });
 
-        const statuses = await Promise.all(
-            states.map((s, i) =>
-                tx.workflowStatus.create({
-                    data: {
-                        workflowTypeId: wf.id,
-                        code: s,
-                        isInitial: i === 0,
-                        isTerminal: i === states.length - 1,
-                    },
-                }),
-            ),
-        );
+        // 2️⃣ Idempotent statuses
+        await tx.workflowStatus.createMany({
+            data: states.map((s, i) => ({
+                workflowTypeId: wf.id,
+                code: s,
+                isInitial: i === 0,
+                isTerminal: i === states.length - 1,
+            })),
+            skipDuplicates: true,
+        });
 
-        for (let i = 0; i < statuses.length - 1; i++) {
-            await tx.workflowTransition.create({
-                data: {
-                    workflowTypeId: wf.id,
-                    fromStatusId: statuses[i].id,
-                    toStatusId: statuses[i + 1].id,
-                },
-            });
-        }
+        const statuses = await tx.workflowStatus.findMany({
+            where: { workflowTypeId: wf.id },
+            orderBy: { createdAt: 'asc' },
+        });
+
+        // 3️⃣ Idempotent transitions
+        await tx.workflowTransition.createMany({
+            data: statuses.slice(0, -1).map((s, i) => ({
+                workflowTypeId: wf.id,
+                fromStatusId: s.id,
+                toStatusId: statuses[i + 1].id,
+            })),
+            skipDuplicates: true,
+        });
 
         return wf;
     }

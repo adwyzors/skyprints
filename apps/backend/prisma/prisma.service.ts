@@ -18,8 +18,9 @@ if (process.env.NODE_ENV !== 'production') {
     global.__prisma__ = prisma;
 }
 
-type PrismaExecutor = Prisma.TransactionClient | PrismaClient;
-
+export type PrismaExecutor =
+    | Prisma.TransactionClient
+    | PrismaService;
 
 /* -------------------- helpers -------------------- */
 
@@ -67,10 +68,6 @@ export class PrismaService {
         return prisma.workflowTransition;
     }
 
-    get workflowAuditLog() {
-        return prisma.workflowAuditLog;
-    }
-
     get runTemplate() {
         return prisma.runTemplate;
     }
@@ -93,14 +90,6 @@ export class PrismaService {
 
     get location() {
         return prisma.location;
-    }
-
-    get notification() {
-        return prisma.notification;
-    }
-
-    get outboxEvent() {
-        return prisma.outboxEvent;
     }
 
     get billingContext() {

@@ -1,4 +1,13 @@
 -- CreateEnum
+CREATE TYPE "OrderStatus" AS ENUM ('CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE', 'BILLED', 'GROUP_BILLED');
+
+-- CreateEnum
+CREATE TYPE "OrderProcessStatus" AS ENUM ('CONFIGURE', 'IN_PROGRESS', 'COMPLETE');
+
+-- CreateEnum
+CREATE TYPE "ProcessRunStatus" AS ENUM ('CONFIGURE', 'IN_PROGRESS', 'COMPLETE');
+
+-- CreateEnum
 CREATE TYPE "BillingContextType" AS ENUM ('ORDER', 'GROUP');
 
 -- CreateEnum
@@ -17,6 +26,7 @@ CREATE TABLE "User" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
+    "role" TEXT NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -121,8 +131,7 @@ CREATE TABLE "Order" (
     "deletedAt" TIMESTAMP(3),
     "customerId" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL,
-    "workflowTypeId" TEXT NOT NULL,
-    "statusCode" TEXT NOT NULL,
+    "statusCode" "OrderStatus" NOT NULL,
     "jobCode" TEXT,
     "images" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "createdById" TEXT NOT NULL,
@@ -139,8 +148,7 @@ CREATE TABLE "OrderProcess" (
     "id" TEXT NOT NULL,
     "orderId" TEXT NOT NULL,
     "processId" TEXT NOT NULL,
-    "workflowTypeId" TEXT NOT NULL,
-    "statusCode" TEXT NOT NULL,
+    "statusCode" "OrderProcessStatus" NOT NULL,
     "totalRuns" INTEGER NOT NULL DEFAULT 0,
     "configCompletedRuns" INTEGER NOT NULL DEFAULT 0,
     "lifecycleCompletedRuns" INTEGER NOT NULL DEFAULT 0,
@@ -159,10 +167,11 @@ CREATE TABLE "ProcessRun" (
     "displayName" TEXT NOT NULL,
     "configWorkflowTypeId" TEXT NOT NULL,
     "lifecycleWorkflowTypeId" TEXT NOT NULL,
-    "statusCode" TEXT NOT NULL,
+    "statusCode" "ProcessRunStatus" NOT NULL,
     "lifeCycleStatusCode" TEXT NOT NULL,
     "fields" JSONB NOT NULL,
-    "assignedUserId" TEXT,
+    "executorId" TEXT,
+    "reviewerId" TEXT,
     "locationId" TEXT,
 
     CONSTRAINT "ProcessRun_pkey" PRIMARY KEY ("id")
@@ -179,49 +188,6 @@ CREATE TABLE "Location" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Location_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "OutboxEvent" (
-    "id" TEXT NOT NULL,
-    "aggregateType" TEXT NOT NULL,
-    "aggregateId" TEXT NOT NULL,
-    "eventType" TEXT NOT NULL,
-    "payload" JSONB NOT NULL,
-    "processed" BOOLEAN NOT NULL DEFAULT false,
-    "failed" BOOLEAN NOT NULL DEFAULT false,
-    "errorMessage" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "OutboxEvent_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "WorkflowAuditLog" (
-    "id" TEXT NOT NULL,
-    "workflowTypeId" TEXT NOT NULL,
-    "aggregateType" TEXT NOT NULL,
-    "aggregateId" TEXT NOT NULL,
-    "fromStatus" TEXT,
-    "toStatus" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "WorkflowAuditLog_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Notification" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "message" TEXT NOT NULL,
-    "isRead" BOOLEAN NOT NULL DEFAULT false,
-    "metadata" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "readAt" TIMESTAMP(3),
-
-    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -274,10 +240,10 @@ CREATE UNIQUE INDEX "User_locationId_key" ON "User"("locationId");
 CREATE INDEX "User_email_idx" ON "User"("email");
 
 -- CreateIndex
-CREATE INDEX "User_isActive_idx" ON "User"("isActive");
+CREATE INDEX "User_role_isActive_deletedAt_idx" ON "User"("role", "isActive", "deletedAt");
 
 -- CreateIndex
-CREATE INDEX "User_isActive_name_idx" ON "User"("isActive", "name");
+CREATE INDEX "User_name_isActive_deletedAt_idx" ON "User"("name", "isActive", "deletedAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Customer_code_key" ON "Customer"("code");
@@ -290,6 +256,9 @@ CREATE UNIQUE INDEX "WorkflowType_code_key" ON "WorkflowType"("code");
 
 -- CreateIndex
 CREATE INDEX "WorkflowType_isActive_idx" ON "WorkflowType"("isActive");
+
+-- CreateIndex
+CREATE INDEX "WorkflowStatus_workflowTypeId_code_idx" ON "WorkflowStatus"("workflowTypeId", "code");
 
 -- CreateIndex
 CREATE INDEX "WorkflowStatus_workflowTypeId_createdAt_idx" ON "WorkflowStatus"("workflowTypeId", "createdAt");
@@ -313,6 +282,9 @@ CREATE INDEX "WorkflowTransition_fromStatusId_idx" ON "WorkflowTransition"("from
 CREATE INDEX "WorkflowTransition_toStatusId_idx" ON "WorkflowTransition"("toStatusId");
 
 -- CreateIndex
+CREATE INDEX "WorkflowTransition_fromStatusId_toStatusId_idx" ON "WorkflowTransition"("fromStatusId", "toStatusId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "WorkflowTransition_workflowTypeId_fromStatusId_toStatusId_key" ON "WorkflowTransition"("workflowTypeId", "fromStatusId", "toStatusId");
 
 -- CreateIndex
@@ -331,25 +303,37 @@ CREATE INDEX "ProcessRunDefinition_runTemplateId_idx" ON "ProcessRunDefinition"(
 CREATE UNIQUE INDEX "ProcessRunDefinition_processId_sortOrder_key" ON "ProcessRunDefinition"("processId", "sortOrder");
 
 -- CreateIndex
-CREATE INDEX "Order_deletedAt_idx" ON "Order"("deletedAt");
+CREATE INDEX "Order_id_deletedAt_idx" ON "Order"("id", "deletedAt");
 
 -- CreateIndex
-CREATE INDEX "Order_createdAt_idx" ON "Order"("createdAt");
+CREATE INDEX "Order_deletedAt_createdAt_idx" ON "Order"("deletedAt", "createdAt" DESC);
 
 -- CreateIndex
-CREATE INDEX "Order_customerId_idx" ON "Order"("customerId");
+CREATE INDEX "Order_deletedAt_statusCode_idx" ON "Order"("deletedAt", "statusCode");
 
 -- CreateIndex
-CREATE INDEX "Order_createdById_idx" ON "Order"("createdById");
+CREATE INDEX "Order_deletedAt_customerId_createdAt_idx" ON "Order"("deletedAt", "customerId", "createdAt" DESC);
 
 -- CreateIndex
-CREATE INDEX "Order_workflowTypeId_idx" ON "Order"("workflowTypeId");
+CREATE INDEX "Order_deletedAt_statusCode_createdAt_idx" ON "Order"("deletedAt", "statusCode", "createdAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "Order_deletedAt_createdById_idx" ON "Order"("deletedAt", "createdById");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Order_code_deletedAt_key" ON "Order"("code", "deletedAt");
 
 -- CreateIndex
+CREATE INDEX "OrderProcess_lifecycleCompletedRuns_totalRuns_idx" ON "OrderProcess"("lifecycleCompletedRuns", "totalRuns");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "OrderProcess_orderId_processId_key" ON "OrderProcess"("orderId", "processId");
+
+-- CreateIndex
+CREATE INDEX "ProcessRun_orderProcessId_id_idx" ON "ProcessRun"("orderProcessId", "id");
+
+-- CreateIndex
+CREATE INDEX "ProcessRun_orderProcessId_lifeCycleStatusCode_idx" ON "ProcessRun"("orderProcessId", "lifeCycleStatusCode");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ProcessRun_orderProcessId_runNumber_key" ON "ProcessRun"("orderProcessId", "runNumber");
@@ -359,21 +343,6 @@ CREATE UNIQUE INDEX "Location_code_key" ON "Location"("code");
 
 -- CreateIndex
 CREATE INDEX "Location_isActive_idx" ON "Location"("isActive");
-
--- CreateIndex
-CREATE INDEX "OutboxEvent_processed_failed_createdAt_idx" ON "OutboxEvent"("processed", "failed", "createdAt");
-
--- CreateIndex
-CREATE INDEX "OutboxEvent_aggregateType_aggregateId_idx" ON "OutboxEvent"("aggregateType", "aggregateId");
-
--- CreateIndex
-CREATE INDEX "WorkflowAuditLog_workflowTypeId_idx" ON "WorkflowAuditLog"("workflowTypeId");
-
--- CreateIndex
-CREATE INDEX "WorkflowAuditLog_aggregateType_aggregateId_idx" ON "WorkflowAuditLog"("aggregateType", "aggregateId");
-
--- CreateIndex
-CREATE INDEX "Notification_userId_isRead_createdAt_idx" ON "Notification"("userId", "isRead", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "BillingContext_type_idx" ON "BillingContext"("type");
@@ -386,6 +355,15 @@ CREATE UNIQUE INDEX "BillingContextOrder_billingContextId_orderId_key" ON "Billi
 
 -- CreateIndex
 CREATE INDEX "BillingSnapshot_billingContextId_isLatest_idx" ON "BillingSnapshot"("billingContextId", "isLatest");
+
+-- CreateIndex
+CREATE INDEX "BillingSnapshot_billingContextId_intent_isLatest_idx" ON "BillingSnapshot"("billingContextId", "intent", "isLatest");
+
+-- CreateIndex
+CREATE INDEX "BillingSnapshot_billingContextId_version_idx" ON "BillingSnapshot"("billingContextId", "version");
+
+-- CreateIndex
+CREATE INDEX "BillingSnapshot_intent_idx" ON "BillingSnapshot"("intent");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "BillingSnapshot_billingContextId_version_key" ON "BillingSnapshot"("billingContextId", "version");
@@ -430,7 +408,10 @@ ALTER TABLE "OrderProcess" ADD CONSTRAINT "OrderProcess_orderId_fkey" FOREIGN KE
 ALTER TABLE "OrderProcess" ADD CONSTRAINT "OrderProcess_processId_fkey" FOREIGN KEY ("processId") REFERENCES "Process"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_assignedUserId_fkey" FOREIGN KEY ("assignedUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_executorId_fkey" FOREIGN KEY ("executorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_locationId_fkey" FOREIGN KEY ("locationId") REFERENCES "Location"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -440,12 +421,6 @@ ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_orderProcessId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "ProcessRun" ADD CONSTRAINT "ProcessRun_runTemplateId_fkey" FOREIGN KEY ("runTemplateId") REFERENCES "RunTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "WorkflowAuditLog" ADD CONSTRAINT "WorkflowAuditLog_workflowTypeId_fkey" FOREIGN KEY ("workflowTypeId") REFERENCES "WorkflowType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "BillingContextOrder" ADD CONSTRAINT "BillingContextOrder_billingContextId_fkey" FOREIGN KEY ("billingContextId") REFERENCES "BillingContext"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

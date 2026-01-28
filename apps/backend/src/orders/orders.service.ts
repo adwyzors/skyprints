@@ -4,7 +4,7 @@ import {
     Injectable,
     NotFoundException
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { OrderProcessStatus, OrderStatus, Prisma, ProcessRunStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CloudflareService } from '../common/cloudflare.service';
@@ -26,7 +26,6 @@ export class OrdersService {
     ) { }
 
     /* ========================== QUERY ========================== */
-
     async getAll(query: OrdersQueryDto) {
         const {
             page = 1,
@@ -63,19 +62,19 @@ export class OrdersService {
         }
 
         /* ==========================
-         * STATUS NORMALIZATION (KEY FIX)
+         * STATUS NORMALIZATION (FIXED)
          * ========================== */
-        const statusCodes = status
+        const statusCodes: OrderStatus[] | undefined = status
             ? status
                 .split(',')
                 .map(s => s.trim())
-                .filter(Boolean)
+                .filter((s): s is OrderStatus =>
+                    Object.values(OrderStatus).includes(s as OrderStatus),
+                )
             : undefined;
 
-        if (statusCodes?.length) {
-            this.logger.debug(
-                `Filtering orders by statusCodes=[${statusCodes.join(', ')}]`,
-            );
+        if (status && !statusCodes?.length) {
+            throw new BadRequestException('Invalid status value');
         }
 
         /* ==========================
@@ -84,11 +83,7 @@ export class OrdersService {
         const where: Prisma.OrderWhereInput = {
             deletedAt: null,
 
-            ...(statusCodes?.length === 1 && {
-                statusCode: statusCodes[0],
-            }),
-
-            ...(statusCodes && statusCodes.length > 1 && {
+            ...(statusCodes?.length && {
                 statusCode: { in: statusCodes },
             }),
 
@@ -127,12 +122,20 @@ export class OrdersService {
                     },
 
                     customer: {
-                        select: { id: true, code: true, name: true },
+                        select: {
+                            id: true,
+                            code: true,
+                            name: true,
+                        },
                     },
+
                     processes: {
                         include: {
                             process: {
-                                select: { id: true, name: true },
+                                select: {
+                                    id: true,
+                                    name: true,
+                                },
                             },
                             runs: {
                                 orderBy: { runNumber: 'asc' },
@@ -157,24 +160,17 @@ export class OrdersService {
                                         },
                                     },
                                     executor: {
-                                        select: {
-                                            id: true,
-                                            name: true,
-                                        },
+                                        select: { id: true, name: true },
                                     },
                                     reviewer: {
-                                        select: {
-                                            id: true,
-                                            name: true,
-                                        },
+                                        select: { id: true, name: true },
                                     },
                                 },
                             },
                         },
                     },
                 },
-            })
-
+            }),
         ]);
 
         return {
@@ -224,26 +220,40 @@ export class OrdersService {
         }
 
         /* ==========================
-         * STATUS NORMALIZATION
+         * STATUS NORMALIZATION (FIXED)
          * ========================== */
-        const statusCodes = status
+        const statusCodes: OrderStatus[] | undefined = status
             ? status
                 .split(',')
                 .map(s => s.trim())
-                .filter(Boolean)
+                .filter((s): s is OrderStatus =>
+                    Object.values(OrderStatus).includes(s as OrderStatus),
+                )
             : undefined;
+
+        if (status && !statusCodes?.length) {
+            throw new BadRequestException('Invalid status value');
+        }
 
         /* ==========================
          * WHERE CLAUSE
          * ========================== */
         const where: Prisma.OrderWhereInput = {
             deletedAt: null,
-            ...(statusCodes?.length === 1 && { statusCode: statusCodes[0] }),
-            ...(statusCodes && statusCodes.length > 1 && { statusCode: { in: statusCodes } }),
-            ...(customerId && { customerId }),
-            ...(search && {
-                code: { contains: search, mode: 'insensitive' },
+
+            ...(statusCodes?.length && {
+                statusCode: { in: statusCodes },
             }),
+
+            ...(customerId && { customerId }),
+
+            ...(search && {
+                code: {
+                    contains: search,
+                    mode: 'insensitive',
+                },
+            }),
+
             ...((from || to) && {
                 createdAt: {
                     ...(from && { gte: from }),
@@ -254,11 +264,13 @@ export class OrdersService {
 
         const [total, orders] = await this.prisma.transaction([
             this.prisma.order.count({ where }),
+
             this.prisma.order.findMany({
                 where,
                 skip,
                 take: limit,
                 orderBy: { createdAt: 'desc' },
+
                 select: {
                     id: true,
                     code: true,
@@ -267,6 +279,7 @@ export class OrdersService {
                     jobCode: true,
                     createdAt: true,
                     images: true,
+
                     customer: {
                         select: {
                             id: true,
@@ -274,6 +287,7 @@ export class OrdersService {
                             code: true,
                         },
                     },
+
                     processes: {
                         select: {
                             totalRuns: true,
@@ -292,7 +306,10 @@ export class OrdersService {
             createdAt: order.createdAt,
             images: order.images,
             customer: order.customer,
-            totalRuns: order.processes.reduce((sum, p) => sum + p.totalRuns, 0),
+            totalRuns: order.processes.reduce(
+                (sum, p) => sum + p.totalRuns,
+                0,
+            ),
         }));
 
         return {
@@ -395,82 +412,58 @@ export class OrdersService {
         return code;
     }
 
-
-    async createWithImages(
-        dto: CreateOrderDto,
-        files: Express.Multer.File[],
-    ) {
+    async create(dto: CreateOrderDto) {
         const ctx = RequestContextStore.getStore();
-
         if (!ctx?.user) {
             throw new BadRequestException('User context missing');
         }
+
         const ctxuser = ctx.user;
-
-        /* =====================================================
-         * 1️⃣ Generate Order ID upfront (SAFE)
-         * ===================================================== */
         const orderId = randomUUID();
+        const uploadedImageUrls = dto.images ?? [];
 
-        let uploadedImageUrls: string[] = dto.images || [];
-
-        // Validate URLs
         if (uploadedImageUrls.some(url => !this.cloudflare.isValidImageUrl(url))) {
             throw new BadRequestException('Invalid image URLs provided');
         }
 
-        this.logger.log(
-            `[ORDER_INIT] cid=${ctx.correlationId} user=${ctx.user.id} orderId=${orderId} preUploaded=${uploadedImageUrls.length}`,
+        const processIds = dto.processes.map(p => p.processId);
+        const processCountMap = new Map(
+            dto.processes.map(p => [p.processId, p.count]),
         );
 
-        /* =====================================================
-         * 2️⃣ Upload images OUTSIDE transaction
-         * ===================================================== */
-        if (files.length > 0) {
-            if (uploadedImageUrls.length + files.length > 5) {
-                throw new BadRequestException('Maximum 5 images allowed');
-            }
-
-            const newUrls = await this.cloudflare.uploadFiles(
-                files.map(f => f.buffer),
-                files.map(f => f.originalname),
-                `orders/${orderId}`,
-            );
-            uploadedImageUrls = [...uploadedImageUrls, ...newUrls];
-        }
-
         try {
-            return await this.prisma.transaction(async (tx) => {
-                const processIds = dto.processes.map(p => p.processId);
+            return await this.prisma.transaction(async tx => {
 
-                // PARALLEL FETCH 1: Processes and Global Workflows
-                const [processes, workflow, processWorkflow] = await Promise.all([
-                    tx.process.findMany({
-                        where: { id: { in: processIds }, isEnabled: true },
-                        include: {
-                            runDefs: {
-                                orderBy: { sortOrder: 'asc' },
-                                include: {
-                                    runTemplate: {
-                                        include: {
-                                            lifecycleWorkflowType: {
-                                                include: { statuses: true },
+                /* =====================================================
+                 * LOAD PROCESSES (LEANER)
+                 * ===================================================== */
+                const processes = await tx.process.findMany({
+                    where: { id: { in: processIds }, isEnabled: true },
+                    select: {
+                        id: true,
+                        runDefs: {
+                            orderBy: { sortOrder: 'asc' },
+                            select: {
+                                displayName: true,
+                                runTemplate: {
+                                    select: {
+                                        id: true,
+                                        configWorkflowTypeId: true,
+                                        lifecycleWorkflowTypeId: true,
+                                        lifecycleWorkflowType: {
+                                            select: {
+                                                statuses: {
+                                                    where: { isInitial: true },
+                                                    select: { code: true },
+                                                },
                                             },
                                         },
                                     },
                                 },
                             },
                         },
-                    }),
-                    tx.workflowType.findUniqueOrThrow({
-                        where: { code: 'ORDER' },
-                        include: { statuses: true }
-                    }),
-                    tx.workflowType.findUniqueOrThrow({
-                        where: { code: 'ORDER_PROCESS' },
-                        include: { statuses: true }
-                    }),
-                ]);
+                    },
+                });
 
                 if (processes.length !== processIds.length) {
                     throw new BadRequestException(
@@ -478,135 +471,95 @@ export class OrdersService {
                     );
                 }
 
-                // EXTRACT INITIAL STATUSES
-                const initialStatus = workflow.statuses.find(s => s.isInitial);
-                if (!initialStatus) throw new Error('Order Initial Status not found');
-
-                const initialProcessStatus = processWorkflow.statuses.find(s => s.isInitial);
-                if (!initialProcessStatus) throw new Error('OrderProcess Initial Status not found');
-
-
-                // PARALLEL FETCH 2: Config Statuses for Runs
-                const configWorkflowTypeIds = [
-                    ...new Set(
-                        processes.flatMap(p =>
-                            p.runDefs.map(d => d.runTemplate.configWorkflowTypeId)
-                        )
-                    )
-                ];
-
-                const configStatuses = await tx.workflowStatus.findMany({
-                    where: {
-                        workflowTypeId: { in: configWorkflowTypeIds },
-                        isInitial: true
-                    }
-                });
-
-                const configStatusMap = new Map(
-                    configStatuses.map(s => [s.workflowTypeId, s.code])
-                );
-
                 const code = await this.generateOrderCode(tx);
 
                 /* =====================================================
                  * CREATE ORDER
                  * ===================================================== */
-                const order = await tx.order.create({
+                await tx.order.create({
                     data: {
                         id: orderId,
                         code,
                         customerId: dto.customerId,
                         quantity: dto.quantity,
-                        workflowTypeId: workflow.id,
-                        statusCode: initialStatus.code,
+                        statusCode: OrderStatus.CONFIGURE,
                         createdById: ctxuser.id,
                         totalProcesses: dto.processes.length,
                         completedProcesses: 0,
                         images: uploadedImageUrls,
-                        ...(dto.jobCode ? { jobCode: dto.jobCode } : {}),
+                        ...(dto.jobCode && { jobCode: dto.jobCode }),
                     },
                 });
 
-                this.logger.log(`[ORDER_CREATED] orderId=${order.id} code=${code}`);
-
                 /* =====================================================
-                 * BULK CREATE PROCESSES & RUNS
+                 * CREATE ORDER PROCESSES (BATCH)
                  * ===================================================== */
-                const processCountMap = new Map(
-                    dto.processes.map(p => [p.processId, p.count]),
+                const orderProcessesData = processes.map(p => {
+                    const count = processCountMap.get(p.id)!;
+                    return {
+                        orderId,
+                        processId: p.id,
+                        statusCode: OrderProcessStatus.CONFIGURE,
+                        totalRuns: count * p.runDefs.length,
+                        configCompletedRuns: 0,
+                        lifecycleCompletedRuns: 0,
+                    };
+                });
+
+                await tx.orderProcess.createMany({
+                    data: orderProcessesData,
+                });
+
+                const orderProcesses = await tx.orderProcess.findMany({
+                    where: { orderId },
+                    select: { id: true, processId: true },
+                });
+
+                const orderProcessMap = new Map(
+                    orderProcesses.map(op => [op.processId, op.id]),
                 );
 
+                /* =====================================================
+                 * CREATE RUNS (IN MEMORY)
+                 * ===================================================== */
                 const runsToCreate: Prisma.ProcessRunCreateManyInput[] = [];
 
-                // Create OrderProcesses in Parallel
-                await Promise.all(processes.map(async (process) => {
+                for (const process of processes) {
                     const count = processCountMap.get(process.id)!;
-                    const totalRuns = count * process.runDefs.length;
+                    const orderProcessId = orderProcessMap.get(process.id)!;
 
-                    // Create OrderProcess
-                    const orderProcess = await tx.orderProcess.create({
-                        data: {
-                            orderId,
-                            processId: process.id,
-                            workflowTypeId: processWorkflow.id,
-                            statusCode: initialProcessStatus.code,
-                            totalRuns,
-                            configCompletedRuns: 0,
-                            lifecycleCompletedRuns: 0,
-                        },
-                        select: { id: true }
-                    });
-
-                    // Generate Runs in Memory
                     let runNumber = 1;
+
                     for (let batch = 0; batch < count; batch++) {
                         for (const def of process.runDefs) {
-                            const template = def.runTemplate;
-
-                            const initialConfigCode = configStatusMap.get(template.configWorkflowTypeId);
-                            if (!initialConfigCode) {
-                                throw new Error(`Initial status for config workflow ${template.configWorkflowTypeId} not found`);
-                            }
-
-                            const initialLifecycleStatus = template.lifecycleWorkflowType.statuses.find(s => s.isInitial);
-                            if (!initialLifecycleStatus) {
-                                throw new Error(`Initial status for lifecycle workflow ${template.lifecycleWorkflowType} not found`);
-                            }
+                            const initialStatus =
+                                def.runTemplate.lifecycleWorkflowType.statuses[0];
 
                             runsToCreate.push({
-                                orderProcessId: orderProcess.id,
-                                runTemplateId: template.id,
+                                orderProcessId,
+                                runTemplateId: def.runTemplate.id,
                                 runNumber: runNumber++,
                                 displayName: `${def.displayName} (${batch + 1})`,
-                                configWorkflowTypeId: template.configWorkflowTypeId,
-                                lifecycleWorkflowTypeId: template.lifecycleWorkflowTypeId,
-                                statusCode: initialConfigCode,
-                                lifeCycleStatusCode: initialLifecycleStatus.code,
+                                configWorkflowTypeId: def.runTemplate.configWorkflowTypeId,
+                                lifecycleWorkflowTypeId: def.runTemplate.lifecycleWorkflowTypeId,
+                                statusCode: ProcessRunStatus.CONFIGURE,
+                                lifeCycleStatusCode: initialStatus.code,
                                 fields: {},
                             });
                         }
                     }
-                }));
-
-                // BULK INSERT RUNS
-                if (runsToCreate.length > 0) {
-                    await tx.processRun.createMany({
-                        data: runsToCreate,
-                    });
                 }
 
-                return { id: order.id, code };
+                if (runsToCreate.length) {
+                    await tx.processRun.createMany({ data: runsToCreate });
+                }
+
+                return { id: orderId, code };
             });
         } catch (err) {
-            if (uploadedImageUrls.length > 0) {
+            if (uploadedImageUrls.length) {
                 await this.cloudflare.deleteFiles(uploadedImageUrls);
             }
-
-            this.logger.error(
-                `[ORDER_FAILED] cid=${ctx?.correlationId} orderId=${orderId}`,
-                err?.stack,
-            );
-
             throw err;
         }
     }
@@ -625,55 +578,14 @@ export class OrdersService {
 
             if (!order) throw new NotFoundException('Order not found');
 
-            // 1. Verify all runs are COMPLETED
-            const allRuns = order.processes.flatMap(p => p.runs);
-            const incompleteRuns = allRuns.filter(r => r.statusCode !== 'COMPLETE');
-
-            if (incompleteRuns.length > 0) {
-                throw new BadRequestException(`${incompleteRuns.length} runs are not yet configured.`);
-            }
-
-            // 2. Transition Order Processes (Bulk Update)
-            // We assume successful configuration means we move from CONFIGURING -> PRODUCTION_READY (or similar)
-            // Ideally we'd map statuses dynamically, but for optimization we can assume the target state if consistent.
-            // Or better, we re-use the transition logic safely.
-
-            // Let's do it simply: Mark all processes as config completed if not already.
-            await tx.orderProcess.updateMany({
-                where: { orderId, configCompletedAt: null },
-                data: {
-                    configCompletedAt: new Date(),
-                    // We might want to explicitly set statusCode here if we know the target code
-                    // For now, let's trust the transitionOrder loop below or do it explicitly.
-                }
-            });
-
-            // To properly transition statuses using workflows, we ideally need to loop. 
-            // BUT for performance (the user's goal), we can shortcut IF the workflow is simple.
-            // Let's stick to the robust way but batched? No, workflows are specific.
-            // We'll iterate processes to transition them.
-
-            for (const proc of order.processes) {
-                // only transition if needed
-                // We can inject the logic:
-                // Find next status for 'CONFIGURING' (current)
-                // This requires loading workflow. 
-            }
-
-            // OPTIMIZED APPROACH: 
-            // 1. Update Order status directly to 'Production_Ready' (or target).
-            // 2. Update Process statuses directly to 'Ready'.
-            // Prerequisite: We must know the target codes.
-            // Let's assume 'Production_Ready' for Order and 'Ready' for Process.
-
             await tx.order.update({
                 where: { id: orderId },
-                data: { statusCode: 'PRODUCTION_READY' }
+                data: { statusCode: OrderStatus.PRODUCTION_READY }
             });
 
             await tx.orderProcess.updateMany({
                 where: { orderId },
-                data: { statusCode: 'READY' }
+                data: { statusCode: OrderProcessStatus.COMPLETE }
             });
 
             return { success: true };
@@ -685,84 +597,83 @@ export class OrdersService {
      * ORDER TRANSITION
      * ========================================================= */
 
-    public async transitionOrderById(
-        tx: Prisma.TransactionClient,
-        orderId: string,
-    ): Promise<void> {
-        const order = await tx.order.findUnique({
-            where: { id: orderId },
-            select: {
-                id: true,
-                workflowTypeId: true,
-                statusCode: true,
-            },
-        });
+    //public async transitionOrderById(
+    //    tx: Prisma.TransactionClient,
+    //    orderId: string,
+    //): Promise<void> {
+    //    const order = await tx.order.findUnique({
+    //        where: { id: orderId },
+    //        select: {
+    //            id: true,
+    //            statusCode: true,
+    //        },
+    //    });
 
-        if (!order) {
-            this.logger.error(`[ORDER][NOT_FOUND] order=${orderId}`);
-            return;
-        }
+    //    if (!order) {
+    //        this.logger.error(`[ORDER][NOT_FOUND] order=${orderId}`);
+    //        return;
+    //    }
 
-        await this.transitionOrder(tx, order);
-    }
+    //    await this.transitionOrder(tx, order);
+    //}
 
-    public async transitionOrder(
-        tx: Prisma.TransactionClient,
-        order: {
-            id: string;
-            workflowTypeId: string;
-            statusCode: string;
-        },
-    ): Promise<string> {
+    //public async transitionOrder(
+    //    tx: Prisma.TransactionClient,
+    //    order: {
+    //        id: string;
+    //        workflowTypeId: string;
+    //        statusCode: string;
+    //    },
+    //): Promise<string> {
 
-        const wf = await tx.workflowType.findUnique({
-            where: { id: order.workflowTypeId },
-            select: {
-                id: true,
-                statuses: { select: { id: true, code: true } },
-                transitions: { select: { fromStatusId: true, toStatusId: true } },
-            },
-        });
+    //    const wf = await tx.workflowType.findUnique({
+    //        where: { id: order.workflowTypeId },
+    //        select: {
+    //            id: true,
+    //            statuses: { select: { id: true, code: true } },
+    //            transitions: { select: { fromStatusId: true, toStatusId: true } },
+    //        },
+    //    });
 
-        if (!wf) {
-            throw new BadRequestException('Order workflow missing');
-        }
+    //    if (!wf) {
+    //        throw new BadRequestException('Order workflow missing');
+    //    }
 
-        const current = wf.statuses.find(s => s.code === order.statusCode);
-        if (!current) {
-            throw new BadRequestException('Invalid order status');
-        }
+    //    const current = wf.statuses.find(s => s.code === order.statusCode);
+    //    if (!current) {
+    //        throw new BadRequestException('Invalid order status');
+    //    }
 
-        const transition = wf.transitions.find(
-            t => t.fromStatusId === current.id,
-        );
-        if (!transition) {
-            this.logger.log(
-                `[ORDER][NO_TRANSITION] order=${order.id} status=${current.code}`,
-            );
-            return "";
-        }
+    //    const transition = wf.transitions.find(
+    //        t => t.fromStatusId === current.id,
+    //    );
+    //    if (!transition) {
+    //        this.logger.log(
+    //            `[ORDER][NO_TRANSITION] order=${order.id} status=${current.code}`,
+    //        );
+    //        return "";
+    //    }
 
-        const toStatus = wf.statuses.find(
-            s => s.id === transition.toStatusId,
-        );
-        if (!toStatus) {
-            throw new BadRequestException('Invalid order transition target');
-        }
+    //    const toStatus = wf.statuses.find(
+    //        s => s.id === transition.toStatusId,
+    //    );
+    //    if (!toStatus) {
+    //        throw new BadRequestException('Invalid order transition target');
+    //    }
 
-        this.logger.log(
-            `[ORDER][TRANSITION] order=${order.id} ${current.code} → ${toStatus.code}`,
-        );
+    //    this.logger.log(
+    //        `[ORDER][TRANSITION] order=${order.id} ${current.code} → ${toStatus.code}`,
+    //    );
 
-        await tx.order.updateMany({
-            where: {
-                id: order.id,
-                statusCode: order.statusCode,
-            },
-            data: { statusCode: toStatus.code },
-        });
-        return toStatus.code;
-    }
+    //    await tx.order.updateMany({
+    //        where: {
+    //            id: order.id,
+    //            statusCode: order.statusCode,
+    //        },
+    //        data: { statusCode: toStatus.code },
+    //    });
+    //    return toStatus.code;
+    //}
 
     /* ========================== IMAGE UPLOAD ========================== */
 

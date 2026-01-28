@@ -14,8 +14,11 @@ export type ConfigureProcessRunDto =
 
 
 export const TransitionProcessRunSchema = z.object({
+    statusCode: z
+        .string()
+        .trim()
+        .min(1, 'statusCode is required'),
 });
 
 export type TransitionProcessRunDto =
     z.infer<typeof TransitionProcessRunSchema>;
-

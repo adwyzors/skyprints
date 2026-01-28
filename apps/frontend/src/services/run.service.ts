@@ -50,7 +50,7 @@ export async function transitionLifeCycle(
         `/process/${processId}/runs/${runId}/transition`,
         {
             method: "POST",
-            body: JSON.stringify({ fields }),
+            body: JSON.stringify(fields),
         }
     );
 }

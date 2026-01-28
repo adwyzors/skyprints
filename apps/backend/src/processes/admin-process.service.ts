@@ -8,7 +8,7 @@ import {
     Injectable,
     NotFoundException
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { OrderStatus, ProcessRunStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CloudflareService } from '../common/cloudflare.service';
 import { ContextLogger } from '../common/logger/context.logger';
@@ -98,7 +98,7 @@ export class AdminProcessService {
         return processes.map(toProcessSummary);
     }
 
-    async configureWithImages(
+    async configure(
         orderProcessId: string,
         processRunId: string,
         dto: ConfigureProcessRunDto,
@@ -106,32 +106,20 @@ export class AdminProcessService {
         return this.prisma.transaction(async tx => {
 
             /* =====================================================
-             * LOAD RUN + TEMPLATE
+             * LOAD RUN + TEMPLATE (LEAN)
              * ===================================================== */
-            const run = await tx.processRun.findFirst({
-                where: { id: processRunId, orderProcessId },
+            const run = await tx.processRun.findUnique({
+                where: {
+                    id: processRunId,
+                    orderProcessId,
+                },
                 select: {
                     id: true,
-                    statusCode: true,
                     fields: true,
                     orderProcessId: true,
-                    orderProcess: {
-                        select: { orderId: true },
-                    },
                     runTemplate: {
                         select: {
                             fields: true,
-                            configWorkflowType: {
-                                select: {
-                                    id: true,
-                                    statuses: {
-                                        select: { id: true, code: true, isInitial: true },
-                                    },
-                                    transitions: {
-                                        select: { fromStatusId: true, toStatusId: true },
-                                    },
-                                },
-                            },
                         },
                     },
                 },
@@ -148,15 +136,13 @@ export class AdminProcessService {
                 run.runTemplate.fields as RunTemplateField[],
                 dto.fields,
             );
+
             /* =====================================================
-            * EXECUTOR / REVIEWER VALIDATION
-            * ===================================================== */
+             * EXECUTOR / REVIEWER VALIDATION
+             * ===================================================== */
             if (dto.executorId || dto.reviewerId) {
-                // Collect unique user IDs only
                 const userIds = Array.from(
-                    new Set(
-                        [dto.executorId, dto.reviewerId].filter(Boolean),
-                    ),
+                    new Set([dto.executorId, dto.reviewerId].filter(Boolean)),
                 ) as string[];
 
                 const users = await tx.user.findMany({
@@ -169,94 +155,58 @@ export class AdminProcessService {
                 });
 
                 if (users.length !== userIds.length) {
-                    throw new BadRequestException(
-                        'Invalid executor or reviewer',
-                    );
+                    throw new BadRequestException('Invalid executor or reviewer');
                 }
             }
 
-
             /* =====================================================
-             * IMAGES (FROM DTO)
+             * IMAGES
              * ===================================================== */
-            const uploadedUrls: string[] = dto.images ?? [];
+            const uploadedUrls = dto.images ?? [];
 
             if (uploadedUrls.length > 2) {
                 throw new BadRequestException('Maximum 2 images allowed');
             }
 
+            // Validate URLs
+            if (uploadedUrls.some(url => !this.cloudflare.isValidImageUrl(url))) {
+                throw new BadRequestException('Invalid image URLs provided');
+            }
+
+
             /* =====================================================
              * MERGE FIELDS
              * ===================================================== */
-            const existingImages = (run.fields as any)?.images ?? [];
-
             const mergedFields = {
                 ...(run.fields as Record<string, any> ?? {}),
                 ...normalizedFields,
-                images: [...existingImages, ...uploadedUrls].slice(0, 2),
+                images: uploadedUrls,
             };
 
             /* =====================================================
-             * WORKFLOW VALIDATION
+             * UPDATE RUN + PROCESS
              * ===================================================== */
-            const wf = run.runTemplate.configWorkflowType;
-            if (!wf) {
-                throw new BadRequestException('Config workflow missing');
-            }
+            await Promise.all([
+                tx.processRun.update({
+                    where: { id: run.id },
+                    data: {
+                        fields: mergedFields,
+                        statusCode: ProcessRunStatus.COMPLETE,
+                        ...(dto.executorId !== undefined && { executorId: dto.executorId }),
+                        ...(dto.reviewerId !== undefined && { reviewerId: dto.reviewerId }),
+                    },
+                }),
 
-            const current = wf.statuses.find(s => s.code === run.statusCode);
-            if (!current || !current.isInitial) {
-                throw new BadRequestException('Invalid config state');
-            }
-
-            const transition = wf.transitions.find(
-                t => t.fromStatusId === current.id,
-            );
-            if (!transition) {
-                throw new BadRequestException('No config transition');
-            }
-
-            const toStatus = wf.statuses.find(
-                s => s.id === transition.toStatusId,
-            );
-            if (!toStatus) {
-                throw new BadRequestException('Invalid transition target');
-            }
-
-            /* =====================================================
-             * UPDATE RUN
-             * ===================================================== */
-            await tx.processRun.update({
-                where: { id: run.id },
-                data: {
-                    fields: mergedFields,
-                    statusCode: toStatus.code,
-
-                    ...(dto.executorId !== undefined && {
-                        executorId: dto.executorId,
-                    }),
-
-                    ...(dto.reviewerId !== undefined && {
-                        reviewerId: dto.reviewerId,
-                    }),
-                },
-            });
-
-            /* =====================================================
-             * ORDER PROCESS PROGRESS (INCREMENT ONLY)
-             * ===================================================== */
-            // We increment configCompletedRuns for visibility/progress bars,
-            // but we DO NOT trigger any transitions here to save performance.
-            // The "Production Ready" action will come from a separate API call.
-            await tx.orderProcess.update({
-                where: { id: run.orderProcessId },
-                data: { configCompletedRuns: { increment: 1 } },
-                select: { id: true },
-            });
+                tx.orderProcess.update({
+                    where: { id: run.orderProcessId },
+                    data: { configCompletedRuns: { increment: 1 } },
+                }),
+            ]);
 
             return { success: true };
         });
     }
+
 
 
     async deleteRunImage(
@@ -378,98 +328,30 @@ export class AdminProcessService {
     }
 
     /* =========================================================
-     * ORDER PROCESS TRANSITION
-     * ========================================================= */
-
-    private async transitionOrderProcess(
-        tx: Prisma.TransactionClient,
-        op: {
-            id: string;
-            workflowTypeId: string;
-            statusCode: string;
-        },
-    ) {
-        const wf = await tx.workflowType.findUnique({
-            where: { id: op.workflowTypeId },
-            select: {
-                id: true,
-                statuses: { select: { id: true, code: true } },
-                transitions: { select: { fromStatusId: true, toStatusId: true } },
-            },
-        });
-
-        if (!wf) {
-            throw new BadRequestException('OrderProcess workflow missing');
-        }
-
-        const current = wf.statuses.find(s => s.code === op.statusCode);
-        if (!current) {
-            throw new BadRequestException('Invalid OrderProcess status');
-        }
-
-        const transition = wf.transitions.find(
-            t => t.fromStatusId === current.id,
-        );
-        if (!transition) {
-            this.logger.log(
-                `[ORDER_PROCESS][NO_TRANSITION] orderProcess=${op.id}`,
-            );
-            return;
-        }
-
-        const toStatus = wf.statuses.find(
-            s => s.id === transition.toStatusId,
-        );
-        if (!toStatus) {
-            throw new BadRequestException('Invalid OrderProcess transition target');
-        }
-
-        this.logger.log(
-            `[ORDER_PROCESS][TRANSITION] orderProcess=${op.id} ${current.code} → ${toStatus.code}`,
-        );
-
-        await tx.orderProcess.updateMany({
-            where: {
-                id: op.id,
-                statusCode: op.statusCode,
-            },
-            data: {
-                statusCode: toStatus.code,
-            },
-        });
-    }
-
-    /* =========================================================
      * RUN LIFECYCLE TRANSITION
      * ========================================================= */
 
-    async transition(orderProcessId: string, processRunId: string) {
+    async transition(
+        orderProcessId: string,
+        processRunId: string,
+        targetStatusCode: string,
+    ) {
         this.logger.log(
-            `[LIFECYCLE][START] orderProcessId=${orderProcessId} processRunId=${processRunId}`,
+            `[LIFECYCLE][START] orderProcess=${orderProcessId} run=${processRunId} → ${targetStatusCode}`,
         );
 
         return this.prisma.transaction(async tx => {
+
+            /* =====================================================
+             * 1️⃣ LOAD RUN (MINIMAL)
+             * ===================================================== */
             const run = await tx.processRun.findFirst({
                 where: { id: processRunId, orderProcessId },
                 select: {
                     id: true,
                     orderProcessId: true,
                     lifeCycleStatusCode: true,
-                    runTemplate: {
-                        select: {
-                            lifecycleWorkflowType: {
-                                select: {
-                                    id: true,
-                                    statuses: {
-                                        select: { id: true, code: true, isTerminal: true },
-                                    },
-                                    transitions: {
-                                        select: { fromStatusId: true, toStatusId: true },
-                                    },
-                                },
-                            },
-                        },
-                    },
+                    runTemplateId: true,
                 },
             });
 
@@ -477,107 +359,76 @@ export class AdminProcessService {
                 throw new BadRequestException('Invalid process run');
             }
 
-            const wf = run.runTemplate.lifecycleWorkflowType;
-            if (!wf) {
-                throw new BadRequestException('Lifecycle workflow missing');
+            /* =====================================================
+             * 2️⃣ LOAD WORKFLOW ID
+             * ===================================================== */
+            const template = await tx.runTemplate.findUnique({
+                where: { id: run.runTemplateId },
+                select: { lifecycleWorkflowTypeId: true },
+            });
+
+            if (!template) {
+                throw new BadRequestException('RunTemplate missing');
             }
 
-            const current = wf.statuses.find(
+            /* =====================================================
+             * 3️⃣ LOAD BOTH CURRENT + TARGET STATUSES
+             * ===================================================== */
+            const statuses = await tx.workflowStatus.findMany({
+                where: {
+                    workflowTypeId: template.lifecycleWorkflowTypeId,
+                    code: {
+                        in: [
+                            run.lifeCycleStatusCode,
+                            targetStatusCode,
+                        ],
+                    },
+                },
+                select: {
+                    id: true,
+                    code: true,
+                    isTerminal: true,
+                },
+            });
+
+            const current = statuses.find(
                 s => s.code === run.lifeCycleStatusCode,
             );
+
             if (!current) {
-                throw new BadRequestException('Invalid lifecycle state');
+                throw new BadRequestException('Invalid current lifecycle state');
             }
 
-            const transition = wf.transitions.find(
-                t => t.fromStatusId === current.id,
-            );
-            if (!transition) {
-                throw new BadRequestException('No lifecycle transition');
+            if (current.isTerminal) {
+                throw new BadRequestException('Run already in terminal state');
             }
 
-            const toStatus = wf.statuses.find(
-                s => s.id === transition.toStatusId,
+            const target = statuses.find(
+                s => s.code === targetStatusCode,
             );
-            if (!toStatus) {
-                throw new BadRequestException('Invalid lifecycle transition target');
+
+            if (!target) {
+                throw new BadRequestException('Invalid target lifecycle state');
             }
 
-            this.logger.log(
-                `[LIFECYCLE][RUN_TRANSITION] run=${run.id} ${current.code} → ${toStatus.code}`,
-            );
-
+            /* =====================================================
+             * 4️⃣ UPDATE RUN STATUS
+             * ===================================================== */
             await tx.processRun.update({
                 where: { id: run.id },
-                data: { lifeCycleStatusCode: toStatus.code },
+                data: { lifeCycleStatusCode: target.code },
             });
 
-            const orderProcess = await tx.orderProcess.findUnique({
-                where: { id: run.orderProcessId },
-                select: {
-                    id: true,
-                    orderId: true,
-                    totalRuns: true,
-                    lifecycleCompletedRuns: true,
-                    workflowTypeId: true,
-                    statusCode: true,
-                },
-            });
-
-            if (!orderProcess) {
-                throw new BadRequestException('Invalid order process');
+            /* =====================================================
+             * 5️⃣ EARLY EXIT IF NOT TERMINAL
+             * ===================================================== */
+            if (!target.isTerminal) {
+                return { success: true, status: target.code };
             }
 
-            const orderSnapshot = await tx.order.findUnique({
-                where: { id: orderProcess.orderId },
-                select: {
-                    id: true,
-                    lifecycleStartedAt: true,
-                    statusCode: true,
-                },
-            });
-
-            if (!orderSnapshot) {
-                throw new BadRequestException('Invalid order');
-            }
-
-            /**
-             * Start order lifecycle exactly once
-             */
-
-            let orderStatus: string = orderSnapshot.statusCode;
-
-            if (!orderSnapshot.lifecycleStartedAt) {
-                const started = await tx.order.updateMany({
-                    where: {
-                        id: orderSnapshot.id,
-                        lifecycleStartedAt: null,
-                    },
-                    data: { lifecycleStartedAt: new Date() },
-                });
-
-                if (started.count === 1) {
-                    this.logger.log(
-                        `[ORDER][LIFECYCLE_STARTED] order=${orderSnapshot.id}`,
-                    );
-
-                    const orderForTransition = await tx.order.findUniqueOrThrow({
-                        where: { id: orderSnapshot.id },
-                        select: {
-                            id: true,
-                            workflowTypeId: true,
-                            statusCode: true,
-                        },
-                    });
-
-                    orderStatus = await this.orderService.transitionOrder(tx, orderForTransition);
-                }
-            }
-
-            if (!toStatus.isTerminal) {
-                return { success: true, status: orderStatus };
-            }
-
+            /* =====================================================
+             * 6️⃣ TERMINAL HANDLING
+             * ===================================================== */
             const updatedOrderProcess = await tx.orderProcess.update({
                 where: { id: run.orderProcessId },
                 data: { lifecycleCompletedRuns: { increment: 1 } },
@@ -586,8 +437,6 @@ export class AdminProcessService {
                     orderId: true,
                     totalRuns: true,
                     lifecycleCompletedRuns: true,
-                    workflowTypeId: true,
-                    statusCode: true,
                 },
             });
 
@@ -601,39 +450,30 @@ export class AdminProcessService {
             });
 
             if (finalized.count === 1) {
-                this.logger.log(
-                    `[LIFECYCLE][ORDER_PROCESS_COMPLETED] orderProcess=${updatedOrderProcess.id}`,
-                );
-
-                await this.transitionOrderProcess(tx, updatedOrderProcess);
-
                 const updatedOrder = await tx.order.update({
                     where: { id: updatedOrderProcess.orderId },
                     data: { completedProcesses: { increment: 1 } },
                     select: {
                         id: true,
-                        workflowTypeId: true,
-                        statusCode: true,
                         totalProcesses: true,
                         completedProcesses: true,
                     },
                 });
 
-                this.logger.log(
-                    `[ORDER][PROGRESS] order=${updatedOrder.id} ${updatedOrder.completedProcesses}/${updatedOrder.totalProcesses}`,
-                );
-
-                if (
-                    updatedOrder.completedProcesses ===
-                    updatedOrder.totalProcesses
-                ) {
-                    orderStatus = await this.orderService.transitionOrder(tx, updatedOrder);
+                if (updatedOrder.completedProcesses === updatedOrder.totalProcesses) {
+                    await tx.order.update({
+                        where: { id: updatedOrder.id },
+                        data: { statusCode: OrderStatus.COMPLETE },
+                    });
                 }
             }
 
-            return { success: true, status: orderStatus };
+            return { success: true, status: target.code };
         });
     }
+
+
+
 
 
 

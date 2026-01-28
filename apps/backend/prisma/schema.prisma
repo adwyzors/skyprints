@@ -18,7 +18,6 @@ model User {
   isActive      Boolean  @default(true)
 
   createdOrders Order[]
-  notifications Notification[]
 
   locationId String?   @unique
   location   Location? @relation(fields: [locationId], references: [id])
@@ -81,7 +80,6 @@ model WorkflowType {
 
   statuses    WorkflowStatus[]
   transitions WorkflowTransition[]
-  auditLogs   WorkflowAuditLog[]
 
   configRunTemplates    RunTemplate[] @relation("ConfigWF")
   lifecycleRunTemplates RunTemplate[] @relation("LifecycleWF")
@@ -106,6 +104,7 @@ model WorkflowStatus {
   createdAt DateTime @default(now())
 
   @@unique([workflowTypeId, code])
+  @@index([workflowTypeId, code])
   @@index([workflowTypeId, createdAt])
   @@index([workflowTypeId, isInitial])
   @@index([workflowTypeId, isTerminal])
@@ -126,6 +125,7 @@ model WorkflowTransition {
   @@index([workflowTypeId])
   @@index([fromStatusId])
   @@index([toStatusId])
+  @@index([fromStatusId, toStatusId])
 }
 
 //////////////////////////////
@@ -191,6 +191,29 @@ model ProcessRunDefinition {
 // ORDERS
 ///////////////////////////////
 
+enum OrderStatus {
+    CONFIGURE 
+    PRODUCTION_READY
+    IN_PRODUCTION 
+    COMPLETE 
+    BILLED 
+    GROUP_BILLED 
+}
+
+enum OrderProcessStatus {
+    CONFIGURE 
+    IN_PROGRESS 
+    COMPLETE 
+}
+
+
+enum ProcessRunStatus {
+    CONFIGURE 
+    IN_PROGRESS 
+    COMPLETE 
+}
+
+
 model Order {
   id         String @id @default(uuid())
   code       String
@@ -199,31 +222,31 @@ model Order {
   customerId String
   quantity   Int
 
-  workflowTypeId String
-  statusCode     String
-  jobCode        String?
-  images         String[] @default([])
+  statusCode OrderStatus
+  jobCode    String?
+  images     String[] @default([])
 
   createdById String
   createdBy   User     @relation(fields: [createdById], references: [id])
   customer    Customer @relation(fields: [customerId], references: [id])
 
-  totalProcesses       Int @default(0)
-  completedProcesses   Int @default(0)
+  totalProcesses     Int @default(0)
+  completedProcesses Int @default(0)
 
   processes OrderProcess[]
-
   billingContexts BillingContextOrder[]
 
   createdAt DateTime @default(now())
   lifecycleStartedAt DateTime?
 
   @@unique([code, deletedAt])
-  @@index([deletedAt])
-  @@index([createdAt])
-  @@index([customerId])
-  @@index([createdById])
-  @@index([workflowTypeId])
+
+  @@index([id, deletedAt])
+  @@index([deletedAt, createdAt(sort: Desc)])
+  @@index([deletedAt, statusCode])
+  @@index([deletedAt, customerId, createdAt(sort: Desc)])
+  @@index([deletedAt, statusCode, createdAt(sort: Desc)])
+  @@index([deletedAt, createdById])
 }
 
 ///////////////////////////////
@@ -235,8 +258,7 @@ model OrderProcess {
   orderId   String
   processId String
 
-  workflowTypeId String
-  statusCode     String
+  statusCode     OrderProcessStatus
 
   totalRuns              Int       @default(0)
   configCompletedRuns    Int       @default(0)
@@ -251,6 +273,7 @@ model OrderProcess {
   runs ProcessRun[]
 
   @@unique([orderId, processId])
+  @@index([lifecycleCompletedRuns, totalRuns])
 }
 
 
@@ -268,7 +291,7 @@ model ProcessRun {
   configWorkflowTypeId    String
   lifecycleWorkflowTypeId String
 
-  statusCode          String
+  statusCode          ProcessRunStatus
   lifeCycleStatusCode String
 
   fields Json
@@ -286,6 +309,8 @@ model ProcessRun {
   runTemplate  RunTemplate  @relation(fields: [runTemplateId], references: [id])
 
   @@unique([orderProcessId, runNumber])
+  @@index([orderProcessId, id])
+  @@index([orderProcessId, lifeCycleStatusCode])
 }
 
 
@@ -311,63 +336,6 @@ model Location {
   @@index([isActive])
 }
 
-//////////////////////////////
-// OUTBOX & AUDIT
-//////////////////////////////
-
-model OutboxEvent {
-  id            String   @id @default(uuid())
-  aggregateType String
-  aggregateId   String
-  eventType     String
-  payload       Json
-
-  processed     Boolean  @default(false)
-  failed        Boolean  @default(false)
-  errorMessage  String?
-
-  createdAt     DateTime @default(now())
-
-  @@index([processed, failed, createdAt])
-  @@index([aggregateType, aggregateId])
-}
-
-model WorkflowAuditLog {
-  id             String @id @default(uuid())
-  workflowTypeId String
-  aggregateType  String
-  aggregateId    String
-  fromStatus     String?
-  toStatus       String
-
-  workflowType WorkflowType @relation(fields: [workflowTypeId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@index([workflowTypeId])
-  @@index([aggregateType, aggregateId])
-}
-
-///////////////////////////////
-// NOTIFICATIONS
-///////////////////////////////
-
-model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  type      String
-  title     String
-  message   String
-  isRead    Boolean  @default(false)
-  metadata  Json?
-
-  user      User @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-  readAt    DateTime?
-
-  @@index([userId, isRead, createdAt])
-}
 
 ///////////////////////////////
 // BILLING
@@ -441,5 +409,8 @@ model BillingSnapshot {
 
   @@unique([billingContextId, version])
   @@index([billingContextId, isLatest])
+  @@index([billingContextId, intent, isLatest])
+  @@index([billingContextId, version])
+  @@index([intent])
 }
 

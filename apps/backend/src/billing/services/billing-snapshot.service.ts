@@ -1,8 +1,9 @@
 import type { GetLatestBillingSnapshotDto } from "@app/contracts";
 import { Injectable } from "@nestjs/common";
-import { BillingSnapshotIntent, Prisma } from "@prisma/client";
+import { BillingSnapshotIntent, CalculationType, OrderStatus, Prisma } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
+import pLimit from 'p-limit';
 import { ContextLogger } from "../../common/logger/context.logger";
 import { OrdersService } from "../../orders/orders.service";
 import {
@@ -11,6 +12,7 @@ import {
 } from "../types/billing-snapshot.types";
 import { BillingCalculatorService } from "./billing-calculator.service";
 import { BillingContextResolver } from "./billing-context.resolver";
+
 
 @Injectable()
 export class BillingSnapshotService {
@@ -23,9 +25,6 @@ export class BillingSnapshotService {
         private readonly ordersService: OrdersService
     ) { }
 
-    /* =====================================================
-       INTERNAL — transactional only
-    ===================================================== */
     private async saveDraftTx(
         tx: Prisma.TransactionClient,
         billingContextId: string,
@@ -35,56 +34,49 @@ export class BillingSnapshotService {
         createdBy?: string,
     ) {
         this.logger.debug(
-            `[saveDraftTx] billingContextId=${billingContextId} createdBy=${createdBy ?? "system"}`
+            `[saveDraftTx] billingContextId=${billingContextId} createdBy=${createdBy ?? 'system'}`,
         );
 
-        const last = await tx.billingSnapshot.findFirst({
+        // 1️⃣ Invalidate previous latest snapshot (atomic, indexed)
+        await tx.billingSnapshot.updateMany({
             where: {
                 billingContextId,
-                intent: intent,
-                isLatest: true
-            }
+                intent,
+                isLatest: true,
+            },
+            data: { isLatest: false },
         });
 
-        if (last) {
-            this.logger.debug(
-                `[saveDraftTx] Updating existing DRAFT snapshot id=${last.id} with intent=${intent}`
-            );
+        // 2️⃣ Compute next version safely (O(1))
+        const { _max } = await tx.billingSnapshot.aggregate({
+            where: { billingContextId },
+            _max: { version: true },
+        });
 
-            return tx.billingSnapshot.update({
-                where: { id: last.id },
-                data: {
-                    inputs,
-                    reason,
-                    createdBy
-                }
-            });
-        }
-
-        const version =
-            (await tx.billingSnapshot.count({
-                where: { billingContextId }
-            })) + 1;
+        const version = (_max.version ?? 0) + 1;
 
         this.logger.debug(
-            `[saveDraftTx] Creating new DRAFT snapshot version=${version}`
+            `[saveDraftTx] Creating snapshot version=${version} intent=${intent}`,
         );
 
+        // 3️⃣ Create new snapshot
         return tx.billingSnapshot.create({
             data: {
                 billingContextId,
                 version,
                 isLatest: true,
-                intent: intent,
+                intent,
                 inputs,
                 result: new Prisma.Decimal(0),
-                currency: "INR",
-                calculationType: "INITIAL",
+                currency: 'INR',
+                calculationType: CalculationType.INITIAL,
                 reason,
-                createdBy
-            }
+                createdBy,
+            },
         });
     }
+
+
 
     public async createGroupSnapshot(
         billingContextId: string,
@@ -105,172 +97,192 @@ export class BillingSnapshotService {
 
     public async createGroupSnapshotTx(
         billingContextId: string,
-        inputRequest: Record<string, Record<string, Record<string, number>>>,
-        createdBy?: string
+        inputRequest: Record<
+            string,
+            Record<string, Record<string, number>>
+        >,
+        createdBy?: string,
     ) {
         this.logger.debug(
-            `[createGroupSnapshotTx] billingContextId=${billingContextId}`
+            `[createGroupSnapshotTx] billingContextId=${billingContextId}`,
         );
 
         /* -------------------------------
-           1️⃣ READ context + orders (NO TX)
+           1️⃣ Load context + orders (LEAN)
         ------------------------------- */
         const context = await this.prisma.billingContext.findUnique({
             where: { id: billingContextId },
-            include: { orders: true }
+            select: {
+                id: true,
+                type: true,
+                orders: {
+                    select: {
+                        orderId: true,
+                    },
+                },
+            },
         });
 
-        if (!context || context.type !== "GROUP") {
-            throw new Error("Invalid GROUP billing context");
+        if (!context || context.type !== 'GROUP') {
+            throw new Error('Invalid GROUP billing context');
         }
 
-        if (context.orders.length === 0) {
-            throw new Error(
-                "Cannot create group snapshot without orders"
+        if (!context.orders.length) {
+            throw new Error('Cannot create group snapshot without orders');
+        }
+
+        const orderIds = context.orders.map(o => o.orderId);
+
+        /* -------------------------------
+           2️⃣ Finalize orders (BOUNDED PARALLELISM)
+        ------------------------------- */
+        if (inputRequest && Object.keys(inputRequest).length) {
+            const limit = pLimit(7);
+
+            await Promise.all(
+                Object.entries(inputRequest).map(
+                    ([orderId, orderInputs]) =>
+                        limit(() =>
+                            this.finalizeOrder(
+                                orderId,
+                                orderInputs as OrderBillingInputs,
+                                BillingSnapshotIntent.FINAL,
+                                'GROUP_RECALCULATION',
+                                createdBy,
+                            ),
+                        ),
+                ),
             );
         }
 
         /* -------------------------------
-        1️⃣.a FINALIZE orders if inputs provided (NO TX)
+           3️⃣ Load latest FINAL snapshots ONLY
+           (no version ordering needed)
         ------------------------------- */
-        if (
-            inputRequest &&
-            Object.keys(inputRequest).length > 0
-        ) {
-            this.logger.log(
-                `[createGroupSnapshotTx] Finalizing ${Object.keys(inputRequest).length} orders before group snapshot`
-            );
+        const orderSnapshots = await this.prisma.billingSnapshot.findMany({
+            where: {
+                intent: 'FINAL',
+                isLatest: true,
+                billingContext: {
+                    type: 'ORDER',
+                    orders: {
+                        some: {
+                            orderId: { in: orderIds },
+                        },
+                    },
+                },
+            },
+            select: {
+                inputs: true,
+                billingContext: {
+                    select: {
+                        orders: {
+                            select: { orderId: true },
+                        },
+                    },
+                },
+            },
+        });
 
-            for (const [orderId, orderInputs] of Object.entries(inputRequest)) {
-                // Defensive validation
-                if (!orderInputs || Object.keys(orderInputs).length === 0) {
-                    this.logger.warn(
-                        `[createGroupSnapshotTx] Skipping empty inputs for orderId=${orderId}`
-                    );
-                    continue;
-                }
+        /* -------------------------------
+           4️⃣ Map snapshots by orderId (O(n))
+        ------------------------------- */
+        const snapshotByOrderId = new Map<string, OrderBillingInputs>();
 
-                if (!isOrderBillingInputs(orderInputs)) {
-                    throw new Error(
-                        `Invalid OrderBillingInputs for orderId=${orderId}`
-                    );
-                }
-
-                await this.finalizeOrder(
-                    orderId,
-                    orderInputs as OrderBillingInputs,
-                    BillingSnapshotIntent.FINAL,
-                    "GROUP_RECALCULATION",
-                    createdBy,
+        for (const snapshot of orderSnapshots) {
+            for (const o of snapshot.billingContext.orders) {
+                snapshotByOrderId.set(
+                    o.orderId,
+                    snapshot.inputs as OrderBillingInputs,
                 );
             }
         }
 
-
         /* -------------------------------
-           2️⃣ READ FINAL snapshots (NO TX)
-           — include orders so we can match by orderId
-        ------------------------------- */
-        const orderSnapshots = await this.prisma.billingSnapshot.findMany({
-            where: {
-                intent: "FINAL",
-                billingContext: {
-                    type: "ORDER",
-                    orders: {
-                        some: {
-                            orderId: {
-                                in: context.orders.map(o => o.orderId)
-                            }
-                        }
-                    }
-                }
-            },
-            include: {
-                billingContext: {
-                    include: {
-                        orders: true
-                    }
-                }
-            },
-            orderBy: { version: "desc" }
-        });
-
-        /* -------------------------------
-           3️⃣ BUILD per-order inputs
+           5️⃣ Build calculation inputs
         ------------------------------- */
         const inputs: {
             orderId: string;
             inputs: OrderBillingInputs;
         }[] = [];
 
-        for (const o of context.orders) {
-            const snapshot = orderSnapshots.find(s =>
-                s.billingContext.orders.some(
-                    ord => ord.orderId === o.orderId
-                )
-            );
+        for (const orderId of orderIds) {
+            const orderInputs = snapshotByOrderId.get(orderId);
 
-            if (!snapshot) {
+            if (!orderInputs) {
                 throw new Error(
-                    `Missing FINAL snapshot for order=${o.orderId}`
+                    `Missing FINAL snapshot for order=${orderId}`,
                 );
             }
 
-            if (!isOrderBillingInputs(snapshot.inputs)) {
+            if (!isOrderBillingInputs(orderInputs)) {
                 throw new Error(
-                    `Invalid billing snapshot inputs for order=${o.orderId}`
+                    `Invalid billing inputs for order=${orderId}`,
                 );
             }
 
-            inputs.push({
-                orderId: o.orderId,
-                inputs: snapshot.inputs as OrderBillingInputs
-            });
+            inputs.push({ orderId, inputs: orderInputs });
         }
 
         /* -------------------------------
-           4️⃣ CALCULATE (NO TX)
+           6️⃣ Calculate (NO TX)
         ------------------------------- */
         const calc =
-            await this.calculator.calculateForGroupFromSnapshots(inputs);
+            await this.calculator.calculateForGroupFromSnapshots(
+                inputs,
+            );
 
         /* -------------------------------
-           5️⃣ WRITE snapshot (SHORT TX)
+           7️⃣ Create GROUP snapshot (SHORT TX)
         ------------------------------- */
-        const snapshot = await this.prisma.transaction(async (tx) => {
-            const version =
-                (await tx.billingSnapshot.count({
-                    where: { billingContextId }
-                })) + 1;
+        const snapshot = await this.prisma.transaction(async tx => {
+            const { _max } = await tx.billingSnapshot.aggregate({
+                where: { billingContextId },
+                _max: { version: true },
+            });
+
+            const version = (_max.version ?? 0) + 1;
 
             return tx.billingSnapshot.create({
                 data: {
                     billingContextId,
                     version,
-                    intent: "FINAL",
+                    intent: 'FINAL',
                     isLatest: true,
                     inputs: calc.perOrderInputs,
                     result: calc.result,
-                    currency: "INR",
-                    calculationType: "RECALCULATED",
-                    createdBy
-                }
+                    currency: 'INR',
+                    calculationType: CalculationType.RECALCULATED,
+                    createdBy,
+                },
             });
         });
 
+        /* -------------------------------
+           8️⃣ Transition orders ONCE (ATOMIC)
+        ------------------------------- */
         if (snapshot.version === 1) {
-            this.logger.log(
-                `[finalizeGroup] billingContextId=${billingContextId} transitioning order status snapshot.version=${snapshot.version}`
-            );
-            await this.transitionOrdersForContext(billingContextId);
-        } else {
-            this.logger.log(
-                `[finalizeGroup] billingContextId=${billingContextId} NOT transitioning order status snapshot.version=${snapshot.version}`
+            const res = await this.prisma.order.updateMany({
+                where: {
+                    id: { in: orderIds },
+                    statusCode: {
+                        not: OrderStatus.GROUP_BILLED,
+                    },
+                },
+                data: {
+                    statusCode: OrderStatus.GROUP_BILLED,
+                },
+            });
+
+            this.logger.debug(
+                `GROUP_BILLED transition affected ${res.count} orders`,
             );
         }
 
         return snapshot;
     }
+
+
 
 
 
@@ -327,9 +339,6 @@ export class BillingSnapshotService {
 
 
 
-    /* =====================================================
-       PUBLIC — finalize ORDER
-    ===================================================== */
     async finalizeOrder(
         orderId: string,
         inputs: OrderBillingInputs,
@@ -340,56 +349,65 @@ export class BillingSnapshotService {
         this.logger.log(`[finalizeOrder] orderId=${orderId}`);
 
         /* -------------------------------
-           1️⃣ Resolve context + save DRAFT
+           1️⃣ Resolve context (NO TX)
         ------------------------------- */
-        const { contextId, draftId } = await this.prisma.transaction(async (tx) => {
-            const context =
-                await this.contextResolver.resolveOrderContext(
-                    tx,
-                    orderId
-                );
-
-            const draft = await this.saveDraftTx(
-                tx,
-                context.id,
-                inputs,
-                intent,
-                reason,
-                createdBy,
+        const context =
+            await this.contextResolver.resolveOrderContext(
+                this.prisma,
+                orderId,
             );
 
-            return {
-                contextId: context.id,
-                draftId: draft.id
-            };
-        });
-
         /* -------------------------------
-           2️⃣ CALCULATE (NO TX)
+           2️⃣ Save DRAFT (SHORT TX)
         ------------------------------- */
-        const calc = await this.calculator.calculateForOrder(
-            orderId,
-            inputs
-        );
+        const { contextId, draftId } =
+            await this.prisma.transaction(async tx => {
+                const draft = await this.saveDraftTx(
+                    tx,
+                    context.id,
+                    inputs,
+                    intent,
+                    reason,
+                    createdBy,
+                );
+
+                return { contextId: context.id, draftId: draft.id };
+            });
 
         /* -------------------------------
-           3️⃣ FINALIZE (SHORT TX)
+           3️⃣ Calculate (NO TX)
         ------------------------------- */
-        const snapshot = await this.prisma.transaction((tx) =>
-            this.finalizeContextTx(
-                tx,
-                draftId,
-                calc.result,
-                calc.inputs,
-                createdBy
-            )
-        );
+        const calc =
+            await this.calculator.calculateForOrder(
+                orderId,
+                inputs,
+            );
 
         /* -------------------------------
-           4️⃣ TRANSITION ORDERS (NO TX)
+           4️⃣ Finalize snapshot (SHORT TX)
+        ------------------------------- */
+        const snapshot =
+            await this.prisma.transaction(tx =>
+                this.finalizeContextTx(
+                    tx,
+                    draftId,
+                    calc.result,
+                    calc.inputs,
+                    createdBy,
+                ),
+            );
+
+        /* -------------------------------
+           5️⃣ Transition order if first FINAL
         ------------------------------- */
         if (snapshot.version === 1) {
-            await this.transitionOrdersForContext(contextId);
+            await this.prisma.order.updateMany({
+                where: {
+                    id: orderId,
+                    statusCode: { equals: OrderStatus.COMPLETE },
+                },
+                data: { statusCode: OrderStatus.BILLED },
+            });
         }
 
         return snapshot;
@@ -413,22 +431,11 @@ export class BillingSnapshotService {
        INTERNAL
     ===================================================== */
     private async transitionOrdersForContext(
-        billingContextId: string
+        billingContextId: string,
     ) {
-        const context = await this.prisma.billingContext.findUnique({
-            where: { id: billingContextId },
-            include: { orders: true }
-        });
 
-        if (!context) return;
-
-        for (const o of context.orders) {
-            await this.ordersService.transitionOrderById(
-                this.prisma.client,
-                o.orderId
-            );
-        }
     }
+
 
     /* =====================================================
        PUBLIC — get latest snapshot

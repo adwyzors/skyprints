@@ -3,7 +3,8 @@ import type {
     CreateProcessDto,
     DeleteRunImageDto,
     ProcessDetailDto,
-    ProcessSummaryDto
+    ProcessSummaryDto,
+    TransitionProcessRunDto
 } from '@app/contracts';
 import {
     Body,
@@ -39,7 +40,6 @@ export class AdminProcessController {
     }
 
     @Post(':orderProcessId/runs/:processRunId/configure')
-    @Post(':orderProcessId/runs/:processRunId/configure')
     async configure(
         @Param('orderProcessId') orderProcessId: string,
         @Param('processRunId') processRunId: string,
@@ -50,7 +50,7 @@ export class AdminProcessController {
             `[API] configure orderProcess=${orderProcessId} run=${processRunId} images=${dto.images?.length ?? 0}`,
         );
 
-        return this.service.configureWithImages(
+        return this.service.configure(
             orderProcessId,
             processRunId,
             dto,
@@ -61,11 +61,17 @@ export class AdminProcessController {
     async transition(
         @Param('orderProcessId') orderProcessId: string,
         @Param('processRunId') processRunId: string,
+        @Body() dto: TransitionProcessRunDto,
     ) {
         this.logger.log(
-            `[API] transition orderProcess=${orderProcessId} run=${processRunId}`,
+            `[API] transition orderProcess=${orderProcessId} run=${processRunId} → ${dto.statusCode}`,
         );
-        return this.service.transition(orderProcessId, processRunId);
+
+        return this.service.transition(
+            orderProcessId,
+            processRunId,
+            dto.statusCode,
+        );
     }
 
     @Delete(':orderProcessId/runs/:processRunId/configure/images')

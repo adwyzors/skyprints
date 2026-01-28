@@ -7,11 +7,8 @@ import {
     Get,
     Param,
     Post,
-    Query,
-    UploadedFiles,
-    UseInterceptors
+    Query
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
 import { CloudflareService } from '../common/cloudflare.service';
 import { RequestContextStore } from '../common/context/request-context.store';
 import { ContextLogger } from '../common/logger/context.logger';
@@ -49,14 +46,8 @@ export class OrdersController {
     }
 
     @Post()
-    @UseInterceptors(
-        FilesInterceptor('images', 5, {
-            limits: { fileSize: 3 * 1024 * 1024 },
-        }),
-    )
     async create(
-        @Body() dto: CreateOrderDto,
-        @UploadedFiles() files?: Express.Multer.File[],
+        @Body() dto: CreateOrderDto
     ) {
         const ctx = RequestContextStore.getStore();
 
@@ -77,10 +68,10 @@ export class OrdersController {
         }
 
         this.logger.log(
-            `[CREATE_ORDER] cid=${ctx?.correlationId} customerId=${dto.customerId} images=${files?.length ?? 0}`,
+            `[CREATE_ORDER] cid=${ctx?.correlationId} customerId=${dto.customerId} images=${dto?.images?.length ?? 0}`,
         );
 
-        return this.service.createWithImages(dto, files ?? []);
+        return this.service.create(dto);
     }
 
 
