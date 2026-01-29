@@ -1,6 +1,16 @@
 'use client';
 
-import { AlertCircle, ArrowLeft, Calculator, ChevronDown, Edit2, FileText, Loader2, Save, X } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Calculator,
+  ChevronDown,
+  Edit2,
+  FileText,
+  Loader2,
+  Save,
+  X,
+} from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -25,7 +35,7 @@ export default function OrderConfigPage() {
   const [expandedBillingRuns, setExpandedBillingRuns] = useState<Set<string>>(new Set());
 
   const toggleBillingRunExpansion = (runId: string) => {
-    setExpandedBillingRuns(prev => {
+    setExpandedBillingRuns((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(runId)) {
         newSet.delete(runId);
@@ -151,18 +161,18 @@ export default function OrderConfigPage() {
   const getRunById = (runId: string) => {
     if (!order) return null;
     for (const process of order.processes) {
-      const run = process.runs.find(r => r.id === runId);
+      const run = process.runs.find((r) => r.id === runId);
       if (run) return { run, processName: process.name };
     }
     return null;
   };
 
   const allRuns = useMemo(() => {
-    return order?.processes.flatMap(p => p.runs) || [];
+    return order?.processes.flatMap((p) => p.runs) || [];
   }, [order]);
 
   const configuredRunsCount = useMemo(() => {
-    return allRuns.filter(r => r.configStatus === 'COMPLETE').length;
+    return allRuns.filter((r) => r.configStatus === 'COMPLETE').length;
   }, [allRuns]);
 
   if (loading) {
@@ -181,9 +191,7 @@ export default function OrderConfigPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">
-            {error || 'Order not found'}
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">{error || 'Order not found'}</h2>
           <button
             onClick={() => router.push('/admin/orders')}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -220,24 +228,26 @@ export default function OrderConfigPage() {
 
               <div className="flex flex-wrap items-center gap-4 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${order.status === 'BILLED' ? 'bg-purple-500' :
-                    order.status === 'COMPLETE' ? 'bg-green-500' : 'bg-blue-500'
-                    }`} />
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      order.status === 'BILLED'
+                        ? 'bg-purple-500'
+                        : order.status === 'COMPLETE'
+                          ? 'bg-green-500'
+                          : 'bg-blue-500'
+                    }`}
+                  />
                   <span className="text-sm text-gray-600">
                     {order.customer.name} ({order.customer.code})
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-sm text-gray-600">
-                    Quantity: {order.quantity}
-                  </span>
+                  <span className="text-sm text-gray-600">Quantity: {order.quantity}</span>
                 </div>
                 {order.jobCode && (
                   <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-lg">
-                    <span className="text-sm font-medium text-blue-700">
-                      Job: {order.jobCode}
-                    </span>
+                    <span className="text-sm font-medium text-blue-700">Job: {order.jobCode}</span>
                   </div>
                 )}
                 {billingData && (
@@ -252,10 +262,15 @@ export default function OrderConfigPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <div className={`px-4 py-2 rounded-full text-sm font-medium ${order.status === 'BILLED' ? 'bg-purple-100 text-purple-800' :
-                order.status === 'COMPLETE' ? 'bg-green-100 text-green-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
+              <div
+                className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  order.status === 'BILLED'
+                    ? 'bg-purple-100 text-purple-800'
+                    : order.status === 'COMPLETE'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                }`}
+              >
                 {order.status.replace('_', ' ')}
               </div>
               <div className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
@@ -277,17 +292,16 @@ export default function OrderConfigPage() {
           <div className="space-y-6">
             {/* PROCESS NAVIGATION */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                Processes
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Processes</h3>
               <div className="flex flex-wrap gap-3">
-                {order.processes.map(process => (
+                {order.processes.map((process) => (
                   <div
                     key={process.id}
-                    className={`px-4 py-2 rounded-lg border transition-colors ${processName === process.name
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 bg-gray-50 text-gray-700'
-                      }`}
+                    className={`px-4 py-2 rounded-lg border transition-colors ${
+                      processName === process.name
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 bg-gray-50 text-gray-700'
+                    }`}
                   >
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full" />
@@ -304,27 +318,25 @@ export default function OrderConfigPage() {
 
             {/* CONFIGURATION COMPONENT */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              {processName === "Screen Printing" ? (
+              {processName === 'Screen Printing' || processName === 'Embellishment' ? (
                 <ScreenPrintingConfig
                   order={order}
                   onRefresh={refreshOrder}
                   onSaveSuccess={(processId, runId) => {
-                    setOrder(prev => {
+                    setOrder((prev) => {
                       if (!prev) return prev;
                       return {
                         ...prev,
-                        processes: prev.processes.map(p =>
+                        processes: prev.processes.map((p) =>
                           p.id === processId
                             ? {
-                              ...p,
-                              runs: p.runs.map(r =>
-                                r.id === runId
-                                  ? { ...r, configStatus: 'COMPLETE' }
-                                  : r
-                              )
-                            }
-                            : p
-                        )
+                                ...p,
+                                runs: p.runs.map((r) =>
+                                  r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
+                                ),
+                              }
+                            : p,
+                        ),
                       };
                     });
                   }}
@@ -341,9 +353,7 @@ export default function OrderConfigPage() {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      Billing Summary
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-800">Billing Summary</h3>
                     <p className="text-sm text-gray-600 mt-1">
                       Updated: {new Date(billingData.createdAt).toLocaleDateString()}
                     </p>
@@ -361,7 +371,8 @@ export default function OrderConfigPage() {
                   </div>
                   {billingData.version > 1 && (
                     <div className="text-xs text-gray-500 mt-2">
-                      Version {billingData.version} • {billingData.isLatest ? 'Latest' : 'Historical'}
+                      Version {billingData.version} •{' '}
+                      {billingData.isLatest ? 'Latest' : 'Historical'}
                     </div>
                   )}
                 </div>
@@ -385,15 +396,15 @@ export default function OrderConfigPage() {
                           onClick={() => toggleBillingRunExpansion(runId)}
                         >
                           <div className="flex items-center gap-3">
-                            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            <ChevronDown
+                              className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            />
                             <div>
                               <div className="font-medium text-gray-800 text-sm">
                                 {runInfo ? runInfo.run.displayName : `Run ${index + 1}`}
                               </div>
                               {runInfo && (
-                                <div className="text-xs text-gray-500">
-                                  {runInfo.processName}
-                                </div>
+                                <div className="text-xs text-gray-500">{runInfo.processName}</div>
                               )}
                             </div>
                           </div>
@@ -408,7 +419,7 @@ export default function OrderConfigPage() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleEditBilling(runId);
-                                  setExpandedBillingRuns(prev => new Set(prev).add(runId));
+                                  setExpandedBillingRuns((prev) => new Set(prev).add(runId));
                                 }}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
                               >
@@ -455,16 +466,18 @@ export default function OrderConfigPage() {
                                     </div>
                                     <div>
                                       <div className="font-medium text-green-800">Billing Rate</div>
-                                      <div className="text-xs text-green-600">Saved via Billing API</div>
+                                      <div className="text-xs text-green-600">
+                                        Saved via Billing API
+                                      </div>
                                     </div>
                                   </div>
                                   <input
                                     type="number"
                                     value={editValues['new_rate'] ?? 0}
                                     onChange={(e) =>
-                                      setEditValues(prev => ({
+                                      setEditValues((prev) => ({
                                         ...prev,
-                                        new_rate: parseFloat(e.target.value) || 0
+                                        new_rate: parseFloat(e.target.value) || 0,
                                       }))
                                     }
                                     className="w-full px-4 py-2 border-2 border-green-400 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-lg font-semibold"
@@ -476,12 +489,19 @@ export default function OrderConfigPage() {
                                   {Object.entries(editValues)
                                     .filter(([key]) => key !== 'new_rate')
                                     .map(([key, value]) => (
-                                      <div key={key} className="text-center p-2 bg-gray-50 border border-gray-200 rounded">
+                                      <div
+                                        key={key}
+                                        className="text-center p-2 bg-gray-50 border border-gray-200 rounded"
+                                      >
                                         <div className="text-xs text-gray-500">
-                                          {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                          {key
+                                            .replace(/_/g, ' ')
+                                            .replace(/\b\w/g, (l) => l.toUpperCase())}
                                         </div>
                                         <div className="font-medium text-gray-800 text-sm">
-                                          {key.includes('rate') || key.includes('amount') ? `₹${value}` : String(value)}
+                                          {key.includes('rate') || key.includes('amount')
+                                            ? `₹${value}`
+                                            : String(value)}
                                         </div>
                                       </div>
                                     ))}
@@ -495,7 +515,9 @@ export default function OrderConfigPage() {
                                       {key.replace(/_/g, ' ')}
                                     </div>
                                     <div className="font-medium text-gray-800 text-sm">
-                                      {key.includes('rate') || key.includes('amount') ? `₹${value}` : String(value)}
+                                      {key.includes('rate') || key.includes('amount')
+                                        ? `₹${value}`
+                                        : String(value)}
                                     </div>
                                   </div>
                                 ))}
@@ -514,21 +536,15 @@ export default function OrderConfigPage() {
                 <h4 className="font-medium text-gray-700 mb-4">Order Summary</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-4 bg-blue-50 rounded-xl">
-                    <div className="text-2xl font-bold text-blue-700">
-                      {order.processes.length}
-                    </div>
+                    <div className="text-2xl font-bold text-blue-700">{order.processes.length}</div>
                     <div className="text-sm text-blue-600">Processes</div>
                   </div>
                   <div className="text-center p-4 bg-green-50 rounded-xl">
-                    <div className="text-2xl font-bold text-green-700">
-                      {allRuns.length}
-                    </div>
+                    <div className="text-2xl font-bold text-green-700">{allRuns.length}</div>
                     <div className="text-sm text-green-600">Total Runs</div>
                   </div>
                   <div className="text-center p-4 bg-purple-50 rounded-xl">
-                    <div className="text-2xl font-bold text-purple-700">
-                      {configuredRunsCount}
-                    </div>
+                    <div className="text-2xl font-bold text-purple-700">{configuredRunsCount}</div>
                     <div className="text-sm text-purple-600">Configured</div>
                   </div>
                   <div className="text-center p-4 bg-amber-50 rounded-xl">
@@ -551,9 +567,7 @@ export default function OrderConfigPage() {
                 <p className="font-medium">Order Configuration Summary</p>
                 <p className="mt-1">
                   Configure all runs to move this order to{' '}
-                  <span className="font-semibold text-green-600">
-                    PRODUCTION_READY
-                  </span>
+                  <span className="font-semibold text-green-600">PRODUCTION_READY</span>
                 </p>
               </div>
 
@@ -562,10 +576,7 @@ export default function OrderConfigPage() {
                   <p className="text-sm text-gray-600">Configured Runs</p>
                   <p className="text-2xl font-bold text-gray-800">
                     {configuredRunsCount}
-                    <span className="text-sm font-normal text-gray-400">
-                      {' '}
-                      / {allRuns.length}
-                    </span>
+                    <span className="text-sm font-normal text-gray-400"> / {allRuns.length}</span>
                   </p>
                 </div>
 
@@ -578,7 +589,7 @@ export default function OrderConfigPage() {
                         router.push(`/admin/orders?selectedOrder=${order.id}`);
                       } catch (err) {
                         console.error(err);
-                        alert("Failed to transition order");
+                        alert('Failed to transition order');
                         setLoading(false);
                       }
                     }}
@@ -586,7 +597,12 @@ export default function OrderConfigPage() {
                   >
                     <span>Production Ready</span>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 8l4 4m0 0l-4 4m4-4H3"
+                      />
                     </svg>
                   </button>
                 )}
