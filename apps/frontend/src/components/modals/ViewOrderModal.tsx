@@ -374,13 +374,10 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                     <button
                       onClick={async () => {
                         try {
-                          // Optional: disable modal first
-                          onClose();
-
-                          // 1️⃣ Complete production
+                          // Complete production
                           await completeProduction(order.id);
 
-                          // 2️⃣ Navigate to billing
+                          // Navigate to billing
                           router.push(`/admin/billing?selectedOrder=${order.id}`);
                         } catch (err) {
                           console.error(err);
@@ -390,7 +387,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                       className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm"
                     >
                       <FileText className="w-4 h-4" />
-                      Rate Config
+                      Complete Production
                     </button>
                   </div>
                 )}
