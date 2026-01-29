@@ -21,5 +21,6 @@ export * from './create-billing-snapshot.contract';
 
 export * from './delete-run-image.contract';
 
+export * from './lifecycle-status.contract';
 export * from './user.contract';
 

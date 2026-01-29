@@ -1,37 +1,51 @@
-import type { CreateCustomerDto, QueryCustomerDto } from '@app/contracts';
 import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    Post,
-    Query
+  CreateCustomerSchema,
+  QueryCustomerSchema,
+} from '@app/contracts';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
 } from '@nestjs/common';
 
 import { CustomersService } from './customers.service';
 
 @Controller('customers')
 export class CustomersController {
-    constructor(private readonly service: CustomersService) { }
+  constructor(
+    private readonly service: CustomersService,
+  ) {}
 
-    @Post()
-    create(@Body() dto: CreateCustomerDto) {
-        return this.service.create(dto);
-    }
+  /* =========================
+   * Create Customer
+   * ========================= */
+  @Post()
+  create(@Body() body: unknown) {
+    const dto = CreateCustomerSchema.parse(body);
+    return this.service.create(dto);
+  }
 
-    @Get()
-    findAll(@Query() query: QueryCustomerDto) {
-        return this.service.findAll(query);
-    }
+  /* =========================
+   * List Customers
+   * ========================= */
+  @Get()
+  findAll(@Query() query: unknown) {
+    const parsedQuery = QueryCustomerSchema.parse(query);
+    return this.service.findAll(parsedQuery);
+  }
 
-    @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.service.findOne(id);
-    }
-
-    @Delete(':id')
-    deactivate(@Param('id') id: string) {
-        return this.service.deactivate(id);
-    }
+  /* =========================
+   * Get Customer by ID
+   * ========================= */
+  @Get(':id')
+  findOne(
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.service.findOne(id);
+  }
 }

@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+    IsIn,
     IsInt,
     IsOptional,
     IsString,
@@ -21,9 +22,39 @@ export class ProcessRunsQueryDto {
 
     @IsOptional()
     @IsString()
-    search?: string; // Search by order code, customer name, template name
+    search?: string;
+
+    @IsOptional()
+    @IsIn(['CONFIGURE', 'COMPLETE'])
+    status?: 'CONFIGURE' | 'COMPLETE';
+
+    // ====== FILTERS (UUIDs) ======
 
     @IsOptional()
     @IsString()
-    status?: string; // Comma-separated status codes
+    customerId?: string;
+
+    @IsOptional()
+    @IsString()
+    executorUserId?: string;
+
+    @IsOptional()
+    @IsString()
+    reviewerUserId?: string;
+
+    @IsOptional()
+    @IsString()
+    lifeCycleStatusCode?: string;
+
+    @IsOptional()
+    @IsIn(['HIGH', 'MEDIUM', 'LOW'])
+    priority?: 'HIGH' | 'MEDIUM' | 'LOW';
+
+    @IsOptional()
+    @IsString()
+    createdFrom?: string;
+
+    @IsOptional()
+    @IsString()
+    createdTo?: string;
 }

@@ -19,7 +19,7 @@ model User {
 
   createdOrders Order[]
 
-  locationId String?   @unique
+  locationId String?   
   location   Location? @relation(fields: [locationId], references: [id])
 
   createdAt DateTime @default(now())
@@ -30,6 +30,7 @@ model User {
   executedProcessRuns ProcessRun[] @relation("ProcessRunExecutor")
   reviewedProcessRuns ProcessRun[] @relation("ProcessRunReviewer")
 
+  @@index([locationId])
   @@index([email])
   @@index([role, isActive, deletedAt])
   @@index([name, isActive, deletedAt])
@@ -54,7 +55,12 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  gstno String?
+  tds Boolean @default(false)
+  tax Boolean @default(false)
+
   @@index([isActive])
+  @@index([isActive, name, createdAt])
 }
 
 ///////////////////////////////
@@ -272,8 +278,12 @@ model OrderProcess {
 
   runs ProcessRun[]
 
+  remainingRuns Int @default(0)
+
+
   @@unique([orderId, processId])
   @@index([lifecycleCompletedRuns, totalRuns])
+  @@index([remainingRuns])
 }
 
 
@@ -307,10 +317,12 @@ model ProcessRun {
 
   orderProcess OrderProcess @relation(fields: [orderProcessId], references: [id], onDelete: Cascade)
   runTemplate  RunTemplate  @relation(fields: [runTemplateId], references: [id])
+  createdAt DateTime @default(now())
 
   @@unique([orderProcessId, runNumber])
   @@index([orderProcessId, id])
   @@index([orderProcessId, lifeCycleStatusCode])
+  @@index([createdAt])
 }
 
 
@@ -326,8 +338,7 @@ model Location {
   type        String  @default("WORKSTATION")
   isActive    Boolean @default(true)
 
-  // Inverse 1–1
-  user User?
+  users User[]
 
   runs ProcessRun[]
 

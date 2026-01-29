@@ -2,6 +2,7 @@ import type {
     ConfigureProcessRunDto,
     CreateProcessDto,
     DeleteRunImageDto,
+    LifeCycleStatusDto,
     ProcessDetailDto,
     ProcessRunListItemDto,
     ProcessSummaryDto,
@@ -39,6 +40,13 @@ export class AdminProcessController {
     @Post()
     create(@Body() dto: CreateProcessDto) {
         return this.service.create(dto);
+    }
+
+    @Get(':processId/lifecycle-statuses')
+    async getLifecycleStatuses(
+        @Param('processId') processId: string,
+    ): Promise<LifeCycleStatusDto[]> {
+        return this.service.getLifeCycleStatusesByProcess(processId);
     }
 
     @Get(':id')

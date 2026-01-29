@@ -2,15 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-
-
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
 html {
-  font-size: 70%;
+  font-size: 90%;
 }
 
 @theme inline {

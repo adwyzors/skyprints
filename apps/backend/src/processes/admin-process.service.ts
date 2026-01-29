@@ -1,6 +1,7 @@
 import {
     ConfigureProcessRunDto,
     CreateProcessDto,
+    LifeCycleStatusDto,
     ProcessRunListItemDto,
     RunTemplateField
 } from '@app/contracts';
@@ -16,7 +17,6 @@ import { ContextLogger } from '../common/logger/context.logger';
 import { ProcessRunsQueryDto } from '../dto/process-runs.query.dto';
 import { toProcessSummary } from '../mappers/process.mapper';
 import { OrdersService } from '../orders/orders.service';
-type SystemFieldValidator = (value: any) => boolean;
 
 @Injectable()
 export class AdminProcessService {
@@ -25,6 +25,45 @@ export class AdminProcessService {
         'images',
     ]);
 
+
+    async getLifeCycleStatusesByProcess(processId: string): Promise<LifeCycleStatusDto[]> {
+        // 1️⃣ Get all lifecycle workflow type IDs used by this process
+        const runDefs = await this.prisma.processRunDefinition.findMany({
+            where: { processId },
+            select: {
+                runTemplate: {
+                    select: {
+                        lifecycleWorkflowTypeId: true,
+                    },
+                },
+            },
+        });
+
+        const workflowTypeIds = [
+            ...new Set(
+                runDefs.map(
+                    (d) => d.runTemplate.lifecycleWorkflowTypeId,
+                ),
+            ),
+        ];
+
+        if (workflowTypeIds.length === 0) {
+            return [];
+        }
+
+        // 2️⃣ Fetch lifecycle statuses
+        const statuses = await this.prisma.workflowStatus.findMany({
+            where: {
+                workflowTypeId: { in: workflowTypeIds },
+            },
+            select: {
+                id: true,
+                code: true,
+            },
+        });
+
+        return statuses;
+    }
 
     private static readonly SYSTEM_FIELD_VALIDATORS: Record<
         string,
@@ -100,87 +139,164 @@ export class AdminProcessService {
         return processes.map(toProcessSummary);
     }
 
+    private priorityWhere(priority: 'HIGH' | 'MEDIUM' | 'LOW'): Prisma.OrderProcessWhereInput {
+        if (priority === 'HIGH') {
+            return { remainingRuns: { lt: 5 } };
+        }
+
+        if (priority === 'MEDIUM') {
+            return { remainingRuns: { gte: 5, lt: 10 } };
+        }
+
+        return { remainingRuns: { gte: 10 } };
+    }
+
+
     async getAllRuns(query: ProcessRunsQueryDto) {
         const {
             page = 1,
             limit = 20,
             search,
-            status
+            status,
+            customerId,
+            executorUserId,
+            reviewerUserId,
+            lifeCycleStatusCode,
+            priority,
+            createdFrom,
+            createdTo,
         } = query;
 
         const skip = (page - 1) * limit;
 
         /* ==========================
-         * WHERE CLAUSE
+         * ORDER WHERE
+         * ========================== */
+        const orderWhere: Prisma.OrderWhereInput = {
+            ...(customerId && { customerId }),
+        };
+
+        /* ==========================
+         * ORDER PROCESS WHERE
+         * ========================== */
+        const orderProcessWhere: Prisma.OrderProcessWhereInput = {
+            ...(priority && this.priorityWhere(priority)), // filter only
+            ...(Object.keys(orderWhere).length > 0 && {
+                order: orderWhere,
+            }),
+        };
+
+        /* ==========================
+         * PROCESS RUN WHERE
          * ========================== */
         const where: Prisma.ProcessRunWhereInput = {
             ...(status && {
-                statusCode: { in: status.split(',') as ProcessRunStatus[] }
+                statusCode: { in: status.split(',') as ProcessRunStatus[] },
             }),
+
+            ...(executorUserId && { executorId: executorUserId }),
+            ...(reviewerUserId && { reviewerId: reviewerUserId }),
+            ...(lifeCycleStatusCode && { lifeCycleStatusCode }),
+
+            ...(createdFrom || createdTo
+                ? {
+                    createdAt: {
+                        ...(createdFrom && { gte: new Date(createdFrom) }),
+                        ...(createdTo && { lte: new Date(createdTo) }),
+                    },
+                }
+                : {}),
+
             ...(search && {
                 OR: [
                     {
                         orderProcess: {
                             order: {
-                                code: { contains: search, mode: 'insensitive' }
-                            }
-                        }
+                                code: { contains: search, mode: 'insensitive' },
+                            },
+                        },
                     },
                     {
                         orderProcess: {
                             order: {
                                 customer: {
-                                    name: { contains: search, mode: 'insensitive' }
-                                }
-                            }
-                        }
+                                    name: { contains: search, mode: 'insensitive' },
+                                },
+                            },
+                        },
                     },
                     {
                         runTemplate: {
-                            name: { contains: search, mode: 'insensitive' }
-                        }
-                    }
-                ]
-            })
+                            name: { contains: search, mode: 'insensitive' },
+                        },
+                    },
+                ],
+            }),
+
+            ...(Object.keys(orderProcessWhere).length > 0 && {
+                orderProcess: orderProcessWhere,
+            }),
         };
 
+        /* ==========================
+         * QUERY
+         * ========================== */
         const [total, runs] = await this.prisma.transaction([
             this.prisma.processRun.count({ where }),
             this.prisma.processRun.findMany({
                 where,
                 skip,
                 take: limit,
-                orderBy: { id: 'desc' },
+                orderBy: { createdAt: 'desc' }, // ✅ DEFAULT SORT
                 include: {
+                    runTemplate: { select: { name: true } },
+                    executor: { select: { id: true, name: true } },
+                    reviewer: { select: { id: true, name: true } },
                     orderProcess: {
                         select: {
+                            totalRuns: true,
+                            configCompletedRuns: true,
+                            lifecycleCompletedRuns: true,
+                            remainingRuns: true,
                             order: {
                                 select: {
-                                    code: true,
                                     id: true,
-                                    customer: {
-                                        select: { name: true }
-                                    }
-                                }
-                            }
-                        }
+                                    code: true,
+                                    customer: { select: { name: true } },
+                                },
+                            },
+                        },
                     },
-                    runTemplate: {
-                        select: { name: true }
-                    }
                 },
-            })
+            }),
         ]);
 
+        /* ==========================
+         * MAP → DTO (ADD PRIORITY)
+         * ========================== */
+        const data: ProcessRunListItemDto[] = runs.map((run) => ({
+            ...run,
+            createdAt: run.createdAt.toISOString(),
+            priority: this.resolvePriority(
+                run.orderProcess.remainingRuns,
+            ),
+        }));
+
         return {
-            data: runs as unknown as ProcessRunListItemDto[],
+            data,
             meta: {
                 page,
                 limit,
                 total,
                 totalPages: Math.ceil(total / limit),
-            }
+            },
         };
+    }
+
+    private resolvePriority(remainingRuns: number): 'HIGH' | 'MEDIUM' | 'LOW' {
+        if (remainingRuns < 5) return 'HIGH';
+        if (remainingRuns < 10) return 'MEDIUM';
+        return 'LOW';
     }
 
     async configure(
