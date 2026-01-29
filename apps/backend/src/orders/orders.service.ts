@@ -532,8 +532,17 @@ export class OrdersService {
 
                     for (let batch = 0; batch < count; batch++) {
                         for (const def of process.runDefs) {
-                            const initialStatus =
-                                def.runTemplate.lifecycleWorkflowType.statuses[0];
+
+                            const statuses =
+                                def.runTemplate.lifecycleWorkflowType.statuses;
+                            let initialStatus = '';
+
+
+                            if (statuses.length === 0) {
+                                initialStatus = '';
+                            } else {
+                                initialStatus = statuses[0].code;
+                            }
 
                             runsToCreate.push({
                                 orderProcessId,
@@ -543,7 +552,7 @@ export class OrdersService {
                                 configWorkflowTypeId: def.runTemplate.configWorkflowTypeId,
                                 lifecycleWorkflowTypeId: def.runTemplate.lifecycleWorkflowTypeId,
                                 statusCode: ProcessRunStatus.CONFIGURE,
-                                lifeCycleStatusCode: initialStatus.code,
+                                lifeCycleStatusCode: initialStatus,
                                 fields: {},
                             });
                         }
