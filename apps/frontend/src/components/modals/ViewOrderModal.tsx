@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 import { Order } from '@/domain/model/order.model';
-import { getOrderById, startProduction } from '@/services/orders.service';
+import { completeProduction, getOrderById, startProduction } from '@/services/orders.service';
 import { CheckCircle, ChevronRight, Circle, FastForward, FileText, Settings } from 'lucide-react';
 import ConfigurationModal from './ConfigurationModal';
 
@@ -331,14 +331,15 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
               <div className="flex items-center justify-between">
                 <span>Status:</span>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${order.status === 'COMPLETED'
-                    ? 'bg-green-100 text-green-800'
-                    : order.status === 'IN_PRODUCTION'
-                      ? 'bg-blue-100 text-blue-800'
-                      : order.status === 'PRODUCTION_READY'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    order.status === 'COMPLETED'
+                      ? 'bg-green-100 text-green-800'
+                      : order.status === 'IN_PRODUCTION'
+                        ? 'bg-blue-100 text-blue-800'
+                        : order.status === 'PRODUCTION_READY'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                  }`}
                 >
                   {order.status}
                 </span>
@@ -359,6 +360,40 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                   </button>
                 </div>
               )}
+
+              {order.status === 'IN_PRODUCTION' &&
+                order.processes?.reduce((processAcc, process) => {
+                  return (
+                    processAcc +
+                    process.runs.reduce((runAcc, run) => {
+                      return runAcc + (run.lifecycle?.length ?? 0);
+                    }, 0)
+                  );
+                }, 0) === 0 && (
+                  <div className="pt-2">
+                    <button
+                      onClick={async () => {
+                        try {
+                          // Optional: disable modal first
+                          onClose();
+
+                          // 1️⃣ Complete production
+                          await completeProduction(order.id);
+
+                          // 2️⃣ Navigate to billing
+                          router.push(`/admin/billing?selectedOrder=${order.id}`);
+                        } catch (err) {
+                          console.error(err);
+                          alert('Failed to complete production');
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Rate Config
+                    </button>
+                  </div>
+                )}
             </div>
 
             <div className="mt-8">
@@ -375,8 +410,9 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                     >
                       <span className="font-medium text-gray-800">{process.name}</span>
                       <ChevronRight
-                        className={`w-4 h-4 transition-transform ${expandedProcesses.has(process.id) ? 'rotate-90' : ''
-                          }`}
+                        className={`w-4 h-4 transition-transform ${
+                          expandedProcesses.has(process.id) ? 'rotate-90' : ''
+                        }`}
                       />
                     </button>
 
@@ -407,18 +443,19 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                     <span className="text-gray-600">Run {run.runNumber}</span>
                                   </div>
                                   <span
-                                    className={`px-2 py-1 rounded text-xs font-medium ${run.lifecycleStatus === 'COMPLETE' ||
+                                    className={`px-2 py-1 rounded text-xs font-medium ${
+                                      run.lifecycleStatus === 'COMPLETE' ||
                                       run.lifecycleStatus === 'BILLED'
-                                      ? 'bg-green-100 text-green-800'
-                                      : run.configStatus === 'COMPLETE'
-                                        ? 'bg-blue-100 text-blue-800'
-                                        : run.configStatus === 'CONFIGURED'
-                                          ? 'bg-gray-100 text-gray-800'
-                                          : 'bg-red-100 text-red-800'
-                                      }`}
+                                        ? 'bg-green-100 text-green-800'
+                                        : run.configStatus === 'COMPLETE'
+                                          ? 'bg-blue-100 text-blue-800'
+                                          : run.configStatus === 'CONFIGURED'
+                                            ? 'bg-gray-100 text-gray-800'
+                                            : 'bg-red-100 text-red-800'
+                                    }`}
                                   >
                                     {run.lifecycleStatus === 'COMPLETE' ||
-                                      run.lifecycleStatus === 'BILLED'
+                                    run.lifecycleStatus === 'BILLED'
                                       ? 'Completed'
                                       : run.configStatus === 'COMPLETE'
                                         ? 'In Progress'
@@ -542,28 +579,31 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                   return (
                     <div
                       key={run.id}
-                      className={`border rounded-xl overflow-hidden mb-4 shadow-sm transition-shadow ${!canOpen ? 'border-gray-200 bg-gray-50' : 'border-gray-300 hover:shadow-md'
-                        }`}
+                      className={`border rounded-xl overflow-hidden mb-4 shadow-sm transition-shadow ${
+                        !canOpen ? 'border-gray-200 bg-gray-50' : 'border-gray-300 hover:shadow-md'
+                      }`}
                     >
                       {/* HEADER */}
                       <button
                         onClick={() => handleRunClick(process.id, run.id, run.configStatus)}
                         disabled={!canOpen || updating}
-                        className={`w-full p-4 flex items-center justify-between transition-colors ${isOpen
-                          ? 'bg-blue-50'
-                          : !canOpen
-                            ? 'bg-gray-50 cursor-not-allowed'
-                            : 'bg-gray-50 hover:bg-gray-100'
-                          } ${updating ? 'opacity-50' : ''}`}
+                        className={`w-full p-4 flex items-center justify-between transition-colors ${
+                          isOpen
+                            ? 'bg-blue-50'
+                            : !canOpen
+                              ? 'bg-gray-50 cursor-not-allowed'
+                              : 'bg-gray-50 hover:bg-gray-100'
+                        } ${updating ? 'opacity-50' : ''}`}
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-2 h-8 rounded ${isRunComplete
-                              ? 'bg-green-500' // Completed
-                              : run.configStatus === 'COMPLETE'
-                                ? 'bg-blue-500' // Active
-                                : 'bg-gray-400'
-                              }`}
+                            className={`w-2 h-8 rounded ${
+                              isRunComplete
+                                ? 'bg-green-500' // Completed
+                                : run.configStatus === 'COMPLETE'
+                                  ? 'bg-blue-500' // Active
+                                  : 'bg-gray-400'
+                            }`}
                           />
                           <div className="text-left">
                             <div className="font-semibold text-gray-800 flex items-center gap-2">
@@ -581,12 +621,13 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                         <div className="flex items-center gap-2">
                           {/* Status Badge */}
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${isRunComplete
-                              ? 'bg-green-100 text-green-800'
-                              : run.configStatus === 'COMPLETE'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-gray-100'
-                              }`}
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              isRunComplete
+                                ? 'bg-green-100 text-green-800'
+                                : run.configStatus === 'COMPLETE'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-gray-100'
+                            }`}
                           >
                             {isRunComplete
                               ? 'Completed'
@@ -596,8 +637,9 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                           </span>
                           {canOpen && (
                             <ChevronRight
-                              className={`w-5 h-5 text-gray-500 transition-transform ${isOpen ? 'rotate-90' : ''
-                                }`}
+                              className={`w-5 h-5 text-gray-500 transition-transform ${
+                                isOpen ? 'rotate-90' : ''
+                              }`}
                             />
                           )}
                         </div>
@@ -618,21 +660,22 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                   isLifecycleStepCompleted(run, step.code) ||
                                   (run.lifecycleStatus &&
                                     index <
-                                    lifecycleSteps.findIndex(
-                                      (s: any) => s.code === run.lifecycleStatus,
-                                    ));
+                                      lifecycleSteps.findIndex(
+                                        (s: any) => s.code === run.lifecycleStatus,
+                                      ));
                                 const isCurrent = isLifecycleStepCurrent(run, step.code);
 
                                 return (
                                   <div key={step.code} className="relative flex items-start gap-4">
                                     {/* DOT */}
                                     <div
-                                      className={`absolute -left-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isCompleted
-                                        ? 'bg-green-500 border-green-500'
-                                        : isCurrent
-                                          ? 'bg-white border-blue-500'
-                                          : 'bg-white border-gray-300'
-                                        }`}
+                                      className={`absolute -left-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                        isCompleted
+                                          ? 'bg-green-500 border-green-500'
+                                          : isCurrent
+                                            ? 'bg-white border-blue-500'
+                                            : 'bg-white border-gray-300'
+                                      }`}
                                     >
                                       {isCompleted ? (
                                         <CheckCircle className="w-3 h-3 text-white" />
@@ -643,23 +686,25 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
 
                                     {/* CARD */}
                                     <div
-                                      className={`flex-1 rounded-lg border ${isCurrent
-                                        ? 'border-blue-200 bg-blue-50'
-                                        : isCompleted
-                                          ? 'border-green-200 bg-green-50'
-                                          : 'border-gray-200 bg-white'
-                                        }`}
+                                      className={`flex-1 rounded-lg border ${
+                                        isCurrent
+                                          ? 'border-blue-200 bg-blue-50'
+                                          : isCompleted
+                                            ? 'border-green-200 bg-green-50'
+                                            : 'border-gray-200 bg-white'
+                                      }`}
                                     >
                                       <div className="p-4">
                                         <div className="flex items-start justify-between mb-1">
                                           <div>
                                             <span
-                                              className={`font-medium block ${isCurrent
-                                                ? 'text-blue-700'
-                                                : isCompleted
-                                                  ? 'text-green-700'
-                                                  : 'text-gray-700'
-                                                }`}
+                                              className={`font-medium block ${
+                                                isCurrent
+                                                  ? 'text-blue-700'
+                                                  : isCompleted
+                                                    ? 'text-green-700'
+                                                    : 'text-gray-700'
+                                              }`}
                                             >
                                               {getStatusDisplayName(step.code)}
                                             </span>
@@ -675,7 +720,9 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                             )}
                                             {!isCurrent && !isCompleted && !isRunComplete && (
                                               <button
-                                                onClick={() => handleTransition(process.id, run.id, step.code)}
+                                                onClick={() =>
+                                                  handleTransition(process.id, run.id, step.code)
+                                                }
                                                 disabled={updating}
                                                 className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                                 title={`Skip to ${getStatusDisplayName(step.code)}`}

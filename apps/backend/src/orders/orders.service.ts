@@ -618,6 +618,68 @@ export class OrdersService {
         });
     }
 
+    async completeProduction(orderId: string) {
+        return this.prisma.transaction(async tx => {
+            const order = await tx.order.findUnique({
+                where: { id: orderId },
+                select: {
+                    id: true,
+                    statusCode: true,
+                    totalProcesses: true,
+                },
+            });
+
+            if (!order) {
+                throw new NotFoundException('Order not found');
+            }
+
+            if (order.statusCode !== OrderStatus.IN_PRODUCTION) {
+                throw new BadRequestException(
+                    'Order is not in production state',
+                );
+            }
+
+            /* =====================================
+             * LOAD PROCESSES (ONCE)
+             * ===================================== */
+            const processes = await tx.orderProcess.findMany({
+                where: { orderId },
+                select: {
+                    id: true,
+                    totalRuns: true,
+                },
+            });
+
+            /* =====================================
+             * COMPLETE ALL PROCESSES
+             * ===================================== */
+            await Promise.all(
+                processes.map(p =>
+                    tx.orderProcess.update({
+                        where: { id: p.id },
+                        data: {
+                            statusCode: OrderProcessStatus.COMPLETE,
+                            lifecycleCompletedRuns: p.totalRuns,
+                            lifecycleCompletedAt: new Date(),
+                        },
+                    }),
+                ),
+            );
+
+            /* =====================================
+             * COMPLETE ORDER
+             * ===================================== */
+            await tx.order.update({
+                where: { id: orderId },
+                data: {
+                    statusCode: OrderStatus.COMPLETE,
+                    completedProcesses: order.totalProcesses,
+                },
+            });
+
+            return { success: true };
+        });
+    }
 
     /* =========================================================
      * ORDER TRANSITION

@@ -89,4 +89,9 @@ export class OrdersController {
     async startProduction(@Param('id') orderId: string) {
         return this.service.startProduction(orderId);
     }
+
+    @Post(':id/complete-production')
+    async completeProduction(@Param('id') orderId: string) {
+        return this.service.completeProduction(orderId);
+    }
 }
