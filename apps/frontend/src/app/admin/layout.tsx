@@ -134,7 +134,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <AppHeader />
 
       {/* MAIN NAVIGATION BAR */}
-      <div className="sticky top-16 z-40 bg-white border-b border-gray-200 shadow-sm">
+      <div className="sticky top-14 z-40 bg-white border-b border-gray-200 shadow-sm">
         <div className="px-4 sm:px-4 lg:px-6">
           <div className="flex items-center justify-between h-14">
             {/* LEFT - MAIN TABS */}

@@ -70,7 +70,7 @@ export default function AppHeader() {
     return (
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-14">
             {/* Static version without interactive elements */}
             <div className="flex items-center gap-4">
               <div className="lg:hidden p-2 rounded-lg">
@@ -79,17 +79,10 @@ export default function AppHeader() {
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <img
-                    src="https://res.cloudinary.com/dr1wnqewh/image/upload/v1767274236/logo1_dqg9et.png"
+                    src="https://pub-5beaffaab27541ce90bfeda4c4339293.r2.dev/logos%20and%20assets/logo-skyprint.png"
                     alt="Sky Prints Logo"
-                    className="h-10 w-10 object-contain drop-shadow-sm"
+                    className="h-10 w-auto object-contain drop-shadow-sm"
                   />
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold bg-linear-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                    Sky Prints
-                  </h1>
-                  <p className="text-xs text-gray-500 font-medium">Factory Process Manager</p>
                 </div>
               </div>
             </div>
@@ -119,7 +112,7 @@ export default function AppHeader() {
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
       <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-14">
           {/* LEFT SECTION - LOGO & BRAND */}
           <div className="flex items-center gap-4">
             <button
@@ -136,24 +129,17 @@ export default function AppHeader() {
             <div className="flex items-center gap-3">
               <div className="relative">
                 <img
-                  src="https://res.cloudinary.com/dr1wnqewh/image/upload/v1767274236/logo1_dqg9et.png"
+                  src="https://pub-5beaffaab27541ce90bfeda4c4339293.r2.dev/logos%20and%20assets/logo-skyprint.png"
                   alt="Sky Prints Logo"
-                  className="h-10 w-10 object-contain drop-shadow-sm"
+                  className="h-10 w-auto object-contain drop-shadow-sm"
                 />
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold bg-linear-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                  Sky Prints
-                </h1>
-                <p className="text-xs text-gray-500 font-medium">Factory Process Manager</p>
               </div>
             </div>
           </div>
 
           {/* MOBILE MENU OVERLAY */}
           {isMobileMenuOpen && (
-            <div className="absolute top-16 left-0 right-0 bg-white border-t border-gray-200 shadow-lg lg:hidden">
+            <div className="absolute top-14 left-0 right-0 bg-white border-t border-gray-200 shadow-lg lg:hidden">
               <div className="px-4 py-3 space-y-2">
                 <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
                   <Settings className="w-5 h-5" />
