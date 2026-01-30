@@ -52,7 +52,7 @@ export default function CustomerModal({
             // Reset for create mode
             setFormData({
                 name: '',
-                code: '',
+                code: `CUST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
                 email: '',
                 phone: '',
                 address: '',

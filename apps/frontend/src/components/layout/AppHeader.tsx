@@ -10,9 +10,23 @@ export default function AppHeader() {
   const [isMounted, setIsMounted] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Set mounted state after hydration
+  const [user, setUser] = useState<{ name: string; role: string; email: string } | null>(null);
+
+  // Set mounted state after hydration and fetch user
   useEffect(() => {
     setIsMounted(true);
+
+    // Import fetchMe dynamically or use the imported one if available
+    import('@/auth/authClient').then(async ({ fetchMe }) => {
+      const result = await fetchMe();
+      if (result.status === 'ok') {
+        setUser({
+          name: result.user.user.name,
+          role: result.user.user.role,
+          email: result.user.user.email
+        });
+      }
+    });
   }, []);
 
   // Close dropdown when clicking outside
@@ -40,6 +54,15 @@ export default function AppHeader() {
     // Add view profile logic here
     console.log('Viewing profile...');
     setShowProfileMenu(false);
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   // Don't render interactive buttons during SSR
@@ -81,8 +104,7 @@ export default function AppHeader() {
                     <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
                   </div>
                   <div className="hidden lg:block text-left">
-                    <p className="text-sm font-semibold text-gray-800">Admin User</p>
-                    <p className="text-xs text-gray-500">Production Manager</p>
+                    <p className="text-sm font-semibold text-gray-800">Loading...</p>
                   </div>
                   <ChevronDown className="w-4 h-4 text-gray-500" />
                 </div>
@@ -167,13 +189,13 @@ export default function AppHeader() {
               >
                 <div className="relative">
                   <div className="w-9 h-9 bg-linear-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                    SP
+                    {user?.name ? getInitials(user.name) : 'SP'}
                   </div>
                   <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
                 </div>
                 <div className="hidden lg:block text-left">
-                  <p className="text-sm font-semibold text-gray-800">Admin User</p>
-                  <p className="text-xs text-gray-500">Production Manager</p>
+                  <p className="text-sm font-semibold text-gray-800">{user?.name || 'Loading...'}</p>
+                  <p className="text-xs text-gray-500 capitalize">{user?.role?.toLowerCase().replace('_', ' ') || '...'}</p>
                 </div>
                 <ChevronDown
                   className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`}
@@ -184,9 +206,9 @@ export default function AppHeader() {
               {showProfileMenu && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl border border-gray-200 shadow-lg py-2 z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="font-semibold text-gray-800">Admin User</p>
-                    <p className="text-sm text-gray-500">admin@skyprints.com</p>
-                    <p className="text-xs text-gray-400 mt-1">Production Manager</p>
+                    <p className="font-semibold text-gray-800">{user?.name || 'User'}</p>
+                    <p className="text-sm text-gray-500 truncate">{user?.email || ''}</p>
+                    <p className="text-xs text-gray-400 mt-1 capitalize">{user?.role?.toLowerCase().replace('_', ' ') || ''}</p>
                   </div>
 
                   <div className="py-2">
