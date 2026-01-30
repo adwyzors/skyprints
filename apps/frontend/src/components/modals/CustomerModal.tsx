@@ -1,21 +1,26 @@
 'use client';
 
-import { createCustomer } from '@/services/customer.service';
+import { Customer } from '@/domain/model/customer.model';
+import { createCustomer, updateCustomer } from '@/services/customer.service';
 import { CreateCustomerDto } from '@app/contracts';
 import { Loader2, Users, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-interface CreateCustomerModalProps {
+interface CustomerModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    customer?: Customer; // If provided, we are in edit mode
 }
 
-export default function CreateCustomerModal({
+export default function CustomerModal({
     isOpen,
     onClose,
     onSuccess,
-}: CreateCustomerModalProps) {
+    customer
+}: CustomerModalProps) {
+    const isEditMode = !!customer;
+
     const [formData, setFormData] = useState<CreateCustomerDto>({
         name: '',
         code: '',
@@ -29,6 +34,35 @@ export default function CreateCustomerModal({
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Initialize form data when customer prop changes
+    useEffect(() => {
+        if (customer) {
+            setFormData({
+                name: customer.name,
+                code: customer.code,
+                email: customer.email || '',
+                phone: customer.phone || '',
+                address: customer.address || '',
+                gstno: customer.gstno || '',
+                tax: customer.tax || false,
+                tds: customer.tds || false,
+            });
+        } else {
+            // Reset for create mode
+            setFormData({
+                name: '',
+                code: '',
+                email: '',
+                phone: '',
+                address: '',
+                gstno: '',
+                tax: false,
+                tds: false,
+            });
+        }
+        setError(null);
+    }, [customer, isOpen]);
 
     if (!isOpen) return null;
 
@@ -52,19 +86,24 @@ export default function CreateCustomerModal({
         setIsSubmitting(true);
 
         try {
-            await createCustomer({
+            const dataToSubmit = {
                 ...formData,
                 email: formData.email || undefined,
                 phone: formData.phone || undefined,
                 address: formData.address || undefined
-            });
+            };
+
+            if (isEditMode && customer) {
+                await updateCustomer(customer.id, dataToSubmit);
+            } else {
+                await createCustomer(dataToSubmit);
+            }
+
             onSuccess();
             onClose();
-            // Reset form
-            setFormData({ name: '', code: '', email: '', phone: '', address: '' });
         } catch (err: any) {
-            console.error('Failed to create customer:', err);
-            setError(err.message || 'Failed to create customer');
+            console.error(isEditMode ? 'Failed to update customer:' : 'Failed to create customer:', err);
+            setError(err.message || (isEditMode ? 'Failed to update customer' : 'Failed to create customer'));
         } finally {
             setIsSubmitting(false);
         }
@@ -85,8 +124,10 @@ export default function CreateCustomerModal({
                     <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
                         <Users className="w-6 h-6 text-white" />
                     </div>
-                    <h2 className="text-2xl font-bold">Add New Customer</h2>
-                    <p className="text-blue-100 text-sm mt-1">Enter customer details below</p>
+                    <h2 className="text-2xl font-bold">{isEditMode ? 'Edit Customer' : 'Add New Customer'}</h2>
+                    <p className="text-blue-100 text-sm mt-1">
+                        {isEditMode ? 'Update customer details below' : 'Enter customer details below'}
+                    </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -212,10 +253,10 @@ export default function CreateCustomerModal({
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    Creating...
+                                    {isEditMode ? 'Updating...' : 'Creating...'}
                                 </>
                             ) : (
-                                'Create Customer'
+                                isEditMode ? 'Update Customer' : 'Create Customer'
                             )}
                         </button>
                     </div>

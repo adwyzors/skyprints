@@ -148,33 +148,35 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                     </select>
                 </div>
 
-                {/* Status */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                        Status
-                        {loadingStatuses && <span className="ml-2 text-blue-500 text-[10px] lowercase font-normal">loading...</span>}
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                        {statuses.map(status => (
-                            <button
-                                key={status}
-                                onClick={() => handleStatusChange(status)}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filters.status.includes(status)
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-                                    }`}
-                            >
-                                {status}
-                            </button>
-                        ))}
-                        {statuses.length === 0 && !loadingStatuses && (
-                            <span className="text-xs text-gray-400 italic">No statuses available</span>
-                        )}
-                        {loadingStatuses && statuses.length === 0 && (
-                            <span className="text-xs text-gray-400 italic">Fetching statuses...</span>
-                        )}
+                {/* Status - Only show if process is selected */}
+                {filters.processId && filters.processId !== 'all' && (
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+                            Status
+                            {loadingStatuses && <span className="ml-2 text-blue-500 text-[10px] lowercase font-normal">loading...</span>}
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            {statuses.map(status => (
+                                <button
+                                    key={status}
+                                    onClick={() => handleStatusChange(status)}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filters.status.includes(status)
+                                        ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                                        }`}
+                                >
+                                    {status}
+                                </button>
+                            ))}
+                            {statuses.length === 0 && !loadingStatuses && (
+                                <span className="text-xs text-gray-400 italic">No statuses available</span>
+                            )}
+                            {loadingStatuses && statuses.length === 0 && (
+                                <span className="text-xs text-gray-400 italic">Fetching statuses...</span>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Priority */}
                 <div>

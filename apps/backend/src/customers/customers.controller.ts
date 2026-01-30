@@ -1,16 +1,17 @@
 import {
   CreateCustomerSchema,
   QueryCustomerSchema,
+  UpdateCustomerSchema,
 } from '@app/contracts';
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
-  Query,
+  Query
 } from '@nestjs/common';
 
 import { CustomersService } from './customers.service';
@@ -19,7 +20,7 @@ import { CustomersService } from './customers.service';
 export class CustomersController {
   constructor(
     private readonly service: CustomersService,
-  ) {}
+  ) { }
 
   /* =========================
    * Create Customer
@@ -28,6 +29,18 @@ export class CustomersController {
   create(@Body() body: unknown) {
     const dto = CreateCustomerSchema.parse(body);
     return this.service.create(dto);
+  }
+
+  /* =========================
+   * Update Customer
+   * ========================= */
+  @Patch(':id')
+  update(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    const dto = UpdateCustomerSchema.parse(body);
+    return this.service.update(id, dto);
   }
 
   /* =========================

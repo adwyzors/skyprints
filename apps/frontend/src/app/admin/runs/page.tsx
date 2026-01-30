@@ -219,9 +219,9 @@ export default function RunsPage() {
             {/* LEFT SIDEBAR FILTERS */}
             <div className={`
                 flex-shrink-0 bg-white border-r border-gray-200 h-full overflow-hidden transition-all duration-300 ease-in-out
-                ${isSidebarOpen ? 'w-80 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
+                ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
             `}>
-                <div className="w-80 h-full p-5">
+                <div className="w-72 h-full p-3">
                     <RunsFilter
                         filters={filters}
                         onChange={(newFilters) => {
@@ -238,7 +238,7 @@ export default function RunsPage() {
             <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
 
                 {/* Header Section */}
-                <div className="flex-shrink-0 px-6 py-5 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -276,7 +276,7 @@ export default function RunsPage() {
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto p-6 scroll-smooth">
+                <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
                     {/* Results Summary */}
                     <div className="flex items-center justify-between mb-6">
                         <p className="text-sm text-gray-600">
@@ -308,7 +308,7 @@ export default function RunsPage() {
                         <>
                             {/* GRID VIEW */}
                             <div className={viewMode === 'grid' ? 'block' : 'hidden'}>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                                     {runsData.runs.map((run) => (
                                         <RunCard
                                             key={run.id}

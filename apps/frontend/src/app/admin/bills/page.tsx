@@ -103,7 +103,7 @@ function BillsPageContent() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="p-4 md:p-6 lg:p-8 space-y-6">
+            <div className="p-4 md:p-4 lg:p-6 space-y-6">
                 <div>
                     <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Billing Groups</h1>
                     <p className="text-gray-600 mt-1">Manage and view all billing groups</p>

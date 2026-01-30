@@ -11,6 +11,13 @@ export async function createCustomer(dto: CreateCustomerDto): Promise<void> {
     });
 }
 
+export async function updateCustomer(id: string, dto: Partial<CreateCustomerDto>): Promise<void> {
+    await apiRequest(`/customers/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(dto),
+    });
+}
+
 export async function getCustomers(cookieHeader?: string): Promise<Customer[]> {
     const res = await apiRequest<CustomerSummaryDto[]>("/customers", {
         headers: {

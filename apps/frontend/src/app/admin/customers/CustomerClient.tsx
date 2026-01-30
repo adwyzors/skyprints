@@ -1,8 +1,8 @@
 'use client';
 
-import CreateCustomerModal from '@/components/modals/CreateCustomerModal';
+import CustomerModal from '@/components/modals/CustomerModal';
 import { Customer } from '@/domain/model/customer.model';
-import { Plus, Search } from 'lucide-react';
+import { Edit, Plus, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -12,7 +12,8 @@ interface CustomerClientProps {
 
 export default function CustomerClient({ initialCustomers }: CustomerClientProps) {
     const [searchTerm, setSearchTerm] = useState('');
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(undefined);
     const router = useRouter();
 
     // Basic client-side filtering
@@ -22,9 +23,20 @@ export default function CustomerClient({ initialCustomers }: CustomerClientProps
         (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
-    const handleCreateSuccess = () => {
+    const handleCreateClick = () => {
+        setSelectedCustomer(undefined);
+        setIsModalOpen(true);
+    };
+
+    const handleEditClick = (customer: Customer) => {
+        setSelectedCustomer(customer);
+        setIsModalOpen(true);
+    };
+
+    const handleSuccess = () => {
         router.refresh();
-        setIsCreateModalOpen(false);
+        setIsModalOpen(false);
+        setSelectedCustomer(undefined);
     };
 
     return (
@@ -48,7 +60,7 @@ export default function CustomerClient({ initialCustomers }: CustomerClientProps
                     />
                 </div>
                 <button
-                    onClick={() => setIsCreateModalOpen(true)}
+                    onClick={handleCreateClick}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
@@ -76,12 +88,15 @@ export default function CustomerClient({ initialCustomers }: CustomerClientProps
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Joined
                                 </th>
+                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Action
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredCustomers.length > 0 ? (
                                 filteredCustomers.map((customer) => (
-                                    <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
+                                    <tr key={customer.id} className="hover:bg-gray-50 transition-colors group">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                                             {customer.code}
                                         </td>
@@ -101,11 +116,20 @@ export default function CustomerClient({ initialCustomers }: CustomerClientProps
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {new Date(customer.createdAt).toLocaleDateString('en-GB')}
                                         </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <button
+                                                onClick={() => handleEditClick(customer)}
+                                                className="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-lg hover:bg-blue-50"
+                                                title="Edit Customer"
+                                            >
+                                                <Edit className="w-4 h-4" />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                         No customers found matching your search.
                                     </td>
                                 </tr>
@@ -120,10 +144,11 @@ export default function CustomerClient({ initialCustomers }: CustomerClientProps
                 </div>
             </div>
 
-            <CreateCustomerModal
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
-                onSuccess={handleCreateSuccess}
+            <CustomerModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSuccess={handleSuccess}
+                customer={selectedCustomer}
             />
         </div>
     );

@@ -195,9 +195,11 @@ export class AdminProcessService {
         /* ==========================
          * ORDER PROCESS WHERE
          * ========================== */
+        // Note: priority filter here uses the "absolute remaining" logic from priorityWhere, 
+        // while the sort uses "percentage" logic from resolvePriority.
         const orderProcessWhere: Prisma.OrderProcessWhereInput = {
             ...(processId && { processId }),
-            ...(priority && this.priorityWhere(priority)), // filter only
+            ...(priority && this.priorityWhere(priority)),
             ...(Object.keys(orderWhere).length > 0 && {
                 order: orderWhere,
             }),
@@ -258,23 +260,79 @@ export class AdminProcessService {
         };
 
         /* ==========================
-         * QUERY
+         * 1. FETCH METADATA FOR SORTING
          * ========================== */
-        const [total, runs] = await this.prisma.transaction([
-            this.prisma.processRun.count({ where }),
-            this.prisma.processRun.findMany({
-                where,
-                skip,
-                take: limit,
-                orderBy: { createdAt: 'desc' }, // ✅ DEFAULT SORT
-                include: {
-                    runTemplate: { select: { name: true } },
-                    executor: { select: { id: true, name: true } },
-                    reviewer: { select: { id: true, name: true } },
+        const total = await this.prisma.processRun.count({ where });
+
+        // If we are just filtering/searching and relying on default sort (createdAt) 
+        // we could optimize, but user requested PRIORITY sort specifically as primary.
+        // We fetch minimal data to sort in memory.
+        const allCandidates = await this.prisma.processRun.findMany({
+            where,
+            select: {
+                id: true,
+                createdAt: true,
+                orderProcess: {
+                    select: {
+                        lifecycleCompletedRuns: true,
+                        totalRuns: true,
+                    },
+                },
+            },
+        });
+
+        /* ==========================
+         * 2. IN-MEMORY SORT
+         * ========================== */
+        const getPriorityRank = (completed: number, total: number) => {
+            if (total === 0) return 2; // LOW
+            const ratio = 1 - (completed / total);
+            if (ratio < 0.2) return 0; // HIGH
+            if (ratio < 0.7) return 1; // MEDIUM
+            return 2; // LOW
+        };
+
+        allCandidates.sort((a, b) => {
+            const rankA = getPriorityRank(a.orderProcess.lifecycleCompletedRuns, a.orderProcess.totalRuns);
+            const rankB = getPriorityRank(b.orderProcess.lifecycleCompletedRuns, b.orderProcess.totalRuns);
+
+            if (rankA !== rankB) {
+                return rankA - rankB; // 0 (HIGH) -> 1 (MED) -> 2 (LOW)
+            }
+
+            // Tie-breaker: CreatedAt Descending (Newest first)
+            return b.createdAt.getTime() - a.createdAt.getTime();
+        });
+
+        /* ==========================
+         * 3. PAGINATE & FETCH FULL DATA
+         * ========================== */
+        const slicedCandidates = allCandidates.slice(skip, skip + limit);
+        const slicedIds = slicedCandidates.map(c => c.id);
+
+        let runs: any[] = [];
+        if (slicedIds.length > 0) {
+            const unsortedRuns = await this.prisma.processRun.findMany({
+                where: { id: { in: slicedIds } },
+                select: {
+                    id: true,
+                    runNumber: true,
+                    statusCode: true,
+                    lifeCycleStatusCode: true,
+                    fields: true,
+                    createdAt: true,
+                    runTemplate: {
+                        select: { name: true },
+                    },
+                    executor: {
+                        select: { name: true },
+                    },
+                    reviewer: {
+                        select: { name: true },
+                    },
                     orderProcess: {
                         select: {
                             totalRuns: true,
-                            configCompletedRuns: true,
                             lifecycleCompletedRuns: true,
                             remainingRuns: true,
                             order: {
@@ -287,17 +345,23 @@ export class AdminProcessService {
                         },
                     },
                 },
-            }),
-        ]);
+            });
+
+            // Re-sort to match the slicedCandidates order
+            const runMap = new Map(unsortedRuns.map(r => [r.id, r]));
+            runs = slicedIds.map(id => runMap.get(id)).filter(Boolean);
+        }
 
         /* ==========================
-         * MAP → DTO (ADD PRIORITY)
+         * MAP → DTO
          * ========================== */
         const data: ProcessRunListItemDto[] = runs.map((run) => ({
             ...run,
             createdAt: run.createdAt.toISOString(),
             priority: this.resolvePriority(
                 run.orderProcess.remainingRuns,
+                run.orderProcess.lifecycleCompletedRuns,
+                run.orderProcess.totalRuns
             ),
         }));
 
@@ -312,9 +376,10 @@ export class AdminProcessService {
         };
     }
 
-    private resolvePriority(remainingRuns: number): 'HIGH' | 'MEDIUM' | 'LOW' {
-        if (remainingRuns < 5) return 'HIGH';
-        if (remainingRuns < 10) return 'MEDIUM';
+    private resolvePriority(remainingRuns: number, completedRuns: number, totalRuns: number): 'HIGH' | 'MEDIUM' | 'LOW' {
+        if (totalRuns === 0) return 'LOW';
+        if (1 - (completedRuns / totalRuns) < 0.2) return 'HIGH';
+        if (1 - (completedRuns / totalRuns) < 0.7) return 'MEDIUM';
         return 'LOW';
     }
 

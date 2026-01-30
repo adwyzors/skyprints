@@ -13,7 +13,6 @@ export const ProcessRunListItemSchema = z.object({
     lifeCycleStatusCode: z.string(),
 
     runNumber: z.number(),
-    displayName: z.string(),
 
     runTemplate: z.object({
         name: z.string(),
@@ -21,24 +20,22 @@ export const ProcessRunListItemSchema = z.object({
 
     executor: z
         .object({
-            id: z.string().uuid(),
             name: z.string(),
         })
         .nullable(),
 
     reviewer: z
         .object({
-            id: z.string().uuid(),
             name: z.string(),
         })
         .nullable(),
 
     // ✅ NEW: priority exposed to UI
     priority: ProcessRunPrioritySchema,
+    fields: z.record(z.string(), z.any()).optional(),
 
     orderProcess: z.object({
         totalRuns: z.number(),
-        configCompletedRuns: z.number(),
         lifecycleCompletedRuns: z.number(),
         remainingRuns: z.number(),
 

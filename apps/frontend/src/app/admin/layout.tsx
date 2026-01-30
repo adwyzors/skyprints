@@ -123,7 +123,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
         <main className="px-4 sm:px-6 lg:px-8 pb-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
+          <div className="w-full mx-auto">{children}</div>
         </main>
       </div>
     );
@@ -135,7 +135,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* MAIN NAVIGATION BAR */}
       <div className="sticky top-16 z-40 bg-white border-b border-gray-200 shadow-sm">
-        <div className="px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-4 lg:px-6">
           <div className="flex items-center justify-between h-14">
             {/* LEFT - MAIN TABS */}
             <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
@@ -180,8 +180,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* MAIN CONTENT */}
-      <main className="px-4 sm:px-6 lg:px-8 pb-8">
-        <div className="max-w-7xl mx-auto">{children}</div>
+      <main className="px-4 sm:px-4 lg:px-6 pb-6">
+        <div className="w-full mx-auto">{children}</div>
       </main>
     </div>
   );

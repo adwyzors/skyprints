@@ -26,6 +26,23 @@ export class CustomersService {
         });
     }
 
+    async update(id: string, dto: Partial<CreateCustomerDto>) {
+        const customer = await this.findOne(id);
+
+        if (dto.code) {
+            const code = dto.code.trim().toUpperCase();
+            if (code !== customer.code) {
+                const existing = await this.repo.findByCode(code);
+                if (existing) {
+                    throw new ConflictException('Customer code already exists');
+                }
+                dto.code = code;
+            }
+        }
+
+        return this.repo.update(id, dto);
+    }
+
 
     async findAll(query: QueryCustomerDto) {
         const {

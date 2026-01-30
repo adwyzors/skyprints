@@ -22,6 +22,11 @@ export const CreateCustomerSchema = z.object({
 export type CreateCustomerDto =
     z.infer<typeof CreateCustomerSchema>;
 
+export const UpdateCustomerSchema = CreateCustomerSchema.partial();
+
+export type UpdateCustomerDto =
+    z.infer<typeof UpdateCustomerSchema>;
+
 /* =========================
  * Query Customers
  * ========================= */
