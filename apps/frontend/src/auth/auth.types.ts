@@ -12,4 +12,5 @@ export interface AuthUser {
     updatedAt: string;
     location?: any;
   };
+  permissions?: string[];
 }
