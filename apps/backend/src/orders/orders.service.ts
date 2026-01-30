@@ -681,6 +681,27 @@ export class OrdersService {
         });
     }
 
+    /* ========================== DELETE ========================== */
+
+    async delete(orderId: string) {
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId }
+        });
+
+        if (!order) {
+            throw new NotFoundException('Order not found');
+        }
+
+        await this.prisma.order.update({
+            where: { id: orderId },
+            data: { deletedAt: new Date() }
+        });
+
+        this.logger.log(`[ORDER][DELETE] order=${orderId}`);
+
+        return { success: true };
+    }
+
     /* =========================================================
      * ORDER TRANSITION
      * ========================================================= */

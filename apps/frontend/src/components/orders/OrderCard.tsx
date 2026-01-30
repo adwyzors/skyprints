@@ -2,6 +2,7 @@
 'use client';
 
 import { OrderCardData } from '@/domain/model/order.model';
+import { apiRequest } from '@/services/api.service';
 import {
     CheckCircle,
     ChevronRight,
@@ -9,7 +10,8 @@ import {
     FileText,
     Package,
     Settings,
-    User,
+    Trash,
+    User
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
@@ -210,7 +212,7 @@ export default function OrderCard({ order, active = true, showConfigure = true, 
 
                     {/* ACTION */}
                     {showConfigure && (
-                        <div className="pt-2 border-t border-gray-100">
+                        <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -219,6 +221,26 @@ export default function OrderCard({ order, active = true, showConfigure = true, 
                                 className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors flex items-center gap-0.5"
                             >
                                 Configure order <ChevronRight className="w-3 h-3" />
+                            </button>
+                            <button
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (confirm('Are you sure you want to delete this order?')) {
+                                        try {
+                                            await apiRequest(`/orders/${order.id}`, {
+                                                method: 'DELETE',
+                                            });
+                                            window.location.reload();
+                                        } catch (err: any) {
+                                            console.error('Failed to delete order', err);
+                                            alert(`Failed to delete order: ${err.message}`);
+                                        }
+                                    }
+                                }}
+                                className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                title="Delete Order"
+                            >
+                                <Trash className="w-3.5 h-3.5 text-red-500" />
                             </button>
                         </div>
                     )}

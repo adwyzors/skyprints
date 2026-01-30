@@ -4,6 +4,7 @@ import {
     BadRequestException,
     Body,
     Controller,
+    Delete,
     Get,
     Param,
     Post,
@@ -93,5 +94,10 @@ export class OrdersController {
     @Post(':id/complete-production')
     async completeProduction(@Param('id') orderId: string) {
         return this.service.completeProduction(orderId);
+    }
+
+    @Delete(':id')
+    async delete(@Param('id') orderId: string) {
+        return this.service.delete(orderId);
     }
 }
