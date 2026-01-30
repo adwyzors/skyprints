@@ -42,6 +42,12 @@ export interface OrderBillingSummary {
   customer: {
     name: string;
     code: string;
+    tax?: boolean;
+    tds?: boolean;
+    gstno?: string | null;
+    address?: string | null;
+    email?: string | null;
+    phone?: string | null;
   };
   processes: {
     id: string;

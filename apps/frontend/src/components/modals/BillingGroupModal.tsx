@@ -51,8 +51,8 @@ export default function BillingGroupModal({
 
             // Calculate TDS (2% if tds is true)
 
-            // const tdsAmount = details.orders[0]?.customer?.tds ? (totalAmount * 2) / 100 : 0;   remove later
-            const tdsAmount = 0
+            const tdsAmount = details.orders[0]?.customer?.tds ? (totalAmount * 2) / 100 : 0;
+            // const tdsAmount = 0
 
             // Calculate final total
             const finalTotal = totalAmount + cgstAmount + sgstAmount + tdsAmount;
@@ -60,21 +60,21 @@ export default function BillingGroupModal({
             // Create invoice data
             const invoiceData = {
                 // Header based on tax existence
-                // heading: details.orders[0]?.customer?.tax ? "Tax Invoice" : "Delivery Challan", remove later
-                heading: "Delivery Challan",
+                heading: details.orders[0]?.customer?.tax ? "Tax Invoice" : "Delivery Challan",
+                // heading: "Delivery Challan",
 
                 // Company details
                 companyName: "Sky Art Prints LLP",
                 companyAddress: "13, Bhavani Complex, Bhavani Shankar Road, Dadar West, Mumbai 400053",
                 msmeReg: "MSME Reg#: UDYAM-MH-19-0217047",
 
-                // gstin: details.orders[0]?.customer?.gst || "NA",  remove later
-                gstin: "NA",
+                gstin: details.orders[0]?.customer?.gstno || "NA",
+                // gstin: "NA",
 
                 // Customer details
                 billTo: details.orders[0]?.customer?.name || "NA",
-                // address: details.orders[0]?.customer?.address || "NA", remove later
-                address: "NA",
+                address: details.orders[0]?.customer?.address || "NA",
+                // address: "NA",
                 date: details.latestSnapshot?.createdAt ?
                     new Date(details.latestSnapshot.createdAt).toLocaleDateString('en-IN', {
                         day: '2-digit',

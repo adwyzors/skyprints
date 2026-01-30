@@ -1,8 +1,8 @@
 import type { CreateBillingContextDto } from "@app/contracts";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
-import { BillingSnapshotService } from "./billing-snapshot.service";
 import { ContextLogger } from "../../common/logger/context.logger";
+import { BillingSnapshotService } from "./billing-snapshot.service";
 
 @Injectable()
 export class BillingContextService {
@@ -261,7 +261,10 @@ export class BillingContextService {
                     quantity: order.quantity,
                     customer: {
                         name: order.customer.name,
-                        code: order.customer.code
+                        code: order.customer.code,
+                        gstno: order.customer.gstno,
+                        tax: order.customer.tax,
+                        tds: order.customer.tds
                     },
                     processes: order.processes.map(p => ({
                         id: p.id,
