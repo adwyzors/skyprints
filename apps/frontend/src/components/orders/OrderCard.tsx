@@ -122,11 +122,11 @@ export default function OrderCard({ order, active = true, showConfigure = true, 
             {/* CARD CONTENT - isolated stacking context */}
             <div
                 onClick={onClick || (() => router.push(`/admin/orders?selectedOrder=${order.id}`))}
-                className="group bg-white rounded-2xl border border-gray-200 cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1 flex flex-col isolate"
+                className="group bg-white rounded-2xl border border-gray-200 cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1 flex flex-col isolate h-full"
             >
                 {/* IMAGE CAROUSEL */}
                 <div
-                    className="relative w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden rounded-t-2xl"
+                    className="relative w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden rounded-t-2xl"
                     onMouseEnter={() => setIsPaused(true)}
                     onMouseLeave={() => setIsPaused(false)}
                 >
@@ -147,19 +147,19 @@ export default function OrderCard({ order, active = true, showConfigure = true, 
                                 <>
                                     <button
                                         onClick={prevImage}
-                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all hover:scale-110 z-20"
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-lg transition-all hover:scale-110 z-20"
                                         aria-label="Previous image"
                                     >
-                                        <ChevronRight className="w-5 h-5 text-gray-800 rotate-180" />
+                                        <ChevronRight className="w-4 h-4 text-gray-800 rotate-180" />
                                     </button>
                                     <button
                                         onClick={nextImage}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all hover:scale-110 z-20"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-lg transition-all hover:scale-110 z-20"
                                         aria-label="Next image"
                                     >
-                                        <ChevronRight className="w-5 h-5 text-gray-800" />
+                                        <ChevronRight className="w-4 h-4 text-gray-800" />
                                     </button>
-                                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-medium z-20">
+                                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-2 py-0.5 rounded-full text-[10px] font-medium z-20">
                                         {currentImageIndex + 1} / {images.length}
                                     </div>
                                 </>
@@ -167,14 +167,14 @@ export default function OrderCard({ order, active = true, showConfigure = true, 
                         </>
                     ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
-                            <Package className="w-16 h-16 mb-2" />
-                            <span className="text-sm font-medium">No images uploaded</span>
+                            <Package className="w-12 h-12 mb-2 opacity-50" />
+                            <span className="text-xs font-medium">No images uploaded</span>
                         </div>
                     )}
                 </div>
 
                 {/* ORDER DETAILS */}
-                <div className="p-3 space-y-2 flex-1">
+                <div className="p-4 space-y-3 flex-1">
                     {/* HEADER: Code + Job */}
                     <div className="flex items-start justify-between gap-2">
                         <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition-colors truncate text-[15px]">
