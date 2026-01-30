@@ -139,16 +139,31 @@ export class AdminProcessService {
         return processes.map(toProcessSummary);
     }
 
-    private priorityWhere(priority: 'HIGH' | 'MEDIUM' | 'LOW'): Prisma.OrderProcessWhereInput {
-        if (priority === 'HIGH') {
-            return { remainingRuns: { lt: 5 } };
+    private priorityWhere(priorities: string | string[]): Prisma.OrderProcessWhereInput {
+        // Normalize to array
+        const priorityList = (typeof priorities === 'string' ? priorities.split(',') : priorities) as Array<'HIGH' | 'MEDIUM' | 'LOW'>;
+
+        if (priorityList.length === 0) return {};
+
+        const conditions: Prisma.OrderProcessWhereInput[] = [];
+
+        if (priorityList.includes('HIGH')) {
+            conditions.push({ remainingRuns: { lt: 5 } });
         }
 
-        if (priority === 'MEDIUM') {
-            return { remainingRuns: { gte: 5, lt: 10 } };
+        if (priorityList.includes('MEDIUM')) {
+            conditions.push({ remainingRuns: { gte: 5, lt: 10 } });
         }
 
-        return { remainingRuns: { gte: 10 } };
+        if (priorityList.includes('LOW')) {
+            conditions.push({ remainingRuns: { gte: 10 } });
+        }
+
+        if (conditions.length === 1) {
+            return conditions[0];
+        }
+
+        return { OR: conditions };
     }
 
 
@@ -165,6 +180,7 @@ export class AdminProcessService {
             priority,
             createdFrom,
             createdTo,
+            processId,
         } = query;
 
         const skip = (page - 1) * limit;
@@ -180,6 +196,7 @@ export class AdminProcessService {
          * ORDER PROCESS WHERE
          * ========================== */
         const orderProcessWhere: Prisma.OrderProcessWhereInput = {
+            ...(processId && { processId }),
             ...(priority && this.priorityWhere(priority)), // filter only
             ...(Object.keys(orderWhere).length > 0 && {
                 order: orderWhere,
@@ -196,7 +213,9 @@ export class AdminProcessService {
 
             ...(executorUserId && { executorId: executorUserId }),
             ...(reviewerUserId && { reviewerId: reviewerUserId }),
-            ...(lifeCycleStatusCode && { lifeCycleStatusCode }),
+            ...(lifeCycleStatusCode && {
+                lifeCycleStatusCode: { in: lifeCycleStatusCode.split(',') }
+            }),
 
             ...(createdFrom || createdTo
                 ? {

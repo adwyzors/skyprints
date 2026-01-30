@@ -59,8 +59,15 @@ export interface GetRunsParams {
     page?: number;
     limit?: number;
     search?: string;
-    status?: string;
+    status?: string | string[];
+    lifeCycleStatusCode?: string | string[];
+    priority?: string | string[];
+    executorUserId?: string;
+    reviewerUserId?: string;
+    createdFrom?: string;
+    createdTo?: string;
     customerId?: string;
+    processId?: string;
 }
 
 export interface GetRunsResponse {
@@ -80,8 +87,28 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
     queryParams.append('limit', requestedLimit.toString());
 
     if (params.search) queryParams.append('search', params.search);
-    if (params.status) queryParams.append('status', params.status);
-    if (params.customerId) queryParams.append('customerId', params.customerId);
+
+    // Helper to append array or string params
+    const appendParam = (key: string, value?: string | string[]) => {
+        if (!value) return;
+        if (Array.isArray(value)) {
+            if (value.length > 0) queryParams.append(key, value.join(','));
+        } else {
+            queryParams.append(key, value);
+        }
+    };
+
+    appendParam('status', params.status);
+    appendParam('lifeCycleStatusCode', params.lifeCycleStatusCode);
+    appendParam('priority', params.priority);
+
+    if (params.executorUserId && params.executorUserId !== 'all') queryParams.append('executorUserId', params.executorUserId);
+    if (params.reviewerUserId && params.reviewerUserId !== 'all') queryParams.append('reviewerUserId', params.reviewerUserId);
+    if (params.customerId && params.customerId !== 'all') queryParams.append('customerId', params.customerId);
+    if (params.processId && params.processId !== 'all') queryParams.append('processId', params.processId);
+
+    if (params.createdFrom) queryParams.append('createdFrom', params.createdFrom);
+    if (params.createdTo) queryParams.append('createdTo', params.createdTo);
 
     const queryString = queryParams.toString();
     const url = queryString ? `/process/runs?${queryString}` : '/process/runs';

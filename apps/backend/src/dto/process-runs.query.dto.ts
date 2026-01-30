@@ -47,8 +47,8 @@ export class ProcessRunsQueryDto {
     lifeCycleStatusCode?: string;
 
     @IsOptional()
-    @IsIn(['HIGH', 'MEDIUM', 'LOW'])
-    priority?: 'HIGH' | 'MEDIUM' | 'LOW';
+    @IsString()
+    priority?: string;
 
     @IsOptional()
     @IsString()
@@ -57,4 +57,8 @@ export class ProcessRunsQueryDto {
     @IsOptional()
     @IsString()
     createdTo?: string;
+
+    @IsOptional()
+    @IsString()
+    processId?: string;
 }

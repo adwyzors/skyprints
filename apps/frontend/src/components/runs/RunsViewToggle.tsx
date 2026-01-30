@@ -1,14 +1,13 @@
-// apps\frontend\src\components\orders\OrdersViewToggle.tsx
 'use client';
 
 import { Grid3x3, List } from 'lucide-react';
 
-interface OrdersViewToggleProps {
+interface RunsViewToggleProps {
     view: 'grid' | 'table';
     onViewChange: (view: 'grid' | 'table') => void;
 }
 
-export default function OrdersViewToggle({ view, onViewChange }: OrdersViewToggleProps) {
+export default function RunsViewToggle({ view, onViewChange }: RunsViewToggleProps) {
     return (
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
             <button

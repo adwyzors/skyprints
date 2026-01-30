@@ -1,3 +1,4 @@
+// apps\frontend\src\components\orders\OrderCard.tsx
 'use client';
 
 import { OrderCardData } from '@/domain/model/order.model';

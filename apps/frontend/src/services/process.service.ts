@@ -4,21 +4,27 @@ import { ProcessDetailDto, ProcessDetailSchema, ProcessSummaryDto, ProcessSummar
 import { apiRequest } from "./api.service";
 
 export async function getProcesses(): Promise<ProcessSummary[]> {
-    const res = await apiRequest<ProcessSummaryDto[]>("/process");
+  const res = await apiRequest<ProcessSummaryDto[]>("/process");
 
-    const dto = ProcessSummarySchema.array().parse(res);
+  const dto = ProcessSummarySchema.array().parse(res);
 
-    return dto.map(mapProcessSummaryDto);
+  return dto.map(mapProcessSummaryDto);
 }
 
 export async function getProcessById(
-    processId: string
+  processId: string
 ): Promise<ProcessDetail> {
-    const res = await apiRequest<ProcessDetailDto>(`/process/${processId}`);
+  const res = await apiRequest<ProcessDetailDto>(`/process/${processId}`);
 
-    const dto = ProcessDetailSchema.parse(res);
+  const dto = ProcessDetailSchema.parse(res);
 
-    return mapProcessDetailDto(dto);
+  return mapProcessDetailDto(dto);
+}
+
+export async function getProcessLifecycleStatuses(processId: string): Promise<string[]> {
+  return apiRequest<string[]>(`/process/${processId}/lifecycle-statuses`, {
+    method: "GET",
+  });
 }
 
 export async function uploadProcessRunImages(
