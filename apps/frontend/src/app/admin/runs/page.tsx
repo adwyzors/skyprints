@@ -214,14 +214,14 @@ export default function RunsPage() {
     };
 
     return (
-        <div className="flex h-screen bg-gray-50/50 overflow-hidden">
+        <div className="flex bg-gray-50/50">
 
             {/* LEFT SIDEBAR FILTERS */}
             <div className={`
-                flex-shrink-0 bg-white border-r border-gray-200 h-full overflow-hidden transition-all duration-300 ease-in-out
+                flex-shrink-0 bg-white border-r border-gray-200 min-h-screen overflow-hidden transition-all duration-300 ease-in-out
                 ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
             `}>
-                <div className="w-72 h-full p-3">
+                <div className="w-72 h-full p-3 sticky top-32">
                     <RunsFilter
                         filters={filters}
                         onChange={(newFilters) => {
@@ -235,10 +235,10 @@ export default function RunsPage() {
             </div>
 
             {/* MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
+            <div className="flex-1 flex flex-col w-full relative">
 
                 {/* Header Section */}
-                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-0">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -275,8 +275,8 @@ export default function RunsPage() {
                     </div>
                 </div>
 
-                {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto p-4 scroll-smooth">
+                {/* Content */}
+                <div className="p-4">
                     {/* Results Summary */}
                     <div className="flex items-center justify-between mb-6">
                         <p className="text-sm text-gray-600">
