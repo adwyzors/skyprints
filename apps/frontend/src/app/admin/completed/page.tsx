@@ -7,7 +7,7 @@ import OrderCard from "@/components/orders/OrderCard";
 import { Order } from "@/domain/model/order.model";
 import { GetOrdersParams, getOrders } from "@/services/orders.service";
 import debounce from 'lodash/debounce';
-import { Calendar, CheckSquare, ChevronLeft, Download, FileText, Filter, Loader2, Search, Users } from "lucide-react";
+import { Calendar, CheckSquare, ChevronLeft, FileText, Filter, Loader2, Search, Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -292,10 +292,6 @@ function CompletedContent() {
                 >
                   <CheckSquare className="w-4 h-4" />
                   Select
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm text-sm" title="Export">
-                  <Download className="w-4 h-4" />
-                  <span className="hidden sm:inline">Export</span>
                 </button>
               </>
             ) : (

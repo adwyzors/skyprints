@@ -13,7 +13,6 @@ import debounce from 'lodash/debounce';
 import {
   Box,
   ChevronLeft,
-  Download,
   Filter,
   Loader2,
   Plus,
@@ -316,9 +315,6 @@ function AdminOrdersContent() {
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">New Order</span>
-            </button>
-            <button className="p-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm" title="Export">
-              <Download className="w-4 h-4" />
             </button>
           </div>
         </div>
