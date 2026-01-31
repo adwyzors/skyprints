@@ -59,6 +59,11 @@ export class AdminProcessController {
         return this.service.getAll();
     }
 
+    @Get('runs/:id')
+    async getRun(@Param('id') id: string) { // Return type inferred or explicitly ProcessRunDetailDto
+        return this.service.getRunById(id);
+    }
+
     @Post(':orderProcessId/runs/:processRunId/configure')
     async configure(
         @Param('orderProcessId') orderProcessId: string,

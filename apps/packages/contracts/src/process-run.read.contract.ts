@@ -35,9 +35,9 @@ export const ProcessRunListItemSchema = z.object({
     fields: z.record(z.string(), z.any()).optional(),
 
     orderProcess: z.object({
-        totalRuns: z.number(),
-        lifecycleCompletedRuns: z.number(),
-        remainingRuns: z.number(),
+        totalRuns: z.number().optional(),
+        lifecycleCompletedRuns: z.number().optional(),
+        remainingRuns: z.number().optional(),
 
         order: z.object({
             id: z.string().uuid(),
@@ -48,8 +48,32 @@ export const ProcessRunListItemSchema = z.object({
         }),
     }),
 
-    createdAt: z.string().datetime(),
+    createdAt: z.string().datetime().optional(),
 });
 
 export type ProcessRunListItemDto =
     z.infer<typeof ProcessRunListItemSchema>;
+
+export const ProcessRunDetailSchema = ProcessRunListItemSchema.extend({
+    // Override optional fields to be required for detail view
+    fields: z.record(z.string(), z.any()),
+    createdAt: z.string().datetime(),
+
+    displayName: z.string(),
+    configStatus: z.string(),
+
+    // Lifecycle history for timeline
+    lifecycle: z.array(z.object({
+        code: z.string(),
+        completed: z.boolean(),
+    })),
+
+    // Field definitions for UI rendering (optional, but helpful)
+    templateFields: z.array(z.object({
+        key: z.string(),
+        type: z.string(),
+        required: z.boolean(),
+    })),
+});
+
+export type ProcessRunDetailDto = z.infer<typeof ProcessRunDetailSchema>;

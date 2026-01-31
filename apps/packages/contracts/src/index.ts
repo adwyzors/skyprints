@@ -1,4 +1,4 @@
-export * from './process-run.read.contract';
+export { ProcessRunDetailDto, ProcessRunListItemDto } from './process-run.read.contract';
 export * from './process.contract';
 export * from './process.read.contract';
 

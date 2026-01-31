@@ -12,6 +12,7 @@ interface ConfigurationModalProps {
     orderCode: string;
     customerName: string;
     onClose: () => void;
+    readOnly?: boolean;
 }
 
 export default function ConfigurationModal({
@@ -20,6 +21,7 @@ export default function ConfigurationModal({
     orderCode,
     customerName,
     onClose,
+    readOnly
 }: ConfigurationModalProps) {
     const printRef = useRef<HTMLDivElement>(null);
 
@@ -111,7 +113,7 @@ export default function ConfigurationModal({
         }
     };
 
-    const requiredFields = run.fields?.filter((f) => f.required) || [];
+    const requiredFields = (Array.isArray(run.fields) ? run.fields : []).filter((f) => f.required);
 
     // Create a 2-column grid layout for the table like in the image
     const createGridData = () => {

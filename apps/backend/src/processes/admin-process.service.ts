@@ -215,9 +215,13 @@ export class AdminProcessService {
 
             ...(executorUserId && { executorId: executorUserId }),
             ...(reviewerUserId && { reviewerId: reviewerUserId }),
-            ...(lifeCycleStatusCode && {
+            ...(lifeCycleStatusCode ? {
                 lifeCycleStatusCode: { in: lifeCycleStatusCode.split(',') }
-            }),
+            } : (
+                !status ? {
+                    lifeCycleStatusCode: { notIn: ['COMPLETE', 'BILLED'] }
+                } : {}
+            )),
 
             ...(createdFrom || createdTo
                 ? {
@@ -287,8 +291,8 @@ export class AdminProcessService {
         const getPriorityRank = (completed: number, total: number) => {
             if (total === 0) return 2; // LOW
             const ratio = 1 - (completed / total);
-            if (ratio < 0.2) return 0; // HIGH
-            if (ratio < 0.7) return 1; // MEDIUM
+            if (ratio < 0.3 || total - completed < 2) return 0; // HIGH
+            if (ratio < 0.75) return 1; // MEDIUM
             return 2; // LOW
         };
 
@@ -355,15 +359,32 @@ export class AdminProcessService {
         /* ==========================
          * MAP → DTO
          * ========================== */
-        const data: ProcessRunListItemDto[] = runs.map((run) => ({
-            ...run,
-            createdAt: run.createdAt.toISOString(),
-            priority: this.resolvePriority(
-                run.orderProcess.remainingRuns,
-                run.orderProcess.lifecycleCompletedRuns,
-                run.orderProcess.totalRuns
-            ),
-        }));
+        const data: ProcessRunListItemDto[] = runs.map((run) => {
+            // Pick only used fields
+            let relevantFields: Record<string, any> = {};
+            if (run.fields) {
+                const f = run.fields as any;
+                if (f.images) relevantFields['images'] = f.images;
+                if (f['Quantity']) relevantFields['Quantity'] = f['Quantity'];
+                if (f['Estimated Amount']) relevantFields['Estimated Amount'] = f['Estimated Amount'];
+            }
+
+            return {
+                ...run,
+                fields: relevantFields,
+                // Exclude createdAt and orderProcess stats from payload
+                // but keep structure required by DTO (which is now optional)
+                orderProcess: {
+                    order: run.orderProcess.order,
+                },
+                createdAt: undefined, // remove from JSON
+                priority: this.resolvePriority(
+                    run.orderProcess.remainingRuns,
+                    run.orderProcess.lifecycleCompletedRuns,
+                    run.orderProcess.totalRuns
+                ),
+            };
+        });
 
         return {
             data,
@@ -378,8 +399,8 @@ export class AdminProcessService {
 
     private resolvePriority(remainingRuns: number, completedRuns: number, totalRuns: number): 'HIGH' | 'MEDIUM' | 'LOW' {
         if (totalRuns === 0) return 'LOW';
-        if (1 - (completedRuns / totalRuns) < 0.2) return 'HIGH';
-        if (1 - (completedRuns / totalRuns) < 0.7) return 'MEDIUM';
+        if (1 - (completedRuns / totalRuns) < 0.3 || totalRuns - completedRuns < 2) return 'HIGH';
+        if (1 - (completedRuns / totalRuns) < 0.75) return 'MEDIUM';
         return 'LOW';
     }
 
@@ -610,6 +631,100 @@ export class AdminProcessService {
             uploadedImages: urls,
             totalImages: updatedFields.images.length,
         };
+    }
+
+    /* =========================================================
+     * RUN DETAIL
+     * ========================================================= */
+
+    async getRunById(id: string): Promise<any> { // Typing as any to bypass circular dep issues internally, mapped to DTO in controller
+        const run = await this.prisma.processRun.findUnique({
+            where: { id },
+            include: {
+                runTemplate: {
+                    include: {
+                        lifecycleWorkflowType: {
+                            include: {
+                                statuses: {
+                                    orderBy: { createdAt: 'asc' },
+                                    select: {
+                                        code: true,
+                                        isInitial: true,
+                                        isTerminal: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                executor: {
+                    select: { id: true, name: true },
+                },
+                reviewer: {
+                    select: { id: true, name: true },
+                },
+                orderProcess: {
+                    include: {
+                        order: {
+                            select: {
+                                id: true,
+                                code: true,
+                                customer: { select: { name: true } },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!run) throw new NotFoundException('Process run not found');
+
+        return {
+            ...run,
+            createdAt: run.createdAt.toISOString(),
+            priority: this.resolvePriority(
+                run.orderProcess.remainingRuns,
+                run.orderProcess.lifecycleCompletedRuns,
+                run.orderProcess.totalRuns
+            ),
+            displayName: run.displayName,
+            configStatus: run.statusCode,
+            lifecycle: this.buildLifecycleProgress(
+                run.runTemplate.lifecycleWorkflowType.statuses,
+                run.lifeCycleStatusCode,
+            ),
+            fields: run.fields as Record<string, any> || {},
+            templateFields: run.runTemplate.fields as any[], // Typing bypass
+            // Ensure orderProcess matches DTO
+            orderProcess: {
+                totalRuns: run.orderProcess.totalRuns,
+                lifecycleCompletedRuns: run.orderProcess.lifecycleCompletedRuns,
+                remainingRuns: run.orderProcess.remainingRuns,
+                order: run.orderProcess.order,
+            },
+        };
+    }
+
+    private buildLifecycleProgress(
+        statuses: { code: string; isTerminal: boolean }[],
+        currentCode: string,
+    ) {
+        let reachedCurrent = false;
+
+        return statuses.map(s => {
+            if (s.code === currentCode) {
+                reachedCurrent = true;
+                return {
+                    code: s.code,
+                    completed: s.isTerminal,
+                };
+            }
+
+            return {
+                code: s.code,
+                completed: !reachedCurrent,
+            };
+        });
     }
 
     /* =========================================================

@@ -536,11 +536,10 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                 <button
                   onClick={finalizeBilling}
                   disabled={submitting}
-                  className={`px-8 py-3 font-medium rounded-xl transition-all flex items-center gap-3 ${
-                    !submitting
+                  className={`px-8 py-3 font-medium rounded-xl transition-all flex items-center gap-3 ${!submitting
                       ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   {submitting ? (
                     <>

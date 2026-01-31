@@ -1,5 +1,6 @@
 'use client';
 
+import ViewRunModal from '@/components/modals/ViewRunModal';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import RunCard from '@/components/runs/RunCard';
 import RunsFilter from '@/components/runs/RunsFilter';
@@ -19,6 +20,7 @@ import {
     User
 } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 // Enhanced Run interface to support Card View
@@ -66,9 +68,33 @@ export default function RunsPage() {
         runs: [],
         total: 0,
         page: 1,
-        limit: 20,
-        totalPages: 1,
+        limit: 12,
+        totalPages: 0
     });
+
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    const [selectedRunId, setSelectedRunId] = useState<string | null>(searchParams.get('selectedRun'));
+
+    useEffect(() => {
+        const runParam = searchParams.get('selectedRun');
+        if (runParam !== selectedRunId) {
+            setSelectedRunId(runParam);
+        }
+    }, [searchParams]);
+
+    const handleRunSelection = (runId: string | null) => {
+        setSelectedRunId(runId);
+        const params = new URLSearchParams(searchParams.toString());
+        if (runId) {
+            params.set('selectedRun', runId);
+        } else {
+            params.delete('selectedRun');
+        }
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    };
 
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -314,6 +340,7 @@ export default function RunsPage() {
                                             key={run.id}
                                             run={run}
                                             active={viewMode === 'grid'}
+                                            onClick={() => handleRunSelection(run.id)}
                                         />
                                     ))}
                                 </div>
@@ -426,6 +453,19 @@ export default function RunsPage() {
                         </>
                     )}
                 </div>
+
+                {/* VIEW RUN MODAL */}
+                {selectedRunId && (
+                    <ViewRunModal
+                        runId={selectedRunId}
+                        onClose={() => handleRunSelection(null)}
+                        onRunUpdate={() => {
+                            // Refresh list to reflect any status changes
+                            setRunsData(prev => ({ ...prev }));
+                            setFilters(prev => ({ ...prev }));
+                        }}
+                    />
+                )}
             </div>
         </div>
     );

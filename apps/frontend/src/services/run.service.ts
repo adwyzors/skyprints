@@ -136,3 +136,7 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
         totalPages
     };
 }
+
+export async function getRunById(processRunId: string): Promise<any> {
+    return apiRequest<any>(`/process/runs/${processRunId}`);
+}
