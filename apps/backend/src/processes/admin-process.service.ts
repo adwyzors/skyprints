@@ -124,7 +124,7 @@ export class AdminProcessService {
 
     async getById(id: string) {
         const process = await this.prisma.process.findUnique({
-            where: { id },
+            where: { id, isEnabled: true },
             include: { runDefs: true },
         });
         if (!process) throw new BadRequestException('Process not found');
@@ -134,6 +134,7 @@ export class AdminProcessService {
     async getAll() {
         const processes = await this.prisma.process.findMany({
             include: { runDefs: true },
+            where: { isEnabled: true },
             orderBy: { name: 'asc' },
         });
         return processes.map(toProcessSummary);

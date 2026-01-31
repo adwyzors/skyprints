@@ -39,7 +39,8 @@ export class AuthController {
         const url = this.keycloak.getLoginUrl(state);
 
         this.logger.debug('Redirecting user to Keycloak authorization endpoint');
-        return res.redirect(url);
+        res.redirect(url);
+        return;
     }
 
     @Get('callback')
@@ -69,9 +70,10 @@ export class AuthController {
         }
 
         this.logger.log(`Login completed, redirecting to frontend: ${redirectTo}`);
-        return res.redirect(
+        res.redirect(
             `${process.env.FRONT_END_BASE_URL}${redirectTo}`,
         );
+        return;
     }
 
     @Post('refresh')
