@@ -232,7 +232,7 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                     <View style={styles.billDetails}>
                         <Text style={styles.sectionTitle}>Bill Details</Text>
                         <Text>Date: {invoiceData.date}</Text>
-                        <Text>Bill#: {invoiceData.billNumber.slice(5)}</Text>
+                        <Text>Bill#: {invoiceData.billNumber.slice(6)}</Text>
                         <Text>HSM/SL: 998822</Text>
                     </View>
                 </View>
@@ -293,7 +293,20 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                 {/* Amount in Words */}
                 <View style={styles.amountInWords}>
                     <Text style={styles.amountInWordsTitle}>Total in Words:</Text>
-                    <Text>{numberToWords(roundedTotal)} Rupees and No Paisa</Text>
+                    <Text>{(() => {
+                        const integerPart = Math.floor(roundedTotal);
+                        const decimalPart = Math.round((roundedTotal - integerPart) * 100);
+
+                        let text = `${numberToWords(integerPart)} Rupees`;
+
+                        if (decimalPart > 0) {
+                            text += ` and ${numberToWords(decimalPart)} Paisa`;
+                        } else {
+                            text += ` and No Paisa`;
+                        }
+
+                        return text;
+                    })()}</Text>
                 </View>
 
                 {/* Footer */}
