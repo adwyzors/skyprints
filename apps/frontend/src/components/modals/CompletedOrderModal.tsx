@@ -1,10 +1,12 @@
 "use client";
 //apps\frontend\src\components\modals\CompletedOrderModal.tsx
+import InvoicePDF from '@/components/billing/InvoicePDF';
 import { BillingSnapshot } from "@/domain/model/billing.model";
 import { Order } from "@/domain/model/order.model";
 import { getLatestBillingSnapshot } from "@/services/billing.service";
 import { getOrderById } from "@/services/orders.service";
-import { Calculator, CheckCircle, DollarSign, ExternalLink, FileText, Loader2, Package, Printer, X } from "lucide-react";
+import { pdf } from '@react-pdf/renderer';
+import { Calculator, CheckCircle, DollarSign, Download, ExternalLink, FileText, Loader2, Package, Printer, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -149,6 +151,74 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
     printWindow.focus();
     printWindow.print();
     printWindow.close();
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!order) return;
+
+    try {
+      const { billedTotal } = calculateTotals();
+
+      // Calculate GST amounts based on billed total (assuming exclusive of tax for calculation logic alignment with InvoicePDF)
+      // Note: If billedTotal is inclusive, this logic adds tax ON TOP. 
+      // User requested "same template", which takes subtotal and adds tax.
+      // We treat billedTotal as the subtotal here.
+
+      const subtotal = billedTotal;
+      const cgstAmount = (subtotal * 2.5) / 100;
+      const sgstAmount = (subtotal * 2.5) / 100;
+
+      // Check for TDS (safely access potentially missing property)
+      // Order interface might not have full customer details, defaulting to false/0
+      const customerTds = (order.customer as any)?.tds ?? false;
+      const tdsAmount = customerTds ? (subtotal * 2) / 100 : 0;
+
+      const finalTotal = subtotal + cgstAmount + sgstAmount + tdsAmount;
+
+      // Single item for the whole order
+      const items = [{
+        srNo: 1,
+        orderCode: order.code || order.id.slice(0, 8).toUpperCase(),
+        quantity: order.quantity,
+        rate: order.quantity > 0 ? (billedTotal / order.quantity).toFixed(2) : "0.00",
+        amount: billedTotal.toFixed(2)
+      }];
+
+      const invoiceData = {
+        heading: (order.customer as any)?.tax ? "Tax Invoice" : "Delivery Challan",
+        companyName: "Sky Art Prints LLP",
+        companyAddress: "13, Bhavani Complex, Bhavani Shankar Road, Dadar West, Mumbai 400053",
+        msmeReg: "MSME Reg#: UDYAM-MH-19-0217047",
+        gstin: (order.customer as any)?.gstno || "NA",
+
+        billTo: order.customer?.name || "NA",
+        address: (order.customer as any)?.address || "NA",
+        date: formatDate(new Date()), // Invoice date is today
+        billNumber: order.code || order.id.slice(0, 8).toUpperCase(),
+
+        items: items,
+
+        subtotal: subtotal.toFixed(2),
+        cgstAmount: cgstAmount.toFixed(2),
+        sgstAmount: sgstAmount.toFixed(2),
+        tdsAmount: tdsAmount.toFixed(2),
+        total: finalTotal.toFixed(2)
+      };
+
+      const blob = await pdf(<InvoicePDF invoiceData={invoiceData} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice_${order.code || order.id}_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate invoice PDF");
+    }
   };
 
   // Loading state
@@ -586,11 +656,18 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
 
               <div className="flex justify-center gap-4">
                 <button
-                  onClick={handlePrint}
+                  onClick={handleDownloadInvoice}
                   className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors"
                 >
+                  <Download className="w-4 h-4" />
+                  Download Invoice PDF
+                </button>
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                >
                   <Printer className="w-4 h-4" />
-                  Print Invoice
+                  Print (Browser)
                 </button>
               </div>
             </div>
