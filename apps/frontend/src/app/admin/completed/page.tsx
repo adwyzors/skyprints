@@ -166,13 +166,27 @@ function CompletedContent() {
 
   // Selection helpers
   const toggleOrderSelection = (order: Order) => {
+    if (selectedOrders.has(order.id)) {
+      setSelectedOrders((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(order.id);
+        return newMap;
+      });
+      return;
+    }
+
+    // Validation: Check if the new order belongs to the same customer as existing selected orders
+    if (selectedOrders.size > 0) {
+      const firstOrder = selectedOrders.values().next().value;
+      if (firstOrder && firstOrder.customer.id !== order.customer.id) {
+        alert(`You can only group orders from the same customer.\nCurrent selection: ${firstOrder.customer.name}\nNew order: ${order.customer.name}`);
+        return;
+      }
+    }
+
     setSelectedOrders((prev) => {
       const newMap = new Map(prev);
-      if (newMap.has(order.id)) {
-        newMap.delete(order.id);
-      } else {
-        newMap.set(order.id, order);
-      }
+      newMap.set(order.id, order);
       return newMap;
     });
   };
@@ -297,13 +311,12 @@ function CompletedContent() {
                 </button>
                 <button
                   onClick={() => setShowCreateGroupModal(true)}
-                  disabled={selectedOrders.size < 2}
+                  disabled={selectedOrders.size < 1}
                   className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm text-sm"
                 >
                   <Users className="w-4 h-4" />
                   Prepare Invoice
-                </button>
-              </>
+                </button>              </>
             )}
           </div>
         </div>

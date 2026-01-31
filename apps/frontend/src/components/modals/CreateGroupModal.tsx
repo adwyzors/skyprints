@@ -49,8 +49,8 @@ export default function CreateGroupModal({
       return;
     }
 
-    if (selectedOrders.length < 2) {
-      setError('At least 2 orders are required to create a group');
+    if (selectedOrders.length < 1) {
+      setError('At least 1 order is required to create a group');
       return;
     }
 
