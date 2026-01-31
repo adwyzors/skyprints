@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 
 // Enhanced Run interface to support Card View
 interface Run {
@@ -57,7 +57,7 @@ interface Run {
     };
 }
 
-export default function RunsPage() {
+function RunsPageContent() {
     const [runsData, setRunsData] = useState<{
         runs: Run[];
         total: number;
@@ -468,5 +468,17 @@ export default function RunsPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function RunsPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            </div>
+        }>
+            <RunsPageContent />
+        </Suspense>
     );
 }
