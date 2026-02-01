@@ -41,6 +41,17 @@ export class OrdersController {
         return this.service.getOrderCards(query);
     }
 
+    @Post(':id/reorder')
+    async reorder(@Param('id') orderId: string) {
+        const ctx = RequestContextStore.getStore();
+        this.logger.log(
+            `[REORDER] cid=${ctx?.correlationId} sourceOrder=${orderId}`,
+        );
+
+        return this.service.reorder(orderId);
+    }
+
+
     @Get()
     async getAll(@Query() query: OrdersQueryDto) {
         return this.service.getAll(query);

@@ -559,6 +559,143 @@ export class OrdersService {
         }
     }
 
+    async reorder(sourceOrderId: string) {
+        const ctx = RequestContextStore.getStore();
+        if (!ctx?.user) {
+            throw new BadRequestException('User context missing');
+        }
+
+        const ctxuser = ctx.user;
+
+
+        const newOrderId = randomUUID();
+
+        return this.prisma.transaction(async (tx) => {
+
+            /* =====================================================
+             * 1️⃣ Load source order (LEAN BUT COMPLETE)
+             * ===================================================== */
+            const sourceOrder = await tx.order.findUnique({
+                where: { id: sourceOrderId, deletedAt: null },
+                include: {
+                    processes: {
+                        include: {
+                            process: true,
+                            runs: {
+                                orderBy: { runNumber: 'asc' },
+                                include: {
+                                    runTemplate: {
+                                        include: {
+                                            lifecycleWorkflowType: {
+                                                include: {
+                                                    statuses: {
+                                                        where: { isInitial: true },
+                                                        select: { code: true },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            if (!sourceOrder) {
+                throw new NotFoundException('Source order not found');
+            }
+
+            /* =====================================================
+             * 2️⃣ Generate NEW order code
+             * ===================================================== */
+            const newCode = await generateFiscalCode(tx, 'ORD');
+
+            /* =====================================================
+             * 3️⃣ Create new order (RESET FIELDS)
+             * ===================================================== */
+            await tx.order.create({
+                data: {
+                    id: newOrderId,
+                    code: newCode,
+                    customerId: sourceOrder.customerId,
+                    quantity: sourceOrder.quantity,
+                    statusCode: OrderStatus.CONFIGURE,
+                    createdById: ctxuser.id,
+                    totalProcesses: sourceOrder.totalProcesses,
+                    completedProcesses: 0,
+                    images: [],
+                },
+            });
+
+            /* =====================================================
+             * 4️⃣ Create OrderProcesses
+             * ===================================================== */
+            const orderProcessMap = new Map<string, string>();
+
+            for (const op of sourceOrder.processes) {
+                const newOp = await tx.orderProcess.create({
+                    data: {
+                        orderId: newOrderId,
+                        processId: op.processId,
+                        statusCode: OrderProcessStatus.CONFIGURE,
+                        totalRuns: op.totalRuns,
+                        configCompletedRuns: 0,
+                        lifecycleCompletedRuns: 0,
+                        remainingRuns: op.totalRuns,
+                    },
+                });
+
+                orderProcessMap.set(op.id, newOp.id);
+            }
+
+            /* =====================================================
+             * 5️⃣ Clone ProcessRuns (RESET STATE)
+             * ===================================================== */
+            const runsToCreate: Prisma.ProcessRunCreateManyInput[] = [];
+
+            for (const op of sourceOrder.processes) {
+                const newOrderProcessId = orderProcessMap.get(op.id)!;
+
+                for (const run of op.runs) {
+                    const statuses =
+                        run.runTemplate.lifecycleWorkflowType.statuses;
+
+                    const initialStatus =
+                        statuses.length > 0 ? statuses[0].code : '';
+
+                    runsToCreate.push({
+                        orderProcessId: newOrderProcessId,
+                        runTemplateId: run.runTemplateId,
+                        runNumber: run.runNumber,
+                        displayName: run.displayName,
+                        configWorkflowTypeId: run.configWorkflowTypeId,
+                        lifecycleWorkflowTypeId: run.lifecycleWorkflowTypeId,
+                        statusCode: ProcessRunStatus.CONFIGURE,
+                        lifeCycleStatusCode: initialStatus,
+                        fields: run.fields ?? {},
+                        executorId: null,
+                        reviewerId: null,
+                    });
+                }
+            }
+
+            if (runsToCreate.length) {
+                await tx.processRun.createMany({ data: runsToCreate });
+            }
+
+            this.logger.log(
+                `[REORDER_SUCCESS] source=${sourceOrderId} newOrder=${newOrderId} code=${newCode}`,
+            );
+
+            return {
+                id: newOrderId,
+                code: newCode,
+            };
+        });
+    }
+
     /* ========================== PRODUCTION READY ========================== */
     async setProductionReady(orderId: string) {
         return this.prisma.transaction(async tx => {
