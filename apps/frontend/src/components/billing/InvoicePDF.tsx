@@ -232,7 +232,7 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                     <View style={styles.billDetails}>
                         <Text style={styles.sectionTitle}>Bill Details</Text>
                         <Text>Date: {invoiceData.date}</Text>
-                        <Text>Bill#: {invoiceData.billNumber.slice(6)}</Text>
+                        <Text>Bill#: {invoiceData.billNumber}</Text>
                         <Text>HSM/SL: 998822</Text>
                     </View>
                 </View>

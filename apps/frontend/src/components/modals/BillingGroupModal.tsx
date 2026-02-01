@@ -2,8 +2,10 @@
 
 import { BillingContextDetails } from "@/domain/model/billing.model";
 import { getBillingContextById } from "@/services/billing.service";
-import { Calendar, ChevronDown, CreditCard, Download, ExternalLink, Loader2, Package, X } from "lucide-react";
+import { reorderOrder } from "@/services/orders.service";
+import { Calendar, ChevronDown, CreditCard, Download, ExternalLink, Loader2, Package, RefreshCw, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 // Import for PDF generation
@@ -81,7 +83,7 @@ export default function BillingGroupModal({
                         month: '2-digit',
                         year: 'numeric'
                     }) : "NA",
-                billNumber: details.name || "NA",
+                billNumber: details.name,
 
                 // Orders table data
                 items: details.orders.map((order, index) => ({
@@ -259,6 +261,27 @@ export default function BillingGroupModal({
 
 function OrderGroupItem({ order, formatCurrency }: { order: any, formatCurrency: (val: number | string) => string }) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isReordering, setIsReordering] = useState(false);
+    const router = useRouter(); // Initialized useRouter
+
+    const handleReorder = async () => {
+        if (!confirm("Are you sure you want to reorder this item?")) return;
+
+        try {
+            setIsReordering(true);
+            const res = await reorderOrder(order.id); // Captured response
+            alert("Order reordered successfully!");
+            // Check if response has the ID we need
+            if (res && res.id) {
+                router.push(`/admin/orders?selectedOrder=${res.id}`);
+            }
+        } catch (error) {
+            console.error("Failed to reorder:", error);
+            alert("Failed to reorder. Please try again.");
+        } finally {
+            setIsReordering(false);
+        }
+    };
 
     return (
         <div className="border border-gray-200 rounded-xl overflow-hidden transition-all duration-200 hover:shadow-md">
@@ -317,6 +340,20 @@ function OrderGroupItem({ order, formatCurrency }: { order: any, formatCurrency:
                             </div>
                         </div>
                     ))}
+                    <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+                        <button
+                            onClick={handleReorder}
+                            disabled={isReordering}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isReordering ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <RefreshCw className="w-4 h-4" />
+                            )}
+                            {isReordering ? 'Reordering...' : 'Reorder'}
+                        </button>
+                    </div>
                 </div>
             )}
         </div>

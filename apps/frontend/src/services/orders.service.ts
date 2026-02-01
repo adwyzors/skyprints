@@ -198,8 +198,15 @@ export async function startProduction(orderId: string): Promise<{ success: boole
     });
 }
 
+
 export async function completeProduction(orderId: string): Promise<{ success: boolean }> {
     return apiRequest(`/orders/${orderId}/complete-production`, {
+        method: 'POST',
+    });
+}
+
+export async function reorderOrder(orderId: string): Promise<any> {
+    return apiRequest(`/orders/${orderId}/reorder`, {
         method: 'POST',
     });
 }
