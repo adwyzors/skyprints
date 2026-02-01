@@ -104,7 +104,7 @@ export default function CreateGroupModal({
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-500 font-medium">Invoice ID</span>
               <span className="text-sm font-mono font-bold text-gray-800 bg-white px-2 py-1 rounded border border-gray-200">
-                {name}
+                Auto Generated
               </span>
             </div>
             <div className="flex justify-between items-center">

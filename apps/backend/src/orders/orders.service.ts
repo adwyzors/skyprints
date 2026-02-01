@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CloudflareService } from '../common/cloudflare.service';
 import { RequestContextStore } from '../common/context/request-context.store';
 import { ContextLogger } from '../common/logger/context.logger';
+import { generateFiscalCode } from '../common/utils/fiscal-year.utils';
 import { OrdersQueryDto } from '../dto/orders.query.dto';
 import { toOrderSummary } from '../mappers/order.mapper';
 
@@ -396,21 +397,6 @@ export class OrdersService {
 
     /* ========================== CREATE ========================== */
 
-    private async generateOrderCode(
-        tx: Prisma.TransactionClient,
-    ): Promise<string> {
-        const seq = await tx.orderSequence.update({
-            where: { id: 1 },
-            data: { nextValue: { increment: 1 } },
-            select: { nextValue: true },
-        });
-
-        const value = seq.nextValue - 1;
-        const code = `ORDER-${value}`;
-
-        this.logger.debug(`Generated order code=${code}`);
-        return code;
-    }
 
     async create(dto: CreateOrderDto) {
         const ctx = RequestContextStore.getStore();
@@ -471,7 +457,7 @@ export class OrdersService {
                     );
                 }
 
-                const code = await this.generateOrderCode(tx);
+                const code = await generateFiscalCode(tx, 'ORD');
 
                 /* =====================================================
                  * CREATE ORDER

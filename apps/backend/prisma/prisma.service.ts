@@ -52,8 +52,8 @@ export class PrismaService {
         return prisma.order;
     }
 
-    get orderSequence() {
-        return prisma.orderSequence;
+    get fiscalSequence() {
+        return prisma.fiscalSequence;
     }
 
     get workflowType() {

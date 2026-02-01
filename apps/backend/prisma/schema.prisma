@@ -67,12 +67,18 @@ model Customer {
 // ORDER SEQUENCE
 ///////////////////////////////
 
-model OrderSequence {
-  id           Int      @id @default(1)
-  nextValue    Int
-  lastResetAt  DateTime?  // REQUIRED for "once per retention window"
-  updatedAt    DateTime   @updatedAt
+model FiscalSequence {
+  id         String   @id @default(uuid())
+  prefix     String   // ORD | R
+  fiscalYear String   // 25-26
+
+  nextValue  Int
+  updatedAt  DateTime @updatedAt
+
+  @@unique([prefix, fiscalYear])
+  @@index([prefix, fiscalYear])
 }
+
 
 
 ///////////////////////////////

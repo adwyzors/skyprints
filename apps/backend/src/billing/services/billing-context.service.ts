@@ -2,6 +2,7 @@ import type { CreateBillingContextDto } from "@app/contracts";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
 import { ContextLogger } from "../../common/logger/context.logger";
+import { generateFiscalCode } from "../../common/utils/fiscal-year.utils";
 import { BillingSnapshotService } from "./billing-snapshot.service";
 
 @Injectable()
@@ -14,27 +15,13 @@ export class BillingContextService {
 
     async create(dto: CreateBillingContextDto) {
         this.logger.log(
-            `Creating billing context type=${dto.type} name=${dto.name}`
+            `Creating billing context type=${dto.type}`
         );
 
         const { orderIds = [], ...contextData } = dto;
 
-        if (dto.type === "GROUP" && dto.name) {
-            const existing = await this.prisma.billingContext.findFirst({
-                where: {
-                    type: "GROUP",
-                    name: dto.name
-                }
-            });
-
-            if (existing) {
-                throw new BadRequestException(
-                    `Billing group with name '${dto.name}' already exists`
-                );
-            }
-        }
-
         const result = await this.prisma.transaction(async (tx) => {
+
             if (orderIds.length > 0) {
                 const validOrders = await tx.order.findMany({
                     where: {
@@ -51,9 +38,17 @@ export class BillingContextService {
                 }
             }
 
+            // 🔑 INTERNAL NAME GENERATION FOR GROUP
+            let name = contextData.name;
+
+            if (dto.type === "GROUP") {
+                name = await generateFiscalCode(tx, "R");
+            }
+
             const context = await tx.billingContext.create({
                 data: {
                     ...contextData,
+                    name: name!, // guaranteed by logic above
                     orders: orderIds.length
                         ? {
                             createMany: {
@@ -66,7 +61,7 @@ export class BillingContextService {
             });
 
             this.logger.log(
-                `Billing context created id=${context.id}`
+                `Billing context created id=${context.id} name=${context.name}`
             );
 
             return {
@@ -78,7 +73,6 @@ export class BillingContextService {
         });
 
         if (result.shouldCreateGroupSnapshot) {
-            // try {
             this.logger.log(
                 `Creating GROUP snapshot outside transaction context=${result.context.id}`
             );
@@ -86,32 +80,11 @@ export class BillingContextService {
             await this.billingSnapshotService.createGroupSnapshot(
                 result.context.id
             );
-            // } catch (error) {
-            //     this.logger.error(
-            //         `Failed to create group snapshot for context=${result.context.id}, rolling back context creation`
-            //     );
-
-            //     // ⚠️ Cleanup: Delete relations first to satisfy FK constraints
-            //     try {
-            //         await this.prisma.billingContextOrder.deleteMany({
-            //             where: { billingContextId: result.context.id }
-            //         });
-
-            //         await this.prisma.billingContext.delete({
-            //             where: { id: result.context.id }
-            //         });
-            //     } catch (cleanupError) {
-            //         this.logger.error(
-            //             `Failed to cleanup context=${result.context.id}: ${cleanupError}`
-            //         );
-            //     }
-
-            //     throw error;
-            // }
         }
 
         return result.context;
     }
+
 
 
 
