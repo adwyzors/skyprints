@@ -6,7 +6,7 @@ import { Order } from "@/domain/model/order.model";
 import { getLatestBillingSnapshot } from "@/services/billing.service";
 import { getOrderById } from "@/services/orders.service";
 import { pdf } from '@react-pdf/renderer';
-import { Calculator, CheckCircle, DollarSign, Download, ExternalLink, FileText, Loader2, Package, Printer, X } from "lucide-react";
+import { Calculator, CheckCircle, Download, ExternalLink, FileText, IndianRupee, Loader2, Package, Printer, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -326,7 +326,7 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
                 }`}
             >
               <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
+                <IndianRupee className="w-4 h-4" />
                 Invoice
               </div>
             </button>

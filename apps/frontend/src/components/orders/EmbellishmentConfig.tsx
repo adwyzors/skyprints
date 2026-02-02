@@ -5,19 +5,19 @@ import {
     Calendar,
     CheckCircle,
     ChevronRight,
-    DollarSign,
     Edit,
     Eye,
     FileText,
     Grid,
     Hash,
+    IndianRupee,
     Package,
     Palette,
     Ruler,
     Save,
     Type,
     User,
-    X,
+    X
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -49,7 +49,7 @@ const getFieldIcon = (fieldName: string) => {
         return <Ruler className="w-3 h-3" />;
     if (lowerField.includes('quantity')) return <Package className="w-3 h-3" />;
     if (lowerField.includes('amount') || lowerField.includes('rate') || lowerField.includes('price'))
-        return <DollarSign className="w-3 h-3" />;
+        return <IndianRupee className="w-3 h-3" />;
     if (lowerField.includes('type')) return <Type className="w-3 h-3" />;
     return <Grid className="w-3 h-3" />;
 };

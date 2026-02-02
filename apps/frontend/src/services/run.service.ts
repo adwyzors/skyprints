@@ -76,6 +76,7 @@ export interface GetRunsResponse {
     page: number;
     limit: number;
     totalPages: number;
+    totalEstimatedAmount?: number;
 }
 
 export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsResponse> {
@@ -127,13 +128,15 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
     const page = parseInt(headers.get('x-page') || String(requestedPage), 10);
     const limit = parseInt(headers.get('x-limit') || String(requestedLimit), 10);
     const totalPages = parseInt(headers.get('x-total-pages') || '1', 10);
+    const totalEstimatedAmount = parseFloat(headers.get('x-total-estimated-amount') || '0');
 
     return {
         runs: runsArray,
         total,
         page,
         limit,
-        totalPages
+        totalPages,
+        totalEstimatedAmount
     };
 }
 

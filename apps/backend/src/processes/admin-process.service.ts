@@ -278,6 +278,7 @@ export class AdminProcessService {
                 id: true,
                 statusCode: true,
                 createdAt: true,
+                fields: true, // Fetch fields for aggregation
                 orderProcess: {
                     select: {
                         lifecycleCompletedRuns: true,
@@ -397,6 +398,13 @@ export class AdminProcessService {
                 limit,
                 total,
                 totalPages: Math.ceil(total / limit),
+                totalEstimatedAmount: allCandidates.reduce((sum, run) => {
+                    const amt = (run.fields as any)?.['Estimated Amount'];
+                    if (amt === undefined || amt === null) return sum;
+                    const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
+                    const val = parseFloat(cleanAmt);
+                    return sum + (isNaN(val) ? 0 : val);
+                }, 0),
             },
         };
     }

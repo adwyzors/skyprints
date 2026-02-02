@@ -7,11 +7,11 @@ import {
   Calculator,
   ChevronDown,
   Clock,
-  DollarSign,
   FileText,
+  IndianRupee,
   Loader2,
   Package,
-  X,
+  X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -360,7 +360,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                 {/* BILLING RATE INPUT */}
                                 <div className="w-48">
                                   <div className="relative">
-                                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input
                                       type="number"
                                       min="0"
@@ -516,7 +516,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-600">
                 <div className="flex items-center gap-2 mb-1">
-                  <DollarSign className="w-4 h-4 text-green-500" />
+                  <IndianRupee className="w-4 h-4 text-green-500" />
                   <span>Billing rates are stored separately and won't affect production rates</span>
                 </div>
                 <p>
@@ -537,8 +537,8 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                   onClick={finalizeBilling}
                   disabled={submitting}
                   className={`px-8 py-3 font-medium rounded-xl transition-all flex items-center gap-3 ${!submitting
-                      ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                 >
                   {submitting ? (
@@ -548,7 +548,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                     </>
                   ) : (
                     <>
-                      <DollarSign className="w-5 h-5" />
+                      <IndianRupee className="w-5 h-5" />
                       <div className="text-left">
                         <div className="font-bold">Finalize Billing</div>
                         <div className="text-xs opacity-90">₹{totalAmount.toLocaleString()}</div>

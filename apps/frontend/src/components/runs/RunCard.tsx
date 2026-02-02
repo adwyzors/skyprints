@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, CheckCircle, ChevronRight, Clock, DollarSign, Package, User, Users } from 'lucide-react';
+import { Activity, CheckCircle, ChevronRight, Clock, IndianRupee, Package, User, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -212,8 +212,8 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">Est. Amount</span>
-                            <div className="flex items-center gap-1 text-sm font-semibold text-gray-700">
-                                <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+                            <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
+                                <IndianRupee className="w-3.5 h-3.5 text-green-600" />
                                 {estimatedAmount ? estimatedAmount.toLocaleString() : '-'}
                             </div>
                         </div>

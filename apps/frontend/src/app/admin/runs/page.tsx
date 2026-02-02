@@ -64,12 +64,14 @@ function RunsPageContent() {
         page: number;
         limit: number;
         totalPages: number;
+        totalEstimatedAmount?: number;
     }>({
         runs: [],
         total: 0,
         page: 1,
         limit: 12,
-        totalPages: 0
+        totalPages: 0,
+        totalEstimatedAmount: 0
     });
 
     const searchParams = useSearchParams();
@@ -196,11 +198,13 @@ function RunsPageContent() {
                 });
 
                 if (!cancelled) {
+                    console.log('DEBUG RUNS RESP:', res);
                     setRunsData(prev => ({
                         ...prev,
                         runs: res.runs || [],
                         total: res.total || 0,
                         totalPages: res.totalPages || 0,
+                        totalEstimatedAmount: res.totalEstimatedAmount // Update total amount
                     }));
                 }
             } catch (error) {
@@ -278,7 +282,14 @@ function RunsPageContent() {
                         </button>
 
                         <div>
-                            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Run Activity</h1>
+                            <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-3">
+                                Run Activity
+                                {runsData.totalEstimatedAmount !== undefined && runsData.totalEstimatedAmount > 0 && (
+                                    <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full border border-green-200">
+                                        Total: ₹{runsData.totalEstimatedAmount.toLocaleString()}
+                                    </span>
+                                )}
+                            </h1>
                             <p className="text-sm text-gray-500">
                                 Monitor active process runs
                             </p>
@@ -467,7 +478,7 @@ function RunsPageContent() {
                     />
                 )}
             </div>
-        </div>
+        </div >
     );
 }
 

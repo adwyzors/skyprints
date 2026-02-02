@@ -32,7 +32,7 @@ export class AdminProcessController {
     @Get('runs')
     async getRuns(@Query() query: ProcessRunsQueryDto): Promise<{
         data: ProcessRunListItemDto[];
-        meta: { page: number; limit: number; total: number; totalPages: number };
+        meta: { page: number; limit: number; total: number; totalPages: number; totalEstimatedAmount: number };
     }> {
         return this.service.getAllRuns(query);
     }
