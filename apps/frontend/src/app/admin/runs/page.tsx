@@ -27,6 +27,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 interface Run {
     id: string;
     orderProcess: {
+        name?: string;
         order: {
             id: string;
             code: string;
@@ -363,75 +364,98 @@ function RunsPageContent() {
                                     <table className="w-full text-sm text-left">
                                         <thead>
                                             <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
-                                                <th className="px-6 py-4">Order</th>
+                                                <th className="px-6 py-4">Order Code</th>
                                                 <th className="px-6 py-4">Process</th>
                                                 <th className="px-6 py-4">Run #</th>
                                                 <th className="px-6 py-4">Customer</th>
                                                 <th className="px-6 py-4">Priority</th>
+                                                <th className="px-6 py-4">Quantity</th>
+                                                <th className="px-6 py-4">Est. Rate</th>
+                                                <th className="px-6 py-4">Est. Total</th>
                                                 <th className="px-6 py-4">Status</th>
                                                 <th className="px-6 py-4 text-right">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-50">
-                                            {runsData.runs.map((run) => (
-                                                <tr
-                                                    key={run.id}
-                                                    className="group hover:bg-blue-50/30 transition-colors"
-                                                >
-                                                    <td className="px-6 py-4 font-medium text-gray-900">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-                                                                #{typeof run.orderProcess.order.code === 'object' ? (run.orderProcess.order.code as any).code : run.orderProcess.order.code}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center gap-2 text-gray-700">
-                                                            <Activity className="w-4 h-4 text-gray-400" />
-                                                            {run.runTemplate.name.replace(/ Template$/i, '')}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-gray-500">
-                                                        {run.runNumber}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center gap-2 text-gray-600">
-                                                            <User className="w-4 h-4 text-gray-400" />
-                                                            {run.orderProcess.order.customer.name}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        {run.priority && (
-                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${run.priority === 'HIGH' ? 'text-red-600 bg-red-50 border-red-100' :
-                                                                run.priority === 'MEDIUM' ? 'text-orange-600 bg-orange-50 border-orange-100' :
-                                                                    'text-blue-600 bg-blue-50 border-blue-100'
+                                            {runsData.runs.map((run) => {
+                                                // Process Name Logic
+                                                const processName = run.orderProcess?.name;
+                                                const rawName = run.runTemplate?.name || 'Process Run';
+                                                let displayName = rawName.replace(/ Template$/i, '');
+
+                                                if (processName && (processName.toLowerCase().includes('embellishment') || rawName.toLowerCase().includes('embellishment'))) {
+                                                    displayName = processName;
+                                                }
+
+                                                return (
+                                                    <tr
+                                                        key={run.id}
+                                                        className="group hover:bg-blue-50/30 transition-colors"
+                                                    >
+                                                        <td className="px-6 py-4 font-medium text-gray-900">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                                                                    #{typeof run.orderProcess.order.code === 'object' ? (run.orderProcess.order.code as any).code.split("/")[0].replace("ORD", "") : run.orderProcess.order.code.split("/")[0].replace("ORD", "")}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-2 text-gray-700">
+                                                                <Activity className="w-4 h-4 text-gray-400" />
+                                                                {displayName}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-gray-500">
+                                                            {run.runNumber}
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <div className="flex items-center gap-2 text-gray-600">
+                                                                <User className="w-4 h-4 text-gray-400" />
+                                                                {run.orderProcess.order.customer.name}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            {run.priority && (
+                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${run.priority === 'HIGH' ? 'text-red-600 bg-red-50 border-red-100' :
+                                                                    run.priority === 'MEDIUM' ? 'text-orange-600 bg-orange-50 border-orange-100' :
+                                                                        'text-blue-600 bg-blue-50 border-blue-100'
+                                                                    }`}>
+                                                                    {run.priority}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-gray-700">
+                                                            {run.fields?.Quantity || '-'}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-gray-700">
+                                                            {run.fields?.['Estimated Rate'] ? `₹${run.fields['Estimated Rate']}` : '-'}
+                                                        </td>
+                                                        <td className="px-6 py-4 font-medium text-green-700">
+                                                            {run.fields?.['Estimated Amount'] ? `₹${run.fields['Estimated Amount'].toLocaleString()}` : '-'}
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${run.statusCode === 'COMPLETE' || run.statusCode === 'COMPLETED'
+                                                                ? 'bg-green-50 text-green-700 border-green-100'
+                                                                : run.statusCode === 'IN_PROGRESS'
+                                                                    ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                                                    : 'bg-gray-50 text-gray-600 border-gray-100'
                                                                 }`}>
-                                                                {run.priority}
+                                                                {(run.statusCode === 'COMPLETE' || run.statusCode === 'COMPLETED') && <CheckCircle className="w-3 h-3" />}
+                                                                {run.statusCode === 'IN_PROGRESS' && <Clock className="w-3 h-3 animate-pulse" />}
+                                                                {run.statusCode}
                                                             </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${run.statusCode === 'COMPLETE' || run.statusCode === 'COMPLETED'
-                                                            ? 'bg-green-50 text-green-700 border-green-100'
-                                                            : run.statusCode === 'IN_PROGRESS'
-                                                                ? 'bg-blue-50 text-blue-700 border-blue-100'
-                                                                : 'bg-gray-50 text-gray-600 border-gray-100'
-                                                            }`}>
-                                                            {(run.statusCode === 'COMPLETE' || run.statusCode === 'COMPLETED') && <CheckCircle className="w-3 h-3" />}
-                                                            {run.statusCode === 'IN_PROGRESS' && <Clock className="w-3 h-3 animate-pulse" />}
-                                                            {run.statusCode}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right">
-                                                        <Link
-                                                            href={`/admin/orders/${run.orderProcess.order.id}`}
-                                                            className="inline-flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
-                                                        >
-                                                            <ArrowRight className="w-4 h-4" />
-                                                        </Link>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            <Link
+                                                                href={`/admin/orders/${run.orderProcess.order.id}`}
+                                                                className="inline-flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
+                                                            >
+                                                                <ArrowRight className="w-4 h-4" />
+                                                            </Link>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
