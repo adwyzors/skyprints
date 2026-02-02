@@ -625,6 +625,11 @@ export default function EmbellishmentConfig({ order, onRefresh, onSaveSuccess }:
                                                             {getFieldIcon(field)}
                                                             <label className="text-xs font-medium text-gray-700">
                                                                 {prettyLabel(field)}
+                                                                {field === 'Quantity' && (
+                                                                    <span className="text-blue-600 ml-1 font-normal">
+                                                                        (Order Qty: {localOrder.quantity})
+                                                                    </span>
+                                                                )}
                                                             </label>
                                                         </div>
                                                     </div>
@@ -780,6 +785,11 @@ export default function EmbellishmentConfig({ order, onRefresh, onSaveSuccess }:
                                                             {getFieldIcon(field)}
                                                             <label className="text-xs font-medium text-gray-700">
                                                                 {prettyLabel(field)}
+                                                                {field === 'Quantity' && (
+                                                                    <span className="text-blue-600 ml-1 font-normal">
+                                                                        (Order Qty: {localOrder.quantity})
+                                                                    </span>
+                                                                )}
                                                                 {isRequired && <span className="text-red-500 ml-0.5">*</span>}
                                                             </label>
                                                         </div>
