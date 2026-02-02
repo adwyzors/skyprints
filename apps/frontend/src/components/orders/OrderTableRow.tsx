@@ -32,8 +32,8 @@ export default function OrderTableRow({ order, index, onClick }: OrderTableRowPr
             onClick={() => onClick('row')}
             className="border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors"
         >
-            <td className="px-6 py-4">
-                <span className="text-gray-600">{index}</span>
+            <td className="px-6 py-4 text-center">
+                <span className="font-semibold text-gray-900">{order.code.split("/")[0].replace("ORD", "")}</span>
             </td>
             <td className="px-6 py-4">
                 {order.images && order.images.length > 0 ? (
@@ -57,9 +57,7 @@ export default function OrderTableRow({ order, index, onClick }: OrderTableRowPr
                     </div>
                 )}
             </td>
-            <td className="px-6 py-4 text-center">
-                <span className="font-semibold text-gray-900">{order.code.split("/")[0].replace("ORD", "")}</span>
-            </td>
+
             <td className="px-6 py-4">
                 <span className="text-gray-700">{order.jobCode || '-'}</span>
             </td>

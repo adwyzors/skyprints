@@ -807,6 +807,26 @@ export default function EmbellishmentConfig({ order, onRefresh, onSaveSuccess }:
                                                                     return rate * qty || <span className="text-gray-400">Auto-calculated</span>;
                                                                 })()}
                                                             </div>
+                                                        ) : field === 'Process Name' ? (
+                                                            <select
+                                                                value={run.values[field] ?? ''}
+                                                                onChange={(e) => updateRunField(process.id, run.id, field, e.target.value)}
+                                                                className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-white"
+                                                            >
+                                                                <option value="">Select Process</option>
+                                                                {[
+                                                                    'Sublimation',
+                                                                    'Screen Printing',
+                                                                    'Plotter',
+                                                                    'Positive',
+                                                                    'DTF',
+                                                                    'Laser',
+                                                                    'Diamond',
+                                                                    'Spangle'
+                                                                ].map(name => (
+                                                                    <option key={name} value={name}>{name}</option>
+                                                                ))}
+                                                            </select>
                                                         ) : (
                                                             <input
                                                                 type={isNumberField ? 'number' : 'text'}

@@ -35,6 +35,7 @@ export const ProcessRunListItemSchema = z.object({
     fields: z.record(z.string(), z.any()).optional(),
 
     orderProcess: z.object({
+        name: z.string().optional(),
         totalRuns: z.number().optional(),
         lifecycleCompletedRuns: z.number().optional(),
         remainingRuns: z.number().optional(),

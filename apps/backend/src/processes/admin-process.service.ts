@@ -348,6 +348,10 @@ export class AdminProcessService {
                     },
                     orderProcess: {
                         select: {
+                            // name: true, // REMOVED: Name is on Process, not OrderProcess
+                            process: {
+                                select: { name: true },
+                            },
                             totalRuns: true,
                             lifecycleCompletedRuns: true,
                             remainingRuns: true,
@@ -374,11 +378,18 @@ export class AdminProcessService {
         const data: ProcessRunListItemDto[] = runs.map((run) => {
             // Pick only used fields
             let relevantFields: Record<string, any> = {};
+            let displayProcessName = run.orderProcess.process.name;
+
             if (run.fields) {
                 const f = run.fields as any;
                 if (f.images) relevantFields['images'] = f.images;
                 if (f['Quantity']) relevantFields['Quantity'] = f['Quantity'];
                 if (f['Estimated Amount']) relevantFields['Estimated Amount'] = f['Estimated Amount'];
+
+                // Override name for Embellishment if "Process Name" field exists
+                if (displayProcessName === 'Embellishment' && f['Process Name']) {
+                    displayProcessName = f['Process Name'];
+                }
             }
 
             return {
@@ -387,6 +398,7 @@ export class AdminProcessService {
                 // Exclude createdAt and orderProcess stats from payload
                 // but keep structure required by DTO (which is now optional)
                 orderProcess: {
+                    name: displayProcessName,
                     order: run.orderProcess.order,
                 },
                 createdAt: undefined, // remove from JSON

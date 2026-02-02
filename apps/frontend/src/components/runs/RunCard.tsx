@@ -24,8 +24,14 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
     const rawOrderCode = run.orderProcess?.order?.code;
     const orderCode = typeof rawOrderCode === 'object' ? (rawOrderCode as any).code : rawOrderCode;
     const customerName = run.orderProcess?.order?.customer?.name;
+    const processName = run.orderProcess?.name;
     const rawName = run.runTemplate?.name || 'Process Run';
-    const displayName = rawName.replace(/ Template$/i, '');
+    let displayName = rawName.replace(/ Template$/i, '');
+
+    if (processName && (processName.toLowerCase().includes('embellishment') || rawName.toLowerCase().includes('embellishment'))) {
+        displayName = processName;
+    }
+
     const runNumber = run.runNumber;
     const status = run.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (run.lifeCycleStatusCode || run.statusCode);
 
@@ -195,7 +201,7 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
                             {displayName} <span className="text-gray-400 font-normal">#{runNumber}</span>
                         </h3>
                         <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                            <span className="font-medium text-gray-700">{orderCode}</span>
+                            <span className="font-medium text-gray-700">{orderCode.split("/")[0]}</span>
                             <span>•</span>
                             <span className="truncate">{customerName}</span>
                         </div>
