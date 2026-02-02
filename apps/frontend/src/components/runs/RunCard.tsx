@@ -27,7 +27,7 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
     const rawName = run.runTemplate?.name || 'Process Run';
     const displayName = rawName.replace(/ Template$/i, '');
     const runNumber = run.runNumber;
-    const status = run.lifeCycleStatusCode || run.statusCode; // Fallback
+    const status = run.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (run.lifeCycleStatusCode || run.statusCode);
 
     // Fields from user request
     const quantity = run.fields?.Quantity;

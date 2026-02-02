@@ -276,6 +276,7 @@ export class AdminProcessService {
             where,
             select: {
                 id: true,
+                statusCode: true,
                 createdAt: true,
                 orderProcess: {
                     select: {
@@ -289,7 +290,8 @@ export class AdminProcessService {
         /* ==========================
          * 2. IN-MEMORY SORT
          * ========================== */
-        const getPriorityRank = (completed: number, total: number) => {
+        const getPriorityRank = (completed: number, total: number, status: string) => {
+            if (status === 'CONFIGURE') return 2; // LOW
             if (total === 0) return 2; // LOW
             const ratio = 1 - (completed / total);
             if (ratio < 0.3 || total - completed < 2) return 0; // HIGH
@@ -298,8 +300,8 @@ export class AdminProcessService {
         };
 
         allCandidates.sort((a, b) => {
-            const rankA = getPriorityRank(a.orderProcess.lifecycleCompletedRuns, a.orderProcess.totalRuns);
-            const rankB = getPriorityRank(b.orderProcess.lifecycleCompletedRuns, b.orderProcess.totalRuns);
+            const rankA = getPriorityRank(a.orderProcess.lifecycleCompletedRuns, a.orderProcess.totalRuns, a.statusCode);
+            const rankB = getPriorityRank(b.orderProcess.lifecycleCompletedRuns, b.orderProcess.totalRuns, b.statusCode);
 
             if (rankA !== rankB) {
                 return rankA - rankB; // 0 (HIGH) -> 1 (MED) -> 2 (LOW)
@@ -382,7 +384,8 @@ export class AdminProcessService {
                 priority: this.resolvePriority(
                     run.orderProcess.remainingRuns,
                     run.orderProcess.lifecycleCompletedRuns,
-                    run.orderProcess.totalRuns
+                    run.orderProcess.totalRuns,
+                    run.statusCode
                 ),
             };
         });
@@ -398,7 +401,8 @@ export class AdminProcessService {
         };
     }
 
-    private resolvePriority(remainingRuns: number, completedRuns: number, totalRuns: number): 'HIGH' | 'MEDIUM' | 'LOW' {
+    private resolvePriority(remainingRuns: number, completedRuns: number, totalRuns: number, statusCode?: string): 'HIGH' | 'MEDIUM' | 'LOW' {
+        if (statusCode === 'CONFIGURE') return 'LOW';
         if (totalRuns === 0) return 'LOW';
         if (1 - (completedRuns / totalRuns) < 0.3 || totalRuns - completedRuns < 2) return 'HIGH';
         if (1 - (completedRuns / totalRuns) < 0.75) return 'MEDIUM';
@@ -686,7 +690,8 @@ export class AdminProcessService {
             priority: this.resolvePriority(
                 run.orderProcess.remainingRuns,
                 run.orderProcess.lifecycleCompletedRuns,
-                run.orderProcess.totalRuns
+                run.orderProcess.totalRuns,
+                run.statusCode
             ),
             displayName: run.displayName,
             configStatus: run.statusCode,
