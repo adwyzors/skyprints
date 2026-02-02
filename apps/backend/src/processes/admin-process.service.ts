@@ -425,6 +425,23 @@ export class AdminProcessService {
         return 'LOW';
     }
 
+    private isJsonObject(
+        value: Prisma.JsonValue,
+    ): value is Prisma.JsonObject {
+        return typeof value === 'object' && value !== null && !Array.isArray(value);
+    }
+
+    private extractImages(
+        fields: Prisma.JsonValue,
+    ): string[] {
+        if (!this.isJsonObject(fields)) return [];
+
+        const images = fields['images'];
+        return Array.isArray(images)
+            ? images.filter((v): v is string => typeof v === 'string')
+            : [];
+    }
+
     async configure(
         orderProcessId: string,
         processRunId: string,
@@ -433,21 +450,18 @@ export class AdminProcessService {
         return this.prisma.transaction(async tx => {
 
             /* =====================================================
-             * LOAD RUN + TEMPLATE (LEAN)
+             * LOAD RUN + TEMPLATE (UNCHANGED)
              * ===================================================== */
-            const run = await tx.processRun.findUnique({
-                where: {
-                    id: processRunId,
-                    orderProcessId,
-                },
+            const run = await tx.processRun.findFirst({
+                where: { id: processRunId, orderProcessId },
                 select: {
                     id: true,
                     fields: true,
+                    configuredAt: true,            // ⭐ added
+                    statusCode: true,              // ⭐ added
                     orderProcessId: true,
                     runTemplate: {
-                        select: {
-                            fields: true,
-                        },
+                        select: { fields: true },
                     },
                 },
             });
@@ -455,9 +469,8 @@ export class AdminProcessService {
             if (!run) {
                 throw new BadRequestException('Invalid process run');
             }
-
             /* =====================================================
-             * FIELD VALIDATION
+             * FIELD VALIDATION (UNCHANGED)
              * ===================================================== */
             const normalizedFields = this.validateAndNormalizeFields(
                 run.runTemplate.fields as RunTemplateField[],
@@ -465,7 +478,7 @@ export class AdminProcessService {
             );
 
             /* =====================================================
-             * EXECUTOR / REVIEWER VALIDATION
+             * EXECUTOR / REVIEWER VALIDATION (UNCHANGED)
              * ===================================================== */
             if (dto.executorId || dto.reviewerId) {
                 const userIds = Array.from(
@@ -487,7 +500,7 @@ export class AdminProcessService {
             }
 
             /* =====================================================
-             * IMAGES
+             * IMAGES (PRESERVE OLD LOGIC + ADD RECONFIG)
              * ===================================================== */
             const uploadedUrls = dto.images ?? [];
 
@@ -495,45 +508,82 @@ export class AdminProcessService {
                 throw new BadRequestException('Maximum 2 images allowed');
             }
 
-            // Validate URLs
             if (uploadedUrls.some(url => !this.cloudflare.isValidImageUrl(url))) {
                 throw new BadRequestException('Invalid image URLs provided');
             }
 
+            const existingImages = this.isJsonObject(run.fields)
+                ? this.getStringArray(run.fields['images'])
+                : [];
+
+
+            // ⭐ replace only if new images provided
+            const finalImages =
+                uploadedUrls.length > 0 ? uploadedUrls : existingImages;
 
             /* =====================================================
-             * MERGE FIELDS
+             * MERGE FIELDS (SAME SHAPE AS OLD)
              * ===================================================== */
-            const mergedFields = {
-                ...(run.fields as Record<string, any> ?? {}),
+            const mergedFields: Prisma.JsonObject = {
+                ...(this.isJsonObject(run.fields) ? run.fields : {}),
                 ...normalizedFields,
-                images: uploadedUrls,
+                images: finalImages,
             };
 
             /* =====================================================
-             * UPDATE RUN + PROCESS
+             * UPDATE RUN (SPLIT FIRST-TIME VS RECONFIG)
              * ===================================================== */
-            await Promise.all([
-                tx.processRun.update({
-                    where: { id: run.id },
-                    data: {
-                        fields: mergedFields,
-                        statusCode: ProcessRunStatus.COMPLETE,
-                        ...(dto.executorId !== undefined && { executorId: dto.executorId }),
-                        ...(dto.reviewerId !== undefined && { reviewerId: dto.reviewerId }),
-                    },
-                }),
+            await tx.processRun.update({
+                where: { id: run.id },
+                data: {
+                    fields: mergedFields,
+                    ...(dto.executorId !== undefined && { executorId: dto.executorId }),
+                    ...(dto.reviewerId !== undefined && { reviewerId: dto.reviewerId }),
+                    ...(run.configuredAt
+                        ? {}
+                        : {
+                            configuredAt: new Date(),           // ⭐ first time only
+                            statusCode: ProcessRunStatus.IN_PROGRESS,
+                        }),
+                },
+            });
 
-                tx.orderProcess.update({
+            /* =====================================================
+             * PROCESS COUNTERS (FIRST TIME ONLY)
+             * ===================================================== */
+            if (!run.configuredAt) {
+                await tx.orderProcess.update({
                     where: { id: run.orderProcessId },
-                    data: { configCompletedRuns: { increment: 1 } },
-                }),
-            ]);
+                    data: {
+                        configCompletedRuns: { increment: 1 },
+                        remainingRuns: { decrement: 1 },
+                    },
+                });
+            }
+
+            /* =====================================================
+             * IMAGE CLEANUP (ONLY IF REPLACED)
+             * ===================================================== */
+            if (uploadedUrls.length > 0 && existingImages.length > 0) {
+                const toDelete = existingImages.filter(
+                    img => !uploadedUrls.includes(img),
+                );
+
+                if (toDelete.length) {
+                    await this.cloudflare.deleteFiles(toDelete);
+                }
+            }
 
             return { success: true };
         });
     }
 
+
+    private getStringArray(value: unknown): string[] {
+        return Array.isArray(value)
+            ? value.filter((v): v is string => typeof v === 'string')
+            : [];
+    }
 
 
     async deleteRunImage(

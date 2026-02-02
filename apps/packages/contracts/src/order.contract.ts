@@ -15,3 +15,14 @@ export const CreateOrderSchema = z.object({
 
 export type CreateOrderDto =
     z.infer<typeof CreateOrderSchema>;
+
+
+export const UpdateOrderSchema = z.object({
+    customerId: z.string().uuid().optional(),
+    quantity: z.number().int().positive().optional(),
+    jobCode: z.string().nullable().optional(),
+    images: z.array(z.string().url()).optional(),
+});
+
+export type UpdateOrderDto =
+    z.infer<typeof UpdateOrderSchema>;
