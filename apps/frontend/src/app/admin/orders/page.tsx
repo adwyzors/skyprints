@@ -1,6 +1,7 @@
 'use client';
 
 import CreateOrderModal from '@/components/modals/CreateOrderModal';
+import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import ViewOrderModal from '@/components/modals/ViewOrderModal';
 import OrderCard from '@/components/orders/OrderCard';
 import OrdersFilter from '@/components/orders/OrdersFilter';
@@ -63,6 +64,8 @@ function AdminOrdersContent() {
     dateRange: 'all',
     customerId: 'all'
   });
+
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   /* ================= EFFECTS ================= */
 
@@ -376,6 +379,9 @@ function AdminOrdersContent() {
                           Sr. No.
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Image
+                        </th>
+                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           Order Code
                         </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -401,7 +407,13 @@ function AdminOrdersContent() {
                           key={order.id}
                           order={order}
                           index={(ordersData.page - 1) * pageSize + index + 1}
-                          onClick={() => router.push(`/admin/orders?selectedOrder=${order.id}`)}
+                          onClick={(type, value) => {
+                            if (type === 'image' && value) {
+                              setPreviewImage(value);
+                            } else {
+                              router.push(`/admin/orders?selectedOrder=${order.id}`);
+                            }
+                          }}
                         />
                       ))}
                     </tbody>
@@ -495,6 +507,11 @@ function AdminOrdersContent() {
           }}
         />
       )}
+
+      <ImagePreviewModal
+        imageUrl={previewImage}
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   );
 }

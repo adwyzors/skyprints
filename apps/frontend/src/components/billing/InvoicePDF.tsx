@@ -244,8 +244,8 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                         <Text style={styles.colSrNo}>#</Text>
                         <Text style={styles.colOrderCode}>Order Code</Text>
                         <Text style={styles.colQuantity}>Quantity</Text>
-                        <Text style={styles.colRate}>Rate (₹)</Text>
-                        <Text style={styles.colAmount}>Amount (₹)</Text>
+                        <Text style={styles.colRate}>Rate</Text>
+                        <Text style={styles.colAmount}>Amount</Text>
                     </View>
 
                     {/* Table Rows */}
@@ -264,7 +264,7 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                 <View style={styles.totalsContainer}>
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>Sub Total:</Text>
-                        <Text style={styles.totalValue}>₹{parseFloat(invoiceData.subtotal).toFixed(2)}</Text>
+                        <Text style={styles.totalValue}>{parseFloat(invoiceData.subtotal).toFixed(2)}</Text>
                     </View>
 
                     <View style={styles.totalRow}>

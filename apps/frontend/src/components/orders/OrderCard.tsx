@@ -180,7 +180,7 @@ export default function OrderCard({ order, active = true, showConfigure = true, 
                     {/* HEADER: Code + Job */}
                     <div className="flex items-start justify-between gap-2">
                         <h3 className="font-bold text-gray-800 group-hover:text-blue-600 transition-colors truncate text-[15px]">
-                            {order.code}
+                            {order.code.split("/")[0]}
                         </h3>
                         {order.jobCode && (
                             <div className="flex items-center gap-1 shrink-0 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 text-[11px] text-gray-600 font-medium">

@@ -57,7 +57,7 @@ export default function BillingGroupModal({
             // const tdsAmount = 0
 
             // Calculate final total
-            const finalTotal = totalAmount + cgstAmount + sgstAmount + tdsAmount;
+            const finalTotal = totalAmount + cgstAmount + sgstAmount - tdsAmount;
 
             // Create invoice data
             const invoiceData = {
