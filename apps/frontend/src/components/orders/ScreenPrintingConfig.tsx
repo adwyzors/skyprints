@@ -957,7 +957,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
         </div>
       )}
 
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">Screen Printing Configuration</h3>
+
 
       {/* RUN CARDS - COMPACT VIEW */}
       <div className="space-y-3">

@@ -15,6 +15,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import ComingSoonConfig from '@/components/orders/ComingSoonConfig';
+import EmbellishmentConfig from '@/components/orders/EmbellishmentConfig';
 import ScreenPrintingConfig from '@/components/orders/ScreenPrintingConfig';
 import { BillingSnapshot } from '@/domain/model/billing.model';
 import { Order } from '@/domain/model/order.model';
@@ -204,8 +205,7 @@ export default function OrderConfigPage() {
     );
   }
 
-  const mainProcess = order.processes[0];
-  const processName = mainProcess?.name;
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6">
@@ -229,13 +229,12 @@ export default function OrderConfigPage() {
               <div className="flex flex-wrap items-center gap-4 mt-2">
                 <div className="flex items-center gap-2">
                   <div
-                    className={`w-2 h-2 rounded-full ${
-                      order.status === 'BILLED'
-                        ? 'bg-purple-500'
-                        : order.status === 'COMPLETE'
-                          ? 'bg-green-500'
-                          : 'bg-blue-500'
-                    }`}
+                    className={`w-2 h-2 rounded-full ${order.status === 'BILLED'
+                      ? 'bg-purple-500'
+                      : order.status === 'COMPLETE'
+                        ? 'bg-green-500'
+                        : 'bg-blue-500'
+                      }`}
                   />
                   <span className="text-sm text-gray-600">
                     {order.customer.name} ({order.customer.code})
@@ -263,13 +262,12 @@ export default function OrderConfigPage() {
 
             <div className="flex flex-wrap gap-3">
               <div
-                className={`px-4 py-2 rounded-full text-sm font-medium ${
-                  order.status === 'BILLED'
-                    ? 'bg-purple-100 text-purple-800'
-                    : order.status === 'COMPLETE'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                }`}
+                className={`px-4 py-2 rounded-full text-sm font-medium ${order.status === 'BILLED'
+                  ? 'bg-purple-100 text-purple-800'
+                  : order.status === 'COMPLETE'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-800'
+                  }`}
               >
                 {order.status.replace('_', ' ')}
               </div>
@@ -297,16 +295,12 @@ export default function OrderConfigPage() {
                 {order.processes.map((process) => (
                   <div
                     key={process.id}
-                    className={`px-4 py-2 rounded-lg border transition-colors ${
-                      processName === process.name
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-300 bg-gray-50 text-gray-700'
-                    }`}
+                    className="px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full" />
                       <span className="font-medium">{process.name}</span>
-                      <span className="text-xs bg-white px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-white px-2 py-0.5 rounded-full border border-gray-200">
                         {process.runs.length} run
                         {process.runs.length !== 1 ? 's' : ''}
                       </span>
@@ -317,33 +311,70 @@ export default function OrderConfigPage() {
             </div>
 
             {/* CONFIGURATION COMPONENT */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              {processName === 'Screen Printing' || processName === 'Embellishment' ? (
-                <ScreenPrintingConfig
-                  order={order}
-                  onRefresh={refreshOrder}
-                  onSaveSuccess={(processId, runId) => {
-                    setOrder((prev) => {
-                      if (!prev) return prev;
-                      return {
-                        ...prev,
-                        processes: prev.processes.map((p) =>
-                          p.id === processId
-                            ? {
-                                ...p,
-                                runs: p.runs.map((r) =>
-                                  r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
-                                ),
-                              }
-                            : p,
-                        ),
-                      };
-                    });
-                  }}
-                />
-              ) : (
-                <ComingSoonConfig order={order} />
-              )}
+            <div className="space-y-6">
+              {order.processes.map((process) => (
+                <div key={process.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                    <h3 className="font-semibold text-gray-800">{process.name}</h3>
+                    <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-600">
+                      {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {process.name === 'Screen Printing' ? (
+                    <ScreenPrintingConfig
+                      key={process.id}
+                      order={{ ...order, processes: [process] }}
+                      onRefresh={refreshOrder}
+                      onSaveSuccess={(processId, runId) => {
+                        setOrder((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            processes: prev.processes.map((p) =>
+                              p.id === processId
+                                ? {
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
+                                  ),
+                                }
+                                : p,
+                            ),
+                          };
+                        });
+                      }}
+                    />
+                  ) : process.name === 'Embellishment' ? (
+                    <EmbellishmentConfig
+                      key={process.id}
+                      order={{ ...order, processes: [process] }}
+                      onRefresh={refreshOrder}
+                      onSaveSuccess={(processId, runId) => {
+                        setOrder((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            processes: prev.processes.map((p) =>
+                              p.id === processId
+                                ? {
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
+                                  ),
+                                }
+                                : p,
+                            ),
+                          };
+                        });
+                      }}
+                    />
+                  ) : (
+                    <ComingSoonConfig order={{ ...order, processes: [process] }} />
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
