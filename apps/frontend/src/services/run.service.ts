@@ -64,6 +64,7 @@ export interface GetRunsParams {
     priority?: string | string[];
     executorUserId?: string;
     reviewerUserId?: string;
+    assignedUserId?: string;
     createdFrom?: string;
     createdTo?: string;
     customerId?: string;
@@ -105,6 +106,7 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
 
     if (params.executorUserId && params.executorUserId !== 'all') queryParams.append('executorUserId', params.executorUserId);
     if (params.reviewerUserId && params.reviewerUserId !== 'all') queryParams.append('reviewerUserId', params.reviewerUserId);
+    if (params.assignedUserId) queryParams.append('assignedUserId', params.assignedUserId);
     if (params.customerId && params.customerId !== 'all') queryParams.append('customerId', params.customerId);
     if (params.processId && params.processId !== 'all') queryParams.append('processId', params.processId);
 

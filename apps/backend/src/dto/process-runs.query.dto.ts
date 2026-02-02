@@ -44,6 +44,10 @@ export class ProcessRunsQueryDto {
 
     @IsOptional()
     @IsString()
+    assignedUserId?: string;
+
+    @IsOptional()
+    @IsString()
     lifeCycleStatusCode?: string;
 
     @IsOptional()

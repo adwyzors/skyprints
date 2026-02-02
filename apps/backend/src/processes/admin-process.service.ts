@@ -259,6 +259,14 @@ export class AdminProcessService {
                 ],
             }),
 
+            // Filter by assigned user (executor OR reviewer)
+            ...(query.assignedUserId && {
+                OR: [
+                    { executorId: query.assignedUserId },
+                    { reviewerId: query.assignedUserId },
+                ],
+            }),
+
             ...(Object.keys(orderProcessWhere).length > 0 && {
                 orderProcess: orderProcessWhere,
             }),

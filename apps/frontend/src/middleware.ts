@@ -4,8 +4,8 @@ import { NextResponse } from "next/server";
 export function middleware(req: NextRequest) {
     const { pathname, search } = req.nextUrl;
 
-    // Protect admin routes
-    if (pathname.startsWith("/admin")) {
+    // Protect admin and manager routes
+    if (pathname.startsWith("/admin") || pathname.startsWith("/manager")) {
         const accessToken = req.cookies.get("ACCESS_TOKEN");
 
         if (!accessToken) {
