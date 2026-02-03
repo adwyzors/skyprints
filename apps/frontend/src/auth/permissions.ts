@@ -1,5 +1,6 @@
 export enum Permission {
-    VIEW_BOARD = "view:board",
-    VIEW_BILLING = "view:billing",
-    VIEW_COMPLETED = "view:completed",
+    ORDERS_UPDATE = "orders:update",
+    ORDERS_DELETE = "orders:delete",
+    BILLINGS_UPDATE = "billings:update",
+    BILLINGS_DELETE = "billings:delete",
 }
