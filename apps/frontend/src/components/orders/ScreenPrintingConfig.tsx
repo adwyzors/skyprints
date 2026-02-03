@@ -17,13 +17,15 @@ import {
   Trash2,
   Type,
   User,
-  X
+  X,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import { Order } from '@/domain/model/order.model';
 import { ProcessRun } from '@/domain/model/run.model';
-import { apiRequest } from "@/services/api.service";
+import { apiRequest } from '@/services/api.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
@@ -35,8 +37,6 @@ interface ScreenPrintingConfigProps {
 }
 
 // ... imports and interface ...
-
-
 
 // Field icon mapping for compact view
 const getFieldIcon = (fieldName: string) => {
@@ -59,7 +59,11 @@ const getFieldIcon = (fieldName: string) => {
   return <Grid className="w-3 h-3" />;
 };
 
-export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }: ScreenPrintingConfigProps) {
+export default function ScreenPrintingConfig({
+  order,
+  onRefresh,
+  onSaveSuccess,
+}: ScreenPrintingConfigProps) {
   const [localOrder, setLocalOrder] = useState<Order>(order);
   const [openRunId, setOpenRunId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<string | null>(null);
@@ -84,6 +88,8 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
     }
   };
 
+  const { hasPermission } = useAuth();
+
   const handleDeleteRun = async (processId: string, runId: string) => {
     if (!confirm('Are you sure you want to delete this run? This action cannot be undone.')) {
       return;
@@ -103,7 +109,6 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       setIsDeletingRun(null);
     }
   };
-
 
   // Update local order when parent order changes
   useEffect(() => {
@@ -146,7 +151,9 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
   };
 
   // State for specific run manager selections (temproary state while editing)
-  const [runManagers, setRunManagers] = useState<Record<string, { executorId?: string; reviewerId?: string }>>({});
+  const [runManagers, setRunManagers] = useState<
+    Record<string, { executorId?: string; reviewerId?: string }>
+  >({});
   const [managers, setManagers] = useState<ManagerUser[]>([]);
   const [loadingManagers, setLoadingManagers] = useState(false);
 
@@ -165,13 +172,17 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
     loadManagers();
   }, []);
 
-  const handleManagerSelect = (runId: string, type: 'executorId' | 'reviewerId', userId: string) => {
-    setRunManagers(prev => ({
+  const handleManagerSelect = (
+    runId: string,
+    type: 'executorId' | 'reviewerId',
+    userId: string,
+  ) => {
+    setRunManagers((prev) => ({
       ...prev,
       [runId]: {
         ...prev[runId],
-        [type]: userId
-      }
+        [type]: userId,
+      },
     }));
   };
 
@@ -194,7 +205,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
 
     // Validate file types
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    const invalidFiles = fileArray.filter(file => !validTypes.includes(file.type));
+    const invalidFiles = fileArray.filter((file) => !validTypes.includes(file.type));
 
     if (invalidFiles.length > 0) {
       alert('Only JPEG, PNG, and WebP images are allowed');
@@ -202,14 +213,14 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
     }
 
     // Validate original file sizes (max 5MB per file)
-    const oversizedFiles = fileArray.filter(file => file.size > 5 * 1024 * 1024);
+    const oversizedFiles = fileArray.filter((file) => file.size > 5 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       alert('Each image must be less than 5MB');
       return;
     }
 
-    // Temporarily set loading/saving state if you had a global loading state, 
-    // but here we might just have to handle it async. 
+    // Temporarily set loading/saving state if you had a global loading state,
+    // but here we might just have to handle it async.
     // For better UX, we could set a local loading state for this run, but for now we'll just process.
     console.log(`Processing ${fileArray.length} images for run ${runId}...`);
 
@@ -228,15 +239,21 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
           console.log(`Compressing ${file.name} (${(file.size / 1024).toFixed(2)} KB)...`);
           const compressedBlob = await imageCompression(file, options);
 
-          const compressedFile = new File([compressedBlob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
-            type: 'image/webp',
-            lastModified: Date.now(),
-          });
+          const compressedFile = new File(
+            [compressedBlob],
+            file.name.replace(/\.[^/.]+$/, '') + '.webp',
+            {
+              type: 'image/webp',
+              lastModified: Date.now(),
+            },
+          );
 
-          console.log(`Compressed to ${compressedFile.name} (${(compressedFile.size / 1024).toFixed(2)} KB)`);
+          console.log(
+            `Compressed to ${compressedFile.name} (${(compressedFile.size / 1024).toFixed(2)} KB)`,
+          );
           return compressedFile;
         } catch (error) {
-          console.error("Compression failed for", file.name, error);
+          console.error('Compression failed for', file.name, error);
           return file;
         }
       });
@@ -244,50 +261,49 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       const compressedFiles = await Promise.all(compressedFilesPromises);
 
       // Update state
-      setRunImages(prev => ({
+      setRunImages((prev) => ({
         ...prev,
-        [runId]: [...(prev[runId] || []), ...compressedFiles]
+        [runId]: [...(prev[runId] || []), ...compressedFiles],
       }));
 
       // Create previews
-      compressedFiles.forEach(file => {
+      compressedFiles.forEach((file) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          setImagePreviews(prev => ({
+          setImagePreviews((prev) => ({
             ...prev,
-            [runId]: [...(prev[runId] || []), reader.result as string]
+            [runId]: [...(prev[runId] || []), reader.result as string],
           }));
         };
         reader.readAsDataURL(file);
       });
-
     } catch (err) {
-      console.error("Image processing error", err);
+      console.error('Image processing error', err);
       setError('Failed to process images');
     }
   };
 
   const removeImage = (runId: string, index: number) => {
-    setRunImages(prev => ({
+    setRunImages((prev) => ({
       ...prev,
-      [runId]: (prev[runId] || []).filter((_, i) => i !== index)
+      [runId]: (prev[runId] || []).filter((_, i) => i !== index),
     }));
-    setImagePreviews(prev => ({
+    setImagePreviews((prev) => ({
       ...prev,
-      [runId]: (prev[runId] || []).filter((_, i) => i !== index)
+      [runId]: (prev[runId] || []).filter((_, i) => i !== index),
     }));
   };
 
   const updateRunField = (processId: string, runId: string, field: string, value: string) => {
     setLocalOrder((prev) => {
       if (!prev) return prev;
-      const process = prev.processes.find(p => p.id === processId);
-      const run = process?.runs.find(r => r.id === runId);
+      const process = prev.processes.find((p) => p.id === processId);
+      const run = process?.runs.find((r) => r.id === runId);
 
       if (!run) return prev;
 
       // Find the field definition to get the type
-      const fieldDef = run.fields.find(f => f.key === field);
+      const fieldDef = run.fields.find((f) => f.key === field);
       let typedValue: string | number | null = value;
 
       // Convert to number if field type is number
@@ -322,16 +338,16 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
           p.id !== processId
             ? p
             : {
-              ...p,
-              runs: p.runs.map((r) =>
-                r.id !== runId
-                  ? r
-                  : {
-                    ...r,
-                    values: newValues,
-                  },
-              ),
-            },
+                ...p,
+                runs: p.runs.map((r) =>
+                  r.id !== runId
+                    ? r
+                    : {
+                        ...r,
+                        values: newValues,
+                      },
+                ),
+              },
         ),
       };
 
@@ -347,7 +363,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       configStatus?: string;
       executor?: { id: string; name: string } | null;
       reviewer?: { id: string; name: string } | null;
-    }
+    },
   ) => {
     setLocalOrder((prev) => {
       if (!prev) return prev;
@@ -362,28 +378,28 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                 if (run.id === runId) {
                   return {
                     ...run,
-                    ...updates
+                    ...updates,
                   };
                 }
                 return run;
-              })
+              }),
             };
           }
           return process;
-        })
+        }),
       };
 
       // Check if ALL runs in ALL processes are complete
       // Only check if we are updating status
       if (updates.configStatus) {
-        const allRunsComplete = updatedOrder.processes.every(process =>
-          process.runs.every(run => run.configStatus === 'COMPLETE')
+        const allRunsComplete = updatedOrder.processes.every((process) =>
+          process.runs.every((run) => run.configStatus === 'COMPLETE'),
         );
 
         if (allRunsComplete) {
           return {
             ...updatedOrder,
-            status: 'Production_Ready'
+            status: 'Production_Ready',
           };
         }
       }
@@ -411,7 +427,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
         return;
       }
 
-      const fieldDef = fieldConfigs.find(f => f.key === key);
+      const fieldDef = fieldConfigs.find((f) => f.key === key);
       const type = fieldDef?.type || 'null';
 
       if (type === 'number') {
@@ -445,9 +461,10 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
         console.log(`Starting upload for ${images.length} images...`);
         const uploadPromises = images.map(async (file) => {
           // A. Get Presigned URL
-          const { uploadUrl, publicUrl } = await apiRequest<{ uploadUrl: string; publicUrl: string }>(
-            `/orders/upload-url?filename=${encodeURIComponent(file.name)}`
-          );
+          const { uploadUrl, publicUrl } = await apiRequest<{
+            uploadUrl: string;
+            publicUrl: string;
+          }>(`/orders/upload-url?filename=${encodeURIComponent(file.name)}`);
 
           // B. Upload File to Cloudflare (PUT)
           await fetch(uploadUrl, {
@@ -477,45 +494,48 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
         apiValues,
         imageUrls,
         executorId,
-        reviewerId
+        reviewerId,
       );
 
       // Check if API returned success
       if (response && response.success === true) {
         // Resolve full manager objects for local update
         const selectedExecutor = executorId
-          ? managers.find(u => u.id === executorId) || run.executor
+          ? managers.find((u) => u.id === executorId) || run.executor
           : run.executor;
 
         const selectedReviewer = reviewerId
-          ? managers.find(u => u.id === reviewerId) || run.reviewer
+          ? managers.find((u) => u.id === reviewerId) || run.reviewer
           : run.reviewer;
 
         // Update local state immediately with status AND managers
         updateRunState(processId, runId, {
-          configStatus: "COMPLETE",
-          executor: selectedExecutor ? { id: selectedExecutor.id, name: selectedExecutor.name } : null,
-          reviewer: selectedReviewer ? { id: selectedReviewer.id, name: selectedReviewer.name } : null,
+          configStatus: 'COMPLETE',
+          executor: selectedExecutor
+            ? { id: selectedExecutor.id, name: selectedExecutor.name }
+            : null,
+          reviewer: selectedReviewer
+            ? { id: selectedReviewer.id, name: selectedReviewer.name }
+            : null,
         });
 
         // Clear images for this run from state
-        setRunImages(prev => {
+        setRunImages((prev) => {
           const newState = { ...prev };
           delete newState[runId];
           return newState;
         });
-        setImagePreviews(prev => {
+        setImagePreviews((prev) => {
           const newState = { ...prev };
           delete newState[runId];
           return newState;
         });
         // Clear manager selection temp state
-        setRunManagers(prev => {
+        setRunManagers((prev) => {
           const newState = { ...prev };
           delete newState[runId];
           return newState;
         });
-
 
         // Notify parent component
         if (onSaveSuccess) {
@@ -551,14 +571,12 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
     return pairs;
   };
 
-
-
   // Improved Manager Select using a simple filterable dropdown logic
   const SearchableManagerSelect = ({
     label,
     valueId,
     onChange,
-    users
+    users,
   }: {
     label: string;
     valueId?: string;
@@ -571,14 +589,14 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
     // Initialize search with current selected user name if any
     useEffect(() => {
       if (valueId) {
-        const u = users.find(u => u.id === valueId);
+        const u = users.find((u) => u.id === valueId);
         if (u) setSearch(u.name);
       } else {
         setSearch('');
       }
     }, [valueId, users]);
 
-    const filtered = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()));
+    const filtered = users.filter((u) => u.name.toLowerCase().includes(search.toLowerCase()));
 
     return (
       <div className="relative">
@@ -587,6 +605,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
           type="text"
           value={search}
           onFocus={() => setIsOpen(true)}
+          disabled={!hasPermission(Permission.RUNS_UPDATE)}
           onChange={(e) => {
             setSearch(e.target.value);
             setIsOpen(true);
@@ -602,7 +621,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
         />
         {isOpen && filtered.length > 0 && (
           <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded shadow-lg max-h-40 overflow-y-auto">
-            {filtered.map(u => (
+            {filtered.map((u) => (
               <div
                 key={u.id}
                 className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer text-gray-700"
@@ -622,7 +641,6 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
     );
   };
 
-
   // Function to render form or view based on run status
   const renderRunFormOrView = (process: any, run: ProcessRun) => {
     const isConfigured = run.configStatus === 'COMPLETE';
@@ -638,27 +656,29 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                 <div className="w-2 h-2 bg-green-500 rounded-full" />
                 <h3 className="font-semibold text-sm">View Run {run.runNumber} Configuration</h3>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setEditingRunId(run.id)}
-                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200"
-                >
-                  <Edit className="w-3 h-3" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => setOpenRunId(null)}
-                  className="text-gray-500 hover:text-gray-700 text-sm"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              {hasPermission(Permission.RUNS_UPDATE) && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditingRunId(run.id)}
+                    className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200"
+                  >
+                    <Edit className="w-3 h-3" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setOpenRunId(null)}
+                    className="text-gray-500 hover:text-gray-700 text-sm"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* READ-ONLY COMPACT TABLE */}
             <div className="border border-gray-300 rounded overflow-hidden bg-white">
               {(() => {
-                const fieldConfigs = getRunFieldConfigs(run).filter(f => f.required === true);
+                const fieldConfigs = getRunFieldConfigs(run).filter((f) => f.required === true);
                 const pairs = groupFieldsIntoPairs(fieldConfigs);
 
                 return pairs.map((pair, rowIndex) => (
@@ -739,28 +759,30 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
             </div>
 
             {/* DISPLAY IMAGES IF AVAILABLE (READ-ONLY) */}
-            {run.values?.images && Array.isArray(run.values.images) && run.values.images.length > 0 && (
-              <div className="mt-4 border border-gray-200 rounded p-3 bg-white">
-                <h4 className="text-xs font-semibold text-gray-700 mb-2">Reference Images</h4>
-                <div className="flex gap-2 overflow-x-auto">
-                  {run.values.images.map((imgUrl: string, index: number) => (
-                    <a
-                      key={index}
-                      href={imgUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-16 h-16 border rounded overflow-hidden shrink-0 hover:border-blue-500 transition-colors"
-                    >
-                      <img
-                        src={imgUrl}
-                        alt={`Ref ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </a>
-                  ))}
+            {run.values?.images &&
+              Array.isArray(run.values.images) &&
+              run.values.images.length > 0 && (
+                <div className="mt-4 border border-gray-200 rounded p-3 bg-white">
+                  <h4 className="text-xs font-semibold text-gray-700 mb-2">Reference Images</h4>
+                  <div className="flex gap-2 overflow-x-auto">
+                    {run.values.images.map((imgUrl: string, index: number) => (
+                      <a
+                        key={index}
+                        href={imgUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-16 h-16 border rounded overflow-hidden shrink-0 hover:border-blue-500 transition-colors"
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`Ref ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </a>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* CLOSE BUTTON FOR VIEW MODE */}
             <div className="mt-4 flex items-center justify-end">
@@ -781,7 +803,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
       const currentPreviews = imagePreviews[run.id] || [];
       const currentManagerSelection = runManagers[run.id] || {
         executorId: run.executor?.id,
-        reviewerId: run.reviewer?.id
+        reviewerId: run.reviewer?.id,
       };
 
       return (
@@ -789,9 +811,13 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-blue-500' : 'bg-yellow-500'}`} />
+                <div
+                  className={`w-2 h-2 rounded-full ${isEditing ? 'bg-blue-500' : 'bg-yellow-500'}`}
+                />
                 <h3 className="font-semibold text-sm">
-                  {isEditing ? `Edit Run ${run.runNumber} Configuration` : `Configure Run ${run.runNumber}`}
+                  {isEditing
+                    ? `Edit Run ${run.runNumber} Configuration`
+                    : `Configure Run ${run.runNumber}`}
                 </h3>
               </div>
               <button
@@ -820,7 +846,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
             {/* EDITABLE COMPACT FORM TABLE */}
             <div className="border border-gray-300 rounded overflow-hidden bg-white">
               {(() => {
-                const fieldConfigs = getRunFieldConfigs(run).filter(f => f.required === true);
+                const fieldConfigs = getRunFieldConfigs(run).filter((f) => f.required === true);
                 const pairs = groupFieldsIntoPairs(fieldConfigs);
 
                 return pairs.map((pair, rowIndex) => (
@@ -862,13 +888,18 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                                 {(() => {
                                   const rate = Number(run.values['Estimated Rate']) || 0;
                                   const qty = Number(run.values['Quantity']) || 0;
-                                  return rate * qty || <span className="text-gray-400">Auto-calculated</span>;
+                                  return (
+                                    rate * qty || (
+                                      <span className="text-gray-400">Auto-calculated</span>
+                                    )
+                                  );
                                 })()}
                               </div>
                             ) : (
                               <input
                                 type={isNumberField ? 'number' : 'text'}
                                 value={run.values[field] ?? ''}
+                                disabled={!hasPermission(Permission.RUNS_UPDATE)}
                                 onChange={(e) => {
                                   let value = e.target.value;
 
@@ -921,9 +952,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                   <Palette className="w-3.5 h-3.5" />
                   Reference Images (Max 2)
                 </label>
-                <div className="text-xs text-gray-500">
-                  {currentImages.length}/2 uploaded
-                </div>
+                <div className="text-xs text-gray-500">{currentImages.length}/2 uploaded</div>
               </div>
 
               <div className="flex gap-3 items-start">
@@ -936,6 +965,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                       className="hidden"
                       accept="image/jpeg,image/jpg,image/png,image/webp"
                       multiple
+                      disabled={!hasPermission(Permission.RUNS_UPDATE)}
                       onChange={(e) => handleImageSelect(run.id, e)}
                     />
                     <label
@@ -950,7 +980,10 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
 
                 {/* PREVIEWS */}
                 {currentPreviews.map((preview, idx) => (
-                  <div key={idx} className="relative group w-20 h-20 border rounded-lg overflow-hidden">
+                  <div
+                    key={idx}
+                    className="relative group w-20 h-20 border rounded-lg overflow-hidden"
+                  >
                     <img
                       src={preview}
                       alt={`Preview ${idx + 1}`}
@@ -995,10 +1028,11 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                 <button
                   onClick={() => saveRun(process.id, run.id)}
                   disabled={!areAllFieldsFilled(run) || isSaving === run.id}
-                  className={`px-4 py-1 text-sm font-medium rounded transition-colors flex items-center gap-1 ${areAllFieldsFilled(run)
-                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
+                  className={`px-4 py-1 text-sm font-medium rounded transition-colors flex items-center gap-1 ${
+                    areAllFieldsFilled(run)
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
                 >
                   {isSaving === run.id ? (
                     <>
@@ -1032,8 +1066,6 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
         </div>
       )}
 
-
-
       {/* RUN CARDS - COMPACT VIEW */}
       <div className="space-y-6">
         {localOrder.processes.map((process) => (
@@ -1048,10 +1080,11 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                 <div key={run.id} className="space-y-1">
                   {/* RUN HEADER - COMPACT */}
                   <div
-                    className={`border rounded p-2 transition-colors ${isConfigured
-                      ? 'bg-green-50 border-green-200 hover:bg-green-100'
-                      : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
-                      }`}
+                    className={`border rounded p-2 transition-colors ${
+                      isConfigured
+                        ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                        : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
+                    }`}
                   >
                     <div className="flex items-center justify-between">
                       <div
@@ -1079,7 +1112,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                           ) : (
                             <Edit className="w-4 h-4 text-gray-500" />
                           )}
-                          {!isConfigured && (
+                          {!isConfigured && hasPermission(Permission.RUNS_DELETE) && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1097,8 +1130,9 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                             </button>
                           )}
                           <ChevronRight
-                            className={`w-4 h-4 text-gray-400 transition-transform ${openRunId === run.id ? 'rotate-90' : ''
-                              }`}
+                            className={`w-4 h-4 text-gray-400 transition-transform ${
+                              openRunId === run.id ? 'rotate-90' : ''
+                            }`}
                           />
                         </div>
                       </div>
@@ -1112,18 +1146,20 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
             })}
 
             {/* ADD RUN BUTTON */}
-            <button
-              onClick={() => handleAddRun(process.id)}
-              disabled={isAddingRun}
-              className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
-            >
-              {isAddingRun ? (
-                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
-              Add Configuration Run
-            </button>
+            {hasPermission(Permission.RUNS_CREATE) && (
+              <button
+                onClick={() => handleAddRun(process.id)}
+                disabled={isAddingRun}
+                className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+              >
+                {isAddingRun ? (
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+                Add Configuration Run
+              </button>
+            )}
           </div>
         ))}
       </div>

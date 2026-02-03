@@ -14,6 +14,8 @@ import {
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import AddProcessModal from '@/components/modals/AddProcessModal';
 import EditOrderModal from '@/components/modals/EditOrderModal';
 import ComingSoonConfig from '@/components/orders/ComingSoonConfig';
@@ -163,6 +165,8 @@ export default function OrderConfigPage() {
     setEditValues({});
   };
 
+  const { hasPermission } = useAuth();
+
   const getRunById = (runId: string) => {
     if (!order) return null;
     for (const process of order.processes) {
@@ -209,8 +213,6 @@ export default function OrderConfigPage() {
     );
   }
 
-
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -228,24 +230,27 @@ export default function OrderConfigPage() {
                 </button>
                 <div className="h-6 w-px bg-gray-300 hidden md:block" />
                 <h1 className="text-2xl font-bold text-gray-800">{order.code}</h1>
-                <button
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-blue-600 transition-colors"
-                  title="Edit Order Details"
-                >
-                  <Edit2 className="w-5 h-5" />
-                </button>
+                {hasPermission(Permission.ORDERS_UPDATE) && (
+                  <button
+                    onClick={() => setIsEditModalOpen(true)}
+                    className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Edit Order Details"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                  </button>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-4 mt-2">
                 <div className="flex items-center gap-2">
                   <div
-                    className={`w-2 h-2 rounded-full ${order.status === 'BILLED'
-                      ? 'bg-purple-500'
-                      : order.status === 'COMPLETE'
-                        ? 'bg-green-500'
-                        : 'bg-blue-500'
-                      }`}
+                    className={`w-2 h-2 rounded-full ${
+                      order.status === 'BILLED'
+                        ? 'bg-purple-500'
+                        : order.status === 'COMPLETE'
+                          ? 'bg-green-500'
+                          : 'bg-blue-500'
+                    }`}
                   />
                   <span className="text-sm text-gray-600">
                     {order.customer.name} ({order.customer.code})
@@ -273,12 +278,13 @@ export default function OrderConfigPage() {
 
             <div className="flex flex-wrap gap-3">
               <div
-                className={`px-4 py-2 rounded-full text-sm font-medium ${order.status === 'BILLED'
-                  ? 'bg-purple-100 text-purple-800'
-                  : order.status === 'COMPLETE'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-800'
-                  }`}
+                className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  order.status === 'BILLED'
+                    ? 'bg-purple-100 text-purple-800'
+                    : order.status === 'COMPLETE'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                }`}
               >
                 {order.status.replace('_', ' ')}
               </div>
@@ -303,12 +309,14 @@ export default function OrderConfigPage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">Processes</h3>
-                <button
-                  onClick={() => setIsAddProcessModalOpen(true)}
-                  className="text-sm px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors flex items-center gap-1"
-                >
-                  <span className="text-lg leading-none">+</span> Add Process
-                </button>
+                {hasPermission(Permission.PROCESS_CREATE) && (
+                  <button
+                    onClick={() => setIsAddProcessModalOpen(true)}
+                    className="text-sm px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors flex items-center gap-1"
+                  >
+                    <span className="text-lg leading-none">+</span> Add Process
+                  </button>
+                )}
               </div>
               <div className="flex flex-wrap gap-3">
                 {order.processes.map((process) => (
@@ -332,7 +340,10 @@ export default function OrderConfigPage() {
             {/* CONFIGURATION COMPONENT */}
             <div className="space-y-6">
               {order.processes.map((process) => (
-                <div key={process.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div
+                  key={process.id}
+                  className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
+                >
                   <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">
                     <div className="w-2 h-2 bg-blue-500 rounded-full" />
                     <h3 className="font-semibold text-gray-800">{process.name}</h3>
@@ -354,11 +365,11 @@ export default function OrderConfigPage() {
                             processes: prev.processes.map((p) =>
                               p.id === processId
                                 ? {
-                                  ...p,
-                                  runs: p.runs.map((r) =>
-                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
-                                  ),
-                                }
+                                    ...p,
+                                    runs: p.runs.map((r) =>
+                                      r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
+                                    ),
+                                  }
                                 : p,
                             ),
                           };
@@ -378,11 +389,11 @@ export default function OrderConfigPage() {
                             processes: prev.processes.map((p) =>
                               p.id === processId
                                 ? {
-                                  ...p,
-                                  runs: p.runs.map((r) =>
-                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
-                                  ),
-                                }
+                                    ...p,
+                                    runs: p.runs.map((r) =>
+                                      r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
+                                    ),
+                                  }
                                 : p,
                             ),
                           };
