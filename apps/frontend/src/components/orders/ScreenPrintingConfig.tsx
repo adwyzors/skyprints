@@ -66,6 +66,7 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
   const [error, setError] = useState<string | null>(null);
   const [isAddingRun, setIsAddingRun] = useState(false);
   const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
+  const [editingRunId, setEditingRunId] = useState<string | null>(null);
 
   const handleAddRun = async (processId: string) => {
     setIsAddingRun(true);
@@ -522,7 +523,9 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
         }
 
         alert(`Run ${run.runNumber} configured successfully`);
+        alert(`Run ${run.runNumber} configured successfully`);
         setOpenRunId(null); // Close the form after successful save
+        setEditingRunId(null); // Clear edit mode if active
 
         // Refresh from server to get latest data including image URLs
         if (onRefresh) {
@@ -623,8 +626,9 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
   // Function to render form or view based on run status
   const renderRunFormOrView = (process: any, run: ProcessRun) => {
     const isConfigured = run.configStatus === 'COMPLETE';
+    const isEditing = editingRunId === run.id;
 
-    if (isConfigured) {
+    if (isConfigured && !isEditing) {
       // Show READ-ONLY view for configured runs
       return (
         <div className="bg-gray-50 border border-gray-300 rounded p-3">
@@ -634,12 +638,21 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
                 <div className="w-2 h-2 bg-green-500 rounded-full" />
                 <h3 className="font-semibold text-sm">View Run {run.runNumber} Configuration</h3>
               </div>
-              <button
-                onClick={() => setOpenRunId(null)}
-                className="text-gray-500 hover:text-gray-700 text-sm"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setEditingRunId(run.id)}
+                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200"
+                >
+                  <Edit className="w-3 h-3" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => setOpenRunId(null)}
+                  className="text-gray-500 hover:text-gray-700 text-sm"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* READ-ONLY COMPACT TABLE */}
@@ -776,8 +789,10 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full" />
-                <h3 className="font-semibold text-sm">Configure Run {run.runNumber}</h3>
+                <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-blue-500' : 'bg-yellow-500'}`} />
+                <h3 className="font-semibold text-sm">
+                  {isEditing ? `Edit Run ${run.runNumber} Configuration` : `Configure Run ${run.runNumber}`}
+                </h3>
               </div>
               <button
                 onClick={() => setOpenRunId(null)}
@@ -965,7 +980,13 @@ export default function ScreenPrintingConfig({ order, onRefresh, onSaveSuccess }
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setOpenRunId(null)}
+                  onClick={() => {
+                    if (isEditing) {
+                      setEditingRunId(null);
+                    } else {
+                      setOpenRunId(null);
+                    }
+                  }}
                   disabled={isSaving === run.id}
                   className="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-100 transition-colors disabled:opacity-50"
                 >
