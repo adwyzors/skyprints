@@ -698,10 +698,14 @@ export class AdminProcessService {
                 },
                 orderProcess: {
                     include: {
+                        process: {
+                            select: { name: true },
+                        },
                         order: {
                             select: {
                                 id: true,
                                 code: true,
+                                statusCode: true,
                                 customer: { select: { name: true } },
                             },
                         },
@@ -711,6 +715,14 @@ export class AdminProcessService {
         });
 
         if (!run) throw new NotFoundException('Process run not found');
+
+        let displayProcessName = run.orderProcess.process.name;
+        if (run.fields) {
+            const f = run.fields as any;
+            if (displayProcessName === 'Embellishment' && f['Process Name']) {
+                displayProcessName = f['Process Name'];
+            }
+        }
 
         return {
             ...run,
@@ -731,6 +743,7 @@ export class AdminProcessService {
             templateFields: run.runTemplate.fields as any[], // Typing bypass
             // Ensure orderProcess matches DTO
             orderProcess: {
+                name: displayProcessName,
                 totalRuns: run.orderProcess.totalRuns,
                 lifecycleCompletedRuns: run.orderProcess.lifecycleCompletedRuns,
                 remainingRuns: run.orderProcess.remainingRuns,

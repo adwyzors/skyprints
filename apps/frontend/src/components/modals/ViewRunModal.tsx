@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from 'react';
 
 import { getRunById, transitionLifeCycle } from '@/services/run.service';
-import { CheckCircle, ChevronRight, FastForward, Settings, User, X } from 'lucide-react';
+import { ArrowRight, CheckCircle, ChevronRight, FastForward, Settings, User, X } from 'lucide-react';
+import Link from 'next/link';
+import RunConfigForm from '../runs/RunConfigForm';
 import ConfigurationModal from './ConfigurationModal';
 
 interface ViewRunModalProps {
@@ -164,7 +166,14 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                 <div className="w-1/3 border-r border-gray-200 bg-gray-50/50 p-6 flex flex-col h-full">
                     <div className="flex-1 overflow-y-auto min-h-0">
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold text-gray-800">Run #{run.runNumber}</h2>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-xl font-bold text-gray-800">Run #{run.runNumber}</h2>
+                                {run.orderProcess?.name && (
+                                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                        {run.orderProcess.name}
+                                    </span>
+                                )}
+                            </div>
                             <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
                                 <X className="w-5 h-5 text-gray-500" />
                             </button>
@@ -175,9 +184,18 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                                 <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Order Details</h3>
                                 <div className="space-y-3">
-                                    <div className="flex justify-between">
+
+
+                                    <div className="flex justify-between items-center">
                                         <span className="text-sm text-gray-500">Order Code</span>
-                                        <span className="text-sm font-medium text-gray-900">{run.orderProcess.order.code}</span>
+                                        <Link
+                                            href={`/admin/orders/${run.orderProcess.order.id}`}
+                                            target="_blank"
+                                            className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 group"
+                                        >
+                                            {run.orderProcess.order.code}
+                                            <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                                        </Link>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-sm text-gray-500">Customer</span>
@@ -229,34 +247,36 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
 
                 {/* RIGHT SIDE - TIMELINE OR CONFIGURE ACTION */}
                 <div className="flex-1 p-8 overflow-y-auto bg-white">
-                    {statusCode === 'CONFIGURE' ? (
-                        <div className="flex flex-col items-center justify-center h-full">
-                            <div className="text-center text-gray-500 mb-6">
-                                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Settings className="w-8 h-8 text-blue-600" />
-                                </div>
-                                <div className="text-lg font-medium mb-2">Run Not Ready</div>
-                                <p>Set configurations for this run to begin production</p>
-                            </div>
-
-                            <button
-                                onClick={() => {
-                                    if (run?.orderProcess?.order?.id) {
-                                        router.push(`/admin/orders/${run.orderProcess.order.id}`);
-                                    }
+                    {statusCode === 'CONFIGURE' && run.configStatus !== 'COMPLETE' ? (
+                        <div className="max-w-3xl mx-auto">
+                            <RunConfigForm
+                                runId={run.id}
+                                runNumber={run.runNumber}
+                                displayName={run.orderProcess?.name || run.displayName || run.runTemplate?.name || 'Run'}
+                                processId={run.orderProcessId}
+                                orderId={run.orderProcess.order.id}
+                                orderQuantity={run.orderProcess.order.quantity}
+                                initialValues={run.fields || {}}
+                                fieldDefinitions={run.templateFields || []}
+                                initialExecutor={run.executor}
+                                initialReviewer={run.reviewer}
+                                onSaveSuccess={() => {
+                                    fetchRun();
+                                    if (onRunUpdate) onRunUpdate();
                                 }}
-                                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-                            >
-                                <Settings className="w-5 h-5" />
-                                <span>Configure Run</span>
-                            </button>
+                                onCancel={onClose}
+                            />
                         </div>
                     ) : (
                         <div className="max-w-xl mx-auto">
                             <div className="flex items-center justify-between mb-8">
                                 <div>
-                                    <h1 className="text-2xl font-bold text-gray-900 mb-1">{run.displayName.replace(/ Template$/i, '')}</h1>
-                                    <p className="text-sm text-gray-500">Lifecycle Progress</p>
+                                    <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                                        {run.orderProcess?.name || run.displayName.replace(/ Template$/i, '')}
+                                    </h1>
+                                    {run.orderProcess.order.statusCode === 'IN_PRODUCTION' && (
+                                        <p className="text-sm text-gray-500">Lifecycle Progress</p>
+                                    )}
                                 </div>
                                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${run.configStatus === 'COMPLETE' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
                                     }`}>
@@ -265,93 +285,97 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                             </div>
 
                             {/* TIMELINE */}
-                            <div className="relative pl-8 space-y-8">
-                                {/* Vertical Line */}
-                                <div className="absolute left-3 top-3 bottom-6 w-0.5 bg-gray-200" />
+                            {run.orderProcess.order.statusCode === 'IN_PRODUCTION' && (
+                                <div className="relative pl-8 space-y-8">
+                                    {/* Vertical Line */}
+                                    <div className="absolute left-3 top-3 bottom-6 w-0.5 bg-gray-200" />
 
-                                {lifecycleSteps.map((step: any, index: number) => {
-                                    const isCompleted = step.completed;
-                                    const isCurrent = step.code === currentStepCode; // Simple check, might need better logic if backend doesn't set 'completed' for current
+                                    {lifecycleSteps.map((step: any, index: number) => {
+                                        const isCompleted = step.completed;
+                                        const isCurrent = step.code === currentStepCode;
 
-                                    return (
-                                        <div key={step.code} className="relative group">
-                                            {/* DOT */}
-                                            <div className={`absolute -left-[29px] top-1 z-10 w-6 h-6 rounded-full border-4 flex items-center justify-center transition-colors ${isCompleted ? 'bg-green-500 border-green-100' :
-                                                isCurrent ? 'bg-blue-600 border-blue-100' :
-                                                    'bg-white border-gray-200'
-                                                }`}>
-                                                {isCompleted && <CheckCircle className="w-3 h-3 text-white" />}
-                                                {isCurrent && <div className="w-2 h-2 bg-white rounded-full animate-pulse" />}
-                                            </div>
+                                        return (
+                                            <div key={step.code} className="relative group">
+                                                {/* DOT */}
+                                                <div className={`absolute -left-[29px] top-1 z-10 w-6 h-6 rounded-full border-4 flex items-center justify-center transition-colors ${isCompleted ? 'bg-green-500 border-green-100' :
+                                                    isCurrent ? 'bg-blue-600 border-blue-100' :
+                                                        'bg-white border-gray-200'
+                                                    }`}>
+                                                    {isCompleted && <CheckCircle className="w-3 h-3 text-white" />}
+                                                    {isCurrent && <div className="w-2 h-2 bg-white rounded-full animate-pulse" />}
+                                                </div>
 
-                                            {/* CONTENT CARD */}
-                                            <div className={`rounded-xl border transition-all duration-200 ${isCurrent ? 'border-blue-200 bg-blue-50/50 shadow-md ring-1 ring-blue-100' :
-                                                isCompleted ? 'border-green-100 bg-green-50/30' :
-                                                    'border-gray-100 bg-white hover:border-gray-200'
-                                                }`}>
-                                                <div className="p-5">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <h4 className={`font-semibold text-lg ${isCurrent ? 'text-blue-700' :
-                                                            isCompleted ? 'text-green-700' :
-                                                                'text-gray-600'
-                                                            }`}>
-                                                            {getStatusDisplayName(step.code)}
-                                                        </h4>
+                                                {/* CONTENT CARD */}
+                                                <div className={`rounded-xl border transition-all duration-200 ${isCurrent ? 'border-blue-200 bg-blue-50/50 shadow-md ring-1 ring-blue-100' :
+                                                    isCompleted ? 'border-green-100 bg-green-50/30' :
+                                                        'border-gray-100 bg-white hover:border-gray-200'
+                                                    }`}>
+                                                    <div className="p-5">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <h4 className={`font-semibold text-lg ${isCurrent ? 'text-blue-700' :
+                                                                isCompleted ? 'text-green-700' :
+                                                                    'text-gray-600'
+                                                                }`}>
+                                                                {getStatusDisplayName(step.code)}
+                                                            </h4>
 
-                                                        {/* Skip Action */}
-                                                        {!isCurrent && !isCompleted && (
+                                                            {/* Skip Action */}
+                                                            {!isCurrent && !isCompleted && (
+                                                                <button
+                                                                    onClick={() => handleTransition(step.code)}
+                                                                    disabled={updating}
+                                                                    className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                                    title="Skip to this step"
+                                                                >
+                                                                    <FastForward className="w-4 h-4" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+
+                                                        <p className="text-sm text-gray-500 mb-4">
+                                                            {isCompleted ? 'Completed' : isCurrent ? 'Current Stage' : 'Pending'}
+                                                        </p>
+
+                                                        {/* CURRENT ACTION */}
+                                                        {isCurrent && (
                                                             <button
-                                                                onClick={() => handleTransition(step.code)}
+                                                                onClick={() => handleTransition()}
                                                                 disabled={updating}
-                                                                className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                                title="Skip to this step"
+                                                                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
                                                             >
-                                                                <FastForward className="w-4 h-4" />
+                                                                {updating ? 'Processing...' : 'Mark Complete & Continue'}
+                                                                {!updating && <ChevronRight className="w-4 h-4" />}
                                                             </button>
                                                         )}
                                                     </div>
-
-                                                    <p className="text-sm text-gray-500 mb-4">
-                                                        {isCompleted ? 'Completed' : isCurrent ? 'Current Stage' : 'Pending'}
-                                                    </p>
-
-                                                    {/* CURRENT ACTION */}
-                                                    {isCurrent && (
-                                                        <button
-                                                            onClick={() => handleTransition()}
-                                                            disabled={updating}
-                                                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
-                                                        >
-                                                            {updating ? 'Processing...' : 'Mark Complete & Continue'}
-                                                            {!updating && <ChevronRight className="w-4 h-4" />}
-                                                        </button>
-                                                    )}
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
             </div>
 
             {/* NESTED CONFIG MODAL */}
-            {configModalOpen && (
-                <ConfigurationModal
-                    run={{
-                        ...run,
-                        fields: run.templateFields,
-                        values: run.fields
-                    }}
-                    processName={run.displayName} // or runTemplate name
-                    orderCode={run.orderProcess.order.code}
-                    customerName={run.orderProcess.order.customer.name}
-                    onClose={() => setConfigModalOpen(false)}
-                    readOnly={true} // Assuming we just want to view? Or edit?
-                />
-            )}
-        </div>
+            {
+                configModalOpen && (
+                    <ConfigurationModal
+                        run={{
+                            ...run,
+                            fields: run.templateFields,
+                            values: run.fields
+                        }}
+                        processName={run.displayName} // or runTemplate name
+                        orderCode={run.orderProcess.order.code}
+                        customerName={run.orderProcess.order.customer.name}
+                        onClose={() => setConfigModalOpen(false)}
+                        readOnly={true} // Assuming we just want to view? Or edit?
+                    />
+                )
+            }
+        </div >
     );
 }
