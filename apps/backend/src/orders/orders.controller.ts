@@ -1,5 +1,5 @@
 /// <reference types="multer" />
-import type { CreateOrderDto } from '@app/contracts';
+import type { CreateOrderDto, UpdateOrderDto } from '@app/contracts';
 import {
     BadRequestException,
     Body,
@@ -7,6 +7,7 @@ import {
     Delete,
     Get,
     Param,
+    Patch,
     Post,
     Query
 } from '@nestjs/common';
@@ -51,6 +52,21 @@ export class OrdersController {
         return this.service.reorder(orderId);
     }
 
+    @Post(':orderId/processes')
+    addProcessToOrder(
+        @Param('orderId') orderId: string,
+        @Body() dto: { processId: string; count: number },
+    ) {
+        return this.service.addProcessToOrder(orderId, dto);
+    }
+
+    @Patch(':orderId')
+    updateOrder(
+        @Param('orderId') orderId: string,
+        @Body() dto: UpdateOrderDto,
+    ) {
+        return this.service.updateBasicDetails(orderId, dto);
+    }
 
     @Get()
     async getAll(@Query() query: OrdersQueryDto) {

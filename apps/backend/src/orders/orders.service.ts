@@ -1,4 +1,4 @@
-import type { CreateOrderDto } from '@app/contracts';
+import type { CreateOrderDto, UpdateOrderDto } from '@app/contracts';
 import {
     BadRequestException,
     Injectable,
@@ -695,6 +695,236 @@ export class OrdersService {
             };
         });
     }
+
+    async updateBasicDetails(
+        orderId: string,
+        dto: UpdateOrderDto,
+    ) {
+        const ctx = RequestContextStore.getStore();
+        if (!ctx?.user) {
+            throw new BadRequestException('User context missing');
+        }
+
+        // 1️⃣ Validate incoming images
+        if (
+            dto.images &&
+            dto.images.some(url => !this.cloudflare.isValidImageUrl(url))
+        ) {
+            throw new BadRequestException('Invalid image URLs provided');
+        }
+
+        let oldImages: string[] = [];
+
+        try {
+            return await this.prisma.transaction(async tx => {
+                /* =====================================================
+                 * LOAD ORDER (WITH EXISTING IMAGES)
+                 * ===================================================== */
+                const order = await tx.order.findFirst({
+                    where: { id: orderId, deletedAt: null },
+                    select: {
+                        id: true,
+                        statusCode: true,
+                        images: true,
+                    },
+                });
+
+                if (!order) {
+                    throw new BadRequestException('Order not found');
+                }
+
+                // Capture old images for cleanup AFTER commit
+                if (dto.images) {
+                    oldImages = order.images ?? [];
+                }
+
+                /* =====================================================
+                 * UPDATE ORDER
+                 * ===================================================== */
+                await tx.order.update({
+                    where: { id: orderId },
+                    data: {
+                        ...(dto.customerId && { customerId: dto.customerId }),
+                        ...(dto.quantity && { quantity: dto.quantity }),
+                        ...(dto.jobCode !== undefined && { jobCode: dto.jobCode }),
+
+                        // 🔑 replace images entirely
+                        ...(dto.images && { images: dto.images }),
+
+                        ...(order.statusCode !== OrderStatus.CONFIGURE && {
+                            statusCode: OrderStatus.CONFIGURE,
+                            completedProcesses: 0,
+                        }),
+                    },
+                });
+
+                return { success: true };
+            });
+        } catch (err) {
+            // 🔥 DB failed → delete newly uploaded images
+            if (dto.images?.length) {
+                await this.cloudflare.deleteFiles(dto.images);
+            }
+            throw err;
+        } finally {
+            // 🧹 DB success → delete old images
+            if (oldImages.length) {
+                await this.cloudflare.deleteFiles(oldImages);
+            }
+        }
+    }
+
+
+    async addProcessToOrder(
+        orderId: string,
+        dto: { processId: string; count: number },
+    ) {
+        const ctx = RequestContextStore.getStore();
+        if (!ctx?.user) {
+            throw new BadRequestException('User context missing');
+        }
+
+        const { processId, count } = dto;
+
+        if (count <= 0) {
+            throw new BadRequestException('Process count must be greater than zero');
+        }
+
+        return this.prisma.transaction(async tx => {
+            /* =====================================================
+             * LOAD ORDER
+             * ===================================================== */
+            const order = await tx.order.findFirst({
+                where: { id: orderId, deletedAt: null },
+                select: { id: true, statusCode: true },
+            });
+
+            if (!order) {
+                throw new BadRequestException('Order not found');
+            }
+
+            /* =====================================================
+             * PREVENT DUPLICATE PROCESS
+             * ===================================================== */
+            const existing = await tx.orderProcess.findFirst({
+                where: { orderId, processId },
+            });
+
+            if (existing) {
+                throw new BadRequestException(
+                    'Process already exists on this order',
+                );
+            }
+
+            /* =====================================================
+             * LOAD PROCESS (LEAN, SAME AS CREATE)
+             * ===================================================== */
+            const process = await tx.process.findFirst({
+                where: { id: processId, isEnabled: true },
+                select: {
+                    id: true,
+                    runDefs: {
+                        orderBy: { sortOrder: 'asc' },
+                        select: {
+                            displayName: true,
+                            runTemplate: {
+                                select: {
+                                    id: true,
+                                    configWorkflowTypeId: true,
+                                    lifecycleWorkflowTypeId: true,
+                                    lifecycleWorkflowType: {
+                                        select: {
+                                            statuses: {
+                                                where: { isInitial: true },
+                                                select: { code: true },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            if (!process) {
+                throw new BadRequestException(
+                    'Process not found or disabled',
+                );
+            }
+
+            /* =====================================================
+             * CREATE ORDER PROCESS
+             * ===================================================== */
+            const orderProcess = await tx.orderProcess.create({
+                data: {
+                    orderId,
+                    processId: process.id,
+                    statusCode: OrderProcessStatus.CONFIGURE,
+                    totalRuns: count * process.runDefs.length,
+                    configCompletedRuns: 0,
+                    lifecycleCompletedRuns: 0,
+                    remainingRuns: count * process.runDefs.length,
+                },
+                select: { id: true },
+            });
+
+            /* =====================================================
+             * CREATE RUNS (IN MEMORY, SAME PATTERN)
+             * ===================================================== */
+            const runsToCreate: Prisma.ProcessRunCreateManyInput[] = [];
+
+            let runNumber = 1;
+
+            for (let batch = 0; batch < count; batch++) {
+                for (const def of process.runDefs) {
+                    const statuses =
+                        def.runTemplate.lifecycleWorkflowType.statuses;
+
+                    const initialStatus =
+                        statuses.length > 0 ? statuses[0].code : '';
+
+                    runsToCreate.push({
+                        orderProcessId: orderProcess.id,
+                        runTemplateId: def.runTemplate.id,
+                        runNumber: runNumber++,
+                        displayName: `${def.displayName} (${batch + 1})`,
+                        configWorkflowTypeId:
+                            def.runTemplate.configWorkflowTypeId,
+                        lifecycleWorkflowTypeId:
+                            def.runTemplate.lifecycleWorkflowTypeId,
+                        statusCode: ProcessRunStatus.CONFIGURE,
+                        lifeCycleStatusCode: initialStatus,
+                        fields: {},
+                    });
+                }
+            }
+
+            if (runsToCreate.length) {
+                await tx.processRun.createMany({
+                    data: runsToCreate,
+                });
+            }
+
+            /* =====================================================
+             * UPDATE ORDER
+             * ===================================================== */
+            await tx.order.update({
+                where: { id: orderId },
+                data: {
+                    totalProcesses: { increment: 1 },
+                    statusCode: OrderStatus.CONFIGURE,
+                },
+            });
+
+            return {
+                orderId,
+                processId,
+                totalRuns: runsToCreate.length,
+            };
+        });
+    }
+
 
     /* ========================== PRODUCTION READY ========================== */
     async setProductionReady(orderId: string) {

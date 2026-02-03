@@ -324,6 +324,8 @@ model ProcessRun {
   orderProcess OrderProcess @relation(fields: [orderProcessId], references: [id], onDelete: Cascade)
   runTemplate  RunTemplate  @relation(fields: [runTemplateId], references: [id])
   createdAt DateTime @default(now())
+  configuredAt   DateTime?
+
 
   @@unique([orderProcessId, runNumber])
   @@index([orderProcessId, id])
