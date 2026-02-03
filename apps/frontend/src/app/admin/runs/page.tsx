@@ -9,7 +9,6 @@ import { getRuns } from '@/services/run.service';
 import debounce from 'lodash/debounce';
 import {
     Activity,
-    ArrowRight,
     Box,
     CheckCircle,
     ChevronLeft,
@@ -19,7 +18,6 @@ import {
     Search,
     User
 } from 'lucide-react';
-import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
@@ -373,7 +371,6 @@ function RunsPageContent() {
                                                 <th className="px-6 py-4">Est. Rate</th>
                                                 <th className="px-6 py-4">Est. Total</th>
                                                 <th className="px-6 py-4">Status</th>
-                                                <th className="px-6 py-4 text-right">Action</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-50">
@@ -390,7 +387,8 @@ function RunsPageContent() {
                                                 return (
                                                     <tr
                                                         key={run.id}
-                                                        className="group hover:bg-blue-50/30 transition-colors"
+                                                        className="group hover:bg-blue-50/30 transition-colors cursor-pointer"
+                                                        onClick={() => handleRunSelection(run.id)}
                                                     >
                                                         <td className="px-6 py-4 font-medium text-gray-900">
                                                             <div className="flex items-center gap-2">
@@ -434,24 +432,62 @@ function RunsPageContent() {
                                                             {run.fields?.['Estimated Amount'] ? `₹${run.fields['Estimated Amount'].toLocaleString()}` : '-'}
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${run.statusCode === 'COMPLETE' || run.statusCode === 'COMPLETED'
-                                                                ? 'bg-green-50 text-green-700 border-green-100'
-                                                                : run.statusCode === 'IN_PROGRESS'
-                                                                    ? 'bg-blue-50 text-blue-700 border-blue-100'
-                                                                    : 'bg-gray-50 text-gray-600 border-gray-100'
-                                                                }`}>
-                                                                {(run.statusCode === 'COMPLETE' || run.statusCode === 'COMPLETED') && <CheckCircle className="w-3 h-3" />}
-                                                                {run.statusCode === 'IN_PROGRESS' && <Clock className="w-3 h-3 animate-pulse" />}
-                                                                {run.statusCode}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-right">
-                                                            <Link
-                                                                href={`/admin/orders/${run.orderProcess.order.id}`}
-                                                                className="inline-flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all opacity-0 group-hover:opacity-100"
-                                                            >
-                                                                <ArrowRight className="w-4 h-4" />
-                                                            </Link>
+                                                            {(() => {
+                                                                // Logic from RunCard.tsx
+                                                                const status = run.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (run.lifeCycleStatusCode || run.statusCode);
+                                                                const s = status?.toUpperCase();
+                                                                let config = {
+                                                                    label: status || 'Unknown',
+                                                                    color: 'bg-gray-50 text-gray-700 border-gray-200',
+                                                                    icon: <Clock className="w-3.5 h-3.5" />,
+                                                                };
+
+                                                                switch (s) {
+                                                                    case 'COMPLETED':
+                                                                    case 'COMPLETE':
+                                                                        config = {
+                                                                            label: 'Completed',
+                                                                            color: 'bg-green-50 text-green-700 border-green-200',
+                                                                            icon: <CheckCircle className="w-3.5 h-3.5" />,
+                                                                        };
+                                                                        break;
+                                                                    case 'IN_PROGRESS':
+                                                                        config = {
+                                                                            label: 'In Progress',
+                                                                            color: 'bg-blue-50 text-blue-700 border-blue-200',
+                                                                            icon: <Activity className="w-3.5 h-3.5" />,
+                                                                        };
+                                                                        break;
+                                                                    case 'PENDING':
+                                                                        config = {
+                                                                            label: 'Pending',
+                                                                            color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                                                                            icon: <Clock className="w-3.5 h-3.5" />,
+                                                                        };
+                                                                        break;
+                                                                    case 'CONFIGURE':
+                                                                        config = {
+                                                                            label: 'Configure',
+                                                                            color: 'bg-orange-50 text-orange-700 border-orange-200',
+                                                                            icon: <Activity className="w-3.5 h-3.5" />,
+                                                                        };
+                                                                        break;
+                                                                    case 'DESIGN':
+                                                                        config = {
+                                                                            label: 'Design',
+                                                                            color: 'bg-purple-50 text-purple-700 border-purple-200',
+                                                                            icon: <Activity className="w-3.5 h-3.5" />,
+                                                                        };
+                                                                        break;
+                                                                }
+
+                                                                return (
+                                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${config.color}`}>
+                                                                        {config.icon}
+                                                                        {config.label}
+                                                                    </span>
+                                                                );
+                                                            })()}
                                                         </td>
                                                     </tr>
                                                 );
