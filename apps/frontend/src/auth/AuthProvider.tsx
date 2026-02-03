@@ -14,6 +14,8 @@ interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
+  hasAllPermissions: (permissions: string[]) => boolean;
   loading: boolean;
   refresh: () => Promise<void>;
 }
@@ -67,7 +69,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadUser();
   }, [pathname, requiresAuth, router]);
 
-  const hasPermission = (permission: string) => !!user?.permissions?.includes(permission);
+  const hasPermission = (permission: string) => !!user?.roles?.includes(permission);
+
+  const hasAnyPermission = (permissions: string[]) =>
+    permissions.some((p) => user?.roles?.includes(p));
+
+  const hasAllPermissions = (permissions: string[]) =>
+    permissions.every((p) => user?.roles?.includes(p));
 
   return (
     <AuthContext.Provider
@@ -75,6 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isAuthenticated: !!user,
         hasPermission,
+        hasAnyPermission,
+        hasAllPermissions,
         loading,
         refresh: async () => {
           if (!requiresAuth) return;
