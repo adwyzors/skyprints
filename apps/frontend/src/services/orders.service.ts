@@ -227,3 +227,17 @@ export async function updateOrder(orderId: string, payload: UpdateOrderPayload):
         body: JSON.stringify(payload),
     });
 }
+
+export async function addProcessToOrder(
+    orderId: string,
+    payload: { processId: string; count: number }
+): Promise<any> {
+    return apiRequest(`/orders/${orderId}/processes`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+}
+

@@ -14,6 +14,7 @@ import {
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
+import AddProcessModal from '@/components/modals/AddProcessModal';
 import EditOrderModal from '@/components/modals/EditOrderModal';
 import ComingSoonConfig from '@/components/orders/ComingSoonConfig';
 import EmbellishmentConfig from '@/components/orders/EmbellishmentConfig';
@@ -36,6 +37,7 @@ export default function OrderConfigPage() {
   const [isSavingBilling, setIsSavingBilling] = useState(false);
   const [expandedBillingRuns, setExpandedBillingRuns] = useState<Set<string>>(new Set());
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddProcessModalOpen, setIsAddProcessModalOpen] = useState(false);
 
   const toggleBillingRunExpansion = (runId: string) => {
     setExpandedBillingRuns((prev) => {
@@ -299,7 +301,15 @@ export default function OrderConfigPage() {
           <div className="space-y-6">
             {/* PROCESS NAVIGATION */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Processes</h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Processes</h3>
+                <button
+                  onClick={() => setIsAddProcessModalOpen(true)}
+                  className="text-sm px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors flex items-center gap-1"
+                >
+                  <span className="text-lg leading-none">+</span> Add Process
+                </button>
+              </div>
               <div className="flex flex-wrap gap-3">
                 {order.processes.map((process) => (
                   <div
@@ -656,6 +666,12 @@ export default function OrderConfigPage() {
         onClose={() => setIsEditModalOpen(false)}
         onSuccess={refreshOrder}
         order={order}
+      />
+      <AddProcessModal
+        open={isAddProcessModalOpen}
+        onClose={() => setIsAddProcessModalOpen(false)}
+        onSuccess={refreshOrder}
+        orderId={order.id}
       />
     </div>
   );
