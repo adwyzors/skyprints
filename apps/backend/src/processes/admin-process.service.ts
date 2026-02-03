@@ -537,6 +537,7 @@ export class AdminProcessService {
                 where: { id: run.id },
                 data: {
                     fields: mergedFields,
+                    statusCode: ProcessRunStatus.COMPLETE,
                     ...(dto.executorId !== undefined && { executorId: dto.executorId }),
                     ...(dto.reviewerId !== undefined && { reviewerId: dto.reviewerId }),
                     ...(run.configuredAt
