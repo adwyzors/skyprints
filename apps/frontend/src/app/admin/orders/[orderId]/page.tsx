@@ -14,6 +14,7 @@ import {
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
+import EditOrderModal from '@/components/modals/EditOrderModal';
 import ComingSoonConfig from '@/components/orders/ComingSoonConfig';
 import EmbellishmentConfig from '@/components/orders/EmbellishmentConfig';
 import ScreenPrintingConfig from '@/components/orders/ScreenPrintingConfig';
@@ -34,6 +35,7 @@ export default function OrderConfigPage() {
   const [editValues, setEditValues] = useState<Record<string, number>>({});
   const [isSavingBilling, setIsSavingBilling] = useState(false);
   const [expandedBillingRuns, setExpandedBillingRuns] = useState<Set<string>>(new Set());
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const toggleBillingRunExpansion = (runId: string) => {
     setExpandedBillingRuns((prev) => {
@@ -224,6 +226,13 @@ export default function OrderConfigPage() {
                 </button>
                 <div className="h-6 w-px bg-gray-300 hidden md:block" />
                 <h1 className="text-2xl font-bold text-gray-800">{order.code}</h1>
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-blue-600 transition-colors"
+                  title="Edit Order Details"
+                >
+                  <Edit2 className="w-5 h-5" />
+                </button>
               </div>
 
               <div className="flex flex-wrap items-center gap-4 mt-2">
@@ -642,6 +651,12 @@ export default function OrderConfigPage() {
           </div>
         )}
       </div>
+      <EditOrderModal
+        open={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSuccess={refreshOrder}
+        order={order}
+      />
     </div>
   );
 }

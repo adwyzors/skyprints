@@ -210,3 +210,20 @@ export async function reorderOrder(orderId: string): Promise<any> {
         method: 'POST',
     });
 }
+
+export interface UpdateOrderPayload {
+    customerId?: string;
+    quantity?: number;
+    jobCode?: string;
+    images?: string[];
+}
+
+export async function updateOrder(orderId: string, payload: UpdateOrderPayload): Promise<any> {
+    return apiRequest(`/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+}
