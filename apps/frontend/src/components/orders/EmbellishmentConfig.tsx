@@ -1,5 +1,3 @@
-'use client';
-
 import {
     AlertCircle,
     Calendar,
@@ -13,8 +11,10 @@ import {
     IndianRupee,
     Package,
     Palette,
+    Plus,
     Ruler,
     Save,
+    Trash2,
     Type,
     User,
     X
@@ -24,6 +24,7 @@ import React, { useEffect, useState } from 'react';
 import { Order } from '@/domain/model/order.model';
 import { ProcessRun } from '@/domain/model/run.model';
 import { apiRequest } from "@/services/api.service";
+import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
 
@@ -32,6 +33,10 @@ interface EmbellishmentConfigProps {
     onRefresh?: () => Promise<void>;
     onSaveSuccess?: (processId: string, runId: string) => void;
 }
+
+// ... imports and interface ...
+
+
 
 // Field icon mapping for compact view
 const getFieldIcon = (fieldName: string) => {
@@ -59,6 +64,44 @@ export default function EmbellishmentConfig({ order, onRefresh, onSaveSuccess }:
     const [openRunId, setOpenRunId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isAddingRun, setIsAddingRun] = useState(false);
+    const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
+
+    const handleAddRun = async (processId: string) => {
+        setIsAddingRun(true);
+        setError(null);
+        try {
+            await addRunToProcess(order.id, processId);
+            if (onRefresh) {
+                await onRefresh();
+            }
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || 'Failed to add run');
+        } finally {
+            setIsAddingRun(false);
+        }
+    };
+
+    const handleDeleteRun = async (processId: string, runId: string) => {
+        if (!confirm('Are you sure you want to delete this run? This action cannot be undone.')) {
+            return;
+        }
+
+        setIsDeletingRun(runId);
+        setError(null);
+        try {
+            await deleteRunFromProcess(order.id, processId, runId);
+            if (onRefresh) {
+                await onRefresh();
+            }
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || 'Failed to delete run');
+        } finally {
+            setIsDeletingRun(null);
+        }
+    };
 
     // Update local order when parent order changes
     useEffect(() => {
@@ -991,62 +1034,95 @@ export default function EmbellishmentConfig({ order, onRefresh, onSaveSuccess }:
 
 
             {/* RUN CARDS - COMPACT VIEW */}
-            <div className="space-y-3">
-                {localOrder.processes.flatMap((process) =>
-                    process.runs.map((run) => {
-                        const progress = getRunProgress(run);
-                        const isConfigured = run.configStatus === 'COMPLETE'; // Check for COMPLETE status
-                        const filledFields = Object.values(run.values).filter((v) => v && v !== '').length;
-                        const totalFields = run.fields?.length || 0;
+            <div className="space-y-6">
+                {localOrder.processes.map((process) => (
+                    <div key={process.id} className="space-y-3">
+                        {process.runs.map((run) => {
+                            const progress = getRunProgress(run);
+                            const isConfigured = run.configStatus === 'COMPLETE'; // Check for COMPLETE status
+                            const filledFields = Object.values(run.values).filter((v) => v && v !== '').length;
+                            const totalFields = run.fields?.length || 0;
 
-                        return (
-                            <div key={run.id} className="space-y-1">
-                                {/* RUN HEADER - COMPACT */}
-                                <div
-                                    onClick={() => setOpenRunId(openRunId === run.id ? null : run.id)}
-                                    className={`border rounded p-2 cursor-pointer hover:bg-gray-50 transition-colors ${isConfigured
-                                        ? 'bg-green-50 border-green-200 hover:bg-green-100'
-                                        : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
-                                        }`}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
+                            return (
+                                <div key={run.id} className="space-y-1">
+                                    {/* RUN HEADER - COMPACT */}
+                                    <div
+                                        className={`border rounded p-2 transition-colors ${isConfigured
+                                            ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                                            : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
+                                            }`}
+                                    >
+                                        <div className="flex items-center justify-between">
                                             <div
-                                                className={`w-2 h-2 rounded-full ${isConfigured ? 'bg-green-500' : 'bg-yellow-500'}`}
-                                            />
-                                            <span className="font-medium text-sm">Run {run.runNumber}</span>
-                                            <span className="text-xs text-gray-500">
-                                                ({filledFields}/{totalFields} fields)
-                                            </span>
-                                            {isConfigured && (
-                                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                    <CheckCircle className="w-3 h-3" />
-                                                    Configured
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex items-center gap-1">
-                                                {isConfigured ? (
-                                                    <Eye className="w-4 h-4 text-gray-500" />
-                                                ) : (
-                                                    <Edit className="w-4 h-4 text-gray-500" />
-                                                )}
-                                                <ChevronRight
-                                                    className={`w-4 h-4 text-gray-400 transition-transform ${openRunId === run.id ? 'rotate-90' : ''
-                                                        }`}
+                                                onClick={() => setOpenRunId(openRunId === run.id ? null : run.id)}
+                                                className="flex items-center gap-2 cursor-pointer flex-1"
+                                            >
+                                                <div
+                                                    className={`w-2 h-2 rounded-full ${isConfigured ? 'bg-green-500' : 'bg-yellow-500'}`}
                                                 />
+                                                <span className="font-medium text-sm">Run {run.runNumber}</span>
+                                                <span className="text-xs text-gray-500">
+                                                    ({filledFields}/{totalFields} fields)
+                                                </span>
+                                                {isConfigured && (
+                                                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                        <CheckCircle className="w-3 h-3" />
+                                                        Configured
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-1">
+                                                    {isConfigured ? (
+                                                        <Eye className="w-4 h-4 text-gray-500" />
+                                                    ) : (
+                                                        <Edit className="w-4 h-4 text-gray-500" />
+                                                    )}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteRun(process.id, run.id);
+                                                        }}
+                                                        disabled={isDeletingRun === run.id}
+                                                        className="p-1 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                                                        title="Delete Run"
+                                                    >
+                                                        {isDeletingRun === run.id ? (
+                                                            <div className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                                        ) : (
+                                                            <Trash2 className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                    <ChevronRight
+                                                        className={`w-4 h-4 text-gray-400 transition-transform ${openRunId === run.id ? 'rotate-90' : ''
+                                                            }`}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* EXPANDED FORM OR VIEW */}
-                                {openRunId === run.id && renderRunFormOrView(process, run)}
-                            </div>
-                        );
-                    }),
-                )}
+                                    {/* EXPANDED FORM OR VIEW */}
+                                    {openRunId === run.id && renderRunFormOrView(process, run)}
+                                </div>
+                            );
+                        })}
+
+                        {/* ADD RUN BUTTON */}
+                        <button
+                            onClick={() => handleAddRun(process.id)}
+                            disabled={isAddingRun}
+                            className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                        >
+                            {isAddingRun ? (
+                                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <Plus className="w-4 h-4" />
+                            )}
+                            Add Configuration Run
+                        </button>
+                    </div>
+                ))}
             </div>
         </>
     );

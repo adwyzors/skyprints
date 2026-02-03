@@ -228,6 +228,30 @@ export async function updateOrder(orderId: string, payload: UpdateOrderPayload):
     });
 }
 
+export async function addRunToProcess(
+    orderId: string,
+    processId: string,
+    count: number = 1
+): Promise<any> {
+    return apiRequest(`/orders/${orderId}/processes/${processId}/runs`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ count }),
+    });
+}
+
+export async function deleteRunFromProcess(
+    orderId: string,
+    processId: string,
+    runId: string
+): Promise<any> {
+    return apiRequest(`/orders/${orderId}/processes/${processId}/runs/${runId}`, {
+        method: 'DELETE',
+    });
+}
+
 export async function addProcessToOrder(
     orderId: string,
     payload: { processId: string; count: number }

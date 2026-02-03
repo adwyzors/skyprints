@@ -60,6 +60,24 @@ export class OrdersController {
         return this.service.addProcessToOrder(orderId, dto);
     }
 
+    @Post(':orderId/processes/:processId/runs')
+    addRunToProcess(
+        @Param('orderId') orderId: string,
+        @Param('processId') processId: string,
+        @Body() dto: { count?: number } = {},
+    ) {
+        return this.service.addRunToProcess(orderId, processId, dto.count);
+    }
+
+    @Delete(':orderId/processes/:processId/runs/:runId')
+    deleteRun(
+        @Param('orderId') orderId: string,
+        @Param('processId') processId: string,
+        @Param('runId') runId: string,
+    ) {
+        return this.service.deleteRunFromProcess(orderId, processId, runId);
+    }
+
     @Patch(':orderId')
     updateOrder(
         @Param('orderId') orderId: string,

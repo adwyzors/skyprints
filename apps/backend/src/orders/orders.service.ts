@@ -1218,4 +1218,184 @@ export class OrdersService {
     }
 
 
+
+    async addRunToProcess(
+        orderId: string,
+        processId: string, // This is actually the orderProcessId
+        count: number = 1,
+    ) {
+        return this.prisma.transaction(async tx => {
+            const orderProcess = await tx.orderProcess.findFirst({
+                where: {
+                    id: processId,
+                    orderId,
+                },
+            });
+
+            if (!orderProcess) {
+                throw new NotFoundException('Order process not found');
+            }
+
+            const process = await tx.process.findUnique({
+                where: { id: orderProcess.processId },
+                include: {
+                    runDefs: {
+                        orderBy: { sortOrder: 'asc' },
+                        include: {
+                            runTemplate: {
+                                include: {
+                                    lifecycleWorkflowType: {
+                                        include: {
+                                            statuses: {
+                                                where: { isInitial: true },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            });
+
+            if (!process) {
+                throw new NotFoundException('Process definition not found');
+            }
+
+            // Find current max runNumber
+            const maxRun = await tx.processRun.findFirst({
+                where: { orderProcessId: orderProcess.id },
+                orderBy: { runNumber: 'desc' },
+            });
+
+            let nextRunNumber = (maxRun?.runNumber ?? 0) + 1;
+
+            const runsToCreate: Prisma.ProcessRunCreateManyInput[] = [];
+
+            for (let i = 0; i < count; i++) {
+                // Determine batch number (approximate, based on runs / defs length)
+                // If existing runs = 5, defs = 1.
+                // maxRun = 5.
+                // batch = 6.
+
+                // However, runNumber is strictly sequential.
+                // We can try to infer the "batch index" if we want nice display names like "Print (3)"
+
+                // Let's count how many runs of *each template* exist to issue the next number for that template?
+                // Or simplified: Just increment runNumber.
+                // displayName usually implies "Batch X". 
+                // Let's calculate batch index based on existing runs count / runDefs.length.
+                const currentTotalRuns = orderProcess.totalRuns + (i * process.runDefs.length);
+                const batchIndex = Math.floor(currentTotalRuns / process.runDefs.length) + 1;
+
+                for (const def of process.runDefs) {
+                    const statuses = def.runTemplate.lifecycleWorkflowType.statuses;
+                    const initialStatus = statuses.length > 0 ? statuses[0].code : '';
+
+                    runsToCreate.push({
+                        orderProcessId: orderProcess.id,
+                        runTemplateId: def.runTemplate.id,
+                        runNumber: nextRunNumber++,
+                        displayName: `${def.displayName} (${batchIndex})`,
+                        configWorkflowTypeId: def.runTemplate.configWorkflowTypeId,
+                        lifecycleWorkflowTypeId: def.runTemplate.lifecycleWorkflowTypeId,
+                        statusCode: ProcessRunStatus.CONFIGURE,
+                        lifeCycleStatusCode: initialStatus,
+                        fields: {},
+                    });
+                }
+            }
+
+            if (runsToCreate.length) {
+                await tx.processRun.createMany({
+                    data: runsToCreate,
+                });
+            }
+
+            // Update stats
+            const totalNewRuns = runsToCreate.length;
+            await tx.orderProcess.update({
+                where: { id: orderProcess.id },
+                data: {
+                    totalRuns: { increment: totalNewRuns },
+                    remainingRuns: { increment: totalNewRuns },
+                    // If we add runs, we might need to reset order/process status from COMPLETE back to IN_PROGRESS/CONFIGURE?
+                    // User didn't specify, but usually if you add work, it's not complete anymore.
+                    // For now, let's just update counts. If the order was complete, it might need to go back.
+                    // Let's explicitly set status to CONFIGURE if we add runs.
+                    statusCode: OrderProcessStatus.CONFIGURE,
+                },
+            });
+
+            // Also update Order status to CONFIGURE if it was something else?
+            await tx.order.update({
+                where: { id: orderId },
+                data: {
+                    statusCode: OrderStatus.CONFIGURE,
+                    completedProcesses: 0 // Invalidate completion
+                }
+            });
+
+            return { success: true, added: totalNewRuns };
+        });
+    }
+
+    async deleteRunFromProcess(
+        orderId: string,
+        processId: string,
+        runId: string,
+    ) {
+        return this.prisma.transaction(async tx => {
+            const orderProcess = await tx.orderProcess.findFirst({
+                where: {
+                    id: processId,
+                    orderId,
+                },
+            });
+
+            if (!orderProcess) {
+                throw new NotFoundException('Order process not found');
+            }
+
+            const run = await tx.processRun.findFirst({
+                where: { id: runId, orderProcessId: orderProcess.id },
+            });
+
+            if (!run) {
+                throw new NotFoundException('Run not found');
+            }
+
+            // Cleanup images if any
+            const values = run.fields as Record<string, any>;
+            if (values?.images && Array.isArray(values.images) && values.images.length > 0) {
+                try {
+                    await this.cloudflare.deleteFiles(values.images);
+                } catch (error) {
+                    this.logger.error(`Failed to delete images for run ${runId}`, error);
+                    // Continue with run deletion even if image deletion fails (or should we throw?)
+                    // Best effort is typically preferred for cleanup
+                }
+            }
+
+            await tx.processRun.delete({
+                where: { id: runId },
+            });
+
+            // Update stats
+            const wasConfigComplete = run.statusCode === ProcessRunStatus.COMPLETE;
+            const wasLifecycleComplete = run.lifeCycleStatusCode === 'COMPLETE'; // Assuming string check, or check terminal status
+
+            await tx.orderProcess.update({
+                where: { id: orderProcess.id },
+                data: {
+                    totalRuns: { decrement: 1 },
+                    remainingRuns: { decrement: 1 }, // Assuming it was remaining
+                    ...(wasConfigComplete && { configCompletedRuns: { decrement: 1 } }),
+                    ...(wasLifecycleComplete && { lifecycleCompletedRuns: { decrement: 1 } }),
+                },
+            });
+
+            return { success: true };
+        });
+    }
 }
