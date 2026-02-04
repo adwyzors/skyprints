@@ -51,7 +51,14 @@ export default function ConfigurationModal({
                     break-inside: avoid;
                 }
                 
-                img { max-width: 100%; height: auto; display: block; }
+                img { 
+                    max-width: 100%; 
+                    max-height: 220px; 
+                    height: auto; 
+                    display: block; 
+                    margin: 0 auto;
+                    object-fit: contain; 
+                }
                 
                 /* Grid for images in print */
                 .grid-cols-2 { 
