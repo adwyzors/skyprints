@@ -612,7 +612,6 @@ export default function EmbellishmentConfig({
             // Delay hide to allow click
             setTimeout(() => setIsOpen(false), 200);
           }}
-          disabled={!hasPermission(Permission.RUNS_UPDATE)}
           placeholder={`Search ${label}...`}
           className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         />
@@ -926,7 +925,6 @@ export default function EmbellishmentConfig({
                                 placeholder={`Enter ${prettyLabel(field).toLowerCase()}`}
                                 min={isNumberField ? '0' : undefined}
                                 step={isNumberField ? '1' : undefined}
-                                disabled={!hasPermission(Permission.RUNS_UPDATE)}
                               />
                             )}
                             {isRequired && !run.values[field] && field !== 'estimated_amount' && (
@@ -970,7 +968,6 @@ export default function EmbellishmentConfig({
                       accept="image/jpeg,image/jpg,image/png,image/webp"
                       multiple
                       onChange={(e) => handleImageSelect(run.id, e)}
-                      disabled={!hasPermission(Permission.RUNS_UPDATE)}
                     />
                     <label
                       htmlFor={`img-upload-${run.id}`}

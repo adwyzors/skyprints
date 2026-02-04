@@ -604,7 +604,6 @@ export default function ScreenPrintingConfig({
           type="text"
           value={search}
           onFocus={() => setIsOpen(true)}
-          disabled={!hasPermission(Permission.RUNS_UPDATE)}
           onChange={(e) => {
             setSearch(e.target.value);
             setIsOpen(true);
@@ -898,7 +897,6 @@ export default function ScreenPrintingConfig({
                               <input
                                 type={isNumberField ? 'number' : 'text'}
                                 value={run.values[field] ?? ''}
-                                disabled={!hasPermission(Permission.RUNS_UPDATE)}
                                 onChange={(e) => {
                                   let value = e.target.value;
 
@@ -964,7 +962,6 @@ export default function ScreenPrintingConfig({
                       className="hidden"
                       accept="image/jpeg,image/jpg,image/png,image/webp"
                       multiple
-                      disabled={!hasPermission(Permission.RUNS_UPDATE)}
                       onChange={(e) => handleImageSelect(run.id, e)}
                     />
                     <label
