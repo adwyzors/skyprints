@@ -1,12 +1,24 @@
-"use client";
+'use client';
 
-import { BillingContextDetails } from "@/domain/model/billing.model";
-import { getBillingContextById } from "@/services/billing.service";
-import { reorderOrder } from "@/services/orders.service";
-import { Calendar, ChevronDown, CreditCard, Download, ExternalLink, Loader2, Package, RefreshCw, X } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
+import { BillingContextDetails } from '@/domain/model/billing.model';
+import { getBillingContextById } from '@/services/billing.service';
+import { reorderOrder } from '@/services/orders.service';
+import {
+    Calendar,
+    ChevronDown,
+    CreditCard,
+    Download,
+    ExternalLink,
+    Loader2,
+    Package,
+    RefreshCw,
+    X,
+} from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 // Import for PDF generation
 import InvoicePDF from '@/components/billing/InvoicePDF';
@@ -18,11 +30,7 @@ interface BillingGroupModalProps {
     groupId: string;
 }
 
-export default function BillingGroupModal({
-    isOpen,
-    onClose,
-    groupId,
-}: BillingGroupModalProps) {
+export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingGroupModalProps) {
     const [loading, setLoading] = useState(true);
     const [details, setDetails] = useState<BillingContextDetails | null>(null);
 
@@ -31,7 +39,7 @@ export default function BillingGroupModal({
             setLoading(true);
             getBillingContextById(groupId)
                 .then(setDetails)
-                .catch((err) => console.error("Failed to fetch group details:", err))
+                .catch((err) => console.error('Failed to fetch group details:', err))
                 .finally(() => setLoading(false));
         } else {
             setDetails(null);
@@ -61,27 +69,28 @@ export default function BillingGroupModal({
             // Create invoice data
             const invoiceData = {
                 // Header based on tax existence
-                heading: details.orders[0]?.customer?.tax ? "Tax Invoice" : "Delivery Challan",
+                heading: details.orders[0]?.customer?.tax ? 'Tax Invoice' : 'Delivery Challan',
                 // heading: "Delivery Challan",
 
                 // Company details
-                companyName: "Sky Art Prints LLP",
-                companyAddress: "13, Bhavani Complex, Bhavani Shankar Road, Dadar West, Mumbai 400053",
-                msmeReg: "MSME Reg#: UDYAM-MH-19-0217047",
+                companyName: 'Sky Art Prints LLP',
+                companyAddress: '13, Bhavani Complex, Bhavani Shankar Road, Dadar West, Mumbai 400053',
+                msmeReg: 'MSME Reg#: UDYAM-MH-19-0217047',
 
-                gstin: details.orders[0]?.customer?.gstno || "NA",
+                gstin: details.orders[0]?.customer?.gstno || 'NA',
                 // gstin: "NA",
 
                 // Customer details
-                billTo: details.orders[0]?.customer?.name || "NA",
-                address: details.orders[0]?.customer?.address || "NA",
+                billTo: details.orders[0]?.customer?.name || 'NA',
+                address: details.orders[0]?.customer?.address || 'NA',
                 // address: "NA",
-                date: details.latestSnapshot?.createdAt ?
-                    new Date(details.latestSnapshot.createdAt).toLocaleDateString('en-IN', {
+                date: details.latestSnapshot?.createdAt
+                    ? new Date(details.latestSnapshot.createdAt).toLocaleDateString('en-IN', {
                         day: '2-digit',
                         month: '2-digit',
-                        year: 'numeric'
-                    }) : "NA",
+                        year: 'numeric',
+                    })
+                    : 'NA',
                 billNumber: details.name,
 
                 // Orders table data
@@ -89,9 +98,11 @@ export default function BillingGroupModal({
                     srNo: index + 1,
                     orderCode: order.code, // Using order.code as per data structure
                     quantity: order.quantity,
-                    rate: order.billing?.result && order.quantity > 0 ?
-                        (Number(order.billing.result) / order.quantity).toFixed(2) : "0.00",
-                    amount: order.billing?.result || "0"
+                    rate:
+                        order.billing?.result && order.quantity > 0
+                            ? (Number(order.billing.result) / order.quantity).toFixed(2)
+                            : '0.00',
+                    amount: order.billing?.result || '0',
                 })),
 
                 // Calculations
@@ -99,7 +110,7 @@ export default function BillingGroupModal({
                 cgstAmount: cgstAmount.toFixed(2),
                 sgstAmount: sgstAmount.toFixed(2),
                 tdsAmount: tdsAmount.toFixed(2),
-                total: finalTotal.toFixed(2)
+                total: finalTotal.toFixed(2),
             };
 
             // Generate PDF blob
@@ -114,10 +125,9 @@ export default function BillingGroupModal({
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-
         } catch (error) {
-            console.error("Error generating invoice:", error);
-            alert("Failed to generate invoice. Please try again.");
+            console.error('Error generating invoice:', error);
+            alert('Failed to generate invoice. Please try again.');
         }
     };
 
@@ -130,7 +140,7 @@ export default function BillingGroupModal({
             day: 'numeric',
             year: 'numeric',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
         });
     };
 
@@ -138,9 +148,10 @@ export default function BillingGroupModal({
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
             currency: 'INR',
-            maximumFractionDigits: 0
+            maximumFractionDigits: 0,
         }).format(Number(amount));
     };
+
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -192,11 +203,13 @@ export default function BillingGroupModal({
                                         )}
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
-                                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${details.latestSnapshot?.isDraft ?? true
-                                            ? 'bg-yellow-50 text-yellow-700 border-yellow-100'
-                                            : 'bg-green-50 text-green-700 border-green-100'
-                                            }`}>
-                                            {details.latestSnapshot?.isDraft ?? true ? 'DRAFT' : 'FINAL'}
+                                        <span
+                                            className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${(details.latestSnapshot?.isDraft ?? true)
+                                                    ? 'bg-yellow-50 text-yellow-700 border-yellow-100'
+                                                    : 'bg-green-50 text-green-700 border-green-100'
+                                                }`}
+                                        >
+                                            {(details.latestSnapshot?.isDraft ?? true) ? 'DRAFT' : 'FINAL'}
                                         </span>
                                         <span className="text-xs text-gray-400 font-mono">
                                             ID: {details.id.split('-')[0]}
@@ -221,7 +234,9 @@ export default function BillingGroupModal({
                                         <div>
                                             <p className="text-xs text-gray-500 font-medium">Total Amount</p>
                                             <p className="text-lg font-bold text-gray-900">
-                                                {details.latestSnapshot ? formatCurrency(details.latestSnapshot.result) : '-'}
+                                                {details.latestSnapshot
+                                                    ? formatCurrency(details.latestSnapshot.result)
+                                                    : '-'}
                                             </p>
                                         </div>
                                     </div>
@@ -245,12 +260,9 @@ export default function BillingGroupModal({
                                     ))}
                                 </div>
                             </div>
-
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-gray-500">
-                            Failed to load group details.
-                        </div>
+                        <div className="text-center py-12 text-gray-500">Failed to load group details.</div>
                     )}
                 </div>
             </div>
@@ -258,25 +270,34 @@ export default function BillingGroupModal({
     );
 }
 
-function OrderGroupItem({ order, formatCurrency }: { order: any, formatCurrency: (val: number | string) => string }) {
+function OrderGroupItem({
+    order,
+    formatCurrency,
+}: {
+    order: any;
+    formatCurrency: (val: number | string) => string;
+}) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isReordering, setIsReordering] = useState(false);
     const router = useRouter(); // Initialized useRouter
 
+    const { hasPermission } = useAuth();
+
+
     const handleReorder = async () => {
-        if (!confirm("Are you sure you want to reorder this item?")) return;
+        if (!confirm('Are you sure you want to reorder this item?')) return;
 
         try {
             setIsReordering(true);
             const res = await reorderOrder(order.id); // Captured response
-            alert("Order reordered successfully!");
+            alert('Order reordered successfully!');
             // Check if response has the ID we need
             if (res && res.id) {
                 router.push(`/admin/orders?selectedOrder=${res.id}`);
             }
         } catch (error) {
-            console.error("Failed to reorder:", error);
-            alert("Failed to reorder. Please try again.");
+            console.error('Failed to reorder:', error);
+            alert('Failed to reorder. Please try again.');
         } finally {
             setIsReordering(false);
         }
@@ -289,7 +310,9 @@ function OrderGroupItem({ order, formatCurrency }: { order: any, formatCurrency:
                 className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
             >
                 <div className="flex items-center gap-3">
-                    <div className={`p-1 rounded-full transition-transform duration-200 ${isExpanded ? 'rotate-180 bg-gray-200' : ''}`}>
+                    <div
+                        className={`p-1 rounded-full transition-transform duration-200 ${isExpanded ? 'rotate-180 bg-gray-200' : ''}`}
+                    >
                         <ChevronDown className="w-4 h-4 text-gray-500" />
                     </div>
                     <div>
@@ -330,29 +353,29 @@ function OrderGroupItem({ order, formatCurrency }: { order: any, formatCurrency:
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="font-medium text-gray-700">
-                                                {formatCurrency(amount)}
-                                            </div>
+                                            <div className="font-medium text-gray-700">{formatCurrency(amount)}</div>
                                         </div>
                                     );
                                 })}
                             </div>
                         </div>
                     ))}
-                    <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-end">
-                        <button
-                            onClick={handleReorder}
-                            disabled={isReordering}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isReordering ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                                <RefreshCw className="w-4 h-4" />
-                            )}
-                            {isReordering ? 'Reordering...' : 'Reorder'}
-                        </button>
-                    </div>
+                    {hasPermission(Permission.RUNS_DELETE) && (
+                        <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+                            <button
+                                onClick={handleReorder}
+                                disabled={isReordering}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isReordering ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="w-4 h-4" />
+                                )}
+                                {isReordering ? 'Reordering...' : 'Reorder'}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

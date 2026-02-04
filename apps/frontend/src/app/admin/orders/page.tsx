@@ -1,5 +1,7 @@
 'use client';
 
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import CreateOrderModal from '@/components/modals/CreateOrderModal';
 import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import ViewOrderModal from '@/components/modals/ViewOrderModal';
@@ -11,14 +13,7 @@ import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import { OrderCardData } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrderCards } from '@/services/orders.service';
 import debounce from 'lodash/debounce';
-import {
-  Box,
-  ChevronLeft,
-  Filter,
-  Loader2,
-  Plus,
-  Search
-} from 'lucide-react';
+import { Box, ChevronLeft, Filter, Loader2, Plus, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
@@ -30,6 +25,7 @@ function AdminOrdersContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedOrderId = searchParams.get('selectedOrder');
+  const { hasPermission } = useAuth();
 
   /* ================= STATE ================= */
 
@@ -62,7 +58,7 @@ function AdminOrdersContent() {
   const [filters, setFilters] = useState({
     status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'],
     dateRange: 'all',
-    customerId: 'all'
+    customerId: 'all',
   });
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -99,7 +95,7 @@ function AdminOrdersContent() {
   const getCachedData = (key: string) => {
     const cached = cacheRef[0][key];
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.data
+      return cached.data;
     }
     return null;
   };
@@ -235,11 +231,10 @@ function AdminOrdersContent() {
     setFilters({
       status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'], // Reset to default interesting statuses
       dateRange: 'all',
-      customerId: 'all'
+      customerId: 'all',
     });
     setOrdersData((prev) => ({ ...prev, page: 1 }));
   };
-
 
   /* ================= FILTERED ORDERS ================= */
 
@@ -255,18 +250,19 @@ function AdminOrdersContent() {
 
   return (
     <div className="flex bg-gray-50/50">
-
       {/* LEFT SIDEBAR FILTERS */}
-      <div className={`
+      <div
+        className={`
                 flex-shrink-0 bg-white border-r border-gray-200 min-h-screen overflow-hidden transition-all duration-300 ease-in-out
                 ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
-            `}>
+            `}
+      >
         <div className="w-72 h-full p-3 sticky top-32">
           <OrdersFilter
             filters={filters}
             onChange={(newFilters) => {
               setFilters(newFilters);
-              setOrdersData(prev => ({ ...prev, page: 1 }));
+              setOrdersData((prev) => ({ ...prev, page: 1 }));
             }}
             onClear={handleClearFilters}
             onClose={() => setIsSidebarOpen(false)}
@@ -276,26 +272,24 @@ function AdminOrdersContent() {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col w-full relative">
-
         {/* HEAD & TOOLBAR */}
         <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
-                ? 'bg-blue-50 border-blue-200 text-blue-600'
-                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                }`}
-              title={isSidebarOpen ? "Collapse Filters" : "Expand Filters"}
+              className={`p-2 rounded-lg border transition-colors ${
+                isSidebarOpen
+                  ? 'bg-blue-50 border-blue-200 text-blue-600'
+                  : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}
+              title={isSidebarOpen ? 'Collapse Filters' : 'Expand Filters'}
             >
               {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
             </button>
 
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-gray-900">Production Orders</h1>
-              <p className="text-sm text-gray-500">
-                Manage and track orders
-              </p>
+              <p className="text-sm text-gray-500">Manage and track orders</p>
             </div>
           </div>
 
@@ -311,14 +305,15 @@ function AdminOrdersContent() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-
-            <button
-              onClick={() => setOpenCreate(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">New Order</span>
-            </button>
+            {hasPermission(Permission.ORDERS_CREATE) && (
+              <button
+                onClick={() => setOpenCreate(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">New Order</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -360,17 +355,15 @@ function AdminOrdersContent() {
               <div className={viewMode === 'grid' ? 'block' : 'hidden'}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {filteredOrders.map((order) => (
-                    <OrderCard
-                      key={order.id}
-                      order={order}
-                      active={viewMode === 'grid'}
-                    />
+                    <OrderCard key={order.id} order={order} active={viewMode === 'grid'} />
                   ))}
                 </div>
               </div>
 
               {/* TABLE VIEW */}
-              <div className={`bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm ${viewMode === 'table' ? 'block' : 'hidden'}`}>
+              <div
+                className={`bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm ${viewMode === 'table' ? 'block' : 'hidden'}`}
+              >
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
@@ -454,16 +447,21 @@ function AdminOrdersContent() {
 
                         return pages.map((page, index) => {
                           if (page === '...') {
-                            return <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">...</span>;
+                            return (
+                              <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">
+                                ...
+                              </span>
+                            );
                           }
                           return (
                             <button
                               key={page}
                               onClick={() => handlePageChange(page as number)}
-                              className={`px-3 py-1 rounded-lg ${ordersData.page === page
-                                ? 'bg-blue-600 text-white'
-                                : 'border border-gray-300 hover:bg-gray-50'
-                                } transition-colors`}
+                              className={`px-3 py-1 rounded-lg ${
+                                ordersData.page === page
+                                  ? 'bg-blue-600 text-white'
+                                  : 'border border-gray-300 hover:bg-gray-50'
+                              } transition-colors`}
                             >
                               {page}
                             </button>
@@ -505,10 +503,7 @@ function AdminOrdersContent() {
         />
       )}
 
-      <ImagePreviewModal
-        imageUrl={previewImage}
-        onClose={() => setPreviewImage(null)}
-      />
+      <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
     </div>
   );
 }

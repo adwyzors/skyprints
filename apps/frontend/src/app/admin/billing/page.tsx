@@ -6,15 +6,7 @@ import OrderCard from '@/components/orders/OrderCard';
 import { Order } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrders } from '@/services/orders.service';
 import debounce from 'lodash/debounce';
-import {
-  Calendar,
-  CheckCircle,
-  ChevronLeft,
-  FileText,
-  Filter,
-  Loader2,
-  Search
-} from 'lucide-react';
+import { Calendar, CheckCircle, ChevronLeft, Filter, Loader2, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
@@ -44,7 +36,7 @@ function BillingContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [filters, setFilters] = useState({
     dateRange: 'all',
-    customerId: 'all'
+    customerId: 'all',
   });
 
   const [isMounted, setIsMounted] = useState(false);
@@ -61,7 +53,7 @@ function BillingContent() {
       // Reset to page 1 when search changes
       setOrdersData((prev) => ({ ...prev, page: 1 }));
     }, 500),
-    []
+    [],
   );
 
   useEffect(() => {
@@ -121,7 +113,7 @@ function BillingContent() {
       } catch (error) {
         console.error('Error fetching orders:', error);
         if (!cancelled) {
-          setOrdersData(prev => ({ ...prev, orders: [], total: 0, totalPages: 0 }));
+          setOrdersData((prev) => ({ ...prev, orders: [], total: 0, totalPages: 0 }));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -137,11 +129,11 @@ function BillingContent() {
 
   // Refresh orders function for after billing success
   const refreshOrders = () => {
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   const handlePageChange = (newPage: number) => {
-    setOrdersData(prev => ({ ...prev, page: newPage }));
+    setOrdersData((prev) => ({ ...prev, page: newPage }));
   };
 
   // Server already filters by status, so we just use the orders directly
@@ -152,9 +144,9 @@ function BillingContent() {
     setDebouncedSearch('');
     setFilters({
       dateRange: 'all',
-      customerId: 'all'
+      customerId: 'all',
     });
-    setOrdersData(prev => ({ ...prev, page: 1 }));
+    setOrdersData((prev) => ({ ...prev, page: 1 }));
   };
 
   if (!isMounted) {
@@ -164,16 +156,18 @@ function BillingContent() {
   return (
     <div className="flex bg-gray-50/50">
       {/* LEFT SIDEBAR FILTERS */}
-      <div className={`
+      <div
+        className={`
                 flex-shrink-0 bg-white border-r border-gray-200 min-h-screen overflow-hidden transition-all duration-300 ease-in-out
                 ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
-            `}>
+            `}
+      >
         <div className="w-72 h-full p-3 sticky top-32">
           <BillingFilter
             filters={filters}
             onChange={(newFilters) => {
               setFilters(newFilters);
-              setOrdersData(prev => ({ ...prev, page: 1 }));
+              setOrdersData((prev) => ({ ...prev, page: 1 }));
             }}
             onClear={handleClearFilters}
             onClose={() => setIsSidebarOpen(false)}
@@ -183,26 +177,26 @@ function BillingContent() {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col w-full relative">
-
         {/* HEAD & TOOLBAR */}
         <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
-                ? 'bg-blue-50 border-blue-200 text-blue-600'
-                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                }`}
-              title={isSidebarOpen ? "Collapse Filters" : "Expand Filters"}
+              className={`p-2 rounded-lg border transition-colors ${
+                isSidebarOpen
+                  ? 'bg-blue-50 border-blue-200 text-blue-600'
+                  : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}
+              title={isSidebarOpen ? 'Collapse Filters' : 'Expand Filters'}
             >
               {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
             </button>
 
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900">Rate Configuration</h1>
-              <p className="text-sm text-gray-500">
-                Configure rates for completed orders
-              </p>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+                Rate Configuration
+              </h1>
+              <p className="text-sm text-gray-500">Configure rates for completed orders</p>
             </div>
           </div>
 
@@ -219,10 +213,6 @@ function BillingContent() {
               />
             </div>
 
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm text-sm">
-              <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">Generate Reports</span>
-            </button>
             <div className="px-3 py-1 bg-green-100 text-green-800 rounded-lg text-xs font-semibold">
               {ordersData.total} Ready
             </div>
@@ -238,7 +228,8 @@ function BillingContent() {
               of <span className="font-semibold text-gray-800">{ordersData.total}</span> orders
               {ordersData.totalPages > 1 && (
                 <span>
-                  {' '}(Page {ordersData.page} of {ordersData.totalPages})
+                  {' '}
+                  (Page {ordersData.page} of {ordersData.totalPages})
                 </span>
               )}
             </p>
@@ -249,7 +240,6 @@ function BillingContent() {
             </div>
           </div>
 
-
           {/* Loading/Error/Empty States */}
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -259,7 +249,9 @@ function BillingContent() {
           ) : filteredOrders.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-100 p-12 text-center text-gray-500 shadow-sm">
               <CheckCircle className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders ready for billing</h3>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                No orders ready for billing
+              </h3>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
                 {searchQuery || filters.dateRange !== 'all'
                   ? 'No completed orders match your current filters.'
@@ -281,7 +273,8 @@ function BillingContent() {
                     <OrderCard
                       order={{
                         ...order,
-                        totalRuns: order.processes?.reduce((sum, p) => sum + (p.runs?.length || 0), 0) || 0
+                        totalRuns:
+                          order.processes?.reduce((sum, p) => sum + (p.runs?.length || 0), 0) || 0,
                       }}
                       showConfigure={false}
                       onClick={() => router.push(`/admin/billing?selectedOrder=${order.id}`)}
@@ -326,16 +319,21 @@ function BillingContent() {
 
                         return pages.map((page, index) => {
                           if (page === '...') {
-                            return <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">...</span>;
+                            return (
+                              <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">
+                                ...
+                              </span>
+                            );
                           }
                           return (
                             <button
                               key={page}
                               onClick={() => handlePageChange(page as number)}
-                              className={`px-3 py-1 rounded-lg ${ordersData.page === page
-                                ? 'bg-green-600 text-white'
-                                : 'border border-gray-300 hover:bg-gray-50'
-                                } transition-colors`}
+                              className={`px-3 py-1 rounded-lg ${
+                                ordersData.page === page
+                                  ? 'bg-green-600 text-white'
+                                  : 'border border-gray-300 hover:bg-gray-50'
+                              } transition-colors`}
                             >
                               {page}
                             </button>

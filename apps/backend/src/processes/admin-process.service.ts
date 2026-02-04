@@ -556,7 +556,7 @@ export class AdminProcessService {
                         ? {}
                         : {
                             configuredAt: new Date(),           // ⭐ first time only
-                            statusCode: ProcessRunStatus.IN_PROGRESS,
+                            statusCode: ProcessRunStatus.COMPLETE,
                         }),
                 },
             });

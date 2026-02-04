@@ -1,5 +1,7 @@
 'use client';
 //apps\frontend\src\components\modals\BillingModal.tsx
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import { Order } from '@/domain/model/order.model';
 import { apiRequest } from '@/services/api.service';
 import { getOrderById } from '@/services/orders.service';
@@ -12,7 +14,7 @@ import {
   IndianRupee,
   Loader2,
   Package,
-  X
+  X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import EditOrderModal from './EditOrderModal';
@@ -87,6 +89,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
   const getBillingRate = (runId: string, originalRate: number): number => {
     return billingRates[runId] !== undefined ? billingRates[runId] : originalRate;
   };
+  const { hasPermission } = useAuth();
 
   // Calculate totals
   const calculateTotals = () => {
@@ -195,15 +198,17 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                 <p className="text-gray-600">Billing Generation</p>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsEditModalOpen(true)}
-                  disabled={submitting}
-                  className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 bg-white border border-transparent hover:border-blue-100"
-                  title="Edit Order"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  <span className="text-sm font-medium hidden sm:inline">Edit</span>
-                </button>
+                {hasPermission(Permission.ORDERS_UPDATE) && (
+                  <button
+                    onClick={() => setIsEditModalOpen(true)}
+                    disabled={submitting}
+                    className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 bg-white border border-transparent hover:border-blue-100"
+                    title="Edit Order"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    <span className="text-sm font-medium hidden sm:inline">Edit</span>
+                  </button>
+                )}
                 <button
                   onClick={onClose}
                   disabled={submitting}
@@ -404,7 +409,10 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                             e.target.value === '' ? 0 : parseFloat(e.target.value);
                                           updateRunBillingRate(run.id, value);
                                         }}
-                                        disabled={submitting}
+                                        disabled={
+                                           submitting
+                                        }
+                                        readOnly={!hasPermission(Permission.BILLINGS_UPDATE)}
                                         className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                                       />
                                     </div>
@@ -501,9 +509,12 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                       {Object.entries(run.values || {})
                                         .filter(
                                           ([key]) =>
-                                            !['New Rate', 'New Amount', 'images', 'Images'].includes(
-                                              key,
-                                            ),
+                                            ![
+                                              'New Rate',
+                                              'New Amount',
+                                              'images',
+                                              'Images',
+                                            ].includes(key),
                                         )
                                         .map(([key, value]) => (
                                           <div key={key} className="flex justify-between">
@@ -565,10 +576,11 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                 <button
                   onClick={finalizeBilling}
                   disabled={submitting}
-                  className={`px-8 py-3 font-medium rounded-xl transition-all flex items-center gap-3 ${!submitting
-                    ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    }`}
+                  className={`px-8 py-3 font-medium rounded-xl transition-all flex items-center gap-3 ${
+                    !submitting
+                      ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
                 >
                   {submitting ? (
                     <>
