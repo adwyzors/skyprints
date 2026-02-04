@@ -9,7 +9,7 @@ interface CreateGroupModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedOrders: Order[];
-  onSuccess: () => void;
+  onSuccess: (group: { id: string }) => void;
 }
 
 export default function CreateGroupModal({
@@ -58,14 +58,14 @@ export default function CreateGroupModal({
     setError(null);
 
     try {
-      await createBillingContext({
+      const result = await createBillingContext({
         type: 'GROUP',
         name: name.trim(),
         description: description.trim() || undefined,
         orderIds: selectedOrders.map((o) => o.id),
       });
 
-      onSuccess();
+      onSuccess(result);
       onClose();
     } catch (err) {
       console.error('Failed to create billing group:', err);

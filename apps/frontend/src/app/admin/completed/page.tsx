@@ -198,9 +198,10 @@ function CompletedContent() {
     setSelectedOrders(new Map());
   };
 
-  const handleGroupCreated = () => {
+  const handleGroupCreated = (group: { id: string }) => {
     exitSelectionMode();
-    setRefreshTrigger((prev) => prev + 1);
+    // Redirect to bills page with selectedGroup param
+    router.push(`/admin/bills?SelectedGroup=${group.id}`);
   };
 
   // Compute display orders: selected orders pinned at top + search results (excluding already selected)
