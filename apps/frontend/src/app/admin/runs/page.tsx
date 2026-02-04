@@ -9,6 +9,9 @@ import { getRuns } from '@/services/run.service';
 import debounce from 'lodash/debounce';
 import {
     Activity,
+    ArrowDown,
+    ArrowUp,
+    ArrowUpDown,
     Box,
     CheckCircle,
     ChevronLeft,
@@ -19,7 +22,7 @@ import {
     User
 } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 // Enhanced Run interface to support Card View
 interface Run {
@@ -102,6 +105,9 @@ function RunsPageContent() {
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [pageSize, setPageSize] = useState(20);
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
+    // Sort State
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
     // Sidebar State
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -242,6 +248,101 @@ function RunsPageContent() {
         setRunsData((prev) => ({ ...prev, page: 1 }));
     };
 
+    const handleSort = (key: string) => {
+        setSortConfig((current) => {
+            if (current?.key === key) {
+                if (current.direction === 'asc') return { key, direction: 'desc' };
+                return null; // Reset to unsorted on third click
+            }
+            return { key, direction: 'asc' };
+        });
+    };
+
+    const sortedRuns = useMemo(() => {
+        if (!sortConfig) return runsData.runs;
+
+        return [...runsData.runs].sort((a, b) => {
+            let aValue: any;
+            let bValue: any;
+
+            // Helper to get process display name
+            const getDisplayName = (run: Run) => {
+                const processName = run.orderProcess?.name;
+                const rawName = run.runTemplate?.name || 'Process Run';
+                if (processName && (processName.toLowerCase().includes('embellishment') || rawName.toLowerCase().includes('embellishment'))) {
+                    return processName;
+                }
+                return rawName.replace(/ Template$/i, '');
+            };
+
+            // Helper to get estimated rate
+            const getEstimatedRate = (run: Run) => {
+                if (run.fields?.['Estimated Rate']) return Number(run.fields['Estimated Rate']);
+                const amount = Number(run.fields?.['Estimated Amount'] || 0);
+                const qty = Number(run.fields?.Quantity || 0);
+                if (amount && qty) return amount / qty;
+                return 0;
+            };
+
+            switch (sortConfig.key) {
+                case 'orderCode':
+                    aValue = typeof a.orderProcess.order.code === 'object' ? (a.orderProcess.order.code as any).code : a.orderProcess.order.code;
+                    bValue = typeof b.orderProcess.order.code === 'object' ? (b.orderProcess.order.code as any).code : b.orderProcess.order.code;
+                    break;
+                case 'process':
+                    aValue = getDisplayName(a);
+                    bValue = getDisplayName(b);
+                    break;
+                case 'runNumber':
+                    aValue = a.runNumber;
+                    bValue = b.runNumber;
+                    break;
+                case 'customer':
+                    aValue = a.orderProcess.order.customer.name;
+                    bValue = b.orderProcess.order.customer.name;
+                    break;
+                case 'priority': {
+                    const priorityMap: Record<string, number> = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+                    aValue = priorityMap[a.priority || ''] || 0;
+                    bValue = priorityMap[b.priority || ''] || 0;
+                    break;
+                }
+                case 'quantity':
+                    aValue = a.fields?.Quantity || 0;
+                    bValue = b.fields?.Quantity || 0;
+                    break;
+                case 'estRate':
+                    aValue = getEstimatedRate(a);
+                    bValue = getEstimatedRate(b);
+                    break;
+                case 'estTotal':
+                    aValue = a.fields?.['Estimated Amount'] || 0;
+                    bValue = b.fields?.['Estimated Amount'] || 0;
+                    break;
+                case 'status':
+                    aValue = a.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (a.lifeCycleStatusCode || a.statusCode);
+                    bValue = b.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (b.lifeCycleStatusCode || b.statusCode);
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (aValue === bValue) return 0;
+
+            // Handle string comparison
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+                // Compare ignoring case, but handling numeric sequences correctly (e.g. ORD6 < ORD17)
+                const cmp = aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: 'base' });
+                return sortConfig.direction === 'asc' ? cmp : -cmp;
+            }
+
+            // Handle number comparison
+            const cmp = aValue > bValue ? 1 : -1;
+            return sortConfig.direction === 'asc' ? cmp : -cmp;
+        });
+    }, [runsData.runs, sortConfig]);
+
+
     return (
         <div className="flex bg-gray-50/50">
 
@@ -362,19 +463,37 @@ function RunsPageContent() {
                                     <table className="w-full text-sm text-left">
                                         <thead>
                                             <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
-                                                <th className="px-6 py-4">Order Code</th>
-                                                <th className="px-6 py-4">Process</th>
-                                                <th className="px-6 py-4">Run #</th>
-                                                <th className="px-6 py-4">Customer</th>
-                                                <th className="px-6 py-4">Priority</th>
-                                                <th className="px-6 py-4">Quantity</th>
-                                                <th className="px-6 py-4">Est. Rate</th>
-                                                <th className="px-6 py-4">Est. Total</th>
-                                                <th className="px-6 py-4">Status</th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderCode')}>
+                                                    <div className="flex items-center gap-1">Order Code {sortConfig?.key === 'orderCode' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('process')}>
+                                                    <div className="flex items-center gap-1">Process {sortConfig?.key === 'process' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('runNumber')}>
+                                                    <div className="flex items-center gap-1">Run # {sortConfig?.key === 'runNumber' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('customer')}>
+                                                    <div className="flex items-center gap-1">Customer {sortConfig?.key === 'customer' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('priority')}>
+                                                    <div className="flex items-center gap-1">Priority {sortConfig?.key === 'priority' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('quantity')}>
+                                                    <div className="flex items-center gap-1">Quantity {sortConfig?.key === 'quantity' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('estRate')}>
+                                                    <div className="flex items-center gap-1">Est. Rate {sortConfig?.key === 'estRate' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('estTotal')}>
+                                                    <div className="flex items-center gap-1">Est. Total {sortConfig?.key === 'estTotal' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('status')}>
+                                                    <div className="flex items-center gap-1">Status {sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-50">
-                                            {runsData.runs.map((run) => {
+                                            {sortedRuns.map((run) => {
                                                 // Process Name Logic
                                                 const processName = run.orderProcess?.name;
                                                 const rawName = run.runTemplate?.name || 'Process Run';
@@ -426,7 +545,16 @@ function RunsPageContent() {
                                                             {run.fields?.Quantity || '-'}
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-700">
-                                                            {run.fields?.['Estimated Rate'] ? `₹${run.fields['Estimated Rate']}` : '-'}
+                                                            {(() => {
+                                                                const rate = run.fields?.['Estimated Rate'];
+                                                                if (rate) return `₹${rate}`;
+
+                                                                const amount = Number(run.fields?.['Estimated Amount'] || 0);
+                                                                const qty = Number(run.fields?.Quantity || 0);
+                                                                if (amount && qty) return `₹${(amount / qty).toFixed(2).replace(/\.00$/, '')}`;
+
+                                                                return '-';
+                                                            })()}
                                                         </td>
                                                         <td className="px-6 py-4 font-medium text-green-700">
                                                             {run.fields?.['Estimated Amount'] ? `₹${run.fields['Estimated Amount'].toLocaleString()}` : '-'}
