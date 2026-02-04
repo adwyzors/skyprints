@@ -1,14 +1,12 @@
 "use client";
-//apps\frontend\src\components\modals\CompletedOrderModal.tsx
-import InvoicePDF from '@/components/billing/InvoicePDF';
+//apps\frontend\src\components\modals\CompletedOrderModa"use client";
 import { BillingSnapshot } from "@/domain/model/billing.model";
 import { Order } from "@/domain/model/order.model";
 import { getLatestBillingSnapshot } from "@/services/billing.service";
 import { getOrderById } from "@/services/orders.service";
-import { pdf } from '@react-pdf/renderer';
-import { Calculator, CheckCircle, Download, ExternalLink, FileText, IndianRupee, Loader2, Package, Printer, X } from "lucide-react";
+import { Calculator, CheckCircle, ExternalLink, FileText, Loader2, Package, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   orderId: string;
@@ -20,8 +18,7 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
   const [order, setOrder] = useState<Order | null>(null);
   const [billingSnapshot, setBillingSnapshot] = useState<BillingSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"summary" | "runs" | "invoice">("summary");
-  const printRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<"summary" | "runs">("summary");
 
   // Fetch order and billing snapshot when modal opens
   useEffect(() => {
@@ -103,123 +100,6 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
       month: 'long',
       day: 'numeric',
     });
-
-  // Print function
-  const handlePrint = () => {
-    if (!printRef.current || !order) return;
-
-    const printContent = printRef.current.innerHTML;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Invoice - ${order.id.slice(0, 8).toUpperCase()}</title>
-          <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
-            .invoice-header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #1e3a8a; padding-bottom: 20px; }
-            .invoice-header h1 { font-size: 32px; color: #1e3a8a; margin-bottom: 8px; }
-            .invoice-header p { color: #666; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-            .info-section h3 { font-size: 14px; color: #666; margin-bottom: 12px; text-transform: uppercase; }
-            .info-section p { margin: 4px 0; }
-            .info-section .value { font-weight: bold; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-            th { background: #f3f4f6; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #e5e7eb; }
-            td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
-            .text-right { text-align: right; }
-            .text-center { text-align: center; }
-            .totals { max-width: 300px; margin-left: auto; }
-            .totals div { display: flex; justify-content: space-between; padding: 8px 0; }
-            .totals .total-row { border-top: 2px solid #333; font-size: 18px; font-weight: bold; padding-top: 12px; margin-top: 8px; }
-            .footer { margin-top: 60px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 20px; }
-            @media print {
-              body { padding: 20px; }
-              @page { margin: 1cm; }
-            }
-          </style>
-        </head>
-        <body>
-          ${printContent}
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
-  };
-
-  const handleDownloadInvoice = async () => {
-    if (!order) return;
-
-    try {
-      const { billedTotal } = calculateTotals();
-
-      // Calculate GST amounts based on billed total (assuming exclusive of tax for calculation logic alignment with InvoicePDF)
-      // Note: If billedTotal is inclusive, this logic adds tax ON TOP. 
-      // User requested "same template", which takes subtotal and adds tax.
-      // We treat billedTotal as the subtotal here.
-
-      const subtotal = billedTotal;
-      const cgstAmount = (subtotal * 2.5) / 100;
-      const sgstAmount = (subtotal * 2.5) / 100;
-
-      // Check for TDS (safely access potentially missing property)
-      // Order interface might not have full customer details, defaulting to false/0
-      const customerTds = (order.customer as any)?.tds ?? false;
-      const tdsAmount = customerTds ? (subtotal * 2) / 100 : 0;
-
-      const finalTotal = subtotal + cgstAmount + sgstAmount + tdsAmount;
-
-      // Single item for the whole order
-      const items = [{
-        srNo: 1,
-        orderCode: order.code || order.id.slice(0, 8).toUpperCase(),
-        quantity: order.quantity,
-        rate: order.quantity > 0 ? (billedTotal / order.quantity).toFixed(2) : "0.00",
-        amount: billedTotal.toFixed(2)
-      }];
-
-      const invoiceData = {
-        heading: (order.customer as any)?.tax ? "Tax Invoice" : "Delivery Challan",
-        companyName: "Sky Art Prints LLP",
-        companyAddress: "13, Bhavani Complex, Bhavani Shankar Road, Dadar West, Mumbai 400053",
-        msmeReg: "MSME Reg#: UDYAM-MH-19-0217047",
-        gstin: (order.customer as any)?.gstno || "NA",
-
-        billTo: order.customer?.name || "NA",
-        address: (order.customer as any)?.address || "NA",
-        date: formatDate(new Date()), // Invoice date is today
-        billNumber: order.code || order.id.slice(0, 8).toUpperCase(),
-
-        items: items,
-
-        subtotal: subtotal.toFixed(2),
-        cgstAmount: cgstAmount.toFixed(2),
-        sgstAmount: sgstAmount.toFixed(2),
-        tdsAmount: tdsAmount.toFixed(2),
-        total: finalTotal.toFixed(2)
-      };
-
-      const blob = await pdf(<InvoicePDF invoiceData={invoiceData} />).toBlob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `invoice_${order.code || order.id}_${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      alert("Failed to generate invoice PDF");
-    }
-  };
 
   // Loading state
   if (loading) {
@@ -316,18 +196,6 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4" />
                 Runs Details
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("invoice")}
-              className={`py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "invoice"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-800"
-                }`}
-            >
-              <div className="flex items-center gap-2">
-                <IndianRupee className="w-4 h-4" />
-                Invoice
               </div>
             </button>
           </div>
@@ -568,108 +436,6 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-
-          {activeTab === "invoice" && (
-            <div className="space-y-6">
-              {/* Printable Invoice Content */}
-              <div ref={printRef} className="bg-white border-2 border-gray-300 rounded-xl p-8">
-                <div className="invoice-header text-center mb-8 border-b-2 border-blue-800 pb-5">
-                  <h1 className="text-3xl font-bold text-blue-800 mb-2">INVOICE</h1>
-                  <p className="text-gray-600">Order: {order.id.slice(0, 8).toUpperCase()}</p>
-                </div>
-
-                <div className="info-grid grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                  <div className="info-section">
-                    <h3 className="font-semibold text-gray-800 mb-3">Bill To:</h3>
-                    <div className="space-y-2">
-                      <p className="text-lg font-bold">{order.customer?.name}</p>
-                      <p className="text-gray-600">Code: {order.customer?.code}</p>
-                    </div>
-                  </div>
-
-                  <div className="info-section text-right">
-                    <h3 className="font-semibold text-gray-800 mb-3">Invoice Details:</h3>
-                    <div className="space-y-2">
-                      <p className="text-gray-600">Invoice Date: {formatDate(new Date())}</p>
-                      <p className="text-gray-600">Order Date: {formatDate(order.createdAt)}</p>
-                      <p className="text-gray-600">Status: <span className="font-bold text-green-600">BILLED</span></p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* INVOICE TABLE */}
-                <div className="border border-gray-200 rounded-lg overflow-hidden mb-8">
-                  <div className="bg-gray-50 grid grid-cols-5 p-4 font-semibold text-gray-700">
-                    <div>Description</div>
-                    <div className="text-center">Quantity</div>
-                    <div className="text-center">Est. Rate</div>
-                    <div className="text-center">Billing Rate</div>
-                    <div className="text-right">Amount</div>
-                  </div>
-
-                  {order.processes.flatMap(process =>
-                    process.runs.map(run => {
-                      const { quantity, estimatedRate, newRate, newAmount } = getRunValues(run);
-
-                      return (
-                        <div key={run.id} className="grid grid-cols-5 p-4 border-t border-gray-200">
-                          <div>
-                            <div className="font-medium">{process.name} - Run {run.runNumber}</div>
-                            <div className="text-sm text-gray-500">{run.displayName}</div>
-                          </div>
-                          <div className="text-center">{quantity}</div>
-                          <div className="text-center">₹{estimatedRate}</div>
-                          <div className="text-center font-bold text-blue-700">₹{newRate}</div>
-                          <div className="text-right font-bold">₹{newAmount.toLocaleString()}</div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* TOTALS */}
-                <div className="border-t border-gray-200 pt-6">
-                  <div className="max-w-md ml-auto space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Estimated Total:</span>
-                      <span>₹{estimatedTotal.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Adjustment:</span>
-                      <span className={difference >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {difference >= 0 ? '+' : ''}₹{difference.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xl font-bold pt-3 border-t border-gray-200">
-                      <span>Total Billed:</span>
-                      <span>₹{billedTotal.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="footer mt-12 text-center text-gray-500 text-sm border-t border-gray-200 pt-5">
-                  <p>Thank you for your business!</p>
-                </div>
-              </div>
-
-              <div className="flex justify-center gap-4">
-                <button
-                  onClick={handleDownloadInvoice}
-                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Invoice PDF
-                </button>
-                <button
-                  onClick={handlePrint}
-                  className="flex items-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  <Printer className="w-4 h-4" />
-                  Print (Browser)
-                </button>
-              </div>
             </div>
           )}
         </div>
