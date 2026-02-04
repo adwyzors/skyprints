@@ -543,7 +543,6 @@ export default function ScreenPrintingConfig({
         }
 
         alert(`Run ${run.runNumber} configured successfully`);
-        alert(`Run ${run.runNumber} configured successfully`);
         setOpenRunId(null); // Close the form after successful save
         setEditingRunId(null); // Clear edit mode if active
 
@@ -1112,7 +1111,7 @@ export default function ScreenPrintingConfig({
                           ) : (
                             <Edit className="w-4 h-4 text-gray-500" />
                           )}
-                          {!isConfigured && hasPermission(Permission.RUNS_DELETE) && (
+                          {hasPermission(Permission.RUNS_DELETE) && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
