@@ -192,43 +192,46 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     setImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  /* ================= CREATE ================= */
+  /* ================= CONFIRMATION STATE ================= */
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const handleCreate = async () => {
+  /* ================= CREATE HANDLERS ================= */
+
+  const handleCreateClick = () => {
+    // 1. Validate inputs
     if (!selectedCustomer) {
       setError('Please select a customer');
       return;
     }
-
     if (quantity <= 0) {
       setError('Please enter a valid quantity');
       return;
     }
-
     if (processRows.length === 0) {
       setError('Please add at least one process');
       return;
     }
-
-    // Validate all process rows have process selected
     const invalidRows = processRows.some((row) => !row.processId || row.runs <= 0);
     if (invalidRows) {
       setError('Please fill all process details correctly');
       return;
     }
 
+    // 2. Clear error and show confirmation
+    setError(null);
+    setShowConfirm(true);
+  };
+
+  const confirmCreate = async () => {
+    if (!selectedCustomer) return;
+
     setLoading(true);
     setError(null);
 
     try {
-      // Based on the error, it seems backend expects a full Order object
-      // Let's create a complete order object
       const now = new Date().toISOString();
-
-      // Generate a simple order code
       const orderCode = `ORD-${Date.now().toString().slice(-6)}`;
 
-      // First, try with the original payload
       const payload: NewOrderPayload = {
         customerId: selectedCustomer.id,
         quantity,
@@ -236,23 +239,17 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
           processId: r.processId,
           count: r.runs,
         })),
-        // Only include jobCode if it has a value
         ...(jobCode.trim() ? { jobCode: jobCode.trim() } : {}),
-        // Include images directly in payload
         images: selectedImages,
       };
 
-      // Create order with images in a single call
       const createdOrder = await createOrder(payload);
-
-      // Pass the created order to parent
       onCreate(createdOrder);
-
-      // Reset form and close modal
       resetForm();
-      onClose();
+      setShowConfirm(false); // Close confirmation
+      onClose(); // Close main modal
     } catch (err: any) {
-      // If we get validation errors, try a different approach
+      setShowConfirm(false); // Close confirmation on error to show error message on main modal
       if (err.message?.includes('invalid_type') || err.message?.includes('expected')) {
         setError('Server validation error. Please check your data and try again.');
         console.error('Validation error details:', err);
@@ -281,6 +278,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
   const handleClose = () => {
     if (!loading) {
       resetForm();
+      setShowConfirm(false);
       onClose();
     }
   };
@@ -290,230 +288,311 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        {/* HEADER */}
-        <div className="px-6 py-4 border-b bg-linear-to-r from-blue-50 to-gray-50">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-bold text-gray-800">Create New Order</h2>
-              <p className="text-sm text-gray-600 mt-1">Add order details and processes</p>
+    <>
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+          {/* HEADER */}
+          <div className="px-6 py-4 border-b bg-linear-to-r from-blue-50 to-gray-50">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Create New Order</h2>
+                <p className="text-sm text-gray-600 mt-1">Add order details and processes</p>
+              </div>
+              <button
+                onClick={handleClose}
+                disabled={loading}
+                className="text-gray-500 hover:text-gray-700 hover:bg-gray-200 w-8 h-8 flex items-center justify-center rounded-full transition-colors disabled:opacity-50"
+              >
+                <span className="text-lg">×</span>
+              </button>
             </div>
-            <button
-              onClick={handleClose}
-              disabled={loading}
-              className="text-gray-500 hover:text-gray-700 hover:bg-gray-200 w-8 h-8 flex items-center justify-center rounded-full transition-colors disabled:opacity-50"
-            >
-              <span className="text-lg">×</span>
-            </button>
           </div>
-        </div>
 
-        {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* ERROR MESSAGE */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
-          )}
+          {/* CONTENT */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {/* ERROR MESSAGE */}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
 
-          {/* LOADING DATA */}
-          {dataLoading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="ml-3 text-gray-600">Loading data...</span>
-            </div>
-          )}
+            {/* LOADING DATA */}
+            {dataLoading && (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">Loading data...</span>
+              </div>
+            )}
 
-          {!dataLoading && (
-            <>
-              {/* ORDER INFO */}
-              <div className="mb-8">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
-                  Order Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* CUSTOMER SEARCH */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Customer</label>
-                    <div className="relative">
+            {!dataLoading && (
+              <>
+                {/* ORDER INFO */}
+                <div className="mb-8">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                    Order Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* CUSTOMER SEARCH */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Customer</label>
+                      <div className="relative">
+                        <input
+                          placeholder="Click to select or search..."
+                          value={customerSearch}
+                          onChange={(e) => {
+                            setCustomerSearch(e.target.value);
+                            setSelectedCustomerId(null);
+                            setError(null);
+                          }}
+                          onFocus={() => setShowCustomerList(true)}
+                          onBlur={() => {
+                            // Delay to allow click on dropdown item
+                            setTimeout(() => setShowCustomerList(false), 200);
+                          }}
+                          disabled={loading}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
+                        />
+                        {showCustomerList &&
+                          !selectedCustomer &&
+                          filteredCustomers?.length > 0 && (
+                            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                              {filteredCustomers?.map((c) => (
+                                <div
+                                  key={c.id}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault(); // Prevent blur before click
+                                    setSelectedCustomerId(c.id);
+                                    setCustomerSearch(c.name);
+                                    setShowCustomerList(false);
+                                    setError(null);
+                                  }}
+                                  className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                                >
+                                  <div className="font-medium">{c.name}</div>
+                                  <div className="text-sm text-gray-500">Code: {c.code}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+                    </div>
+
+                    {/* CUSTOMER CODE */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Customer Code</label>
+                      <div className="relative">
+                        <input
+                          placeholder="Customer Code"
+                          value={selectedCustomer?.code ?? ''}
+                          readOnly
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-50 text-gray-700"
+                        />
+                        {selectedCustomer && (
+                          <div className="absolute right-3 top-3">
+                            <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                              ✓
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* QUANTITY */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Quantity</label>
                       <input
-                        placeholder="Click to select or search..."
-                        value={customerSearch}
+                        type="number"
+                        placeholder="Enter quantity..."
+                        value={quantity || ''}
                         onChange={(e) => {
-                          setCustomerSearch(e.target.value);
-                          setSelectedCustomerId(null);
+                          const value = parseInt(e.target.value);
+                          setQuantity(isNaN(value) ? 0 : value);
                           setError(null);
                         }}
-                        onFocus={() => setShowCustomerList(true)}
-                        onBlur={() => {
-                          // Delay to allow click on dropdown item
-                          setTimeout(() => setShowCustomerList(false), 200);
+                        disabled={loading}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
+                        min="1"
+                      />
+                    </div>
+
+                    {/* ORDER CODE */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Order Code</label>
+                      <div className="relative">
+                        <input
+                          placeholder="Auto Generated"
+                          value="Auto Generated"
+                          readOnly
+                          className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-50 text-gray-600 italic"
+                        />
+                        <div className="absolute right-3 top-3">
+                          <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                            Auto
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* JOB CODE */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Job Code (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="Enter job code..."
+                        value={jobCode}
+                        onChange={(e) => {
+                          setJobCode(e.target.value);
+                          setError(null);
                         }}
                         disabled={loading}
                         className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
                       />
-                      {showCustomerList &&
-                        !selectedCustomer &&
-                        filteredCustomers?.length > 0 && (
-                          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                            {filteredCustomers?.map((c) => (
-                              <div
-                                key={c.id}
-                                onMouseDown={(e) => {
-                                  e.preventDefault(); // Prevent blur before click
-                                  setSelectedCustomerId(c.id);
-                                  setCustomerSearch(c.name);
-                                  setShowCustomerList(false);
-                                  setError(null);
-                                }}
-                                className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
-                              >
-                                <div className="font-medium">{c.name}</div>
-                                <div className="text-sm text-gray-500">Code: {c.code}</div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
                     </div>
                   </div>
 
-                  {/* CUSTOMER CODE */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Customer Code</label>
-                    <div className="relative">
-                      <input
-                        placeholder="Customer Code"
-                        value={selectedCustomer?.code ?? ''}
-                        readOnly
-                        className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-50 text-gray-700"
-                      />
-                      {selectedCustomer && (
-                        <div className="absolute right-3 top-3">
-                          <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                            ✓
-                          </span>
+                  {/* IMAGE UPLOAD */}
+                  <div className="space-y-2 md:col-span-2 mt-4">
+                    <label className="text-sm font-medium text-gray-700">Order Images (Optional)</label>
+                    <div className="space-y-3">
+                      {/* Upload Button */}
+                      {selectedImages.length < 2 && (
+                        <div>
+                          <input
+                            type="file"
+                            id="image-upload"
+                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                            multiple
+                            onChange={handleImageSelect}
+                            disabled={loading}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor="image-upload"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:border-blue-500 hover:text-blue-600 cursor-pointer transition-all disabled:opacity-50"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            Upload Images ({selectedImages.length}/2)
+                          </label>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Max 2 photos • JPEG, PNG, WebP • Max 5MB each
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Image Previews */}
+                      {imagePreviews.length > 0 && (
+                        <div className="grid grid-cols-2 gap-3">
+                          {imagePreviews.map((preview, index) => (
+                            <div
+                              key={index}
+                              className="relative group rounded-lg overflow-hidden border-2 border-gray-200 aspect-square"
+                            >
+                              <img
+                                src={preview}
+                                alt={`Preview ${index + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeImage(index)}
+                                disabled={loading}
+                                className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs py-1 px-2 text-center">
+                                {selectedImages[index]?.name}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
                   </div>
-
-                  {/* QUANTITY */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Quantity</label>
-                    <input
-                      type="number"
-                      placeholder="Enter quantity..."
-                      value={quantity || ''}
-                      onChange={(e) => {
-                        const value = parseInt(e.target.value);
-                        setQuantity(isNaN(value) ? 0 : value);
-                        setError(null);
-                      }}
-                      disabled={loading}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
-                      min="1"
-                    />
-                  </div>
-
-                  {/* ORDER CODE */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Order Code</label>
-                    <div className="relative">
-                      <input
-                        placeholder="Auto Generated"
-                        value="Auto Generated"
-                        readOnly
-                        className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-50 text-gray-600 italic"
-                      />
-                      <div className="absolute right-3 top-3">
-                        <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                          Auto
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* JOB CODE */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Job Code (Optional)</label>
-                    <input
-                      type="text"
-                      placeholder="Enter job code..."
-                      value={jobCode}
-                      onChange={(e) => {
-                        setJobCode(e.target.value);
-                        setError(null);
-                      }}
-                      disabled={loading}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
-                    />
-                  </div>
                 </div>
 
-                {/* IMAGE UPLOAD */}
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-gray-700">Order Images (Optional)</label>
-                  <div className="space-y-3">
-                    {/* Upload Button */}
-                    {selectedImages.length < 2 && (
-                      <div>
-                        <input
-                          type="file"
-                          id="image-upload"
-                          accept="image/jpeg,image/jpg,image/png,image/webp"
-                          multiple
-                          onChange={handleImageSelect}
-                          disabled={loading}
-                          className="hidden"
-                        />
-                        <label
-                          htmlFor="image-upload"
-                          className="inline-flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:border-blue-500 hover:text-blue-600 cursor-pointer transition-all disabled:opacity-50"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                          Upload Images ({selectedImages.length}/2)
-                        </label>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Max 2 photos • JPEG, PNG, WebP • Max 5MB each
-                        </p>
-                      </div>
-                    )}
+                {/* PROCESSES */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+                      Processes
+                    </h3>
+                    <button
+                      onClick={addProcessRow}
+                      disabled={loading}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50"
+                    >
+                      <span className="text-lg">+</span>
+                      Add Process
+                    </button>
+                  </div>
 
-                    {/* Image Previews */}
-                    {imagePreviews.length > 0 && (
-                      <div className="grid grid-cols-2 gap-3">
-                        {imagePreviews.map((preview, index) => (
-                          <div
-                            key={index}
-                            className="relative group rounded-lg overflow-hidden border-2 border-gray-200 aspect-square"
-                          >
-                            <img
-                              src={preview}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
+                  {processRows.length === 0 ? (
+                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-xl">
+                      <div className="text-gray-400 mb-2">
+                        <svg
+                          className="w-12 h-12 mx-auto"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 text-sm">No processes added yet</p>
+                      <p className="text-gray-400 text-xs mt-1">Add your first process to continue</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {processRows.map((row, i) => (
+                        <div
+                          key={i}
+                          className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 bg-blue-100 text-blue-700 rounded text-xs font-bold flex items-center justify-center">
+                                {i + 1}
+                              </div>
+                              <span className="text-sm text-gray-600">Process {i + 1}</span>
+                            </div>
                             <button
-                              type="button"
-                              onClick={() => removeImage(index)}
+                              onClick={() => removeProcessRow(i)}
                               disabled={loading}
-                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
+                              className="text-gray-400 hover:text-red-500 transition-colors p-1 disabled:opacity-50"
                             >
                               <svg
-                                className="w-4 h-4"
+                                className="w-5 h-5"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -526,163 +605,148 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                 />
                               </svg>
                             </button>
-                            <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs py-1 px-2 text-center">
-                              {selectedImages[index]?.name}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* PROCESSES */}
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
-                    Processes
-                  </h3>
-                  <button
-                    onClick={addProcessRow}
-                    disabled={loading}
-                    className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50"
-                  >
-                    <span className="text-lg">+</span>
-                    Add Process
-                  </button>
-                </div>
-
-                {processRows.length === 0 ? (
-                  <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-xl">
-                    <div className="text-gray-400 mb-2">
-                      <svg
-                        className="w-12 h-12 mx-auto"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                        />
-                      </svg>
-                    </div>
-                    <p className="text-gray-500 text-sm">No processes added yet</p>
-                    <p className="text-gray-400 text-xs mt-1">Add your first process to continue</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {processRows.map((row, i) => (
-                      <div
-                        key={i}
-                        className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-colors"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-blue-100 text-blue-700 rounded text-xs font-bold flex items-center justify-center">
-                              {i + 1}
-                            </div>
-                            <span className="text-sm text-gray-600">Process {i + 1}</span>
-                          </div>
-                          <button
-                            onClick={() => removeProcessRow(i)}
-                            disabled={loading}
-                            className="text-gray-400 hover:text-red-500 transition-colors p-1 disabled:opacity-50"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Process</label>
-                            <select
-                              value={row.processId}
-                              onChange={(e) => {
-                                updateProcessRow(i, { processId: e.target.value });
-                                setError(null);
-                              }}
-                              disabled={loading}
-                              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
-                            >
-                              <option value="">Select process...</option>
-                              {processes.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}
-                                </option>
-                              ))}
-                            </select>
                           </div>
 
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700">Runs</label>
-                            <div className="relative">
-                              <input
-                                type="number"
-                                min="1"
-                                value={row.runs}
-                                onChange={(e) =>
-                                  updateProcessRow(i, { runs: parseInt(e.target.value) || 1 })
-                                }
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-gray-700">Process</label>
+                              <select
+                                value={row.processId}
+                                onChange={(e) => {
+                                  updateProcessRow(i, { processId: e.target.value });
+                                  setError(null);
+                                }}
                                 disabled={loading}
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
-                              />
-                              <span className="absolute right-3 top-2.5 text-sm text-gray-500">
-                                runs
-                              </span>
+                              >
+                                <option value="">Select process...</option>
+                                {processes.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-gray-700">Runs</label>
+                              <div className="relative">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={row.runs}
+                                  onChange={(e) =>
+                                    updateProcessRow(i, { runs: parseInt(e.target.value) || 1 })
+                                  }
+                                  disabled={loading}
+                                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
+                                />
+                                <span className="absolute right-3 top-2.5 text-sm text-gray-500">
+                                  runs
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
-        {/* FOOTER */}
-        <div className="px-6 py-4 border-t bg-gray-50">
-          <div className="flex justify-end gap-3">
-            <button
-              onClick={handleClose}
-              disabled={loading}
-              className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleCreate}
-              disabled={
-                loading ||
-                dataLoading ||
-                !selectedCustomer ||
-                quantity <= 0 ||
-                processRows.length === 0
-              }
-              className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Creating...' : 'Create Order'}
-            </button>
+          {/* FOOTER */}
+          <div className="px-6 py-4 border-t bg-gray-50">
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleClose}
+                disabled={loading}
+                className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateClick}
+                disabled={
+                  loading ||
+                  dataLoading ||
+                  !selectedCustomer ||
+                  quantity <= 0 ||
+                  processRows.length === 0
+                }
+                className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Create Order
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* CONFIRMATION DIALOG */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-100">
+            <div className="p-6">
+              <div className="mb-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">📋</span>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 text-center">Confirm Order Creation</h3>
+                <p className="text-gray-500 text-center text-sm mt-1">
+                  Please review the processes for this order
+                </p>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 space-y-3 mb-6">
+                <div className="flex justify-between items-center text-sm pb-2 border-b border-gray-200">
+                  <span className="font-semibold text-gray-700">Customer</span>
+                  <span className="text-gray-900">{selectedCustomer?.name}</span>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Processes to create</p>
+                  {processRows.map((row, index) => {
+                    const processName = processes.find(p => p.id === row.processId)?.name || 'Unknown Process';
+                    return (
+                      <div key={index} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm">
+                        <span className="font-medium text-gray-800 text-sm">{processName}</span>
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-md font-medium">
+                          {row.runs} {row.runs === 1 ? 'Run' : 'Runs'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  disabled={loading}
+                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmCreate}
+                  disabled={loading}
+                  className="flex-1 py-2.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    'Confirm & Create'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
