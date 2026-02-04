@@ -7,6 +7,7 @@ import { createOrder } from '@/services/orders.service';
 import { getProcesses } from '@/services/process.service';
 import { NewOrderPayload } from '@/types/planning';
 import { useEffect, useMemo, useState } from 'react';
+import CustomerSelector from '../orders/CustomerSelector';
 
 /* ================= TYPES ================= */
 
@@ -26,8 +27,9 @@ interface ProcessRow {
 export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
   /* ================= STATE (ALWAYS CALLED) ================= */
 
-  const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+
+  // Form states
   const [quantity, setQuantity] = useState<number>(0);
   const [jobCode, setJobCode] = useState<string>('');
   const [processRows, setProcessRows] = useState<ProcessRow[]>([]);
@@ -41,7 +43,6 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
 
   /* ================= RESET FORM ================= */
   const resetForm = () => {
-    setCustomerSearch('');
     setSelectedCustomerId(null);
     setQuantity(0);
     setJobCode('');
@@ -85,17 +86,6 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
   }, [open]);
 
   /* ================= DERIVED ================= */
-
-  const [showCustomerList, setShowCustomerList] = useState(false);
-
-  const filteredCustomers = useMemo(() => {
-    const s = customerSearch.toLowerCase().trim();
-    // Show all customers when focused and no search, or filter by search
-    if (!s) return showCustomerList ? customers : [];
-    return customers.filter(
-      (c) => c.name.toLowerCase().includes(s) || c.code?.toLowerCase().includes(s),
-    );
-  }, [customerSearch, customers, showCustomerList]);
 
   const selectedCustomer = useMemo(
     () => customers.find((c) => c.id === selectedCustomerId),
@@ -333,69 +323,17 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                     Order Details
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* CUSTOMER SEARCH */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Customer</label>
-                      <div className="relative">
-                        <input
-                          placeholder="Click to select or search..."
-                          value={customerSearch}
-                          onChange={(e) => {
-                            setCustomerSearch(e.target.value);
-                            setSelectedCustomerId(null);
-                            setError(null);
-                          }}
-                          onFocus={() => setShowCustomerList(true)}
-                          onBlur={() => {
-                            // Delay to allow click on dropdown item
-                            setTimeout(() => setShowCustomerList(false), 200);
-                          }}
-                          disabled={loading}
-                          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
-                        />
-                        {showCustomerList &&
-                          !selectedCustomer &&
-                          filteredCustomers?.length > 0 && (
-                            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                              {filteredCustomers?.map((c) => (
-                                <div
-                                  key={c.id}
-                                  onMouseDown={(e) => {
-                                    e.preventDefault(); // Prevent blur before click
-                                    setSelectedCustomerId(c.id);
-                                    setCustomerSearch(c.name);
-                                    setShowCustomerList(false);
-                                    setError(null);
-                                  }}
-                                  className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
-                                >
-                                  <div className="font-medium">{c.name}</div>
-                                  <div className="text-sm text-gray-500">Code: {c.code}</div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                      </div>
-                    </div>
-
-                    {/* CUSTOMER CODE */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Customer Code</label>
-                      <div className="relative">
-                        <input
-                          placeholder="Customer Code"
-                          value={selectedCustomer?.code ?? ''}
-                          readOnly
-                          className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-50 text-gray-700"
-                        />
-                        {selectedCustomer && (
-                          <div className="absolute right-3 top-3">
-                            <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                              ✓
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                    {/* CUSTOMER SELECTOR */}
+                    <div className="col-span-1 md:col-span-2">
+                      <CustomerSelector
+                        customers={customers}
+                        selectedCustomerId={selectedCustomerId}
+                        onSelect={(c) => {
+                          setSelectedCustomerId(c?.id || null);
+                          setError(null);
+                        }}
+                        disabled={loading}
+                      />
                     </div>
 
                     {/* QUANTITY */}
