@@ -51,10 +51,9 @@ export default function BillingGroupModal({
             const cgstAmount = (totalAmount * 2.5) / 100;
             const sgstAmount = (totalAmount * 2.5) / 100;
 
-            // Calculate TDS (2% if tds is true)
-
-            const tdsAmount = details.orders[0]?.customer?.tds ? (totalAmount * 2) / 100 : 0;
-            // const tdsAmount = 0
+            // Calculate TDS (based on customer's TDS No, defaulting to 0)
+            const tdsRate = details.orders[0]?.customer?.tdsno || 0;
+            const tdsAmount = details.orders[0]?.customer?.tds ? (totalAmount * tdsRate) / 100 : 0;
 
             // Calculate final total
             const finalTotal = totalAmount + cgstAmount + sgstAmount - tdsAmount;

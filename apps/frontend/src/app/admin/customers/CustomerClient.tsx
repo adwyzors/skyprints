@@ -2,7 +2,7 @@
 
 import CustomerModal from '@/components/modals/CustomerModal';
 import { Customer } from '@/domain/model/customer.model';
-import { Edit, Plus, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -88,15 +88,22 @@ export default function CustomerClient({ initialCustomers }: CustomerClientProps
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Joined
                                 </th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Action
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Tax
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    TDS
                                 </th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredCustomers.length > 0 ? (
                                 filteredCustomers.map((customer) => (
-                                    <tr key={customer.id} className="hover:bg-gray-50 transition-colors group">
+                                    <tr
+                                        key={customer.id}
+                                        onClick={() => handleEditClick(customer)}
+                                        className="hover:bg-gray-50 transition-colors group cursor-pointer"
+                                    >
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
                                             {customer.code}
                                         </td>
@@ -116,14 +123,15 @@ export default function CustomerClient({ initialCustomers }: CustomerClientProps
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {new Date(customer.createdAt).toLocaleDateString('en-GB')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => handleEditClick(customer)}
-                                                className="text-gray-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-lg hover:bg-blue-50"
-                                                title="Edit Customer"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${customer.tax ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                {customer.tax ? 'Yes' : 'No'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${customer.tds ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                {customer.tds ? 'Yes' : 'No'}
+                                            </span>
                                         </td>
                                     </tr>
                                 ))

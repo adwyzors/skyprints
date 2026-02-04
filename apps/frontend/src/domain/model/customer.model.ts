@@ -6,6 +6,7 @@ export interface Customer {
     phone?: string;
     address?: string;
     gstno?: string;
+    tdsno?: number;
     tax?: boolean;
     tds?: boolean;
     isActive: boolean;

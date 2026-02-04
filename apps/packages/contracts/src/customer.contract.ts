@@ -13,6 +13,7 @@ export const CreateCustomerSchema = z.object({
     address: z.string().optional().nullable(),
 
     gstno: z.string().optional().nullable(),
+    tdsno: z.coerce.number().int().optional().nullable(),
     tds: z.boolean().optional(),
     tax: z.boolean().optional(),
 

@@ -9,9 +9,10 @@ export const CustomerSummarySchema = z.object({
     phone: z.string().nullable(),
     address: z.string().nullable(),
 
-    gstno: z.string().nullable(),   
-    tds: z.boolean(),               
-    tax: z.boolean(),               
+    gstno: z.string().nullable(),
+    tdsno: z.number().nullable(),
+    tds: z.boolean(),
+    tax: z.boolean(),
 
     isActive: z.boolean(),
     createdAt: z.string(),

@@ -237,7 +237,8 @@ export class BillingContextService {
                         code: order.customer.code,
                         gstno: order.customer.gstno,
                         tax: order.customer.tax,
-                        tds: order.customer.tds
+                        tds: order.customer.tds,
+                        tdsno: order.customer.tdsno
                     },
                     processes: order.processes.map(p => ({
                         id: p.id,

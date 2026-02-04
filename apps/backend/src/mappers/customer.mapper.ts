@@ -12,6 +12,7 @@ export function toCustomerSummary(customer: Customer) {
         address: customer.address ?? null,
 
         gstno: customer.gstno ?? null,
+        tdsno: customer.tdsno ?? null,
         tds: customer.tds,
         tax: customer.tax,
 

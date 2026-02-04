@@ -44,6 +44,7 @@ export interface OrderBillingSummary {
     code: string;
     tax?: boolean;
     tds?: boolean;
+    tdsno?: number | null;
     gstno?: string | null;
     address?: string | null;
     email?: string | null;
