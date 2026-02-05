@@ -30,20 +30,7 @@ export default function OrdersFilter({ filters, onChange, onClear, onClose }: Or
         fetchCustomers();
     }, []);
 
-    const handleStatusChange = (status: string) => {
-        const current = filters.status;
-        const next = current.includes(status)
-            ? current.filter(s => s !== status)
-            : [...current, status];
-        onChange({ ...filters, status: next });
-    };
 
-    const statusOptions = [
-        { value: 'CONFIGURE', label: 'To Configure', color: 'purple' },
-        { value: 'PRODUCTION_READY', label: 'Ready', color: 'yellow' },
-        { value: 'IN_PRODUCTION', label: 'In Production', color: 'blue' },
-        { value: 'COMPLETE', label: 'Complete', color: 'green' },
-    ];
 
     return (
         <div className="h-full flex flex-col">
@@ -66,24 +53,7 @@ export default function OrdersFilter({ filters, onChange, onClear, onClose }: Or
 
             <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
 
-                {/* Status */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Status</label>
-                    <div className="flex flex-wrap gap-2">
-                        {statusOptions.map(option => (
-                            <button
-                                key={option.value}
-                                onClick={() => handleStatusChange(option.value)}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filters.status.includes(option.value)
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-                                    }`}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+
 
                 {/* Date Range */}
                 <div>

@@ -34,7 +34,7 @@ function CompletedContent() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Sidebar and Filter State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [filters, setFilters] = useState({
     dateRange: "all",
     customerId: "all",

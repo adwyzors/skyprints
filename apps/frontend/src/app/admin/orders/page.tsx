@@ -7,6 +7,7 @@ import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import ViewOrderModal from '@/components/modals/ViewOrderModal';
 import OrderCard from '@/components/orders/OrderCard';
 import OrdersFilter from '@/components/orders/OrdersFilter';
+import OrderStatusFilter from '@/components/orders/OrderStatusFilter';
 import OrdersViewToggle from '@/components/orders/OrdersViewToggle';
 import OrderTableRow from '@/components/orders/OrderTableRow';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
@@ -50,7 +51,7 @@ function AdminOrdersContent() {
   const [pageSize, setPageSize] = useState(12);
 
   // Sidebar State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -277,11 +278,10 @@ function AdminOrdersContent() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`p-2 rounded-lg border transition-colors ${
-                isSidebarOpen
+              className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
                   ? 'bg-blue-50 border-blue-200 text-blue-600'
                   : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-              }`}
+                }`}
               title={isSidebarOpen ? 'Collapse Filters' : 'Expand Filters'}
             >
               {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
@@ -315,6 +315,17 @@ function AdminOrdersContent() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* STATUS BAR */}
+        <div className="sticky top-[73px] z-10">
+          <OrderStatusFilter
+            selectedStatuses={filters.status}
+            onChange={(newStatuses) => {
+              setFilters(prev => ({ ...prev, status: newStatuses }));
+              setOrdersData((prev) => ({ ...prev, page: 1 }));
+            }}
+          />
         </div>
 
         {/* CONTENT */}
@@ -457,11 +468,10 @@ function AdminOrdersContent() {
                             <button
                               key={page}
                               onClick={() => handlePageChange(page as number)}
-                              className={`px-3 py-1 rounded-lg ${
-                                ordersData.page === page
+                              className={`px-3 py-1 rounded-lg ${ordersData.page === page
                                   ? 'bg-blue-600 text-white'
                                   : 'border border-gray-300 hover:bg-gray-50'
-                              } transition-colors`}
+                                } transition-colors`}
                             >
                               {page}
                             </button>
