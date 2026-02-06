@@ -29,7 +29,12 @@ async function bootstrap() {
     );
 
     const port = process.env.PORT ? Number(process.env.PORT) : 3001;
-    if (process.env.NODE_ENV === "local") {
+    console.log(`[Bootstrap] NODE_ENV: ${process.env.NODE_ENV}, PORT: ${port}`);
+
+    if (process.env.NODE_ENV === "local" || !process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+        await app.listen(port, '0.0.0.0');
+    } else {
+        // Fallback or production behavior
         await app.listen(port, '0.0.0.0');
     }
 

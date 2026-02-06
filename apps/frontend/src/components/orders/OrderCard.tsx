@@ -23,6 +23,8 @@ interface OrderCardProps {
   active?: boolean;
   showConfigure?: boolean;
   onClick?: () => void;
+  selected?: boolean;
+  onSelect?: (selected: boolean) => void;
 }
 
 export default function OrderCard({
@@ -30,6 +32,8 @@ export default function OrderCard({
   active = true,
   showConfigure = true,
   onClick,
+  selected = false,
+  onSelect,
 }: OrderCardProps) {
   const router = useRouter();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -120,7 +124,6 @@ export default function OrderCard({
 
   return (
     <div className="relative">
-      {/* STATUS BADGE - Positioned absolutely at the parent level, outside the card */}
       <div className="absolute top-3 right-3 z-30">
         <span
           className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 shadow-md ${statusConfig.color}`}
@@ -131,6 +134,21 @@ export default function OrderCard({
           </span>
         </span>
       </div>
+
+      {/* SELECTION CHECKBOX */}
+      {/* {onSelect && (
+        <div className="absolute top-3 left-3 z-30">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onSelect(e.target.checked);
+            }}
+            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shadow-md cursor-pointer"
+          />
+        </div>
+      )} */}
 
       {/* CARD CONTENT - isolated stacking context */}
       <div

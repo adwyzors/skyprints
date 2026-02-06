@@ -145,4 +145,12 @@ export class OrdersController {
     async delete(@Param('id') orderId: string) {
         return this.service.delete(orderId);
     }
+
+    @Post('bulk-delete')
+    async deleteBulk(@Body() body: { ids: string[] }) {
+        if (!body.ids || !Array.isArray(body.ids)) {
+            throw new BadRequestException('Invalid ids array');
+        }
+        return this.service.deleteBulk(body.ids);
+    }
 }

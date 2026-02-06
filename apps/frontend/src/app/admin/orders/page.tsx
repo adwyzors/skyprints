@@ -62,6 +62,10 @@ function AdminOrdersContent() {
     customerId: 'all',
   });
 
+  // Bulk Selection State
+  // const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  // const [isDeleting, setIsDeleting] = useState(false);
+
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   /* ================= EFFECTS ================= */
@@ -237,6 +241,47 @@ function AdminOrdersContent() {
     setOrdersData((prev) => ({ ...prev, page: 1 }));
   };
 
+  /* ================= BULK ACTIONS ================= */
+
+  /* ================= BULK ACTIONS ================= */
+
+  /* const toggleSelectOrder = (orderId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedOrderIds((prev) => [...prev, orderId]);
+    } else {
+      setSelectedOrderIds((prev) => prev.filter((id) => id !== orderId));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedOrderIds.length) return;
+
+    if (!confirm(`Are you sure you want to delete ${selectedOrderIds.length} orders? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteOrders(selectedOrderIds);
+      setSelectedOrderIds([]);
+      setRefreshTrigger((prev) => prev + 1);
+      clearCache();
+    } catch (error) {
+      console.error('Failed to delete orders', error);
+      alert('Failed to delete orders');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleSelectAllOnPage = () => {
+    if (selectedOrderIds.length === filteredOrders.length) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(filteredOrders.map(o => o.id));
+    }
+  }; */
+
   /* ================= FILTERED ORDERS ================= */
 
   const filteredOrders = ordersData.orders;
@@ -279,8 +324,8 @@ function AdminOrdersContent() {
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
-                  ? 'bg-blue-50 border-blue-200 text-blue-600'
-                  : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                ? 'bg-blue-50 border-blue-200 text-blue-600'
+                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
                 }`}
               title={isSidebarOpen ? 'Collapse Filters' : 'Expand Filters'}
             >
@@ -317,8 +362,31 @@ function AdminOrdersContent() {
           </div>
         </div>
 
-        {/* STATUS BAR */}
-        <div className="sticky top-[73px] z-10">
+        {/* STATUS BAR & BULK ACTIONS */}
+        <div className="sticky top-[73px] z-10 flex flex-col">
+          {/* {selectedOrderIds.length > 0 ? (
+            <div className="flex items-center justify-between px-4 py-2 bg-blue-50 border-b border-blue-100 animate-in slide-in-from-top-2">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-blue-800">
+                  {selectedOrderIds.length} orders selected
+                </span>
+                <button
+                  onClick={() => setSelectedOrderIds([])}
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  Deselect All
+                </button>
+              </div>
+              <button
+                onClick={handleBulkDelete}
+                disabled={isDeleting}
+                className="flex items-center gap-2 px-4 py-1.5 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors text-sm font-medium shadow-sm"
+              >
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>Delete Selected</span>
+              </button>
+            </div>
+          ) : ( */}
           <OrderStatusFilter
             selectedStatuses={filters.status}
             onChange={(newStatuses) => {
@@ -326,6 +394,7 @@ function AdminOrdersContent() {
               setOrdersData((prev) => ({ ...prev, page: 1 }));
             }}
           />
+          {/* )} */}
         </div>
 
         {/* CONTENT */}
@@ -366,7 +435,13 @@ function AdminOrdersContent() {
               <div className={viewMode === 'grid' ? 'block' : 'hidden'}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                   {filteredOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} active={viewMode === 'grid'} />
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      active={viewMode === 'grid'}
+                    /* selected={selectedOrderIds.includes(order.id)}
+                    onSelect={(selected) => toggleSelectOrder(order.id, selected)} */
+                    />
                   ))}
                 </div>
               </div>
@@ -379,6 +454,14 @@ function AdminOrdersContent() {
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
+                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          {/* <input
+                            type="checkbox"
+                            checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
+                            onChange={handleSelectAllOnPage}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          /> */}
+                        </th>
                         <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           Order Code
                         </th>
@@ -408,9 +491,13 @@ function AdminOrdersContent() {
                           key={order.id}
                           order={order}
                           index={(ordersData.page - 1) * pageSize + index + 1}
+                          /* selected={selectedOrderIds.includes(order.id)}
+                          onSelect={(selected) => toggleSelectOrder(order.id, selected)} */
                           onClick={(type, value) => {
                             if (type === 'image' && value) {
                               setPreviewImage(value);
+                            } else if (type !== 'row') { // Don't navigate if clicking checkbox (handled inside row but better safe)
+                              router.push(`/admin/orders?selectedOrder=${order.id}`);
                             } else {
                               router.push(`/admin/orders?selectedOrder=${order.id}`);
                             }
@@ -469,8 +556,8 @@ function AdminOrdersContent() {
                               key={page}
                               onClick={() => handlePageChange(page as number)}
                               className={`px-3 py-1 rounded-lg ${ordersData.page === page
-                                  ? 'bg-blue-600 text-white'
-                                  : 'border border-gray-300 hover:bg-gray-50'
+                                ? 'bg-blue-600 text-white'
+                                : 'border border-gray-300 hover:bg-gray-50'
                                 } transition-colors`}
                             >
                               {page}
@@ -502,19 +589,21 @@ function AdminOrdersContent() {
         onCreate={handleOrderCreated}
       />
 
-      {selectedOrderId && (
-        <ViewOrderModal
-          orderId={selectedOrderId}
-          onClose={() => router.push('/admin/orders')}
-          onOrderUpdate={() => {
-            clearCache();
-            setRefreshTrigger((prev) => prev + 1);
-          }}
-        />
-      )}
+      {
+        selectedOrderId && (
+          <ViewOrderModal
+            orderId={selectedOrderId}
+            onClose={() => router.push('/admin/orders')}
+            onOrderUpdate={() => {
+              clearCache();
+              setRefreshTrigger((prev) => prev + 1);
+            }}
+          />
+        )
+      }
 
       <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
-    </div>
+    </div >
   );
 }
 

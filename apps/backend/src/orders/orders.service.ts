@@ -1055,6 +1055,22 @@ export class OrdersService {
         return { success: true };
     }
 
+    async deleteBulk(orderIds: string[]) {
+        if (!orderIds.length) return { success: true, count: 0 };
+
+        const result = await this.prisma.order.updateMany({
+            where: {
+                id: { in: orderIds },
+                deletedAt: null // Only delete active orders
+            },
+            data: { deletedAt: new Date() }
+        });
+
+        this.logger.log(`[ORDER][BULK_DELETE] count=${result.count} ids=${orderIds.join(',')}`);
+
+        return { success: true, count: result.count };
+    }
+
     /* ========================== IMAGE UPLOAD ========================== */
 
     async uploadImages(orderId: string, files: Express.Multer.File[]) {

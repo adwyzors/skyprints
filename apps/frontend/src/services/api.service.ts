@@ -63,7 +63,9 @@ export async function apiRequest<T>(
     retry = true,
 ): Promise<T> {
     const start = Date.now();
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const url = `${API_BASE_URL}${endpoint}`;
+    console.log(`[API Request] Fetching: ${url}`);
+    const response = await fetch(url, {
         ...options,
         credentials: 'include',
         headers: {

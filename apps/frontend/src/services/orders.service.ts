@@ -265,3 +265,14 @@ export async function addProcessToOrder(
     });
 }
 
+export async function deleteOrders(orderIds: string[]): Promise<any> {
+    return apiRequest('/orders/bulk-delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: orderIds }),
+    });
+}
+
+

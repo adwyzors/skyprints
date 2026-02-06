@@ -7,9 +7,11 @@ interface OrderTableRowProps {
     order: OrderCardData;
     index: number;
     onClick: (type?: 'row' | 'image', value?: string) => void;
+    selected?: boolean;
+    onSelect?: (selected: boolean) => void;
 }
 
-export default function OrderTableRow({ order, index, onClick }: OrderTableRowProps) {
+export default function OrderTableRow({ order, index, onClick, selected = false, onSelect }: OrderTableRowProps) {
     if (!order) return null;
 
     const getStatusConfig = (status: string) => {
@@ -32,6 +34,19 @@ export default function OrderTableRow({ order, index, onClick }: OrderTableRowPr
             onClick={() => onClick('row')}
             className="border-b border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors"
         >
+            <td className="px-6 py-4 text-center">
+                {/* {onSelect && (
+                    <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={(e) => {
+                            e.stopPropagation();
+                            onSelect(e.target.checked);
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                )} */}
+            </td>
             <td className="px-6 py-4 text-center">
                 <span className="font-semibold text-gray-900">{order.code.split("/")[0].replace("ORD", "")}</span>
             </td>
