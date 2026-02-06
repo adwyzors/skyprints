@@ -1,5 +1,6 @@
 'use client';
 
+import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import ViewRunModal from '@/components/modals/ViewRunModal';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import RunCard from '@/components/runs/RunCard';
@@ -82,6 +83,7 @@ function RunsPageContent() {
     const pathname = usePathname();
 
     const [selectedRunId, setSelectedRunId] = useState<string | null>(searchParams.get('selectedRun'));
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     useEffect(() => {
         const runParam = searchParams.get('selectedRun');
@@ -478,6 +480,9 @@ function RunsPageContent() {
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderCode')}>
                                                     <div className="flex items-center gap-1">Order Code {sortConfig?.key === 'orderCode' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
+                                                <th className="px-6 py-4">
+                                                    Image
+                                                </th>
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('process')}>
                                                     <div className="flex items-center gap-1">Process {sortConfig?.key === 'process' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
@@ -527,6 +532,29 @@ function RunsPageContent() {
                                                                     #{typeof run.orderProcess.order.code === 'object' ? (run.orderProcess.order.code as any).code.split("/")[0].replace("ORD", "") : run.orderProcess.order.code.split("/")[0].replace("ORD", "")}
                                                                 </span>
                                                             </div>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            {run.fields?.images && run.fields.images.length > 0 ? (
+                                                                <div className="w-12 h-12 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 relative group">
+                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                    <img
+                                                                        src={run.fields.images[0]}
+                                                                        alt={`Run ${run.runNumber}`}
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                    <div
+                                                                        className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors w-full h-full z-10"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setPreviewImage(run.fields.images?.[0] || null);
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="w-12 h-12 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center">
+                                                                    <span className="text-gray-300 text-xs text-center px-1">No img</span>
+                                                                </div>
+                                                            )}
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center gap-2 text-gray-700">
@@ -677,6 +705,8 @@ function RunsPageContent() {
                         }}
                     />
                 )}
+
+                <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
             </div>
         </div >
     );
