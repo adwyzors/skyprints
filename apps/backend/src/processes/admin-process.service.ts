@@ -191,6 +191,7 @@ export class AdminProcessService {
          * ========================== */
         const orderWhere: Prisma.OrderWhereInput = {
             ...(customerId && { customerId }),
+            deletedAt: null,
         };
 
         /* ==========================

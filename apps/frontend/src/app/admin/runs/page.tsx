@@ -4,6 +4,7 @@ import ViewRunModal from '@/components/modals/ViewRunModal';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import RunCard from '@/components/runs/RunCard';
 import RunsFilter from '@/components/runs/RunsFilter';
+import RunStatusFilter from '@/components/runs/RunStatusFilter';
 import RunsViewToggle from '@/components/runs/RunsViewToggle';
 import { getRuns } from '@/services/run.service';
 import debounce from 'lodash/debounce';
@@ -114,7 +115,7 @@ function RunsPageContent() {
 
     // Filter State
     const [filters, setFilters] = useState({
-        status: [] as string[],
+        status: ['COMPLETE'] as string[],
         priority: [] as string[],
         dateRange: 'all',
         customerId: 'all',
@@ -237,7 +238,7 @@ function RunsPageContent() {
 
     const handleClearFilters = () => {
         setFilters({
-            status: [],
+            status: ['COMPLETE'],
             priority: [],
             dateRange: 'all',
             customerId: 'all',
@@ -410,6 +411,17 @@ function RunsPageContent() {
 
                         <RunsViewToggle view={viewMode} onViewChange={setViewMode} />
                     </div>
+                </div>
+
+                {/* STATUS BAR */}
+                <div className="sticky top-[73px] z-10 flex flex-col">
+                    <RunStatusFilter
+                        selectedStatuses={filters.status}
+                        onChange={(newStatuses) => {
+                            setFilters(prev => ({ ...prev, status: newStatuses }));
+                            setRunsData((prev) => ({ ...prev, page: 1 }));
+                        }}
+                    />
                 </div>
 
                 {/* Content */}
