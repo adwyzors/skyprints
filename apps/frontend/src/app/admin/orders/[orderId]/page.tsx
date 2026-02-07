@@ -18,9 +18,16 @@ import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import AddProcessModal from '@/components/modals/AddProcessModal';
 import EditOrderModal from '@/components/modals/EditOrderModal';
+import AlloverSublimationConfig from '@/components/orders/AlloverSublimationConfig';
 import ComingSoonConfig from '@/components/orders/ComingSoonConfig';
+import DiamondConfig from '@/components/orders/DiamondConfig';
+import DTFConfig from '@/components/orders/DTFConfig';
 import EmbellishmentConfig from '@/components/orders/EmbellishmentConfig';
+import LaserConfig from '@/components/orders/LaserConfig';
+import PlotterConfig from '@/components/orders/PlotterConfig';
+import PositiveConfig from '@/components/orders/PositiveConfig';
 import ScreenPrintingConfig from '@/components/orders/ScreenPrintingConfig';
+import SublimationConfig from '@/components/orders/SublimationConfig';
 import { BillingSnapshot } from '@/domain/model/billing.model';
 import { Order } from '@/domain/model/order.model';
 import { getLatestBillingSnapshot } from '@/services/billing.service';
@@ -64,11 +71,63 @@ export default function OrderConfigPage() {
     setLoading(true);
     setError(null);
 
+
     try {
       // Fetch order data
       const orderData = await getOrderById(orderId);
       if (!orderData) throw new Error('Order not found');
+
+
+
       setOrder(orderData);
+
+
+
+
+
+
+
+
+
+
+
+      // --- MOCK DATA INJECTION (SUBLIMATION) ---
+      setOrder(prev => {
+        if (!prev) return prev;
+        const newProcesses = [...prev.processes];
+
+        // MOCK SUBLIMATION
+        if (!newProcesses.find(p => p.name === 'Sublimation')) {
+          newProcesses.push({
+            id: 'mock-sub-proc',
+            processId: 'mock-sub-def',
+            name: 'Sublimation',
+            status: 'PENDING',
+            runs: [
+              {
+                id: 'mock-sub-run-1',
+                runNumber: 1,
+                displayName: 'Sublimation Run 1',
+                configStatus: 'PENDING',
+                lifecycleStatus: 'PENDING',
+                lifecycle: [],
+                fields: [],
+                values: {
+                  rate: 0.35,
+                  columnHeaders: ['S', 'M', 'L', 'XL'],
+                  items: [
+                    { size: 'Shirt', width: 22, height: 30, quantities: [10, 20, 15, 5] },
+                    { size: 'Pants', width: 20, height: 40, quantities: [5, 15, 10, 0] }
+                  ]
+                }
+              }
+            ]
+          });
+        }
+
+        return { ...prev, processes: newProcesses };
+      });
+      // ---------------------------
 
       // Fetch billing data for billed/completed orders
       if (['BILLED', 'COMPLETE'].includes(orderData.status.toUpperCase())) {
@@ -244,13 +303,12 @@ export default function OrderConfigPage() {
               <div className="flex flex-wrap items-center gap-4 mt-2">
                 <div className="flex items-center gap-2">
                   <div
-                    className={`w-2 h-2 rounded-full ${
-                      order.status === 'BILLED'
-                        ? 'bg-purple-500'
-                        : order.status === 'COMPLETE'
-                          ? 'bg-green-500'
-                          : 'bg-blue-500'
-                    }`}
+                    className={`w-2 h-2 rounded-full ${order.status === 'BILLED'
+                      ? 'bg-purple-500'
+                      : order.status === 'COMPLETE'
+                        ? 'bg-green-500'
+                        : 'bg-blue-500'
+                      }`}
                   />
                   <span className="text-sm text-gray-600">
                     {order.customer.name} ({order.customer.code})
@@ -278,13 +336,12 @@ export default function OrderConfigPage() {
 
             <div className="flex flex-wrap gap-3">
               <div
-                className={`px-4 py-2 rounded-full text-sm font-medium ${
-                  order.status === 'BILLED'
-                    ? 'bg-purple-100 text-purple-800'
-                    : order.status === 'COMPLETE'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-800'
-                }`}
+                className={`px-4 py-2 rounded-full text-sm font-medium ${order.status === 'BILLED'
+                  ? 'bg-purple-100 text-purple-800'
+                  : order.status === 'COMPLETE'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-800'
+                  }`}
               >
                 {order.status.replace('_', ' ')}
               </div>
@@ -365,11 +422,11 @@ export default function OrderConfigPage() {
                             processes: prev.processes.map((p) =>
                               p.id === processId
                                 ? {
-                                    ...p,
-                                    runs: p.runs.map((r) =>
-                                      r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
-                                    ),
-                                  }
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
+                                  ),
+                                }
                                 : p,
                             ),
                           };
@@ -389,13 +446,182 @@ export default function OrderConfigPage() {
                             processes: prev.processes.map((p) =>
                               p.id === processId
                                 ? {
-                                    ...p,
-                                    runs: p.runs.map((r) =>
-                                      r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
-                                    ),
-                                  }
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
+                                  ),
+                                }
                                 : p,
                             ),
+                          };
+                        });
+                      }}
+                    />
+
+                  ) : process.name === 'AllOver Sublimation' ? (
+                    <AlloverSublimationConfig
+                      key={process.id}
+                      order={{ ...order, processes: [process] }}
+                      onRefresh={refreshOrder}
+                      onSaveSuccess={(processId, runId) => {
+                        setOrder((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            processes: prev.processes.map((p) =>
+                              p.id === processId
+                                ? {
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
+                                  ),
+                                }
+                                : p,
+                            ),
+                          };
+                        });
+                      }}
+                    />
+                  ) : process.name === 'Laser' ? (
+                    <LaserConfig
+                      key={process.id}
+                      order={{ ...order, processes: [process] }}
+                      onRefresh={refreshOrder}
+                      onSaveSuccess={(processId, runId) => {
+                        setOrder((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            processes: prev.processes.map((p) =>
+                              p.id === processId
+                                ? {
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
+                                  ),
+                                }
+                                : p,
+                            ),
+                          };
+                        });
+                      }}
+                    />
+                  ) : process.name === 'Plotter' ? (
+                    <PlotterConfig
+                      key={process.id}
+                      order={{ ...order, processes: [process] }}
+                      onRefresh={refreshOrder}
+                      onSaveSuccess={(processId, runId) => {
+                        setOrder((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            processes: prev.processes.map((p) =>
+                              p.id === processId
+                                ? {
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r
+                                  )
+                                }
+                                : p
+                            )
+                          };
+                        });
+                      }}
+                    />
+                  ) : process.name === 'Positive' ? (
+                    <PositiveConfig
+                      key={process.id}
+                      order={{ ...order, processes: [process] }}
+                      onRefresh={refreshOrder}
+                      onSaveSuccess={(processId, runId) => {
+                        setOrder((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            processes: prev.processes.map((p) =>
+                              p.id === processId
+                                ? {
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r
+                                  )
+                                }
+                                : p
+                            )
+                          };
+                        });
+                      }}
+                    />
+                  ) : process.name === 'Diamond' ? (
+                    <DiamondConfig
+                      key={process.id}
+                      order={{ ...order, processes: [process] }}
+                      onRefresh={refreshOrder}
+                      onSaveSuccess={(processId, runId) => {
+                        setOrder((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            processes: prev.processes.map((p) =>
+                              p.id === processId
+                                ? {
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r
+                                  )
+                                }
+                                : p
+                            )
+                          };
+                        });
+                      }}
+                    />
+                  ) : process.name === 'DTF' ? (
+                    <DTFConfig
+                      key={process.id}
+                      order={{ ...order, processes: [process] }}
+                      onRefresh={refreshOrder}
+                      onSaveSuccess={(processId, runId) => {
+                        setOrder((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            processes: prev.processes.map((p) =>
+                              p.id === processId
+                                ? {
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r
+                                  )
+                                }
+                                : p
+                            )
+                          };
+                        });
+                      }}
+                    />
+                  ) : process.name === 'Sublimation' ? (
+                    <SublimationConfig
+                      key={process.id}
+                      order={{ ...order, processes: [process] }}
+                      onRefresh={refreshOrder}
+                      onSaveSuccess={(processId, runId) => {
+                        setOrder((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            processes: prev.processes.map((p) =>
+                              p.id === processId
+                                ? {
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r
+                                  )
+                                }
+                                : p
+                            )
                           };
                         });
                       }}
