@@ -91,43 +91,7 @@ export default function OrderConfigPage() {
 
 
 
-      // --- MOCK DATA INJECTION (SUBLIMATION) ---
-      setOrder(prev => {
-        if (!prev) return prev;
-        const newProcesses = [...prev.processes];
 
-        // MOCK SUBLIMATION
-        if (!newProcesses.find(p => p.name === 'Sublimation')) {
-          newProcesses.push({
-            id: 'mock-sub-proc',
-            processId: 'mock-sub-def',
-            name: 'Sublimation',
-            status: 'PENDING',
-            runs: [
-              {
-                id: 'mock-sub-run-1',
-                runNumber: 1,
-                displayName: 'Sublimation Run 1',
-                configStatus: 'PENDING',
-                lifecycleStatus: 'PENDING',
-                lifecycle: [],
-                fields: [],
-                values: {
-                  rate: 0.35,
-                  columnHeaders: ['S', 'M', 'L', 'XL'],
-                  items: [
-                    { size: 'Shirt', width: 22, height: 30, quantities: [10, 20, 15, 5] },
-                    { size: 'Pants', width: 20, height: 40, quantities: [5, 15, 10, 0] }
-                  ]
-                }
-              }
-            ]
-          });
-        }
-
-        return { ...prev, processes: newProcesses };
-      });
-      // ---------------------------
 
       // Fetch billing data for billed/completed orders
       if (['BILLED', 'COMPLETE'].includes(orderData.status.toUpperCase())) {

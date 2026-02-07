@@ -132,6 +132,7 @@ export interface SublimationRunValues {
   totals?: [number, number, number, number]; // column totals
 
   images?: string[];
+  [key: string]: any;
 }
 
 export interface ProcessRun {

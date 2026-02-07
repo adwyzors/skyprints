@@ -38,6 +38,7 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
     const [editingRunId, setEditingRunId] = useState<string | null>(null);
     const [openRunId, setOpenRunId] = useState<string | null>(null); // For accordion
     const [editForm, setEditForm] = useState<SublimationRunValues | null>(null);
+    const [editableHeaders, setEditableHeaders] = useState<[string, string, string, string]>(['Col 1', 'Col 2', 'Col 3', 'Col 4']);
 
     // UI State
     const [runManagers, setRunManagers] = useState<Record<string, { executorId?: string; reviewerId?: string }>>({});
@@ -67,7 +68,7 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
 
     // Initialize edit form when opening a run for edit
     useEffect(() => {
-        if (editingRunId) {
+        if (editingRunId && !editForm) {
             // Find the run across all processes
             let run: ProcessRun | undefined;
             for (const p of localOrder.processes) {
@@ -78,21 +79,24 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
             if (run) {
                 // Initialize form from run values
                 const existingValues = run.values as SublimationRunValues;
+                const headers = (existingValues.columnHeaders && existingValues.columnHeaders.length === 4)
+                    ? existingValues.columnHeaders
+                    : ['Col 1', 'Col 2', 'Col 3', 'Col 4'] as [string, string, string, string];
+
                 setEditForm({
                     rate: Number(existingValues.rate) || 0,
-                    columnHeaders: (existingValues.columnHeaders && existingValues.columnHeaders.length === 4)
-                        ? existingValues.columnHeaders
-                        : ['Col 1', 'Col 2', 'Col 3', 'Col 4'],
+                    columnHeaders: headers,
                     items: existingValues.items || [],
                     images: existingValues.images || []
                 });
+                setEditableHeaders(headers as [string, string, string, string]);
                 // Ensure expanded view when editing
                 setOpenRunId(editingRunId);
             }
-        } else {
+        } else if (!editingRunId) {
             setEditForm(null);
         }
-    }, [editingRunId, localOrder]);
+    }, [editingRunId, localOrder, editForm]);
 
 
     const handleAddRun = async (processId: string) => {
@@ -217,12 +221,11 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
         setEditForm(prev => prev ? { ...prev, [field]: value } : prev);
     };
 
-    const updateHeader = (index: number, value: string) => {
-        setEditForm(prev => {
-            if (!prev) return prev;
-            const newHeaders = [...prev.columnHeaders] as [string, string, string, string];
+    const handleHeaderChange = (index: number, value: string) => {
+        setEditableHeaders(prev => {
+            const newHeaders = [...prev] as [string, string, string, string];
             newHeaders[index] = value;
-            return { ...prev, columnHeaders: newHeaders };
+            return newHeaders;
         });
     };
 
@@ -264,6 +267,7 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
 
         const apiValues: SublimationRunValues = {
             ...editForm,
+            columnHeaders: editableHeaders, // Use the separate state
             items: totals.items,
 
             // Persist Summaries
@@ -348,19 +352,45 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
         </div>
     );
 
+    const toggleRunOpen = (run: ProcessRun) => {
+        if (openRunId === run.id) {
+            setOpenRunId(null);
+            // Optionally close edit mode if closing accordion, but might want to keep state?
+            // For now, let's keep it simple: closing accordion hides the edit form anyway.
+            if (editingRunId === run.id) {
+                setEditingRunId(null);
+                setEditForm(null);
+            }
+        } else {
+            setOpenRunId(run.id);
+            // Auto-enter edit mode for pending runs
+            if (run.configStatus !== 'COMPLETE') {
+                setEditingRunId(run.id);
+                setEditForm(null); // Ensure fresh form init
+            }
+        }
+    };
+
     const renderRun = (process: any, run: ProcessRun) => {
         const isConfigured = run.configStatus === 'COMPLETE';
         const isEditing = editingRunId === run.id;
-        const mode = isConfigured && !isEditing ? 'view' : 'edit';
+        // Strict logic: Only edit if explicitly set as editingRunId
+        const mode = isEditing ? 'edit' : 'view';
 
         // If editing, use editForm, otherwise rely on run.values (casted)
-        const data = (mode === 'edit' && editingRunId === run.id)
+        const data = (mode === 'edit')
             ? (editForm || initialFormState)
             : (run.values as SublimationRunValues);
+
 
         // Always calculate totals for display
         const totals = getTotals(data.items || [], data.rate || 0);
         const savedImages = (mode === 'view' ? (data.images || []) : []) as string[];
+
+        // Use helper state for headers in edit mode
+        const headersToDisplay = (mode === 'edit' && editingRunId === run.id)
+            ? editableHeaders
+            : (data.columnHeaders || ['Col 1', 'Col 2', 'Col 3', 'Col 4']);
 
         return (
             <div className="bg-gray-50 border border-gray-300 rounded p-3">
@@ -371,7 +401,7 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
                     </div>
                     {mode === 'view' && hasPermission(Permission.RUNS_UPDATE) && (
                         <div className="flex items-center gap-2">
-                            <button onClick={() => setEditingRunId(run.id)} className="text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs border border-blue-200 flex items-center gap-1">
+                            <button onClick={() => { setEditForm(null); setEditingRunId(run.id); }} className="text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs border border-blue-200 flex items-center gap-1">
                                 <Edit className="w-3 h-3" /> Edit
                             </button>
                             <button onClick={() => setOpenRunId(null)}><X className="w-4 h-4 text-gray-500" /></button>
@@ -416,14 +446,14 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
                                         <th className="p-2 text-center w-16">H</th>
 
                                         {/* Dynamic Headers */}
-                                        {(data.columnHeaders || ['Col 1', 'Col 2', 'Col 3', 'Col 4']).map((header, idx) => (
+                                        {headersToDisplay.map((header, idx) => (
                                             <th key={idx} className="p-2 text-center w-20">
                                                 {mode === 'edit' ? (
                                                     <input
                                                         type="text"
                                                         className="w-full bg-transparent border-b border-gray-300 text-center focus:border-blue-500 outline-none font-semibold text-gray-700"
                                                         value={header}
-                                                        onChange={(e) => updateHeader(idx, e.target.value)}
+                                                        onChange={(e) => handleHeaderChange(idx, e.target.value)}
                                                         placeholder={`Col ${idx + 1}`}
                                                     />
                                                 ) : header}
@@ -560,7 +590,7 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
                             <div className={`w-full bg-gray-50 hover:bg-gray-100 p-4 flex items-center justify-between transition-colors border-b border-gray-100 ${run.configStatus === 'COMPLETE' ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-amber-500'}`}>
                                 <div
                                     className="flex items-center gap-4 flex-1 cursor-pointer"
-                                    onClick={() => setOpenRunId(openRunId === run.id ? null : run.id)}
+                                    onClick={() => toggleRunOpen(run)}
                                 >
                                     <div className={`p-2 rounded-lg ${run.configStatus === 'COMPLETE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                                         <Palette className="w-5 h-5" />
@@ -584,7 +614,7 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
                                             {isDeletingRun === run.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                         </button>
                                     )}
-                                    <button onClick={() => setOpenRunId(openRunId === run.id ? null : run.id)}>
+                                    <button onClick={() => toggleRunOpen(run)}>
                                         {openRunId === run.id ? <ChevronDown className="w-5 h-5 text-gray-400 rotate-180 transition-transform" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                                     </button>
                                 </div>
