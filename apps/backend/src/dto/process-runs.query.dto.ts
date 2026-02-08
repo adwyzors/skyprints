@@ -1,10 +1,9 @@
 import { Type } from 'class-transformer';
 import {
-    IsIn,
     IsInt,
     IsOptional,
     IsString,
-    Min,
+    Min
 } from 'class-validator';
 
 export class ProcessRunsQueryDto {
@@ -25,8 +24,8 @@ export class ProcessRunsQueryDto {
     search?: string;
 
     @IsOptional()
-    @IsIn(['CONFIGURE', 'COMPLETE'])
-    status?: 'CONFIGURE' | 'COMPLETE';
+    @IsString()
+    status?: string;
 
     // ====== FILTERS (UUIDs) ======
 
