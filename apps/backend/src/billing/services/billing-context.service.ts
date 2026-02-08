@@ -209,7 +209,9 @@ export class BillingContextService {
                     }
                 },
                 snapshots: {
-                    where: { isLatest: true },
+                    orderBy: {
+                        createdAt: 'desc'
+                    },
                     take: 1
                 }
             }
