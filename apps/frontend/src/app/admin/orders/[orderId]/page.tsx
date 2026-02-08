@@ -27,11 +27,14 @@ import LaserConfig from '@/components/orders/LaserConfig';
 import PlotterConfig from '@/components/orders/PlotterConfig';
 import PositiveConfig from '@/components/orders/PositiveConfig';
 import ScreenPrintingConfig from '@/components/orders/ScreenPrintingConfig';
+import SpangleConfig from '@/components/orders/SpangleConfig';
 import SublimationConfig from '@/components/orders/SublimationConfig';
 import { BillingSnapshot } from '@/domain/model/billing.model';
 import { Order } from '@/domain/model/order.model';
 import { getLatestBillingSnapshot } from '@/services/billing.service';
 import { getOrderById, setProductionReady } from '@/services/orders.service';
+
+
 
 export default function OrderConfigPage() {
   const router = useRouter();
@@ -80,6 +83,8 @@ export default function OrderConfigPage() {
 
 
       setOrder(orderData);
+
+
 
 
 
@@ -586,6 +591,30 @@ export default function OrderConfigPage() {
                                 }
                                 : p
                             )
+                          };
+                        });
+                      }}
+                    />
+                  ) : process.name === 'Spangle' ? (
+                    <SpangleConfig
+                      key={process.id}
+                      order={{ ...order, processes: [process] }}
+                      onRefresh={refreshOrder}
+                      onSaveSuccess={(processId, runId) => {
+                        setOrder((prev) => {
+                          if (!prev) return prev;
+                          return {
+                            ...prev,
+                            processes: prev.processes.map((p) =>
+                              p.id === processId
+                                ? {
+                                  ...p,
+                                  runs: p.runs.map((r) =>
+                                    r.id === runId ? { ...r, configStatus: 'COMPLETE' } : r,
+                                  ),
+                                }
+                                : p,
+                            ),
                           };
                         });
                       }}

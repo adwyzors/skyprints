@@ -8,9 +8,23 @@ export interface AlloverSublimationItem {
   amount: number;
 }
 
+
 export interface AlloverRunValues {
   particulars: string | null;
   items: AlloverSublimationItem[];
+  [key: string]: any;
+}
+
+
+export interface SpangleRunValues {
+  design?: string;
+  quantity?: number;
+  dotSize?: number;
+  cd?: number;
+  dotsReq?: number;
+  rate?: number;
+  amount?: number;
+  images?: string[];
   [key: string]: any;
 }
 
@@ -153,7 +167,16 @@ export interface ProcessRun {
     id: string;
     name: string;
   } | null;
-  values: Record<string, any> | AlloverRunValues | LaserRunValues | PlotterRunValues | PositiveRunValues | DiamondRunValues | DTFRunValues | SublimationRunValues; // Widened to allow complex objects
+  values:
+  | Record<string, any>
+  | AlloverRunValues
+  | LaserRunValues
+  | PlotterRunValues
+  | PositiveRunValues
+  | DiamondRunValues
+  | DTFRunValues
+  | SublimationRunValues
+  | SpangleRunValues; // Widened to allow complex objects
   fields: Array<{ // This is now an array, not in runTemplate
     key: string;
     type: string;
