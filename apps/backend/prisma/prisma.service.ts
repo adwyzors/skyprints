@@ -8,10 +8,14 @@ declare global {
     var __prisma__: PrismaClient | undefined;
 }
 
+const isProd = process.env.NODE_ENV === 'prod';
+
 const prisma =
     global.__prisma__ ??
     new PrismaClient({
-        log: ['error', 'warn', 'query'],
+        log: isProd
+            ? ['error']
+            : ['error', 'warn', 'query'],
     });
 
 if (process.env.NODE_ENV !== 'production') {

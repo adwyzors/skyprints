@@ -1027,7 +1027,6 @@ export class AdminProcessService {
                 continue;
             }
 
-
             /* -----------------------------------------------
              * TEMPLATE FIELDS
              * ----------------------------------------------- */
@@ -1041,11 +1040,20 @@ export class AdminProcessService {
 
             switch (expected.type) {
                 case 'string':
-                    if (typeof value !== 'string') {
-                        throw new BadRequestException(
-                            `Invalid type for ${key}, expected string`,
-                        );
+                    if (value !== null && typeof value === 'string') {
+                        normalized[key] = value;
+                        break;
+                    } else if (
+                        value !== null &&
+                        typeof value === 'object'
+                    ) {
+                        normalized[key] = JSON.stringify(value);
+                        break;
                     }
+
+                    throw new BadRequestException(
+                        `Invalid type for ${key}, expected string`,
+                    );
                     break;
 
                 case 'number':
@@ -1054,6 +1062,16 @@ export class AdminProcessService {
                             `Invalid type for ${key}, expected number`,
                         );
                     }
+                    normalized[key] = value;
+                    break;
+
+                case 'boolean':
+                    if (typeof value !== 'boolean') {
+                        throw new BadRequestException(
+                            `Invalid type for ${key}, expected boolean`,
+                        );
+                    }
+                    normalized[key] = value;
                     break;
 
                 default:
@@ -1061,11 +1079,8 @@ export class AdminProcessService {
                         `Unsupported field type ${expected.type} for ${key}`,
                     );
             }
-
-            normalized[key] = value;
         }
 
         return normalized;
     }
-
 }
