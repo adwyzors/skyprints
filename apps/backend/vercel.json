@@ -6,17 +6,20 @@
             "use": "@vercel/node"
         }
     ],
-    "routes": [
+    "rewrites": [
         {
-            "src": "/(.*)",
-            "dest": "/api/index.ts",
-            "methods": [
-                "GET",
-                "POST",
-                "PUT",
-                "PATCH",
-                "DELETE",
-                "OPTIONS"
+            "source": "/(.*)",
+            "destination": "/api/index.ts"
+        }
+    ],
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "Access-Control-Expose-Headers",
+                    "value": "x-total-count, x-total-pages, x-page, x-limit, x-total-estimated-amount"
+                }
             ]
         }
     ]

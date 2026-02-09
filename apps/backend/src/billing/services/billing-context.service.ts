@@ -113,7 +113,9 @@ export class BillingContextService {
                         select: { orders: true }
                     },
                     snapshots: {
-                        where: { isLatest: true },
+                        orderBy: {
+                            createdAt: 'desc'
+                        },
                         take: 1
                     }
                 },
@@ -193,7 +195,9 @@ export class BillingContextService {
                                         billingContext: {
                                             include: {
                                                 snapshots: {
-                                                    where: { isLatest: true },
+                                                    orderBy: {
+                                                        createdAt: 'desc'
+                                                    },
                                                     take: 1
                                                 }
                                             }
@@ -205,7 +209,9 @@ export class BillingContextService {
                     }
                 },
                 snapshots: {
-                    where: { isLatest: true },
+                    orderBy: {
+                        createdAt: 'desc'
+                    },
                     take: 1
                 }
             }
