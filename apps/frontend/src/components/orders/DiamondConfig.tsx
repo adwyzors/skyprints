@@ -213,7 +213,8 @@ export default function DiamondConfig({
 
             if (run) {
                 const values = run.values as DiamondRunValues;
-                const existingItems = values.items || [];
+                        const existingItems = parseItems(values.items);
+
                 setEditForm({
                     particulars: values.particulars || '',
                     items: existingItems.length > 0 ? existingItems : [{
@@ -277,6 +278,23 @@ export default function DiamondConfig({
         setEditForm(prev => prev ? { ...prev, items: prev.items.filter((_, i) => i !== index) } : prev);
     };
 
+    function parseItems(items: unknown): DiamondItem[] {
+        if (Array.isArray(items)) {
+          return items;
+        }
+    
+        if (typeof items === 'string') {
+          try {
+            const parsed = JSON.parse(items);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        }
+    
+        return [];
+      }
+
     const getTotals = (items: DiamondItem[]) => {
         const totalQty = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
         const totalAmount = items.reduce((sum, i) => sum + (i.amount || 0), 0);
@@ -292,7 +310,8 @@ export default function DiamondConfig({
             return;
         }
 
-        const totals = getTotals(editForm.items);
+            const totals = getTotals(parseItems(editForm.items) || []);
+
 
         const apiValues = {
             particulars: editForm.particulars,
@@ -401,7 +420,7 @@ export default function DiamondConfig({
             : (editForm || initialFormState);
 
         const savedImages = (mode === 'view' ? (data.images || []) : []) as string[];
-        const totals = getTotals(data.items as DiamondItem[]);
+        const totals = getTotals(parseItems(data.items as DiamondItem[]));
 
         return (
             <div className="bg-gray-50 border border-gray-300 rounded p-3">
@@ -471,7 +490,7 @@ export default function DiamondConfig({
                                 </tr>
                             </thead>
                             <tbody>
-                                {(data.items as DiamondItem[]).map((item, idx) => (
+                                {parseItems(data.items as DiamondItem[]).map((item, idx) => (
                                     <tr key={idx} className="border-t">
                                         <td className="p-2">
                                             {mode === 'edit' ? (
