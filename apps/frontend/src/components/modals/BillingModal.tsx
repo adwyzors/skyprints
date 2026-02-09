@@ -160,6 +160,21 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
   const isScreenPrintingNew = (processName: string) => processName === 'Screen Printing';
   const isEmbellishment = (processName: string) => processName === 'Embellishment';
 
+  const parseDTFItems = (items: unknown): any[] => {
+    if (Array.isArray(items)) return items;
+
+    if (typeof items === 'string') {
+      try {
+        const parsed = JSON.parse(items);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    return [];
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -409,9 +424,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                             e.target.value === '' ? 0 : parseFloat(e.target.value);
                                           updateRunBillingRate(run.id, value);
                                         }}
-                                        disabled={
-                                           submitting
-                                        }
+                                        disabled={submitting}
                                         readOnly={!hasPermission(Permission.BILLINGS_UPDATE)}
                                         className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
                                       />
@@ -528,6 +541,95 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                   </div>
                                 </div>
                               )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : process.name === 'DTF' ? (
+                    <div className="divide-y divide-gray-100">
+                      {process.runs.map((run) => {
+                        const values = run.values || {};
+                        const items = parseDTFItems(values.items);
+
+                        return (
+                          <div key={run.id} className="bg-white px-5 py-4">
+                            {/* HEADER */}
+                            <div className="flex items-center justify-between mb-4">
+                              <div>
+                                <div className="font-medium text-gray-800">
+                                  Run {run.runNumber} – {run.displayName}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Status: {run.lifecycleStatus}
+                                </div>
+                              </div>
+
+                              <div className="text-right">
+                                <div className="text-sm text-gray-600">Actual Total</div>
+                                <div className="text-lg font-bold text-green-700">
+                                  ₹{Number(values['Actual Total'] || 0).toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* SUMMARY */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                <div className="text-xs text-gray-500">Total Area</div>
+                                <div className="font-bold text-gray-800">
+                                  {Number(values['Total Area'] || 0).toLocaleString()}
+                                </div>
+                              </div>
+
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                <div className="text-xs text-gray-500">Total Layouts</div>
+                                <div className="font-bold text-gray-800">
+                                  {Number(values['Total Layouts'] || 0)}
+                                </div>
+                              </div>
+
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                <div className="text-xs text-gray-500">Per PC Cost</div>
+                                <div className="font-bold text-gray-800">
+                                  ₹{Number(values['Per PC Cost'] || 0).toLocaleString()}
+                                </div>
+                              </div>
+
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                <div className="text-xs text-gray-500">Efficiency %</div>
+                                <div className="font-bold text-gray-800">
+                                  {Number(values['Efficiency %'] || 0)}%
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* ITEMS TABLE */}
+                            <div className="border border-gray-200 rounded-lg overflow-hidden">
+                              <table className="w-full text-sm">
+                                <thead className="bg-gray-50 text-gray-600">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left">Particulars</th>
+                                    <th className="px-3 py-2 text-right">Layouts</th>
+                                    <th className="px-3 py-2 text-right">Area</th>
+                                    <th className="px-3 py-2 text-right">Row Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {items.map((item, idx) => (
+                                    <tr key={idx} className="border-t">
+                                      <td className="px-3 py-2">{item.particulars}</td>
+                                      <td className="px-3 py-2 text-right">
+                                        {item.numberOfLayouts}
+                                      </td>
+                                      <td className="px-3 py-2 text-right">{item.area}</td>
+                                      <td className="px-3 py-2 text-right font-medium">
+                                        ₹{Number(item.rowTotal || 0).toLocaleString()}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             </div>
                           </div>
                         );
