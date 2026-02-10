@@ -18,7 +18,20 @@ export async function updateCustomer(id: string, dto: Partial<CreateCustomerDto>
     });
 }
 
-export async function getCustomers(params: { page?: number; limit?: number, search?: string; } = {}): Promise<{ customers: Customer[], total: number, page: number, limit: number, totalPages: number }> {
+
+export async function getCustomers(cookieHeader?: string): Promise<Customer[]> {
+    const res = await apiRequest<CustomerSummaryDto[]>("/customers", {
+        headers: {
+            Cookie: cookieHeader || "",
+        },
+    });
+
+    const dto = CustomerSummarySchema.array().parse(res);
+
+    return mapCustomerSummaryDtosToCustomers(dto);
+}
+
+export async function getCustomersWithHeaders(params: { page?: number; limit?: number, search?: string; } = {}): Promise<{ customers: Customer[], total: number, page: number, limit: number, totalPages: number }> {
     const queryParams = new URLSearchParams();
     const requestedPage = params.page || 1;
     const requestedLimit = params.limit || 20;

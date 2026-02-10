@@ -1,7 +1,7 @@
 'use client';
 
 import { Customer } from '@/domain/model/customer.model';
-import { getCustomers } from '@/services/customer.service';
+import { getCustomersWithHeaders } from '@/services/customer.service';
 import debounce from 'lodash/debounce';
 import { useCallback, useEffect, useState } from 'react';
 import CustomerClient from './CustomerClient';
@@ -38,7 +38,7 @@ export default function CustomerClientWrapper() {
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getCustomers({
+      const data = await getCustomersWithHeaders({
         page: customersData.page,
         limit: customersData.limit,
         search: debouncedSearch || undefined,
@@ -63,7 +63,6 @@ export default function CustomerClientWrapper() {
     setCustomersData((prev) => ({ ...prev, limit: newSize, page: 1 }));
   };
 
-
   return (
     <CustomerClient
       customersData={customersData}
@@ -72,7 +71,7 @@ export default function CustomerClientWrapper() {
       onPageChange={handlePageChange}
       onPageSizeChange={handlePageSizeChange}
       refetch={fetchCustomers}
-        loading={loading}
+      loading={loading}
     />
   );
 }
