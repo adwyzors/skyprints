@@ -16,6 +16,7 @@ interface CustomerClientProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   refetch: () => void;
+  loading: boolean; // <-- new
 }
 
 export default function CustomerClient({
@@ -25,6 +26,7 @@ export default function CustomerClient({
   onPageChange,
   onPageSizeChange,
   refetch,
+  loading,
 }: CustomerClientProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(undefined);
@@ -47,11 +49,11 @@ export default function CustomerClient({
 
   return (
     <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
-                    <p className="text-sm text-gray-500 mt-1">Manage your customer base</p>
-                </div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage your customer base</p>
+        </div>
 
         <div className="relative w-full sm:w-72">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -75,82 +77,126 @@ export default function CustomerClient({
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Code
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Name
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Contact Info
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Joined
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Tax
-                                </th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    TDS
-                                </th>
-                            </tr>
-                        </thead>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Code
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Name
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Contact Info
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Status
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Joined
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Tax
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  TDS
+                </th>
+              </tr>
+            </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {customersData.customers.length > 0 ? (
+              {loading ? (
+                [...Array(customersData.limit)].map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    {[...Array(7)].map((_, j) => (
+                      <td key={j} className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded w-full"></div>
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : customersData.customers.length > 0 ? (
                 customersData.customers.map((customer) => (
-                        <tr
-                                        key={customer.id}
-                                        onClick={() => handleEditClick(customer)}
-                                        className="hover:bg-gray-50 transition-colors group cursor-pointer"
-                                    >
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                                            {customer.code}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900">{customer.name}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">{customer.email || '-'}</div>
-                                            <div className="text-xs text-gray-500">{customer.phone || '-'}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${customer.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                                }`}>
-                                                {customer.isActive ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {new Date(customer.createdAt).toLocaleDateString('en-GB')}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${customer.tax ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                                                {customer.tax ? 'Yes' : 'No'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${customer.tds ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                                                {customer.tds ? 'Yes' : 'No'}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                                        No customers found matching your search.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                  <tr
+                    key={customer.id}
+                    onClick={() => handleEditClick(customer)}
+                    className="hover:bg-gray-50 transition-colors group cursor-pointer"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
+                      {customer.code}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{customer.email || '-'}</div>
+                      <div className="text-xs text-gray-500">{customer.phone || '-'}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          customer.isActive
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {customer.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(customer.createdAt).toLocaleDateString('en-GB')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          customer.tax ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        {customer.tax ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          customer.tds ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        {customer.tds ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    No customers found matching your search.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {/* Pagination */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">

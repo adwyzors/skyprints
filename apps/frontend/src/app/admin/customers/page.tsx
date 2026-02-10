@@ -63,7 +63,6 @@ export default function CustomerClientWrapper() {
     setCustomersData((prev) => ({ ...prev, limit: newSize, page: 1 }));
   };
 
-  if (loading) return <p>Loading...</p>;
 
   return (
     <CustomerClient
@@ -73,6 +72,7 @@ export default function CustomerClientWrapper() {
       onPageChange={handlePageChange}
       onPageSizeChange={handlePageSizeChange}
       refetch={fetchCustomers}
+        loading={loading}
     />
   );
 }
