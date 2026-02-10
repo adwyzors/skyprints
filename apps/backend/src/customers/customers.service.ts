@@ -47,7 +47,7 @@ export class CustomersService {
     async findAll(query: QueryCustomerDto) {
         const {
             page = 1,
-            limit = 10,
+            limit = 12,
             search,
             isActive,
         } = query;

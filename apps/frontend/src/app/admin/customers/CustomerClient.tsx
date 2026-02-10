@@ -1,74 +1,80 @@
-'use client';
-
 import CustomerModal from '@/components/modals/CustomerModal';
 import { Customer } from '@/domain/model/customer.model';
 import { Plus, Search } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 interface CustomerClientProps {
-    initialCustomers: Customer[];
+  customersData: {
+    customers: Customer[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+  refetch: () => void;
 }
 
-export default function CustomerClient({ initialCustomers }: CustomerClientProps) {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(undefined);
-    const router = useRouter();
+export default function CustomerClient({
+  customersData,
+  searchQuery,
+  setSearchQuery,
+  onPageChange,
+  onPageSizeChange,
+  refetch,
+}: CustomerClientProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(undefined);
 
-    // Basic client-side filtering
-    const filteredCustomers = initialCustomers.filter((customer) =>
-        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+  const handleCreateClick = () => {
+    setSelectedCustomer(undefined);
+    setIsModalOpen(true);
+  };
 
-    const handleCreateClick = () => {
-        setSelectedCustomer(undefined);
-        setIsModalOpen(true);
-    };
+  const handleEditClick = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setIsModalOpen(true);
+  };
 
-    const handleEditClick = (customer: Customer) => {
-        setSelectedCustomer(customer);
-        setIsModalOpen(true);
-    };
+  const handleSuccess = () => {
+    setIsModalOpen(false);
+    setSelectedCustomer(undefined);
+    refetch();
+  };
 
-    const handleSuccess = () => {
-        router.refresh();
-        setIsModalOpen(false);
-        setSelectedCustomer(undefined);
-    };
-
-    return (
-        <div className="space-y-6">
+  return (
+    <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
                     <p className="text-sm text-gray-500 mt-1">Manage your customer base</p>
                 </div>
 
-                <div className="relative w-full sm:w-72">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-4 w-4 text-gray-400" />
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Search customers..."
-                        className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <button
-                    onClick={handleCreateClick}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
-                >
-                    <Plus className="w-4 h-4" />
-                    New Customer
-                </button>
-            </div>
+        <div className="relative w-full sm:w-72">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search customers..."
+            className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <button
+          onClick={handleCreateClick}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+        >
+          <Plus className="w-4 h-4" />
+          New Customer
+        </button>
+      </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
@@ -96,10 +102,10 @@ export default function CustomerClient({ initialCustomers }: CustomerClientProps
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredCustomers.length > 0 ? (
-                                filteredCustomers.map((customer) => (
-                                    <tr
+            <tbody className="bg-white divide-y divide-gray-200">
+              {customersData.customers.length > 0 ? (
+                customersData.customers.map((customer) => (
+                        <tr
                                         key={customer.id}
                                         onClick={() => handleEditClick(customer)}
                                         className="hover:bg-gray-50 transition-colors group cursor-pointer"
@@ -145,19 +151,62 @@ export default function CustomerClient({ initialCustomers }: CustomerClientProps
                         </tbody>
                     </table>
                 </div>
-                <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-                    <p className="text-xs text-gray-500">
-                        Showing {filteredCustomers.length} of {initialCustomers.length} customers
-                    </p>
-                </div>
-            </div>
 
-            <CustomerModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSuccess={handleSuccess}
-                customer={selectedCustomer}
-            />
+        {/* Pagination */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+          <p className="text-sm text-gray-500">
+            Showing {customersData.customers.length} of {customersData.total} customers
+          </p>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={customersData.limit}
+              onChange={(e) => onPageSizeChange(Number(e.target.value))}
+              className="border px-2 py-1 rounded"
+            >
+              {[10, 25, 50, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size} per page
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => onPageChange(customersData.page - 1)}
+              disabled={customersData.page === 1}
+              className="px-3 py-1 border rounded disabled:opacity-50"
+            >
+              Previous
+            </button>
+
+            {[...Array(customersData.totalPages)].map((_, i) => (
+              <button
+                key={i + 1}
+                onClick={() => onPageChange(i + 1)}
+                className={`px-3 py-1 rounded ${customersData.page === i + 1 ? 'bg-blue-600 text-white' : 'border'}`}
+              >
+                {i + 1}
+              </button>
+            ))}
+
+            <button
+              onClick={() => onPageChange(customersData.page + 1)}
+              disabled={customersData.page === customersData.totalPages}
+              className="px-3 py-1 border rounded disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Modal */}
+      <CustomerModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleSuccess}
+        customer={selectedCustomer}
+      />
+    </div>
+  );
 }
