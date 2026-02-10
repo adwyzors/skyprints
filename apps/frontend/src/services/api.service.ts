@@ -67,6 +67,7 @@ export async function apiRequest<T>(
     console.log(`[API Request] Fetching: ${url}`);
     const response = await fetch(url, {
         ...options,
+        cache: 'no-store',
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
