@@ -68,7 +68,6 @@ export async function apiRequest<T>(
     const response = await fetch(url, {
         ...options,
         cache: 'no-store',
-        next: { revalidate: 0 },
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
