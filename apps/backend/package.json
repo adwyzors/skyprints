@@ -15,7 +15,8 @@
         "start": "nest start",
         "start:dev": "nest start --watch",
         "start:debug": "nest start --debug --watch",
-        "prisma": "npx prisma generate && npx prisma migrate deploy"
+        "prisma": "npx prisma generate && npx prisma migrate deploy",
+        "postinstall": "npm run build --workspace=@app/contracts &&npm run prisma:generate --workspace=@app/backend"
     },
     "dependencies": {
         "@app/contracts": "*",
