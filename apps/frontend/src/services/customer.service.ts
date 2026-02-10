@@ -18,12 +18,8 @@ export async function updateCustomer(id: string, dto: Partial<CreateCustomerDto>
     });
 }
 
-export async function getCustomers(cookieHeader?: string): Promise<Customer[]> {
-    const res = await apiRequest<CustomerSummaryDto[]>("/customers", {
-        headers: {
-            Cookie: cookieHeader || "",
-        },
-    });
+export async function getCustomers(): Promise<Customer[]> {
+    const res = await apiRequest<CustomerSummaryDto[]>("/customers");
 
     const dto = CustomerSummarySchema.array().parse(res);
 
