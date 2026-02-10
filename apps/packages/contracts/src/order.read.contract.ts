@@ -37,6 +37,12 @@ export const OrderProcessRunSchema = z.object({
             }),
         )
         .optional(),
+
+    location: z.object({
+        id: z.string().uuid(),
+        name: z.string(),
+        code: z.string(),
+    }).optional().nullable(),
 });
 
 export type OrderProcessRunDto =

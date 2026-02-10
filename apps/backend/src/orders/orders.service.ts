@@ -103,6 +103,18 @@ export class OrdersService {
                     ...(to && { lte: to }),
                 },
             }),
+
+            ...(query.locationId && {
+                processes: {
+                    some: {
+                        runs: {
+                            some: {
+                                locationId: query.locationId,
+                            }
+                        }
+                    }
+                }
+            }),
         };
 
         const [total, orders] = await this.prisma.transaction([
@@ -261,6 +273,18 @@ export class OrdersService {
                     ...(to && { lte: to }),
                 },
             }),
+
+            ...(query.locationId && {
+                processes: {
+                    some: {
+                        runs: {
+                            some: {
+                                locationId: query.locationId,
+                            }
+                        }
+                    }
+                }
+            }),
         };
 
         const [total, orders] = await this.prisma.transaction([
@@ -380,6 +404,13 @@ export class OrdersService {
                                         name: true,
                                     },
                                 },
+                                location: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        code: true,
+                                    }
+                                }
                             },
                         },
                     },

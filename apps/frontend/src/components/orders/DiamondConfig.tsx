@@ -10,8 +10,10 @@ import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
+import { Location as Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { DiamondItem, DiamondRunValues, ProcessRun } from '@/domain/model/run.model';
+import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
@@ -158,6 +160,27 @@ export default function DiamondConfig({
             }
         };
         loadManagers();
+        loadManagers();
+    }, []);
+
+    // Locations State
+    const [locations, setLocations] = useState<Location[]>([]);
+    const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+  
+    useEffect(() => {
+      const fetchLocations = async () => {
+          try {
+              const data = await getLocationsWithHeaders({
+                  page: 1,
+                  limit: 100,
+                  isActive: true,
+              });
+              setLocations(data.locations);
+          } catch (err) {
+              console.error('Failed to load locations', err);
+          }
+      };
+      fetchLocations();
     }, []);
 
     const handleManagerSelect = (
@@ -361,8 +384,9 @@ export default function DiamondConfig({
 
             const executorId = managerSelection?.executorId ?? run?.executor?.id;
             const reviewerId = managerSelection?.reviewerId ?? run?.reviewer?.id;
+            const locationId = runLocations[runId] ?? run?.locationId ?? undefined;
 
-            const res = await configureRun(localOrder.id, processId, runId, apiValues, imageUrls, executorId, reviewerId);
+            const res = await configureRun(localOrder.id, processId, runId, apiValues, imageUrls, executorId, reviewerId, locationId);
             if (res.success) {
                 // Clear images
                 setRunImages((prev) => {
@@ -389,6 +413,73 @@ export default function DiamondConfig({
             setIsSaving(null);
         }
     };
+
+    const SearchableLocationSelect = ({
+        label,
+        valueId,
+        onChange,
+        locations,
+      }: {
+        label: string;
+        valueId?: string;
+        onChange: (id: string) => void;
+        locations: Location[];
+      }) => {
+        const [search, setSearch] = useState('');
+        const [isOpen, setIsOpen] = useState(false);
+    
+        useEffect(() => {
+            if (valueId) {
+                const l = locations.find((l) => l.id === valueId);
+                if (l) setSearch(l.name);
+            } else {
+                setSearch('');
+            }
+        }, [valueId, locations]);
+    
+        const filtered = locations.filter((l) => 
+            l.name.toLowerCase().includes(search.toLowerCase()) || 
+            l.code.toLowerCase().includes(search.toLowerCase())
+        );
+    
+        return (
+            <div className="relative">
+                <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
+                <input
+                    type="text"
+                    value={search}
+                    onFocus={() => setIsOpen(true)}
+                    onChange={(e) => {
+                        setSearch(e.target.value);
+                        setIsOpen(true);
+                        if (e.target.value === '') onChange('');
+                    }}
+                    onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+                    placeholder={`Search ${label}...`}
+                    className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                {isOpen && filtered.length > 0 && (
+                    <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded shadow-lg max-h-40 overflow-y-auto">
+                        {filtered.map((l) => (
+                            <div
+                                key={l.id}
+                                className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer text-gray-700"
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    onChange(l.id);
+                                    setSearch(l.name);
+                                    setIsOpen(false);
+                                }}
+                            >
+                                <div className="font-medium">{l.name}</div>
+                                <div className="text-xs text-gray-500">{l.code}</div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+      };
 
     const SearchableManagerSelect = ({ label, valueId, onChange, users }: any) => {
         return (
@@ -444,7 +535,16 @@ export default function DiamondConfig({
 
                 {/* FIELDS */}
                 <div className="bg-white border border-gray-200 rounded p-4 space-y-4">
+                    {/* Location Read Only */}
+                    {mode === 'view' && run.location && (
+                        <div className="mb-2 text-xs flex items-center gap-1 text-gray-600">
+                            <span className="font-semibold">Location: </span>
+                            <span className="font-medium text-gray-800">{run.location.name} ({run.location.code})</span>
+                        </div>
+                    )}
+                    
                     {mode === 'edit' && (
+                        <>
                         <div className="grid grid-cols-2 gap-4 mb-2">
                             <SearchableManagerSelect
                                 label="Executor"
@@ -459,6 +559,15 @@ export default function DiamondConfig({
                                 onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                             />
                         </div>
+                         <div className="mb-4">
+                            <SearchableLocationSelect
+                                label="Location"
+                                locations={locations}
+                                valueId={runLocations[run.id] ?? run.location?.id ?? undefined}
+                                onChange={(id: string) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
+                            />
+                        </div>
+                        </>
                     )}
 
                     <div>

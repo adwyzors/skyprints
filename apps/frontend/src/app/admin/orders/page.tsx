@@ -60,6 +60,7 @@ function AdminOrdersContent() {
     status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'],
     dateRange: 'all',
     customerId: 'all',
+    locationId: 'all',
   });
 
   // Bulk Selection State
@@ -159,6 +160,10 @@ function AdminOrdersContent() {
           params.customerId = filters.customerId;
         }
 
+        if (filters.locationId && filters.locationId !== 'all') {
+          params.locationId = filters.locationId;
+        }
+
         // Handle date filters
         if (filters.dateRange !== 'all') {
           const fromDate = new Date();
@@ -237,6 +242,7 @@ function AdminOrdersContent() {
       status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'], // Reset to default interesting statuses
       dateRange: 'all',
       customerId: 'all',
+      locationId: 'all',
     });
     setOrdersData((prev) => ({ ...prev, page: 1 }));
   };

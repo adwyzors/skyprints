@@ -271,6 +271,10 @@ export class AdminProcessService {
             ...(Object.keys(orderProcessWhere).length > 0 && {
                 orderProcess: orderProcessWhere,
             }),
+
+            ...(query.locationId && {
+                locationId: query.locationId,
+            }),
         };
 
         /* ==========================
@@ -553,6 +557,7 @@ export class AdminProcessService {
                     statusCode: ProcessRunStatus.COMPLETE,
                     ...(dto.executorId !== undefined && { executorId: dto.executorId }),
                     ...(dto.reviewerId !== undefined && { reviewerId: dto.reviewerId }),
+                    ...(dto.locationId !== undefined && { locationId: dto.locationId }),
                     ...(run.configuredAt
                         ? {}
                         : {

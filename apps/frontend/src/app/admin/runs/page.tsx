@@ -123,7 +123,8 @@ function RunsPageContent() {
         customerId: 'all',
         executorId: 'all',
         reviewerId: 'all',
-        processId: 'all'
+        processId: 'all',
+        locationId: 'all',
     });
 
     // Debounce search input
@@ -201,6 +202,7 @@ function RunsPageContent() {
                     executorUserId: filters.executorId,
                     reviewerUserId: filters.reviewerId,
                     processId: filters.processId,
+                    locationId: filters.locationId,
                     createdFrom,
                     createdTo
                 });
@@ -246,7 +248,8 @@ function RunsPageContent() {
             customerId: 'all',
             executorId: 'all',
             reviewerId: 'all',
-            processId: 'all'
+            processId: 'all',
+            locationId: 'all'
         });
         setRunsData((prev) => ({ ...prev, page: 1 }));
     };

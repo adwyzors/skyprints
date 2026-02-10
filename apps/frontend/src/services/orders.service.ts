@@ -16,6 +16,7 @@ export interface GetOrdersParams {
     search?: string;
     fromDate?: string;
     toDate?: string;
+    locationId?: string;
 }
 
 export interface GetOrdersResponse {
@@ -51,6 +52,7 @@ export async function getOrders(params: GetOrdersParams = {}): Promise<GetOrders
     if (params.customerId) queryParams.append('customerId', params.customerId);
     if (params.fromDate) queryParams.append('fromDate', params.fromDate);
     if (params.toDate) queryParams.append('toDate', params.toDate);
+    if (params.locationId && params.locationId !== 'all') queryParams.append('locationId', params.locationId);
 
     const queryString = queryParams.toString();
     const url = queryString ? `/orders?${queryString}` : '/orders';
@@ -96,6 +98,7 @@ export async function getOrderCards(params: GetOrdersParams = {}): Promise<GetOr
     if (params.customerId) queryParams.append('customerId', params.customerId);
     if (params.fromDate) queryParams.append('fromDate', params.fromDate);
     if (params.toDate) queryParams.append('toDate', params.toDate);
+    if (params.locationId && params.locationId !== 'all') queryParams.append('locationId', params.locationId);
 
     const queryString = queryParams.toString();
     const url = queryString ? `/orders/cards?${queryString}` : '/orders/cards';

@@ -7,7 +7,8 @@ export async function configureRun(
     fields: Record<string, any>,
     images?: string[],
     executorId?: string,
-    reviewerId?: string
+    reviewerId?: string,
+    locationId?: string
 ) {
     const payload: any = {
         fields,
@@ -23,6 +24,10 @@ export async function configureRun(
 
     if (reviewerId) {
         payload.reviewerId = reviewerId;
+    }
+
+    if (locationId) {
+        payload.locationId = locationId;
     }
 
     // Using specialized endpoint for process run configuration
@@ -69,6 +74,7 @@ export interface GetRunsParams {
     createdTo?: string;
     customerId?: string;
     processId?: string;
+    locationId?: string;
 }
 
 export interface GetRunsResponse {
@@ -109,6 +115,7 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
     if (params.assignedUserId) queryParams.append('assignedUserId', params.assignedUserId);
     if (params.customerId && params.customerId !== 'all') queryParams.append('customerId', params.customerId);
     if (params.processId && params.processId !== 'all') queryParams.append('processId', params.processId);
+    if (params.locationId && params.locationId !== 'all') queryParams.append('locationId', params.locationId);
 
     if (params.createdFrom) queryParams.append('createdFrom', params.createdFrom);
     if (params.createdTo) queryParams.append('createdTo', params.createdTo);

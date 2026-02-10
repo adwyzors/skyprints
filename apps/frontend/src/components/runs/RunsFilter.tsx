@@ -1,7 +1,10 @@
 'use client';
 
+import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
+import { Location } from '@/domain/model/location.model';
 import { ProcessSummary } from '@/domain/model/process.model';
 import { getCustomers } from '@/services/customer.service';
+import { getLocations } from '@/services/location.service';
 import { getProcesses, getProcessLifecycleStatuses } from '@/services/process.service';
 import { getManagers } from '@/services/user.service';
 import { X } from 'lucide-react';
@@ -16,6 +19,7 @@ interface RunsFilterProps {
         executorId: string;
         reviewerId: string;
         processId?: string; // Add processId to filters
+        locationId?: string;
     };
     onChange: (newFilters: any) => void;
     onClear: () => void;
@@ -26,20 +30,23 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
     const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
     const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
     const [processes, setProcesses] = useState<ProcessSummary[]>([]);
+    const [locations, setLocations] = useState<Location[]>([]);
     const [statuses, setStatuses] = useState<string[]>(['PENDING', 'CONFIGURE', 'DESIGN', 'IN_PROGRESS', 'PRODUCTION_READY', 'COMPLETE']);
     const [loadingStatuses, setLoadingStatuses] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [custs, mgrs, procs] = await Promise.all([
+                const [custs, mgrs, procs, locs] = await Promise.all([
                     getCustomers(),
                     getManagers(),
-                    getProcesses()
+                    getProcesses(),
+                    getLocations()
                 ]);
                 setCustomers(custs);
                 setManagers(mgrs);
                 setProcesses(procs);
+                setLocations(locs);
             } catch (error) {
                 console.error("Failed to fetch filter data", error);
             }
@@ -255,6 +262,17 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                             <option key={m.id} value={m.id}>{m.name}</option>
                         ))}
                     </select>
+                </div>
+
+                {/* Location */}
+                <div>
+                   <SearchableLocationSelect
+                        label="Location"
+                        valueId={filters.locationId}
+                        onChange={(id) => onChange({ ...filters, locationId: id })}
+                        locations={locations}
+                        placeholder="Search locations..."
+                    />
                 </div>
             </div>
         </div>

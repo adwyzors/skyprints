@@ -19,15 +19,17 @@ export default function OrdersFilter({ filters, onChange, onClear, onClose }: Or
     const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
 
     useEffect(() => {
-        const fetchCustomers = async () => {
+        const fetchFilters = async () => {
             try {
-                const custs = await getCustomers();
+                const [custs] = await Promise.all([
+                    getCustomers()
+                ]);
                 setCustomers(custs);
             } catch (error) {
-                console.error("Failed to fetch customers", error);
+                console.error("Failed to fetch filter data", error);
             }
         };
-        fetchCustomers();
+        fetchFilters();
     }, []);
 
 

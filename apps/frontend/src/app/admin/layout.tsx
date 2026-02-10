@@ -8,6 +8,7 @@ import {
   CheckCircle,
   CreditCard,
   FileText,
+  MapPin,
   Package,
   Plus,
   Users
@@ -56,6 +57,12 @@ const tabs = [
     label: 'Customers',
     path: '/admin/customers',
     icon: <Users className="w-4 h-4" />,
+    badge: null,
+  },
+  {
+    label: 'Locations',
+    path: '/admin/locations',
+    icon: <MapPin className="w-4 h-4" />,
     badge: null,
   },
 

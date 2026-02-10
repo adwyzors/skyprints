@@ -1,31 +1,36 @@
 import {
-  AlertCircle,
-  Calendar,
-  CheckCircle,
-  ChevronRight,
-  Edit,
-  Eye,
-  FileText,
-  Grid,
-  Hash,
-  IndianRupee,
-  Package,
-  Palette,
-  Plus,
-  Ruler,
-  Save,
-  Trash2,
-  Type,
-  User,
-  X,
+    AlertCircle,
+    Calendar,
+    CheckCircle,
+    ChevronRight,
+    Edit,
+    Eye,
+    FileText,
+    Grid,
+    Hash,
+    IndianRupee,
+    MapPin,
+    Package,
+    Palette,
+    Plus,
+    Ruler,
+    Save,
+    Trash2,
+    Type,
+    User,
+    X,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
+import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
+
+import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { ProcessRun } from '@/domain/model/run.model';
 import { apiRequest } from '@/services/api.service';
+import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
@@ -170,6 +175,22 @@ export default function ScreenPrintingConfig({
       }
     };
     loadManagers();
+  }, []);
+
+  // Locations State
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+
+  useEffect(() => {
+    const loadLocations = async () => {
+      try {
+        const { locations } = await getLocationsWithHeaders({ limit: 100, isActive: true });
+        setLocations(locations);
+      } catch (err) {
+        console.error('Failed to load locations', err);
+      }
+    };
+    loadLocations();
   }, []);
 
   const handleManagerSelect = (
@@ -495,6 +516,7 @@ export default function ScreenPrintingConfig({
         imageUrls,
         executorId,
         reviewerId,
+        runLocations[runId] ?? run.locationId ?? undefined
       );
 
       // Check if API returned success
@@ -639,6 +661,8 @@ export default function ScreenPrintingConfig({
     );
   };
 
+
+
   // Function to render form or view based on run status
   const renderRunFormOrView = (process: any, run: ProcessRun) => {
     const isConfigured = run.configStatus === 'COMPLETE';
@@ -754,6 +778,25 @@ export default function ScreenPrintingConfig({
                   </div>
                 </div>
               </div>
+
+              {/* Location Read Only */}
+              <div className="grid grid-cols-4 border-t border-gray-300 divide-x divide-gray-300">
+                <div className="bg-gray-50 p-1.5">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    <label className="text-xs font-medium text-gray-700">Location</label>
+                  </div>
+                </div>
+                <div className="p-1.5 bg-white col-span-3">
+                  <div className="w-full text-sm border border-gray-200 bg-gray-50 rounded px-2 py-1 font-medium text-gray-700">
+                    {run.location ? (
+                        <span>{run.location.name} <span className="text-gray-400 text-xs">({run.location.code})</span></span>
+                    ) : (
+                        <span className="text-gray-400">Not assigned</span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* DISPLAY IMAGES IF AVAILABLE (READ-ONLY) */}
@@ -826,7 +869,7 @@ export default function ScreenPrintingConfig({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
               <SearchableManagerSelect
                 label="Executor"
                 users={managers}
@@ -839,6 +882,12 @@ export default function ScreenPrintingConfig({
                 valueId={currentManagerSelection.reviewerId}
                 onChange={(id) => handleManagerSelect(run.id, 'reviewerId', id)}
               />
+               <SearchableLocationSelect
+                  label="Location"
+                  locations={locations}
+                  valueId={runLocations[run.id] ?? run.locationId ?? undefined}
+                  onChange={(id) => setRunLocations((prev) => ({ ...prev, [run.id]: id }))}
+                />
             </div>
 
             {/* EDITABLE COMPACT FORM TABLE */}
@@ -1094,6 +1143,12 @@ export default function ScreenPrintingConfig({
                         <span className="text-xs text-gray-500">
                           ({filledFields}/{totalFields} fields)
                         </span>
+                        {run.location && (
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {run.location.code}
+                          </span>
+                        )}
                         {isConfigured && (
                           <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
                             <CheckCircle className="w-3 h-3" />

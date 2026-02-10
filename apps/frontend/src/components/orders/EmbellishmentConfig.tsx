@@ -1,23 +1,24 @@
 import {
-  AlertCircle,
-  Calendar,
-  CheckCircle,
-  ChevronRight,
-  Edit,
-  Eye,
-  FileText,
-  Grid,
-  Hash,
-  IndianRupee,
-  Package,
-  Palette,
-  Plus,
-  Ruler,
-  Save,
-  Trash2,
-  Type,
-  User,
-  X,
+    AlertCircle,
+    Calendar,
+    CheckCircle,
+    ChevronRight,
+    Edit,
+    Eye,
+    FileText,
+    Grid,
+    Hash,
+    IndianRupee,
+    MapPin,
+    Package,
+    Palette,
+    Plus,
+    Ruler,
+    Save,
+    Trash2,
+    Type,
+    User,
+    X,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -29,6 +30,8 @@ import { apiRequest } from '@/services/api.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
+import { Location } from '@/domain/model/location.model';
+import { getLocationsWithHeaders } from '@/services/location.service';
 
 interface EmbellishmentConfigProps {
   order: Order;
@@ -169,6 +172,26 @@ export default function EmbellishmentConfig({
       }
     };
     loadManagers();
+  }, []);
+
+  // Locations State
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+        try {
+            const data = await getLocationsWithHeaders({
+                page: 1,
+                limit: 100,
+                isActive: true,
+            });
+            setLocations(data.locations);
+        } catch (err) {
+            console.error('Failed to load locations', err);
+        }
+    };
+    fetchLocations();
   }, []);
 
   const handleManagerSelect = (
@@ -494,6 +517,7 @@ export default function EmbellishmentConfig({
         imageUrls,
         executorId,
         reviewerId,
+        runLocations[runId] ?? run.locationId ?? undefined
       );
 
       // Check if API returned success
@@ -566,6 +590,73 @@ export default function EmbellishmentConfig({
       pairs.push([fields[i], fields[i + 1]]);
     }
     return pairs;
+  };
+
+  const SearchableLocationSelect = ({
+    label,
+    valueId,
+    onChange,
+    locations,
+  }: {
+    label: string;
+    valueId?: string;
+    onChange: (id: string) => void;
+    locations: Location[];
+  }) => {
+    const [search, setSearch] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+
+    useEffect(() => {
+        if (valueId) {
+            const l = locations.find((l) => l.id === valueId);
+            if (l) setSearch(l.name);
+        } else {
+            setSearch('');
+        }
+    }, [valueId, locations]);
+
+    const filtered = locations.filter((l) => 
+        l.name.toLowerCase().includes(search.toLowerCase()) || 
+        l.code.toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <div className="relative">
+            <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
+            <input
+                type="text"
+                value={search}
+                onFocus={() => setIsOpen(true)}
+                onChange={(e) => {
+                    setSearch(e.target.value);
+                    setIsOpen(true);
+                    if (e.target.value === '') onChange('');
+                }}
+                onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+                placeholder={`Search ${label}...`}
+                className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            />
+            {isOpen && filtered.length > 0 && (
+                <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded shadow-lg max-h-40 overflow-y-auto">
+                    {filtered.map((l) => (
+                        <div
+                            key={l.id}
+                            className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer text-gray-700"
+                            onMouseDown={(e) => {
+                                e.preventDefault();
+                                onChange(l.id);
+                                setSearch(l.name);
+                                setIsOpen(false);
+                            }}
+                        >
+                            <div className="font-medium">{l.name}</div>
+                            <div className="text-xs text-gray-500">{l.code}</div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
   };
 
   // Improved Manager Select using a simple filterable dropdown logic
@@ -740,6 +831,15 @@ export default function EmbellishmentConfig({
                   </div>
                 </div>
               </div>
+              
+              {/* Location Read Only */}
+               {run.location && (
+                <div className="mt-2 text-xs flex items-center gap-1 text-gray-600">
+                    <MapPin className="w-3 h-3" />
+                    <span>Location: </span>
+                    <span className="font-medium text-gray-800">{run.location.name} ({run.location.code})</span>
+                </div>
+               )}
             </div>
 
             {/* DISPLAY IMAGES IF AVAILABLE (READ-ONLY) */}
@@ -817,9 +917,18 @@ export default function EmbellishmentConfig({
                 label="Reviewer"
                 users={managers}
                 valueId={currentManagerSelection.reviewerId}
-                onChange={(id) => handleManagerSelect(run.id, 'reviewerId', id)}
+                onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
               />
             </div>
+            
+             <div className="mb-4">
+                 <SearchableLocationSelect
+                    label="Location"
+                    locations={locations}
+                    valueId={runLocations[run.id] ?? run.location?.id ?? undefined}
+                    onChange={(id: string) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
+                 />
+             </div>
 
             {/* EDITABLE COMPACT FORM TABLE */}
             <div className="border border-gray-300 rounded overflow-hidden bg-white">

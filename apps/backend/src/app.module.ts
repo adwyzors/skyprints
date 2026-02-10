@@ -13,14 +13,15 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
 import { BillingModule } from './billing/billing.module';
+import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { CustomersModule } from './customers/customers.module';
 import { JobsModule } from './jobs/jobs.module';
+import { LocationsModule } from './locations/locations.module';
 import { OrdersModule } from './orders/orders.module';
 import { ProcessesModule } from './processes/processes.module';
 import { RunTemplatesModule } from './run-templates/run-templates.module';
 import { RunsModule } from './runs/runs.module';
 import { WorkflowModule } from './workflow/workflow.module';
-import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 
 @Module({
     imports: [ConfigModule.forRoot({
@@ -39,6 +40,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
         ProcessesModule,
         RunTemplatesModule,
         CustomersModule,
+        LocationsModule,
         BillingModule,
         HealthModule,
         JobsModule,
@@ -56,9 +58,9 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
     ],
 })
 export class AppModule implements NestModule {
-        configure(consumer: MiddlewareConsumer) {
-            consumer
-                .apply(RequestContextMiddleware)
-                .forRoutes('*');
-        }
+    configure(consumer: MiddlewareConsumer) {
+        consumer
+            .apply(RequestContextMiddleware)
+            .forRoutes('*');
+    }
 }

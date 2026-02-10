@@ -2,11 +2,9 @@ import {
     BadRequestException,
     Injectable
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ConfigureRunDto } from './dto/configure-run.dto';
-import { RunFieldsValidator } from './run-fields.validator';
 import { ContextLogger } from '../common/logger/context.logger';
+import { RunFieldsValidator } from './run-fields.validator';
 
 @Injectable()
 export class RunsService {
@@ -52,7 +50,10 @@ export class RunsService {
                     orderProcessId,
                     orderProcess: { orderId },
                 },
-                include: { runTemplate: true },
+                include: {
+                    runTemplate: true,
+                    location: true,
+                },
             });
 
         if (!run) {
@@ -82,123 +83,6 @@ export class RunsService {
         return status.code;
     }
 
-    /* ---------------- CREATE RUN ---------------- */
-
-    //async create(
-    //    orderId: string,
-    //    orderProcessId: string,
-    //    dto: CreateRunDto,
-    //) {
-    //    await this.validateOrderProcess(
-    //        orderId,
-    //        orderProcessId,
-    //    );
-
-    //    const template =
-    //        await this.prisma.runTemplate.findUnique({
-    //            where: { id: dto.runTemplateId },
-    //        });
-
-    //    if (!template) {
-    //        throw new BadRequestException(
-    //            'Invalid run template',
-    //        );
-    //    }
-
-    //    if (dto.fields) {
-    //        this.fieldValidator.validate(
-    //            template.fields as any[],
-    //            dto.fields,
-    //        );
-    //    }
-
-    //    const runNumber =
-    //        (await this.prisma.processRun.count({
-    //            where: { orderProcessId },
-    //        })) + 1;
-
-    //    const statusCode =
-    //        await this.getInitialRunStatus();
-
-    //    const run = await this.prisma.processRun.create({
-    //        data: {
-
-    //            orderProcessId,
-    //            runTemplateId: template.id,
-    //            runNumber,
-    //            statusCode,
-    //            fields: (dto.fields ?? {}) as Prisma.InputJsonValue,
-    //        },
-    //    });
-
-    //    await this.outbox.add({
-    //        aggregateType: 'RUN',
-    //        aggregateId: run.id,
-    //        eventType: 'RUN_CREATED',
-    //        payload: {
-    //            orderId,
-    //            orderProcessId,
-    //            runTemplateId: template.id,
-    //        },
-    //    });
-
-    //    this.logger.log(`Run created: ${run.id}`);
-    //    return run;
-    //}
-
-    /* ---------------- CONFIGURE RUN ---------------- */
-
-    async configure(
-        orderId: string,
-        orderProcessId: string,
-        runId: string,
-        dto: ConfigureRunDto,
-    ) {
-        const run = await this.validateRun(
-            orderId,
-            orderProcessId,
-            runId,
-        );
-
-        this.fieldValidator.validate(
-            run.runTemplate.fields as any[],
-            dto.fields,
-        );
-
-        await this.prisma.processRun.update({
-            where: { id: runId },
-            data: {
-                fields: dto.fields as Prisma.InputJsonValue,
-            },
-        });
-
-        return { status: 'CONFIGURED' };
-    }
-
-    /* ---------------- LOCATION ---------------- */
-
-    async updateLocation(
-        orderId: string,
-        orderProcessId: string,
-        runId: string,
-        location: string,
-    ) {
-        await this.validateRun(
-            orderId,
-            orderProcessId,
-            runId,
-        );
-
-        await this.prisma.processRun.update({
-            where: { id: runId },
-            data: {
-                locationId: location, // string UUID
-            },
-        });
-
-        return { status: 'LOCATION_UPDATED' };
-    }
-
     /* ---------------- QUERIES ---------------- */
 
     async list(
@@ -212,7 +96,10 @@ export class RunsService {
 
         return this.prisma.processRun.findMany({
             where: { orderProcessId },
-            include: { runTemplate: true },
+            include: {
+                runTemplate: true,
+                location: true,
+            },
             orderBy: { runNumber: 'asc' },
         });
     }
