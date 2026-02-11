@@ -75,7 +75,7 @@ export default function PlotterConfig({
             return;
         }
 
-        console.log(`Processing ${fileArray.length} images for run ${runId}...`);
+        //console.log(`Processing ${fileArray.length} images for run ${runId}...`);
 
         try {
             const compressedFilesPromises = fileArray.map(async (file) => {
@@ -327,7 +327,7 @@ export default function PlotterConfig({
             const imageUrls: string[] = [];
 
             if (images.length > 0) {
-                console.log(`Starting upload for ${images.length} images...`);
+                //console.log(`Starting upload for ${images.length} images...`);
                 const { apiRequest } = await import('@/services/api.service');
 
                 const uploadPromises = images.map(async (file) => {

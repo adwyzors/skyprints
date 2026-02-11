@@ -208,7 +208,7 @@ function RunsPageContent() {
                 });
 
                 if (!cancelled) {
-                    console.log('DEBUG RUNS RESP:', res);
+                    //console.log('DEBUG RUNS RESP:', res);
                     setRunsData(prev => ({
                         ...prev,
                         runs: res.runs || [],

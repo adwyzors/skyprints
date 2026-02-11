@@ -64,7 +64,7 @@ export async function apiRequest<T>(
 ): Promise<T> {
     const start = Date.now();
     const url = `${API_BASE_URL}${endpoint}`;
-    console.log(`[API Request] Fetching: ${url}`);
+    //console.log(`[API Request] Fetching: ${url}`);
     const response = await fetch(url, {
         ...options,
         cache: 'no-store',
@@ -75,7 +75,7 @@ export async function apiRequest<T>(
         },
     });
     const duration = Date.now() - start;
-    console.log(`[Frontend] ${options.method || 'GET'} ${endpoint} took ${duration}ms`);
+    //console.log(`[Frontend] ${options.method || 'GET'} ${endpoint} took ${duration}ms`);
 
     // 🔁 AUTO REFRESH ON 401
     if (response.status === 401 && retry) {
@@ -115,7 +115,7 @@ export async function apiRequestWithHeaders<T>(
         },
     });
     const duration = Date.now() - start;
-    console.log(`[Frontend] ${options.method || 'GET'} ${endpoint} took ${duration}ms`);
+    //console.log(`[Frontend] ${options.method || 'GET'} ${endpoint} took ${duration}ms`);
 
     // 🔁 AUTO REFRESH ON 401
     if (response.status === 401 && retry) {

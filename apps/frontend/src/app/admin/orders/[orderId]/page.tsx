@@ -164,7 +164,7 @@ export default function OrderConfigPage() {
 
       const payload = { orderId, inputs };
 
-      console.log('Saving billing data via finalize API:', payload);
+    //  console.log('Saving billing data via finalize API:', payload);
 
       // Use the same API as BillingModal
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/billing/finalize/order`, {

@@ -61,7 +61,7 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
         const snapshotQuantity = snapshotInput['quantity'] ?? quantity;
         newAmount = snapshotQuantity * newRate;
 
-        console.log('Using billing snapshot - newRate:', newRate, 'qty:', snapshotQuantity, 'newAmount:', newAmount);
+        //console.log('Using billing snapshot - newRate:', newRate, 'qty:', snapshotQuantity, 'newAmount:', newAmount);
       }
     } else {
       // Fallback to order's run values if no snapshot

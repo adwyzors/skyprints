@@ -143,7 +143,7 @@ export async function createOrder(
 
     // 1. Upload Images Directly to Cloudflare (if any)
     if (payload.images && payload.images.length > 0) {
-        console.log(`Starting upload for ${payload.images.length} images...`);
+        //console.log(`Starting upload for ${payload.images.length} images...`);
 
         // Upload in parallel
         const uploadPromises = payload.images.map(async (file) => {
@@ -167,7 +167,7 @@ export async function createOrder(
 
         const uploadedUrls = await Promise.all(uploadPromises);
         imageUrls.push(...uploadedUrls);
-        console.log('All images uploaded successfully:', imageUrls);
+        //console.log('All images uploaded successfully:', imageUrls);
     }
 
     // 2. Submit Order to Backend (JSON)

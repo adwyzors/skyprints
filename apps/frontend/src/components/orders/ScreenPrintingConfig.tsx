@@ -479,7 +479,7 @@ export default function ScreenPrintingConfig({
       const imageUrls: string[] = [];
 
       if (images.length > 0) {
-        console.log(`Starting upload for ${images.length} images...`);
+        //console.log(`Starting upload for ${images.length} images...`);
         const uploadPromises = images.map(async (file) => {
           // A. Get Presigned URL
           const { uploadUrl, publicUrl } = await apiRequest<{
