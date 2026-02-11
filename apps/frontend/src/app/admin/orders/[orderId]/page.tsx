@@ -427,7 +427,7 @@ export default function OrderConfigPage() {
                       }}
                     />
 
-                  ) : process.name === 'AllOver Sublimation' ? (
+                  ) : process.name === 'Allover Sublimation' ? (
                     <AlloverSublimationConfig
                       key={process.id}
                       order={{ ...order, processes: [process] }}

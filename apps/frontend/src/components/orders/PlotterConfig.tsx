@@ -5,15 +5,18 @@ import {
     Eye,
     Palette,
     Plus,
-    Trash2,
+    Trash2,MapPin,
     X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import SearchableLocationSelect from '../common/SearchableLocationSelect';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
+import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { PlotterItem, PlotterRunValues, ProcessRun } from '@/domain/model/run.model';
+import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
@@ -41,6 +44,22 @@ export default function PlotterConfig({
 
     // State for local editing
     const [editForm, setEditForm] = useState<PlotterRunValues | null>(null);
+
+    // Locations State
+    const [locations, setLocations] = useState<Location[]>([]);
+    const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+
+    useEffect(() => {
+        const loadLocations = async () => {
+            try {
+                const response = await getLocationsWithHeaders({ limit: 100 });
+                setLocations(response.locations);
+            } catch (error) {
+                console.error('Failed to load locations', error);
+            }
+        };
+        loadLocations();
+    }, []);
 
     // --- Image Handling ---
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
@@ -228,6 +247,14 @@ export default function PlotterConfig({
                         sheetReq: 0, rate: 0, total: 0
                     }]
                 });
+
+                // Init location
+                if (run.location?.id) {
+                    setRunLocations(prev => ({
+                        ...prev,
+                        [run.id]: run.location!.id
+                    }));
+                }
             }
         } else {
             setEditForm(null);
@@ -355,7 +382,16 @@ export default function PlotterConfig({
             const executorId = managerSelection?.executorId ?? run?.executor?.id;
             const reviewerId = managerSelection?.reviewerId ?? run?.reviewer?.id;
 
-            const res = await configureRun(localOrder.id, processId, runId, apiValues, imageUrls, executorId, reviewerId);
+            const res = await configureRun(
+                localOrder.id,
+                processId,
+                runId,
+                apiValues,
+                imageUrls,
+                executorId,
+                reviewerId,
+                runLocations[runId] ?? run?.location?.id
+            );
             if (res.success) {
                 // Clear images state
                 setRunImages((prev) => {
@@ -426,6 +462,12 @@ export default function PlotterConfig({
                         <h3 className="font-semibold text-sm">
                             {mode === 'edit' ? `Configure Run ${run.runNumber}` : `Run ${run.runNumber} Config`}
                         </h3>
+                        {mode === 'view' && run.location && (
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {run.location.code}
+                            </span>
+                        )}
                     </div>
                     {mode === 'view' && hasPermission(Permission.RUNS_UPDATE) && (
                         <div className="flex items-center gap-2">
@@ -453,6 +495,12 @@ export default function PlotterConfig({
                                 users={managers}
                                 valueId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id}
                                 onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                            />
+                            <SearchableLocationSelect
+                                label="Location"
+                                locations={locations}
+                                valueId={runLocations[run.id] ?? run.location?.id}
+                                onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                             />
                         </div>
                     )}

@@ -10,9 +10,10 @@ import {
     Palette,
     Plus,
     Ruler,
-    X
+    X,MapPin
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import SearchableLocationSelect from '../common/SearchableLocationSelect';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -21,6 +22,8 @@ import { ProcessRun, SpangleRunValues } from '@/domain/model/run.model';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
+import { getLocationsWithHeaders } from '@/services/location.service';
+import { Location } from '@/domain/model/location.model';
 
 interface SpangleConfigProps {
     order: Order;
@@ -68,6 +71,22 @@ export default function SpangleConfig({ order, onSaveSuccess, onRefresh }: Spang
     const [runManagers, setRunManagers] = useState<Record<string, { executorId?: string; reviewerId?: string }>>({});
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
     const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
+
+    // Locations State
+    const [locations, setLocations] = useState<Location[]>([]);
+    const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+
+    useEffect(() => {
+        const loadLocations = async () => {
+            try {
+                const response = await getLocationsWithHeaders({ limit: 100 });
+                setLocations(response.locations);
+            } catch (error) {
+                console.error('Failed to load locations', error);
+            }
+        };
+        loadLocations();
+    }, []);
 
     useEffect(() => {
         setLocalOrder(order);
@@ -273,7 +292,8 @@ export default function SpangleConfig({ order, onSaveSuccess, onRefresh }: Spang
                 apiValues,
                 imageUrls,
                 managerSelection?.executorId ?? currentExecutorId,
-                managerSelection?.reviewerId ?? currentReviewerId
+                managerSelection?.reviewerId ?? currentReviewerId,
+                runLocations[runId] ?? run?.location?.id
             );
 
             if (res.success) {
@@ -347,6 +367,12 @@ export default function SpangleConfig({ order, onSaveSuccess, onRefresh }: Spang
                     <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-blue-500' : 'bg-green-500'}`} />
                         <h3 className="font-semibold text-sm">{isEditing ? `Edit Run ${run.runNumber}` : `Spangle Run ${run.runNumber}`}</h3>
+                        {isViewMode && run.location && (
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {run.location.code}
+                            </span>
+                        )}
                     </div>
                     {isViewMode && hasPermission(Permission.RUNS_UPDATE) && (
                         <div className="flex items-center gap-2">
@@ -374,6 +400,12 @@ export default function SpangleConfig({ order, onSaveSuccess, onRefresh }: Spang
                                 users={managers}
                                 valueId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id}
                                 onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                            />
+                            <SearchableLocationSelect
+                                label="Location"
+                                locations={locations}
+                                valueId={runLocations[run.id] ?? run.location?.id}
+                                onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                             />
                         </div>
                     )}

@@ -1,10 +1,13 @@
-import { AlertCircle, ChevronDown, Edit, Loader2, Palette, Plus, Trash2, X } from 'lucide-react';
+import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
+import { AlertCircle, ChevronDown, Edit, Loader2, Palette, Plus, Trash2, X,MapPin } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
+import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { ProcessRun, SublimationItem, SublimationRunValues } from '@/domain/model/run.model';
+import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
@@ -44,6 +47,39 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
     const [runManagers, setRunManagers] = useState<Record<string, { executorId?: string; reviewerId?: string }>>({});
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
     const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
+
+    // Locations State
+    const [locations, setLocations] = useState<Location[]>([]);
+    const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+
+    useEffect(() => {
+        const loadLocations = async () => {
+            try {
+                const response = await getLocationsWithHeaders({ limit: 100 });
+                setLocations(response.locations);
+            } catch (error) {
+                console.error('Failed to load locations', error);
+            }
+        };
+        loadLocations();
+    }, []);
+
+    function parseItems(items: unknown): SublimationItem[] {
+        if (Array.isArray(items)) {
+            return items;
+        }
+
+        if (typeof items === 'string') {
+            try {
+                const parsed = JSON.parse(items);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+
+        return [];
+    }
 
     // Sync local order
     useEffect(() => {
@@ -86,12 +122,20 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
                 setEditForm({
                     rate: Number(existingValues.rate) || 0,
                     columnHeaders: headers,
-                    items: existingValues.items || [],
+                    items: parseItems(existingValues.items),
                     images: existingValues.images || []
                 });
                 setEditableHeaders(headers as [string, string, string, string]);
                 // Ensure expanded view when editing
                 setOpenRunId(editingRunId);
+
+                // Init location
+                if (run.location?.id) {
+                    setRunLocations(prev => ({
+                        ...prev,
+                        [run.id]: run.location!.id
+                    }));
+                }
             }
         } else if (!editingRunId) {
             setEditForm(null);
@@ -307,13 +351,12 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
             let currentReviewerId: string | undefined;
 
             // Find the run
-            for (const p of localOrder.processes) {
-                const r = p.runs.find(r => r.id === runId);
-                if (r) {
-                    currentExecutorId = r.executor?.id;
-                    currentReviewerId = r.reviewer?.id;
-                    break;
-                }
+            const process = localOrder.processes.find(p => p.id === processId);
+            const run = process?.runs.find(r => r.id === runId);
+
+            if (run) {
+                currentExecutorId = run.executor?.id;
+                currentReviewerId = run.reviewer?.id;
             }
 
 
@@ -324,7 +367,8 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
                 apiValues,
                 imageUrls,
                 managerSelection?.executorId ?? currentExecutorId,
-                managerSelection?.reviewerId ?? currentReviewerId
+                managerSelection?.reviewerId ?? currentReviewerId,
+                runLocations[runId] ?? run?.location?.id
             );
 
             if (res.success) {
@@ -398,6 +442,12 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
                     <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${mode === 'edit' ? 'bg-blue-500' : 'bg-green-500'}`} />
                         <h3 className="font-semibold text-sm">{mode === 'edit' ? `Configure Run ${run.runNumber}` : `Sublimation Run ${run.runNumber}`}</h3>
+                        {mode === 'view' && run.location && (
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {run.location.code}
+                            </span>
+                        )}
                     </div>
                     {mode === 'view' && hasPermission(Permission.RUNS_UPDATE) && (
                         <div className="flex items-center gap-2">
@@ -425,6 +475,14 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
                             valueId={mode === 'edit' ? (runManagers[run.id]?.reviewerId ?? run.reviewer?.id) : run.reviewer?.id}
                             onChange={(id: string) => mode === 'edit' && handleManagerSelect(run.id, 'reviewerId', id)}
                         />
+                        {mode === 'edit' && (
+                            <SearchableLocationSelect
+                                label="Location"
+                                locations={locations}
+                                valueId={runLocations[run.id] ?? run.location?.id}
+                                onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
+                            />
+                        )}
 
                         <div>
                             <label className="text-xs font-semibold text-gray-700 block mb-1">Rate <span className="text-red-500">*</span></label>

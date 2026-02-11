@@ -5,6 +5,7 @@ import {
     ChevronRight,
     Edit,
     Eye,
+    MapPin,
     Palette,
     Plus,
     Save,
@@ -15,11 +16,14 @@ import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
+import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { LaserItem, LaserRunValues, ProcessRun } from '@/domain/model/run.model';
+import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
+import SearchableLocationSelect from '../common/SearchableLocationSelect';
 
 interface LaserConfigProps {
     order: Order;
@@ -50,6 +54,23 @@ export default function LaserConfig({
         particulars: '',
         items: []
     };
+
+    function parseItems(items: unknown): LaserItem[] {
+        if (Array.isArray(items)) {
+            return items;
+        }
+
+        if (typeof items === 'string') {
+            try {
+                const parsed = JSON.parse(items);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+
+        return [];
+    }
 
     const handleAddRun = async (processId: string) => {
         setIsAddingRun(true);
@@ -94,6 +115,22 @@ export default function LaserConfig({
         setLocalOrder(order);
     }, [order]);
 
+    // Locations State
+    const [locations, setLocations] = useState<Location[]>([]);
+    const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+
+    useEffect(() => {
+        const loadLocations = async () => {
+            try {
+                const response = await getLocationsWithHeaders({ limit: 100 });
+                setLocations(response.locations);
+            } catch (error) {
+                console.error('Failed to load locations', error);
+            }
+        };
+        loadLocations();
+    }, []);
+
     // Initialize edit form when opening a run
     useEffect(() => {
         if (openRunId) {
@@ -107,11 +144,19 @@ export default function LaserConfig({
             if (run) {
                 // Initialize form from run values
                 const values = run.values as LaserRunValues;
-                const existingItems = values.items || [];
+                const existingItems = parseItems(values.items);
                 setEditForm({
                     particulars: values.particulars || '',
                     items: existingItems.length > 0 ? existingItems : [{ designSizes: '', quantity: 0, fSizes: 'all', laserTime: 0, rate: 0, amount: 0 }]
                 });
+
+                // Init location
+                if (run.location?.id) {
+                    setRunLocations(prev => ({
+                        ...prev,
+                        [run.id]: run.location!.id
+                    }));
+                }
             }
         } else {
             setEditForm(null);
@@ -391,7 +436,8 @@ export default function LaserConfig({
                 apiValues,
                 imageUrls,
                 executorId,
-                reviewerId
+                reviewerId,
+                runLocations[runId] ?? run?.location?.id
             );
 
             if (response && response.success === true) {
@@ -511,6 +557,12 @@ export default function LaserConfig({
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-green-500 rounded-full" />
                                 <h3 className="font-semibold text-sm">View Run {run.runNumber} Configuration</h3>
+                                {run.location && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                        <MapPin className="w-3 h-3" />
+                                        {run.location.code}
+                                    </span>
+                                )}
                             </div>
                             {hasPermission(Permission.RUNS_UPDATE) && (
                                 <div className="flex items-center gap-2">
@@ -654,6 +706,12 @@ export default function LaserConfig({
                             users={managers}
                             valueId={currentManagerSelection.reviewerId}
                             onChange={(id) => handleManagerSelect(run.id, 'reviewerId', id)}
+                        />
+                        <SearchableLocationSelect
+                            label="Location"
+                            locations={locations}
+                            valueId={runLocations[run.id] ?? run.location?.id}
+                            onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                         />
                     </div>
 

@@ -1,8 +1,10 @@
+import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
 import {
     AlertCircle,
     CheckCircle,
     ChevronRight,
     Edit,
+    MapPin,
     Palette,
     Plus,
     Save,
@@ -13,8 +15,10 @@ import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
+import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { AlloverRunValues, AlloverSublimationItem, ProcessRun } from '@/domain/model/run.model';
+import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
@@ -51,6 +55,23 @@ export default function AlloverSublimationConfig({
         printer: '',
         items: []
     };
+
+    function parseItems(items: unknown): AlloverSublimationItem[] {
+        if (Array.isArray(items)) {
+            return items;
+        }
+
+        if (typeof items === 'string') {
+            try {
+                const parsed = JSON.parse(items);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+
+        return [];
+    }
 
     const handleAddRun = async (processId: string) => {
         setIsAddingRun(true);
@@ -95,6 +116,22 @@ export default function AlloverSublimationConfig({
         setLocalOrder(order);
     }, [order]);
 
+    // Locations State
+    const [locations, setLocations] = useState<Location[]>([]);
+    const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+
+    useEffect(() => {
+        const loadLocations = async () => {
+            try {
+                const response = await getLocationsWithHeaders({ limit: 100 });
+                setLocations(response.locations);
+            } catch (error) {
+                console.error('Failed to load locations', error);
+            }
+        };
+        loadLocations();
+    }, []);
+
     // Initialize edit form when opening a run
     useEffect(() => {
         if (openRunId) {
@@ -107,7 +144,7 @@ export default function AlloverSublimationConfig({
 
             if (run) {
                 // Initialize form from run values
-                const existingItems = (run.values.items as unknown as AlloverSublimationItem[]) || [];
+                const existingItems = parseItems(run.values.items as unknown as AlloverSublimationItem[]) || [];
                 setEditForm({
                     particulars: (run.values.particulars as string) || '',
                     panna: (run.values.panna as string) || '',
@@ -115,6 +152,14 @@ export default function AlloverSublimationConfig({
                     printer: (run.values.printer as string) || '',
                     items: existingItems.length > 0 ? existingItems : [{ design: '', height: 0, rate: 0, quantity: 0, amount: 0 }]
                 });
+
+                // Init location
+                if (run.location?.id) {
+                    setRunLocations(prev => ({
+                        ...prev,
+                        [run.id]: run.location!.id
+                    }));
+                }
             }
         } else {
             setEditForm(null);
@@ -403,7 +448,8 @@ export default function AlloverSublimationConfig({
                 apiValues,
                 imageUrls,
                 executorId,
-                reviewerId
+                reviewerId,
+                runLocations[runId] ?? run?.location?.id
             );
 
             if (response && response.success === true) {
@@ -510,7 +556,7 @@ export default function AlloverSublimationConfig({
         // View Mode
         if (isConfigured && !isEditing) {
             const values = run.values as AlloverRunValues;
-            const items = values.items || [];
+            const items = parseItems(values.items) || [];
             const totalAmt = values['Total Amount'] || 0;
             const totalMtr = values['Total Mtr'] || 0;
             const savedImages = (values.images as string[]) || [];
@@ -673,6 +719,12 @@ export default function AlloverSublimationConfig({
                             users={managers}
                             valueId={currentManagerSelection.reviewerId}
                             onChange={(id) => handleManagerSelect(run.id, 'reviewerId', id)}
+                        />
+                        <SearchableLocationSelect
+                            label="Location"
+                            locations={locations}
+                            valueId={runLocations[run.id] ?? run.location?.id}
+                            onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                         />
                     </div>
 
@@ -916,6 +968,12 @@ export default function AlloverSublimationConfig({
                                             >
                                                 <div className={`w-2 h-2 rounded-full ${isConfigured ? 'bg-green-500' : 'bg-yellow-500'}`} />
                                                 <span className="font-medium text-sm">Run {run.runNumber}</span>
+                                                {run.location && (
+                                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                        <MapPin className="w-3 h-3" />
+                                                        {run.location.code}
+                                                    </span>
+                                                )}
                                                 {isConfigured && (
                                                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
                                                         <CheckCircle className="w-3 h-3" /> Configured
