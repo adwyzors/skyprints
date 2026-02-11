@@ -174,7 +174,7 @@ export default function AppHeader() {
                 className="flex items-center gap-2 pl-3 pr-2 py-2 rounded-xl hover:bg-gray-100 transition-colors group"
               >
                 <div className="relative">
-                  <div className="w-9 h-9 bg-linear-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                  <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                     {user?.name ? getInitials(user.name) : 'SP'}
                   </div>
                   <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
