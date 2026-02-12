@@ -16,7 +16,9 @@ export const getLatestBillingSnapshot = async (orderId: string): Promise<Billing
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch billing snapshot');
+    console.log(response);
+    alert('Failed to fetch billing snapshot');
+    //throw new Error('Failed to fetch billing snapshot');
   }
 
   const text = await response.text();

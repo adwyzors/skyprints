@@ -673,7 +673,7 @@ export default function OrderConfigPage() {
                                 {/* RUN-WISE BREAKDOWN */}
                                 <div className="space-y-2">
                                     <h4 className="font-medium text-gray-700 mb-3">Run-wise Breakdown</h4>
-                                    {Object.entries(billingData.inputs).map(([runId, values], index) => {
+                                    {billingData != null && billingData?.inputs && Object.entries(billingData.inputs).map(([runId, values], index) => {
                                         const runInfo = getRunById(runId);
                                         const isExpanded = expandedBillingRuns.has(runId) || editingRunId === runId;
                                         const newRate = values['new_rate'];
