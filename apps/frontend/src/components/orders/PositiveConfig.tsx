@@ -262,7 +262,7 @@ export default function PositiveConfig({
             // If global Rate changes, recalculate all items
             if (field === 'rate') {
                 const newRate = Number(value) || 0;
-                updates.items = prev.items.map(item => calculateRow(item, newRate));
+                updates.items = parseItems(prev.items).map(item => calculateRow(item, newRate));
             }
 
             return updates;
@@ -309,7 +309,7 @@ export default function PositiveConfig({
             return;
         }
 
-        const totals = getTotals(editForm.items);
+        const totals = getTotals(parseItems(editForm.items));
 
         const apiValues = {
             particulars: editForm.particulars,
@@ -422,7 +422,7 @@ export default function PositiveConfig({
             : (editForm || initialFormState);
 
         const savedImages = (mode === 'view' ? (data.images || []) : []) as string[];
-        const totals = getTotals(data.items || []);
+        const totals = getTotals(parseItems(data.items) || []);
 
         return (
             <div className="bg-gray-50 border border-gray-300 rounded p-3">
@@ -450,8 +450,8 @@ export default function PositiveConfig({
                     )}
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded p-4 space-y-4">
                     {mode === 'edit' && (
+                <div className="bg-white border border-gray-200 rounded p-4 space-y-4">
                         <div className="grid grid-cols-2 gap-4 mb-2">
                             <SearchableManagerSelect
                                 label="Executor"
@@ -472,9 +472,9 @@ export default function PositiveConfig({
                                 onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                             />
                         </div>
+                </div>
                     )}
 
-                </div>
 
                 {/* IMAGE UPLOAD SECTION */}
                 {mode === 'edit' && (
@@ -590,7 +590,7 @@ export default function PositiveConfig({
                             </tr>
                         </thead>
                         <tbody>
-                            {(data.items || []).map((item, idx) => (
+                            {(parseItems(data.items) || []).map((item, idx) => (
                                 <tr key={idx} className="border-t">
                                     <td className="p-2 text-gray-500">{idx + 1}</td>
                                     <td className="p-2">
