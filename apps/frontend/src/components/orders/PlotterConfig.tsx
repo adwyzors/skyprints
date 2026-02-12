@@ -3,9 +3,10 @@ import {
     ChevronRight,
     Edit,
     Eye,
+    MapPin,
     Palette,
     Plus,
-    Trash2,MapPin,
+    Trash2,
     X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -16,13 +17,14 @@ import { Permission } from '@/auth/permissions';
 import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { PlotterItem, PlotterRunValues, ProcessRun } from '@/domain/model/run.model';
-import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
-import { getManagers, User as ManagerUser } from '@/services/user.service';
+import { User as ManagerUser } from '@/services/user.service';
 
 interface PlotterConfigProps {
     order: Order;
+    locations: Location[];
+    managers: ManagerUser[];
     onRefresh?: () => Promise<void>;
     onSaveSuccess?: (processId: string, runId: string) => void;
 }
@@ -31,6 +33,8 @@ interface PlotterConfigProps {
 
 export default function PlotterConfig({
     order,
+    locations,
+    managers,
     onRefresh,
     onSaveSuccess,
 }: PlotterConfigProps) {
@@ -45,21 +49,9 @@ export default function PlotterConfig({
     // State for local editing
     const [editForm, setEditForm] = useState<PlotterRunValues | null>(null);
 
-    // Locations State
-    const [locations, setLocations] = useState<Location[]>([]);
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
 
-    useEffect(() => {
-        const loadLocations = async () => {
-            try {
-                const response = await getLocationsWithHeaders({ limit: 100 });
-                setLocations(response.locations);
-            } catch (error) {
-                console.error('Failed to load locations', error);
-            }
-        };
-        loadLocations();
-    }, []);
+
 
     // --- Image Handling ---
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
@@ -170,19 +162,7 @@ export default function PlotterConfig({
     const [runManagers, setRunManagers] = useState<
         Record<string, { executorId?: string; reviewerId?: string }>
     >({});
-    const [managers, setManagers] = useState<ManagerUser[]>([]);
 
-    useEffect(() => {
-        const loadManagers = async () => {
-            try {
-                const users = await getManagers();
-                setManagers(users);
-            } catch (err) {
-                console.error('Failed to load managers', err);
-            }
-        };
-        loadManagers();
-    }, []);
 
     const handleManagerSelect = (
         runId: string,
@@ -315,6 +295,22 @@ export default function PlotterConfig({
         setEditForm(prev => prev ? { ...prev, items: prev.items.filter((_, i) => i !== index) } : prev);
     };
 
+    function parseItems(items: unknown): PlotterItem[] {
+        if (Array.isArray(items)) {
+            return items;
+        }
+
+        if (typeof items === 'string') {
+            try {
+                const parsed = JSON.parse(items);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+
+        return [];
+    }
     const getTotals = (items: PlotterItem[]) => {
         const totalQty = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
         const totalSheetReq = items.reduce((sum, i) => sum + (i.sheetReq || 0), 0);
@@ -331,7 +327,7 @@ export default function PlotterConfig({
             return;
         }
 
-        const totals = getTotals(editForm.items);
+        const totals = getTotals(parseItems(editForm.items));
 
         const apiValues = {
             particulars: editForm.particulars,
@@ -452,7 +448,7 @@ export default function PlotterConfig({
             : (editForm || initialFormState);
 
         const savedImages = (mode === 'view' ? (data.images || []) : []) as string[];
-        const totals = getTotals(data.items as PlotterItem[]);
+        const totals = getTotals(parseItems(data.items as PlotterItem[]));
 
         return (
             <div className="bg-gray-50 border border-gray-300 rounded p-3">
@@ -624,7 +620,7 @@ export default function PlotterConfig({
                                 </tr>
                             </thead>
                             <tbody>
-                                {(data.items as PlotterItem[]).map((item, idx) => (
+                                {parseItems(data.items as PlotterItem[]).map((item, idx) => (
                                     <tr key={idx} className="border-t">
                                         <td className="p-2">
                                             {mode === 'edit' ? (

@@ -10,22 +10,25 @@ import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
-import { Location as Location } from '@/domain/model/location.model';
+import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { DiamondItem, DiamondRunValues, ProcessRun } from '@/domain/model/run.model';
-import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
-import { getManagers, User as ManagerUser } from '@/services/user.service';
+import { User as ManagerUser } from '@/services/user.service';
 
 interface DiamondConfigProps {
     order: Order;
+    locations: Location[];
+    managers: ManagerUser[];
     onRefresh?: () => Promise<void>;
     onSaveSuccess?: (processId: string, runId: string) => void;
 }
 
 export default function DiamondConfig({
     order,
+    locations,
+    managers,
     onRefresh,
     onSaveSuccess,
 }: DiamondConfigProps) {
@@ -148,40 +151,12 @@ export default function DiamondConfig({
     const [runManagers, setRunManagers] = useState<
         Record<string, { executorId?: string; reviewerId?: string }>
     >({});
-    const [managers, setManagers] = useState<ManagerUser[]>([]);
 
-    useEffect(() => {
-        const loadManagers = async () => {
-            try {
-                const users = await getManagers();
-                setManagers(users);
-            } catch (err) {
-                console.error('Failed to load managers', err);
-            }
-        };
-        loadManagers();
-        loadManagers();
-    }, []);
 
-    // Locations State
-    const [locations, setLocations] = useState<Location[]>([]);
+
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
-  
-    useEffect(() => {
-      const fetchLocations = async () => {
-          try {
-              const data = await getLocationsWithHeaders({
-                  page: 1,
-                  limit: 100,
-                  isActive: true,
-              });
-              setLocations(data.locations);
-          } catch (err) {
-              console.error('Failed to load locations', err);
-          }
-      };
-      fetchLocations();
-    }, []);
+
+
 
     const handleManagerSelect = (
         runId: string,
@@ -236,7 +211,7 @@ export default function DiamondConfig({
 
             if (run) {
                 const values = run.values as DiamondRunValues;
-                        const existingItems = parseItems(values.items);
+                const existingItems = parseItems(values.items);
 
                 setEditForm({
                     particulars: values.particulars || '',
@@ -303,20 +278,20 @@ export default function DiamondConfig({
 
     function parseItems(items: unknown): DiamondItem[] {
         if (Array.isArray(items)) {
-          return items;
+            return items;
         }
-    
+
         if (typeof items === 'string') {
-          try {
-            const parsed = JSON.parse(items);
-            return Array.isArray(parsed) ? parsed : [];
-          } catch {
-            return [];
-          }
+            try {
+                const parsed = JSON.parse(items);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
         }
-    
+
         return [];
-      }
+    }
 
     const getTotals = (items: DiamondItem[]) => {
         const totalQty = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
@@ -333,7 +308,7 @@ export default function DiamondConfig({
             return;
         }
 
-            const totals = getTotals(parseItems(editForm.items) || []);
+        const totals = getTotals(parseItems(editForm.items) || []);
 
 
         const apiValues = {
@@ -419,15 +394,15 @@ export default function DiamondConfig({
         valueId,
         onChange,
         locations,
-      }: {
+    }: {
         label: string;
         valueId?: string;
         onChange: (id: string) => void;
         locations: Location[];
-      }) => {
+    }) => {
         const [search, setSearch] = useState('');
         const [isOpen, setIsOpen] = useState(false);
-    
+
         useEffect(() => {
             if (valueId) {
                 const l = locations.find((l) => l.id === valueId);
@@ -436,12 +411,12 @@ export default function DiamondConfig({
                 setSearch('');
             }
         }, [valueId, locations]);
-    
-        const filtered = locations.filter((l) => 
-            l.name.toLowerCase().includes(search.toLowerCase()) || 
+
+        const filtered = locations.filter((l) =>
+            l.name.toLowerCase().includes(search.toLowerCase()) ||
             l.code.toLowerCase().includes(search.toLowerCase())
         );
-    
+
         return (
             <div className="relative">
                 <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
@@ -479,7 +454,7 @@ export default function DiamondConfig({
                 )}
             </div>
         );
-      };
+    };
 
     const SearchableManagerSelect = ({ label, valueId, onChange, users }: any) => {
         return (
@@ -542,31 +517,31 @@ export default function DiamondConfig({
                             <span className="font-medium text-gray-800">{run.location.name} ({run.location.code})</span>
                         </div>
                     )}
-                    
+
                     {mode === 'edit' && (
                         <>
-                        <div className="grid grid-cols-2 gap-4 mb-2">
-                            <SearchableManagerSelect
-                                label="Executor"
-                                users={managers}
-                                valueId={runManagers[run.id]?.executorId ?? run.executor?.id}
-                                onChange={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
-                            />
-                            <SearchableManagerSelect
-                                label="Reviewer"
-                                users={managers}
-                                valueId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id}
-                                onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
-                            />
-                        </div>
-                         <div className="mb-4">
-                            <SearchableLocationSelect
-                                label="Location"
-                                locations={locations}
-                                valueId={runLocations[run.id] ?? run.location?.id ?? undefined}
-                                onChange={(id: string) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
-                            />
-                        </div>
+                            <div className="grid grid-cols-2 gap-4 mb-2">
+                                <SearchableManagerSelect
+                                    label="Executor"
+                                    users={managers}
+                                    valueId={runManagers[run.id]?.executorId ?? run.executor?.id}
+                                    onChange={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
+                                />
+                                <SearchableManagerSelect
+                                    label="Reviewer"
+                                    users={managers}
+                                    valueId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id}
+                                    onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <SearchableLocationSelect
+                                    label="Location"
+                                    locations={locations}
+                                    valueId={runLocations[run.id] ?? run.location?.id ?? undefined}
+                                    onChange={(id: string) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                            </div>
                         </>
                     )}
 

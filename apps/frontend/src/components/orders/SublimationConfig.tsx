@@ -1,5 +1,5 @@
 import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
-import { AlertCircle, ChevronDown, Edit, Loader2, Palette, Plus, Trash2, X,MapPin } from 'lucide-react';
+import { AlertCircle, ChevronDown, Edit, Loader2, MapPin, Palette, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
@@ -7,13 +7,14 @@ import { Permission } from '@/auth/permissions';
 import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { ProcessRun, SublimationItem, SublimationRunValues } from '@/domain/model/run.model';
-import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
-import { getManagers, User as ManagerUser } from '@/services/user.service';
+import { User as ManagerUser } from '@/services/user.service';
 
 interface SublimationConfigProps {
     order: Order;
+    locations: Location[];
+    managers: ManagerUser[];
     onSaveSuccess?: (processId: string, runId: string) => void;
     onRefresh?: () => Promise<void>;
 }
@@ -25,13 +26,11 @@ const initialFormState: SublimationRunValues = {
     images: [] // Explicitly initialize images array
 };
 
-export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: SublimationConfigProps) {
+export default function SublimationConfig({ order, locations, managers, onSaveSuccess, onRefresh }: SublimationConfigProps) {
     const { hasPermission, user } = useAuth();
     const [localOrder, setLocalOrder] = useState<Order>(order);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [managers, setManagers] = useState<ManagerUser[]>([]);
-    const [loadingManagers, setLoadingManagers] = useState(false);
 
     // Run Operations State
     const [isAddingRun, setIsAddingRun] = useState(false);
@@ -48,21 +47,9 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
     const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
 
-    // Locations State
-    const [locations, setLocations] = useState<Location[]>([]);
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
 
-    useEffect(() => {
-        const loadLocations = async () => {
-            try {
-                const response = await getLocationsWithHeaders({ limit: 100 });
-                setLocations(response.locations);
-            } catch (error) {
-                console.error('Failed to load locations', error);
-            }
-        };
-        loadLocations();
-    }, []);
+
 
     function parseItems(items: unknown): SublimationItem[] {
         if (Array.isArray(items)) {
@@ -81,26 +68,73 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
         return [];
     }
 
+    function isStringTuple4(value: unknown): value is [string, string, string, string] {
+        return (
+            Array.isArray(value) &&
+            value.length === 4 &&
+            value.every(item => typeof item === 'string')
+        );
+    }
+
+    function parseColumnHeaders(headers: unknown): [string, string, string, string] {
+        const defaultHeaders: [string, string, string, string] =
+            ['Col 1', 'Col 2', 'Col 3', 'Col 4'];
+
+        if (isStringTuple4(headers)) {
+            return headers;
+        }
+
+        if (typeof headers === 'string') {
+            try {
+                const parsed = JSON.parse(headers);
+                if (isStringTuple4(parsed)) {
+                    return parsed;
+                }
+            } catch {
+                // ignore
+            }
+        }
+
+        return defaultHeaders;
+    }
+
+
+    function isTotalsArray(value: unknown): value is [number, number, number, number] {
+        return (
+            Array.isArray(value) &&
+            value.length === 4 &&
+            value.every(item => typeof item === 'number')
+        );
+    }
+
+    function parseTotals(totals: unknown): [number, number, number, number] {
+        const defaultTotals: [number, number, number, number] = [0, 0, 0, 0];
+
+        if (isTotalsArray(totals)) {
+            return totals;
+        }
+
+        if (typeof totals === 'string') {
+            try {
+                const parsed = JSON.parse(totals);
+                if (isTotalsArray(parsed)) {
+                    return parsed;
+                }
+            } catch {
+                // ignore
+            }
+        }
+
+        return defaultTotals;
+    }
+
+
     // Sync local order
     useEffect(() => {
         setLocalOrder(order);
     }, [order]);
 
-    // Fetch managers
-    useEffect(() => {
-        const loadManagers = async () => {
-            setLoadingManagers(true);
-            try {
-                const users = await getManagers();
-                setManagers(users);
-            } catch (err) {
-                console.error('Failed to load managers', err);
-            } finally {
-                setLoadingManagers(false);
-            }
-        };
-        loadManagers();
-    }, []);
+
 
     // Initialize edit form when opening a run for edit
     useEffect(() => {
@@ -115,17 +149,13 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
             if (run) {
                 // Initialize form from run values
                 const existingValues = run.values as SublimationRunValues;
-                const headers = (existingValues.columnHeaders && existingValues.columnHeaders.length === 4)
-                    ? existingValues.columnHeaders
-                    : ['Col 1', 'Col 2', 'Col 3', 'Col 4'] as [string, string, string, string];
-
                 setEditForm({
                     rate: Number(existingValues.rate) || 0,
-                    columnHeaders: headers,
+                    columnHeaders: parseColumnHeaders(existingValues.columnHeaders),
                     items: parseItems(existingValues.items),
                     images: existingValues.images || []
                 });
-                setEditableHeaders(headers as [string, string, string, string]);
+                setEditableHeaders(parseColumnHeaders(existingValues.columnHeaders));
                 // Ensure expanded view when editing
                 setOpenRunId(editingRunId);
 
@@ -226,7 +256,7 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
     };
 
     const getTotals = (items: SublimationItem[], formRate: number) => {
-        const calculatedItems = items.map(item => calculateItem(item, formRate));
+        const calculatedItems = parseItems(items).map(item => calculateItem(item, formRate));
 
         // Column Totals
         const colTotals: [number, number, number, number] = [0, 0, 0, 0];
@@ -422,9 +452,16 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
         const mode = isEditing ? 'edit' : 'view';
 
         // If editing, use editForm, otherwise rely on run.values (casted)
-        const data = (mode === 'edit')
+        const rawData = (mode === 'edit')
             ? (editForm || initialFormState)
             : (run.values as SublimationRunValues);
+
+        const data: SublimationRunValues = {
+            ...rawData,
+            items: parseItems(rawData.items),
+            columnHeaders: parseColumnHeaders(rawData.columnHeaders),
+            totals: parseTotals(rawData.totals)
+        };
 
 
         // Always calculate totals for display
@@ -434,7 +471,7 @@ export default function SublimationConfig({ order, onSaveSuccess, onRefresh }: S
         // Use helper state for headers in edit mode
         const headersToDisplay = (mode === 'edit' && editingRunId === run.id)
             ? editableHeaders
-            : (data.columnHeaders || ['Col 1', 'Col 2', 'Col 3', 'Col 4']);
+            : data.columnHeaders;
 
         return (
             <div className="bg-gray-50 border border-gray-300 rounded p-3">

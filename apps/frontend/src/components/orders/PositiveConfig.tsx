@@ -3,9 +3,10 @@ import {
     ChevronRight,
     Edit,
     Eye,
+    MapPin,
     Palette,
     Plus,
-    Trash2,MapPin,
+    Trash2,
     X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -16,19 +17,22 @@ import { Permission } from '@/auth/permissions';
 import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { PositiveItem, PositiveRunValues, ProcessRun } from '@/domain/model/run.model';
-import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
-import { getManagers, User as ManagerUser } from '@/services/user.service';
+import { User as ManagerUser } from '@/services/user.service';
 
 interface PositiveConfigProps {
     order: Order;
+    locations: Location[];
+    managers: ManagerUser[];
     onRefresh?: () => Promise<void>;
     onSaveSuccess?: (processId: string, runId: string) => void;
 }
 
 export default function PositiveConfig({
     order,
+    locations,
+    managers,
     onRefresh,
     onSaveSuccess,
 }: PositiveConfigProps) {
@@ -43,21 +47,9 @@ export default function PositiveConfig({
     // State for local editing
     const [editForm, setEditForm] = useState<PositiveRunValues | null>(null);
 
-    // Locations State
-    const [locations, setLocations] = useState<Location[]>([]);
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
 
-    useEffect(() => {
-        const loadLocations = async () => {
-            try {
-                const response = await getLocationsWithHeaders({ limit: 100 });
-                setLocations(response.locations);
-            } catch (error) {
-                console.error('Failed to load locations', error);
-            }
-        };
-        loadLocations();
-    }, []);
+
 
     function parseItems(items: unknown): PositiveItem[] {
         if (Array.isArray(items)) {
@@ -179,22 +171,11 @@ export default function PositiveConfig({
     };
 
     const { hasPermission } = useAuth();
-    const [managers, setManagers] = useState<ManagerUser[]>([]);
     const [runManagers, setRunManagers] = useState<
         Record<string, { executorId?: string; reviewerId?: string }>
     >({});
 
-    useEffect(() => {
-        const loadManagers = async () => {
-            try {
-                const users = await getManagers();
-                setManagers(users);
-            } catch (err) {
-                console.error('Failed to load managers', err);
-            }
-        };
-        loadManagers();
-    }, []);
+
 
     const handleManagerSelect = (runId: string, type: 'executorId' | 'reviewerId', userId: string) => {
         setRunManagers(prev => ({

@@ -18,13 +18,14 @@ import { Permission } from '@/auth/permissions';
 import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { AlloverRunValues, AlloverSublimationItem, ProcessRun } from '@/domain/model/run.model';
-import { getLocationsWithHeaders } from '@/services/location.service';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
-import { getManagers, User as ManagerUser } from '@/services/user.service';
+import { User as ManagerUser } from '@/services/user.service';
 
 interface AlloverSublimationConfigProps {
     order: Order;
+    locations: Location[];
+    managers: ManagerUser[];
     onRefresh?: () => Promise<void>;
     onSaveSuccess?: (processId: string, runId: string) => void;
 }
@@ -33,6 +34,8 @@ interface AlloverSublimationConfigProps {
 
 export default function AlloverSublimationConfig({
     order,
+    locations,
+    managers,
     onRefresh,
     onSaveSuccess,
 }: AlloverSublimationConfigProps) {
@@ -116,21 +119,9 @@ export default function AlloverSublimationConfig({
         setLocalOrder(order);
     }, [order]);
 
-    // Locations State
-    const [locations, setLocations] = useState<Location[]>([]);
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
 
-    useEffect(() => {
-        const loadLocations = async () => {
-            try {
-                const response = await getLocationsWithHeaders({ limit: 100 });
-                setLocations(response.locations);
-            } catch (error) {
-                console.error('Failed to load locations', error);
-            }
-        };
-        loadLocations();
-    }, []);
+
 
     // Initialize edit form when opening a run
     useEffect(() => {
@@ -171,23 +162,8 @@ export default function AlloverSublimationConfig({
     const [runManagers, setRunManagers] = useState<
         Record<string, { executorId?: string; reviewerId?: string }>
     >({});
-    const [managers, setManagers] = useState<ManagerUser[]>([]);
-    const [loadingManagers, setLoadingManagers] = useState(false);
 
-    useEffect(() => {
-        const loadManagers = async () => {
-            setLoadingManagers(true);
-            try {
-                const users = await getManagers();
-                setManagers(users);
-            } catch (err) {
-                console.error('Failed to load managers', err);
-            } finally {
-                setLoadingManagers(false);
-            }
-        };
-        loadManagers();
-    }, []);
+
 
     const handleManagerSelect = (
         runId: string,

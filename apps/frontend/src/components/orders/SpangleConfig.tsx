@@ -6,27 +6,29 @@ import {
     Grid,
     IndianRupee,
     Loader2,
+    MapPin,
     Package,
     Palette,
     Plus,
     Ruler,
-    X,MapPin
+    X
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
+import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { ProcessRun, SpangleRunValues } from '@/domain/model/run.model';
 import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
-import { getManagers, User as ManagerUser } from '@/services/user.service';
-import { getLocationsWithHeaders } from '@/services/location.service';
-import { Location } from '@/domain/model/location.model';
+import { User as ManagerUser } from '@/services/user.service';
 
 interface SpangleConfigProps {
     order: Order;
+    locations: Location[];
+    managers: ManagerUser[];
     onSaveSuccess?: (processId: string, runId: string) => void;
     onRefresh?: () => Promise<void>;
 }
@@ -52,12 +54,18 @@ const getFieldIcon = (fieldName: string) => {
     return <Grid className="w-3 h-3" />;
 };
 
-export default function SpangleConfig({ order, onSaveSuccess, onRefresh }: SpangleConfigProps) {
+export default function SpangleConfig({
+    order,
+    locations,
+    managers,
+    onSaveSuccess,
+    onRefresh,
+}: SpangleConfigProps) {
     const { hasPermission } = useAuth();
     const [localOrder, setLocalOrder] = useState<Order>(order);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [managers, setManagers] = useState<ManagerUser[]>([]);
+
 
     // Run Operations State
     const [isAddingRun, setIsAddingRun] = useState(false);
@@ -72,37 +80,15 @@ export default function SpangleConfig({ order, onSaveSuccess, onRefresh }: Spang
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
     const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
 
-    // Locations State
-    const [locations, setLocations] = useState<Location[]>([]);
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
 
-    useEffect(() => {
-        const loadLocations = async () => {
-            try {
-                const response = await getLocationsWithHeaders({ limit: 100 });
-                setLocations(response.locations);
-            } catch (error) {
-                console.error('Failed to load locations', error);
-            }
-        };
-        loadLocations();
-    }, []);
+
 
     useEffect(() => {
         setLocalOrder(order);
     }, [order]);
 
-    useEffect(() => {
-        const loadManagers = async () => {
-            try {
-                const users = await getManagers();
-                setManagers(users);
-            } catch (err) {
-                console.error('Failed to load managers', err);
-            }
-        };
-        loadManagers();
-    }, []);
+
 
     const getRunFieldConfigs = (run: ProcessRun) => {
         // Use injected fields if available, otherwise default
