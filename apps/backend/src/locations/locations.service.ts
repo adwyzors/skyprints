@@ -45,14 +45,7 @@ export class LocationsService {
 
 
     async findAll(query: QueryLocationDto) {
-        const {
-            page = 1,
-            limit = 10,
-            search,
-            isActive,
-        } = query;
-
-        const skip = (page - 1) * limit;
+        const { page = 1, limit, search, isActive } = query;
 
         const where: Prisma.LocationWhereInput = {
             ...(typeof isActive === 'boolean' && { isActive }),
@@ -77,18 +70,20 @@ export class LocationsService {
 
         const [total, locations] = await this.repo.findManyAndCount({
             where,
-            skip,
-            take: limit,
+            ...(limit && {
+                skip: (page - 1) * limit,
+                take: limit,
+            }),
             orderBy: { createdAt: 'desc' },
         });
 
         return {
             data: locations.map(toLocationSummary),
             meta: {
-                page,
-                limit,
+                page: limit ? page : 1,
+                limit: limit ?? total,
                 total,
-                totalPages: Math.ceil(total / limit),
+                totalPages: limit ? Math.ceil(total / limit) : 1,
             },
         };
     }
