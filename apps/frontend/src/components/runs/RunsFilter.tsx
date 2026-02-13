@@ -1,6 +1,9 @@
 'use client';
 
+import SearchableCustomerSelect from '@/components/common/SearchableCustomerSelect';
 import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
+import SearchableManagerSelect from '@/components/common/SearchableManagerSelect';
+import SearchableProcessSelect from '@/components/common/SearchableProcessSelect';
 import { Location } from '@/domain/model/location.model';
 import { ProcessSummary } from '@/domain/model/process.model';
 import { getCustomers } from '@/services/customer.service';
@@ -140,19 +143,17 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
 
             <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
 
-                {/* Process Selection */}
+                {/* Process */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Process</label>
-                    <select
-                        value={filters.processId || 'all'}
-                        onChange={(e) => handleProcessChange(e.target.value)}
-                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-                    >
-                        <option value="all">All Processes</option>
-                        {processes.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                    </select>
+                    <SearchableProcessSelect
+                        processes={processes}
+                        selectedProcessId={filters.processId || null}
+                        onSelect={(id) => handleProcessChange(id)}
+                        placeholder="Search processes..."
+                        allowClear={false}
+                        inputClassName="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
+                    />
                 </div>
 
                 {/* Status - Only show if process is selected */}
@@ -222,51 +223,46 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                 {/* Customer */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Customer</label>
-                    <select
-                        value={filters.customerId}
-                        onChange={(e) => onChange({ ...filters, customerId: e.target.value })}
-                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-                    >
-                        <option value="all">All Customers</option>
-                        {customers.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                    </select>
+                    <SearchableCustomerSelect
+                        customers={customers}
+                        selectedCustomerId={filters.customerId === 'all' ? null : filters.customerId}
+                        onSelect={(id) => onChange({ ...filters, customerId: id || 'all' })}
+                        placeholder="Search customers..."
+                        allowClear={false}
+                        inputClassName="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
+                    />
                 </div>
 
                 {/* Executor */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Executor</label>
-                    <select
-                        value={filters.executorId}
-                        onChange={(e) => onChange({ ...filters, executorId: e.target.value })}
-                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-                    >
-                        <option value="all">Any Executor</option>
-                        {managers.map(m => (
-                            <option key={m.id} value={m.id}>{m.name}</option>
-                        ))}
-                    </select>
+                    <SearchableManagerSelect
+                        users={managers}
+                        selectedUserId={filters.executorId === 'all' ? null : filters.executorId}
+                        onSelect={(id) => onChange({ ...filters, executorId: id || 'all' })}
+                        placeholder="Search executors..."
+                        allowClear={false}
+                        inputClassName="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
+                    />
                 </div>
 
                 {/* Reviewer */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Reviewer</label>
-                    <select
-                        value={filters.reviewerId}
-                        onChange={(e) => onChange({ ...filters, reviewerId: e.target.value })}
-                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-                    >
-                        <option value="all">Any Reviewer</option>
-                        {managers.map(m => (
-                            <option key={m.id} value={m.id}>{m.name}</option>
-                        ))}
-                    </select>
+                    <SearchableManagerSelect
+                        users={managers}
+                        selectedUserId={filters.reviewerId === 'all' ? null : filters.reviewerId}
+                        onSelect={(id) => onChange({ ...filters, reviewerId: id || 'all' })}
+                        placeholder="Search reviewers..."
+                        allowClear={false}
+                        inputClassName="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
+                    />
                 </div>
+
 
                 {/* Location */}
                 <div>
-                   <SearchableLocationSelect
+                    <SearchableLocationSelect
                         label="Location"
                         valueId={filters.locationId}
                         onChange={(id) => onChange({ ...filters, locationId: id })}

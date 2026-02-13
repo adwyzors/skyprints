@@ -45,14 +45,7 @@ export class CustomersService {
 
 
     async findAll(query: QueryCustomerDto) {
-        const {
-            page = 1,
-            limit = 12,
-            search,
-            isActive,
-        } = query;
-
-        const skip = (page - 1) * limit;
+        const { page = 1, limit, search, isActive } = query;
 
         const where: Prisma.CustomerWhereInput = {
             ...(typeof isActive === 'boolean' && { isActive }),
@@ -74,11 +67,14 @@ export class CustomersService {
                 ],
             }),
         };
+        const skip = limit ? (page - 1) * limit : undefined;
 
         const [total, customers] = await this.repo.findManyAndCount({
             where,
-            skip,
-            take: limit,
+            ...(limit && {
+                skip,
+                take: limit,
+            }),
             orderBy: { createdAt: 'desc' },
         });
 
@@ -86,12 +82,13 @@ export class CustomersService {
             data: customers.map(toCustomerSummary),
             meta: {
                 page,
-                limit,
+                limit: limit ?? total, // show total if no limit
                 total,
-                totalPages: Math.ceil(total / limit),
+                totalPages: limit ? Math.ceil(total / limit) : 1,
             },
         };
     }
+
 
     async findOne(id: string) {
         const customer = await this.repo.findById(id);

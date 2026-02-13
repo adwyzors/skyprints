@@ -197,6 +197,63 @@ export default function OrderConfigPage() {
         return null;
     };
 
+    const getRunBillingMetrics = (runId: string) => {
+        const runInfo = getRunById(runId);
+        if (!runInfo) return { quantity: 0, amount: 0, ratePerPc: 0 };
+
+        const { run, processName } = runInfo;
+        const values = (run.values || {}) as any;
+
+        let quantity = 0;
+        let amount = 0;
+
+        // Parse items if stringified
+        const items = Array.isArray(values?.items)
+            ? values.items
+            : typeof values?.items === 'string'
+                ? (() => { try { return JSON.parse(values.items); } catch { return []; } })()
+                : [];
+
+        switch (processName) {
+            case 'Allover Sublimation':
+                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
+                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                break;
+            case 'Sublimation':
+                // Sum of all 4 columns for all rows
+                quantity = items.reduce((sum: number, i: any) => {
+                    const rowSum = Array.isArray(i.quantities)
+                        ? i.quantities.reduce((rs: number, q: any) => rs + (Number(q) || 0), 0)
+                        : 0;
+                    return sum + rowSum;
+                }, 0);
+                amount = Number(values['totalAmount']) || Number(values['total_amount']) || 0;
+                break;
+            case 'Plotter':
+                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
+                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                break;
+            case 'Positive':
+                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0); // User actually said Total's Qty (pcs) for Positive too in rules
+                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                break;
+            case 'Screen Printing':
+                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
+                amount = Number(values['Estimated Amount']) || Number(values['total_amount']) || 0;
+                break;
+            case 'Embellishment':
+                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
+                amount = Number(values['Final Total']) || Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                break;
+            default:
+                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['total_quantity']) || (values?.['Quantity'] as number) || 0;
+                amount = Number(values['Total Amount']) || Number(values['totalAmount']) || Number(values['total_amount']) || Number(values['Estimated Amount']) || 0;
+        }
+
+        const ratePerPc = quantity > 0 ? amount / quantity : 0;
+        return { quantity, amount, ratePerPc };
+    };
+
     const allRuns = useMemo(() => {
         return order?.processes.flatMap((p) => p.runs) || [];
     }, [order]);
@@ -751,6 +808,36 @@ export default function OrderConfigPage() {
                                                                     </button>
                                                                 </div>
 
+                                                                {/* METRICS & PREDICTION */}
+                                                                {(() => {
+                                                                    const metrics = getRunBillingMetrics(runId);
+                                                                    const calculatedRate = values['rate_per_pc'] ?? metrics.ratePerPc;
+                                                                    const predictedAmount = (editValues['new_rate'] ?? 0) * metrics.quantity;
+
+                                                                    return (
+                                                                        <div className="grid grid-cols-2 gap-4 mb-4">
+                                                                            <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                                                                                <div className="text-[10px] uppercase text-blue-600 font-bold mb-1">Current Info</div>
+                                                                                <div className="flex justify-between items-end">
+                                                                                    <div>
+                                                                                        <div className="text-xs text-blue-500">Rate per pc</div>
+                                                                                        <div className="text-sm font-bold text-blue-900">₹{calculatedRate.toFixed(2)}</div>
+                                                                                    </div>
+                                                                                    <div className="text-right">
+                                                                                        <div className="text-xs text-blue-500">Quantity</div>
+                                                                                        <div className="text-sm font-bold text-blue-900">{metrics.quantity}</div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                                                                                <div className="text-[10px] uppercase text-amber-600 font-bold mb-1">Prediction</div>
+                                                                                <div className="text-xs text-amber-500">Expected New Amount</div>
+                                                                                <div className="text-lg font-black text-amber-900">₹{predictedAmount.toFixed(2)}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })()}
+
                                                                 {/* NEW RATE INPUT */}
                                                                 <div className="p-4 bg-green-50 border-2 border-green-300 rounded-xl">
                                                                     <div className="flex items-center gap-2 mb-3">
@@ -758,14 +845,15 @@ export default function OrderConfigPage() {
                                                                             <Calculator className="w-4 h-4 text-white" />
                                                                         </div>
                                                                         <div>
-                                                                            <div className="font-medium text-green-800">Billing Rate</div>
+                                                                            <div className="font-medium text-green-800">New Billing Rate</div>
                                                                             <div className="text-xs text-green-600">
-                                                                                Saved via Billing API
+                                                                                Set rate per pc (₹)
                                                                             </div>
                                                                         </div>
                                                                     </div>
                                                                     <input
                                                                         type="number"
+                                                                        step="0.01"
                                                                         value={editValues['new_rate'] ?? 0}
                                                                         onChange={(e) =>
                                                                             setEditValues((prev) => ({
@@ -773,27 +861,26 @@ export default function OrderConfigPage() {
                                                                                 new_rate: parseFloat(e.target.value) || 0,
                                                                             }))
                                                                         }
-                                                                        className="w-full px-4 py-2 border-2 border-green-400 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-lg font-semibold"
+                                                                        className="w-full px-4 py-2 border-2 border-green-400 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white text-lg font-semibold text-green-900"
+                                                                        placeholder="0.00"
                                                                     />
                                                                 </div>
 
                                                                 {/* OTHER VALUES - Read-only */}
                                                                 <div className="grid grid-cols-2 gap-2">
                                                                     {Object.entries(editValues)
-                                                                        .filter(([key]) => key !== 'new_rate')
+                                                                        .filter(([key]) => !['new_rate', 'new_amount', 'rate_per_pc'].includes(key))
                                                                         .map(([key, value]) => (
                                                                             <div
                                                                                 key={key}
                                                                                 className="text-center p-2 bg-gray-50 border border-gray-200 rounded"
                                                                             >
-                                                                                <div className="text-xs text-gray-500">
-                                                                                    {key
-                                                                                        .replace(/_/g, ' ')
-                                                                                        .replace(/\b\w/g, (l) => l.toUpperCase())}
+                                                                                <div className="text-[10px] uppercase text-gray-500">
+                                                                                    {key.replace(/_/g, ' ')}
                                                                                 </div>
                                                                                 <div className="font-medium text-gray-800 text-sm">
-                                                                                    {key.includes('rate') || key.includes('amount')
-                                                                                        ? `₹${value}`
+                                                                                    {key.toLowerCase().includes('rate') || key.toLowerCase().includes('amount') || key.toLowerCase().includes('total')
+                                                                                        ? `₹${Number(value).toFixed(2)}`
                                                                                         : String(value)}
                                                                                 </div>
                                                                             </div>
@@ -801,19 +888,46 @@ export default function OrderConfigPage() {
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <div className="grid grid-cols-3 gap-2">
-                                                                {Object.entries(values).map(([key, value]) => (
-                                                                    <div key={key} className="text-center p-2 bg-gray-50 rounded">
-                                                                        <div className="text-xs text-gray-600 mb-1">
-                                                                            {key.replace(/_/g, ' ')}
+                                                            <div className="space-y-4">
+                                                                {/* PROCESS SPECIFIC HEADER INFO */}
+                                                                {(() => {
+                                                                    const metrics = getRunBillingMetrics(runId);
+                                                                    const calculatedRate = values['rate_per_pc'] ?? metrics.ratePerPc;
+                                                                    return (
+                                                                        <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                                                            <div className="flex-1">
+                                                                                <div className="text-[10px] uppercase text-gray-500 font-bold">Quantity</div>
+                                                                                <div className="text-sm font-semibold">{metrics.quantity}</div>
+                                                                            </div>
+                                                                            <div className="flex-1 border-l pl-4">
+                                                                                <div className="text-[10px] uppercase text-gray-500 font-bold text-blue-600">Rate per pc</div>
+                                                                                <div className="text-sm font-bold text-blue-700">₹{calculatedRate.toFixed(2)}</div>
+                                                                            </div>
+                                                                            <div className="flex-1 border-l pl-4">
+                                                                                <div className="text-[10px] uppercase text-gray-500 font-bold text-green-600">Total Amount</div>
+                                                                                <div className="text-sm font-bold text-green-700">₹{metrics.amount.toFixed(2)}</div>
+                                                                            </div>
                                                                         </div>
-                                                                        <div className="font-medium text-gray-800 text-sm">
-                                                                            {key.includes('rate') || key.includes('amount')
-                                                                                ? `₹${value}`
-                                                                                : String(value)}
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
+                                                                    );
+                                                                })()}
+
+                                                                {/* RAW VALUES LIST */}
+                                                                <div className="grid grid-cols-3 gap-2">
+                                                                    {Object.entries(values)
+                                                                        .filter(([key]) => !['rate_per_pc', 'new_amount', 'new_rate'].includes(key))
+                                                                        .map(([key, value]) => (
+                                                                            <div key={key} className="text-center p-2 bg-gray-50 rounded border border-transparent hover:border-gray-200 transition-colors">
+                                                                                <div className="text-[10px] uppercase text-gray-400 mb-1">
+                                                                                    {key.replace(/_/g, ' ')}
+                                                                                </div>
+                                                                                <div className="font-medium text-gray-700 text-xs">
+                                                                                    {(key.toLowerCase().includes('rate') || key.toLowerCase().includes('amount') || key.toLowerCase().includes('total')) && typeof value === 'number'
+                                                                                        ? `₹${value.toFixed(2)}`
+                                                                                        : String(value)}
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>

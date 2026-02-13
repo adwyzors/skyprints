@@ -1,5 +1,6 @@
 'use client';
 
+import SearchableProcessSelect from '@/components/common/SearchableProcessSelect';
 import { ProcessSummary } from '@/domain/model/process.model';
 import { addProcessToOrder } from '@/services/orders.service';
 import { getProcesses } from '@/services/process.service';
@@ -115,19 +116,15 @@ export default function AddProcessModal({ open, onClose, onSuccess, orderId }: P
                     ) : (
                         <>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700">Process</label>
-                                <select
-                                    value={selectedProcessId}
-                                    onChange={(e) => setSelectedProcessId(e.target.value)}
-                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                                >
-                                    <option value="">Select a process...</option>
-                                    {processes.map((p) => (
-                                        <option key={p.id} value={p.id}>
-                                            {p.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                <SearchableProcessSelect
+                                    processes={processes}
+                                    selectedProcessId={selectedProcessId || null}
+                                    onSelect={(id) => setSelectedProcessId(id)}
+                                    label="Process"
+                                    placeholder="Select a process..."
+                                    allowClear={false}
+                                    className=""
+                                />
                             </div>
 
                             <div className="space-y-2">

@@ -1,5 +1,6 @@
 'use client';
 
+import SearchableCustomerSelect from '@/components/common/SearchableCustomerSelect';
 import { getCustomers } from '@/services/customer.service';
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -76,16 +77,14 @@ export default function OrdersFilter({ filters, onChange, onClear, onClose }: Or
                 {/* Customer */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Customer</label>
-                    <select
-                        value={filters.customerId}
-                        onChange={(e) => onChange({ ...filters, customerId: e.target.value })}
-                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-                    >
-                        <option value="all">All Customers</option>
-                        {customers.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                    </select>
+                    <SearchableCustomerSelect
+                        customers={customers}
+                        selectedCustomerId={filters.customerId === 'all' ? null : filters.customerId}
+                        onSelect={(id) => onChange({ ...filters, customerId: id || 'all' })}
+                        placeholder="Search customers..."
+                        allowClear={false}
+                        inputClassName="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
+                    />
                 </div>
             </div>
         </div>

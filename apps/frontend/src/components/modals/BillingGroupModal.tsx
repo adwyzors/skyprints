@@ -144,6 +144,63 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
         });
     };
 
+    const getRunBillingMetrics = (run: any, processName: string) => {
+        const values = (run.values || {}) as any;
+        let quantity = 0;
+        let amount = 0;
+
+        // Parse items if stringified
+        const items = Array.isArray(values?.items)
+            ? values.items
+            : typeof values?.items === 'string'
+                ? (() => {
+                    try {
+                        return JSON.parse(values.items);
+                    } catch {
+                        return [];
+                    }
+                })()
+                : [];
+
+        switch (processName) {
+            case 'Allover Sublimation':
+                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
+                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                break;
+            case 'Sublimation':
+                quantity = items.reduce((sum: number, i: any) => {
+                    const rowSum = Array.isArray(i.quantities)
+                        ? i.quantities.reduce((rs: number, q: any) => rs + (Number(q) || 0), 0)
+                        : 0;
+                    return sum + rowSum;
+                }, 0);
+                amount = Number(values['totalAmount']) || Number(values['total_amount']) || 0;
+                break;
+            case 'Plotter':
+                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
+                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                break;
+            case 'Positive':
+                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
+                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                break;
+            case 'Screen Printing':
+                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
+                amount = Number(values['Estimated Amount']) || Number(values['total_amount']) || 0;
+                break;
+            case 'Embellishment':
+                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
+                amount = Number(values['Final Total']) || Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                break;
+            default:
+                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['total_quantity']) || (values?.['Quantity'] as number) || 0;
+                amount = Number(values['Total Amount']) || Number(values['totalAmount']) || Number(values['total_amount']) || Number(values['Estimated Amount']) || 0;
+        }
+
+        const ratePerPc = quantity > 0 ? amount / quantity : 0;
+        return { quantity, amount, ratePerPc };
+    };
+
     const formatCurrency = (amount: string | number) => {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
@@ -205,8 +262,8 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                                     <div className="flex flex-col items-end gap-2">
                                         <span
                                             className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${(details.latestSnapshot?.isDraft ?? true)
-                                                    ? 'bg-yellow-50 text-yellow-700 border-yellow-100'
-                                                    : 'bg-green-50 text-green-700 border-green-100'
+                                                ? 'bg-yellow-50 text-yellow-700 border-yellow-100'
+                                                : 'bg-green-50 text-green-700 border-green-100'
                                                 }`}
                                         >
                                             {(details.latestSnapshot?.isDraft ?? true) ? 'DRAFT' : 'FINAL'}
@@ -256,7 +313,12 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                                 </div>
                                 <div className="space-y-3">
                                     {details.orders.map((order) => (
-                                        <OrderGroupItem key={order.id} order={order} formatCurrency={formatCurrency} />
+                                        <OrderGroupItem
+                                            key={order.id}
+                                            order={order}
+                                            formatCurrency={formatCurrency}
+                                            getRunBillingMetrics={getRunBillingMetrics}
+                                        />
                                     ))}
                                 </div>
                             </div>
@@ -273,9 +335,11 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
 function OrderGroupItem({
     order,
     formatCurrency,
+    getRunBillingMetrics,
 }: {
     order: any;
     formatCurrency: (val: number | string) => string;
+    getRunBillingMetrics: (run: any, processName: string) => { quantity: number; amount: number; ratePerPc: number };
 }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isReordering, setIsReordering] = useState(false);
@@ -338,20 +402,21 @@ function OrderGroupItem({
                             </div>
                             <div className="pl-3.5 space-y-2">
                                 {process.runs.map((run: any) => {
+                                    // Use consistent metrics for quantity and rate
+                                    const metrics = getRunBillingMetrics(run, process.name);
                                     const input = order.billing?.inputs?.[run.id];
-                                    const rate = input?.new_rate ?? 0;
-                                    const qty = input?.quantity ?? 0;
+
+                                    const rate = input?.new_rate ?? input?.['new_rate'] ?? metrics.ratePerPc;
+                                    const qty = input?.quantity ?? input?.total_quantity ?? input?.['total_quantity'] ?? input?.['quantity'] ?? metrics.quantity;
                                     const amount = rate * qty;
 
                                     return (
                                         <div key={run.id} className="flex items-center justify-between text-sm group">
                                             <div className="text-gray-600 group-hover:text-gray-900 transition-colors">
                                                 {run.name}
-                                                {input && (
-                                                    <span className="text-xs text-gray-400 ml-2">
-                                                        ({qty} × {formatCurrency(rate)})
-                                                    </span>
-                                                )}
+                                                <span className="text-xs text-gray-400 ml-2">
+                                                    ({qty} × {formatCurrency(rate)})
+                                                </span>
                                             </div>
                                             <div className="font-medium text-gray-700">{formatCurrency(amount)}</div>
                                         </div>

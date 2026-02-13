@@ -18,10 +18,14 @@ export default function CustomerSelector({ customers, selectedCustomerId, onSele
     // Dropdown visibility
     const [showNameList, setShowNameList] = useState(false);
     const [showCodeList, setShowCodeList] = useState(false);
+    const [nameDropdownPosition, setNameDropdownPosition] = useState<'below' | 'above'>('below');
+    const [codeDropdownPosition, setCodeDropdownPosition] = useState<'below' | 'above'>('below');
 
-    // Refs for click outside
+    // Refs for click outside and position calculation
     const nameContainerRef = useRef<HTMLDivElement>(null);
     const codeContainerRef = useRef<HTMLDivElement>(null);
+    const nameInputRef = useRef<HTMLInputElement>(null);
+    const codeInputRef = useRef<HTMLInputElement>(null);
 
     // Debounced search terms for filtering
     const debouncedNameSearch = useDebounce(nameSearch, 300);
@@ -48,6 +52,39 @@ export default function CustomerSelector({ customers, selectedCustomerId, onSele
     // Click outside handlers
     useOnClickOutside(nameContainerRef, () => setShowNameList(false));
     useOnClickOutside(codeContainerRef, () => setShowCodeList(false));
+
+    // Calculate dropdown positions based on available space
+    useEffect(() => {
+        if (showNameList && nameInputRef.current) {
+            const inputRect = nameInputRef.current.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const spaceBelow = viewportHeight - inputRect.bottom;
+            const spaceAbove = inputRect.top;
+            const dropdownHeight = 240; // max-h-60 = 240px
+
+            if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+                setNameDropdownPosition('above');
+            } else {
+                setNameDropdownPosition('below');
+            }
+        }
+    }, [showNameList]);
+
+    useEffect(() => {
+        if (showCodeList && codeInputRef.current) {
+            const inputRect = codeInputRef.current.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const spaceBelow = viewportHeight - inputRect.bottom;
+            const spaceAbove = inputRect.top;
+            const dropdownHeight = 240; // max-h-60 = 240px
+
+            if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+                setCodeDropdownPosition('above');
+            } else {
+                setCodeDropdownPosition('below');
+            }
+        }
+    }, [showCodeList]);
 
     // DERIVED: Suggestions
     const nameSuggestions = useMemo(() => {
@@ -97,11 +134,13 @@ export default function CustomerSelector({ customers, selectedCustomerId, onSele
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* NAME SEARCH */}
-            <div className="space-y-2" ref={nameContainerRef}>
+            <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Customer</label>
-                <div className="relative">
+                <div className="relative" ref={nameContainerRef}>
                     <input
-                        placeholder="Click to select or search..."
+                        ref={nameInputRef}
+                        type="text"
+                        placeholder="Search by name..."
                         value={nameSearch}
                         onChange={handleNameChange}
                         onFocus={() => setShowNameList(true)}
@@ -116,7 +155,10 @@ export default function CustomerSelector({ customers, selectedCustomerId, onSele
                         </div>
                     )}
                     {showNameList && !selectedCustomer && nameSuggestions.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <div
+                            className={`absolute z-60 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto ${nameDropdownPosition === 'above' ? 'bottom-full mb-1' : 'top-full mt-1'
+                                }`}
+                        >
                             {nameSuggestions.map((c) => (
                                 <div
                                     key={c.id}
@@ -133,11 +175,13 @@ export default function CustomerSelector({ customers, selectedCustomerId, onSele
             </div>
 
             {/* CODE SEARCH */}
-            <div className="space-y-2" ref={codeContainerRef}>
+            <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Customer Code</label>
-                <div className="relative">
+                <div className="relative" ref={codeContainerRef}>
                     <input
-                        placeholder="Search code..."
+                        ref={codeInputRef}
+                        type="text"
+                        placeholder="Search by code..."
                         value={codeSearch}
                         onChange={handleCodeChange}
                         onFocus={() => setShowCodeList(true)}
@@ -152,7 +196,10 @@ export default function CustomerSelector({ customers, selectedCustomerId, onSele
                         </div>
                     )}
                     {showCodeList && !selectedCustomer && codeSuggestions.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <div
+                            className={`absolute z-60 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto ${codeDropdownPosition === 'above' ? 'bottom-full mb-1' : 'top-full mt-1'
+                                }`}
+                        >
                             {codeSuggestions.map((c) => (
                                 <div
                                     key={c.id}
