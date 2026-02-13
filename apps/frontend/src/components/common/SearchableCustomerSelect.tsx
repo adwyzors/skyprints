@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 interface CustomerLike {
     id: string;
     name: string;
-    code: string;
+    code?: string;
 }
 
 interface Props {
@@ -71,7 +71,7 @@ export default function SearchableCustomerSelect({
 
     const filteredCustomers = customers.filter((c) =>
         c.name.toLowerCase().includes(debouncedSearch.toLowerCase().trim()) ||
-        c.code.toLowerCase().includes(debouncedSearch.toLowerCase().trim())
+        c.code?.toLowerCase().includes(debouncedSearch.toLowerCase().trim())
     ).slice(0, 50);
 
     const handleSelect = (customer: CustomerLike) => {
@@ -129,7 +129,7 @@ export default function SearchableCustomerSelect({
                                 className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
                             >
                                 <div className="font-medium">{c.name}</div>
-                                <div className="text-sm text-gray-500">Code: {c.code}</div>
+                                {c.code && <div className="text-sm text-gray-500">Code: {c.code}</div>}
                             </div>
                         ))}
                     </div>

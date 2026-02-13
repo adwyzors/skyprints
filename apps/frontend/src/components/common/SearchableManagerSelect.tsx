@@ -1,10 +1,14 @@
 import { useDebounce } from '@/hooks/useDebounce';
 import { useOnClickOutside } from '@/hooks/useOnClickOutside';
-import { User } from '@/services/user.service';
 import { useEffect, useRef, useState } from 'react';
 
+interface UserLike {
+    id: string;
+    name: string;
+}
+
 interface Props {
-    users: User[];
+    users: UserLike[];
     selectedUserId: string | null;
     onSelect: (userId: string) => void;
     disabled?: boolean;
@@ -68,7 +72,7 @@ export default function SearchableManagerSelect({
         u.name.toLowerCase().includes(debouncedSearch.toLowerCase().trim())
     ).slice(0, 50);
 
-    const handleSelect = (user: User) => {
+    const handleSelect = (user: UserLike) => {
         onSelect(user.id);
         setSearch(user.name);
         setIsOpen(false);
