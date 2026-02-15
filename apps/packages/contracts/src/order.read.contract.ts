@@ -43,6 +43,7 @@ export const OrderProcessRunSchema = z.object({
         name: z.string(),
         code: z.string(),
     }).optional().nullable(),
+    billingFormula: z.string().optional(),
 });
 
 export type OrderProcessRunDto =

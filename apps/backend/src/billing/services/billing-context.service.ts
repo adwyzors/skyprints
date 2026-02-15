@@ -252,7 +252,9 @@ export class BillingContextService {
                         runs: p.runs.map(r => ({
                             id: r.id,
                             name: r.displayName || r.runTemplate.name,
-                            configStatus: r.statusCode
+                            configStatus: r.statusCode,
+                            values: r.fields as Record<string, any>,
+                            runTemplate: r.runTemplate
                         }))
                     })),
                     billing: orderSnapshot ? {

@@ -3,18 +3,18 @@
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { BillingContextDetails } from '@/domain/model/billing.model';
+import { getRunBillingMetrics } from '@/services/billing-calculator';
 import { getBillingContextById } from '@/services/billing.service';
 import { reorderOrder } from '@/services/orders.service';
 import {
     Calendar,
-    ChevronDown,
     CreditCard,
     Download,
     ExternalLink,
     Loader2,
     Package,
     RefreshCw,
-    X,
+    X
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -144,62 +144,6 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
         });
     };
 
-    const getRunBillingMetrics = (run: any, processName: string) => {
-        const values = (run.values || {}) as any;
-        let quantity = 0;
-        let amount = 0;
-
-        // Parse items if stringified
-        const items = Array.isArray(values?.items)
-            ? values.items
-            : typeof values?.items === 'string'
-                ? (() => {
-                    try {
-                        return JSON.parse(values.items);
-                    } catch {
-                        return [];
-                    }
-                })()
-                : [];
-
-        switch (processName) {
-            case 'Allover Sublimation':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Sublimation':
-                quantity = items.reduce((sum: number, i: any) => {
-                    const rowSum = Array.isArray(i.quantities)
-                        ? i.quantities.reduce((rs: number, q: any) => rs + (Number(q) || 0), 0)
-                        : 0;
-                    return sum + rowSum;
-                }, 0);
-                amount = Number(values['totalAmount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Plotter':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Positive':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Screen Printing':
-                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
-                amount = Number(values['Estimated Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Embellishment':
-                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
-                amount = Number(values['Final Total']) || Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            default:
-                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['total_quantity']) || (values?.['Quantity'] as number) || 0;
-                amount = Number(values['Total Amount']) || Number(values['totalAmount']) || Number(values['total_amount']) || Number(values['Estimated Amount']) || 0;
-        }
-
-        const ratePerPc = quantity > 0 ? amount / quantity : 0;
-        return { quantity, amount, ratePerPc };
-    };
 
     const formatCurrency = (amount: string | number) => {
         return new Intl.NumberFormat('en-IN', {
@@ -339,7 +283,7 @@ function OrderGroupItem({
 }: {
     order: any;
     formatCurrency: (val: number | string) => string;
-    getRunBillingMetrics: (run: any, processName: string) => { quantity: number; amount: number; ratePerPc: number };
+    getRunBillingMetrics: (run: any, processName: string, quantity: number) => { quantity: number; amount: number; ratePerPc: number };
 }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isReordering, setIsReordering] = useState(false);
@@ -369,16 +313,25 @@ function OrderGroupItem({
 
     return (
         <div className="border border-gray-200 rounded-xl overflow-hidden transition-all duration-200 hover:shadow-md">
-            <button
-                onClick={() => setIsExpanded(!isExpanded)}
+            <div
                 className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
             >
+
                 <div className="flex items-center gap-3">
-                    <div
-                        className={`p-1 rounded-full transition-transform duration-200 ${isExpanded ? 'rotate-180 bg-gray-200' : ''}`}
-                    >
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                    </div>
+                    {hasPermission(Permission.ORDERS_REORDER) && (
+                        <button
+                            onClick={handleReorder}
+                            disabled={isReordering}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isReordering ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <RefreshCw className="w-4 h-4" />
+                            )}
+                            {isReordering ? 'Reordering...' : 'Reorder'}
+                        </button>
+                    )}
                     <div>
                         <div className="font-semibold text-gray-800">{order.code}</div>
                         <div className="text-xs text-gray-500">{order.customer?.name}</div>
@@ -390,59 +343,8 @@ function OrderGroupItem({
                     </div>
                     <div className="text-xs text-gray-500">{order.quantity} units</div>
                 </div>
-            </button>
 
-            {isExpanded && (
-                <div className="bg-white border-t border-gray-200 divide-y divide-gray-100">
-                    {order.processes.map((process: any) => (
-                        <div key={process.id} className="p-4">
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                                <h4 className="text-sm font-semibold text-gray-700">{process.name}</h4>
-                            </div>
-                            <div className="pl-3.5 space-y-2">
-                                {process.runs.map((run: any) => {
-                                    // Use consistent metrics for quantity and rate
-                                    const metrics = getRunBillingMetrics(run, process.name);
-                                    const input = order.billing?.inputs?.[run.id];
-
-                                    const rate = input?.new_rate ?? input?.['new_rate'] ?? metrics.ratePerPc;
-                                    const qty = input?.quantity ?? input?.total_quantity ?? input?.['total_quantity'] ?? input?.['quantity'] ?? metrics.quantity;
-                                    const amount = rate * qty;
-
-                                    return (
-                                        <div key={run.id} className="flex items-center justify-between text-sm group">
-                                            <div className="text-gray-600 group-hover:text-gray-900 transition-colors">
-                                                {run.name}
-                                                <span className="text-xs text-gray-400 ml-2">
-                                                    ({qty} × {formatCurrency(rate)})
-                                                </span>
-                                            </div>
-                                            <div className="font-medium text-gray-700">{formatCurrency(amount)}</div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
-                    {hasPermission(Permission.RUNS_DELETE) && (
-                        <div className="p-4 bg-gray-50 border-t border-gray-200 flex justify-end">
-                            <button
-                                onClick={handleReorder}
-                                disabled={isReordering}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isReordering ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <RefreshCw className="w-4 h-4" />
-                                )}
-                                {isReordering ? 'Reordering...' : 'Reorder'}
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
+            </div>
         </div>
     );
 }

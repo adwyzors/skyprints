@@ -1,5 +1,6 @@
 'use client';
 
+import { getRunBillingMetrics as getRunBillingMetricsInfo } from '@/services/billing-calculator';
 import {
     AlertCircle,
     ArrowLeft,
@@ -200,58 +201,7 @@ export default function OrderConfigPage() {
     const getRunBillingMetrics = (runId: string) => {
         const runInfo = getRunById(runId);
         if (!runInfo) return { quantity: 0, amount: 0, ratePerPc: 0 };
-
-        const { run, processName } = runInfo;
-        const values = (run.values || {}) as any;
-
-        let quantity = 0;
-        let amount = 0;
-
-        // Parse items if stringified
-        const items = Array.isArray(values?.items)
-            ? values.items
-            : typeof values?.items === 'string'
-                ? (() => { try { return JSON.parse(values.items); } catch { return []; } })()
-                : [];
-
-        switch (processName) {
-            case 'Allover Sublimation':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Sublimation':
-                // Sum of all 4 columns for all rows
-                quantity = items.reduce((sum: number, i: any) => {
-                    const rowSum = Array.isArray(i.quantities)
-                        ? i.quantities.reduce((rs: number, q: any) => rs + (Number(q) || 0), 0)
-                        : 0;
-                    return sum + rowSum;
-                }, 0);
-                amount = Number(values['totalAmount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Plotter':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Positive':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0); // User actually said Total's Qty (pcs) for Positive too in rules
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Screen Printing':
-                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
-                amount = Number(values['Estimated Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Embellishment':
-                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
-                amount = Number(values['Final Total']) || Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            default:
-                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['total_quantity']) || (values?.['Quantity'] as number) || 0;
-                amount = Number(values['Total Amount']) || Number(values['totalAmount']) || Number(values['total_amount']) || Number(values['Estimated Amount']) || 0;
-        }
-
-        const ratePerPc = quantity > 0 ? amount / quantity : 0;
-        return { quantity, amount, ratePerPc };
+        return getRunBillingMetricsInfo(runInfo.run, runInfo.processName, order?.quantity || 0);
     };
 
     const allRuns = useMemo(() => {

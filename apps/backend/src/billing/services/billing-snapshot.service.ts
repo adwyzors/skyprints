@@ -282,35 +282,6 @@ export class BillingSnapshotService {
         return snapshot;
     }
 
-
-
-
-
-
-    /* =====================================================
-       PUBLIC — controller-safe
-    ===================================================== */
-    //async saveDraft(
-    //    billingContextId: string,
-    //    inputs: any,
-    //    reason?: string,
-    //    createdBy?: string
-    //) {
-    //    this.logger.log(
-    //        `[saveDraft] billingContextId=${billingContextId}`
-    //    );
-
-    //    return this.prisma.transaction((tx) =>
-    //        this.saveDraftTx(
-    //            tx,
-    //            billingContextId,
-    //            inputs,
-    //            reason,
-    //            createdBy
-    //        )
-    //    );
-    //}
-
     /* =====================================================
        INTERNAL — finalize context
     ===================================================== */

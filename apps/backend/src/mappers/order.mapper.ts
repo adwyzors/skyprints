@@ -72,6 +72,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
 
                 values: run.fields,
                 fields: run.runTemplate.fields,
+                billingFormula: run.runTemplate.billingFormula,
             })),
         })),
     };

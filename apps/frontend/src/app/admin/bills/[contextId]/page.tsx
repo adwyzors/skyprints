@@ -3,6 +3,7 @@
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { BillingContextDetails } from '@/domain/model/billing.model';
+import { getRunBillingMetrics } from '@/services/billing-calculator';
 import { getBillingContextById } from '@/services/billing.service';
 import {
     AlertCircle,
@@ -57,62 +58,7 @@ export default function BillingContextDetailPage() {
         fetchDetails();
     }, [safeContextId]);
 
-    const getRunBillingMetrics = (run: any, processName: string) => {
-        const values = (run.values || {}) as any;
-        let quantity = 0;
-        let amount = 0;
 
-        // Parse items if stringified
-        const items = Array.isArray(values?.items)
-            ? values.items
-            : typeof values?.items === 'string'
-                ? (() => {
-                    try {
-                        return JSON.parse(values.items);
-                    } catch {
-                        return [];
-                    }
-                })()
-                : [];
-
-        switch (processName) {
-            case 'Allover Sublimation':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Sublimation':
-                quantity = items.reduce((sum: number, i: any) => {
-                    const rowSum = Array.isArray(i.quantities)
-                        ? i.quantities.reduce((rs: number, q: any) => rs + (Number(q) || 0), 0)
-                        : 0;
-                    return sum + rowSum;
-                }, 0);
-                amount = Number(values['totalAmount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Plotter':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Positive':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Screen Printing':
-                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
-                amount = Number(values['Estimated Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Embellishment':
-                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
-                amount = Number(values['Final Total']) || Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            default:
-                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['total_quantity']) || (values?.['Quantity'] as number) || 0;
-                amount = Number(values['Total Amount']) || Number(values['totalAmount']) || Number(values['total_amount']) || Number(values['Estimated Amount']) || 0;
-        }
-
-        const ratePerPc = quantity > 0 ? amount / quantity : 0;
-        return { quantity, amount, ratePerPc };
-    };
 
     const handleRateChange = (orderId: string, runId: string, val: string) => {
         const rate = parseFloat(val);
@@ -139,48 +85,33 @@ export default function BillingContextDetailPage() {
 
         setFinalizing(true);
         try {
-            // Prepare payload: checks modified orders and ensures ALL runs for those orders are included
             const inputsToSend: Record<string, Record<string, { new_rate: number }>> = {};
             const modifiedOrderIds = Object.keys(draftInputs);
 
-            if (modifiedOrderIds.length === 0) {
-                // Nothing to save? Or maybe just finalize without inputs?
-                // If the user clicked finalize without edits, we might still want to call API
-                // but typically 'inputs' would be empty.
-                // Proceeding with empty inputs if nothing modified.
-            }
+            // Always include all orders/runs in payload if they are part of the context?
+            // The logic: if finalizing, we probably want to save whatever state is current.
+            // But optimal payload is inputs for all runs.
 
-            modifiedOrderIds.forEach((orderId) => {
-                const order = details.orders.find((o) => o.id === orderId);
-                if (!order) return;
+            details.orders.forEach((order) => {
+                inputsToSend[order.id] = {};
+                order.processes.forEach(process => {
+                    process.runs.forEach(run => {
+                        const metrics = getRunBillingMetrics(run, process.name, order.quantity);
 
-                inputsToSend[orderId] = {};
+                        // Check draft
+                        const draftValue = draftInputs[order.id]?.[run.id];
 
-                // Iterate through ALL runs of the modified order
-                order.processes.forEach((process) => {
-                    process.runs.forEach((run) => {
-                        // Get consistent metrics
-                        const metrics = getRunBillingMetrics(run, process.name);
+                        // Check snapshot
+                        const snapshotInputs = order.billing?.inputs || {};
+                        const currentInput = snapshotInputs[run.id];
 
-                        // 1. Check if there is a draft edit
-                        const draftValue = draftInputs[orderId]?.[run.id];
-
-                        if (draftValue && draftValue.new_rate !== undefined) {
-                            inputsToSend[orderId][run.id] = { new_rate: draftValue.new_rate };
+                        if (draftValue) {
+                            inputsToSend[order.id][run.id] = { new_rate: draftValue.new_rate };
+                        } else if (currentInput) {
+                            const rate = currentInput.new_rate ?? currentInput['new_rate'] ?? 0;
+                            inputsToSend[order.id][run.id] = { new_rate: rate };
                         } else {
-                            // 2. No draft edit -> use current value (Snapshot OR Estimated)
-                            const snapshotInputs = order.billing?.inputs || {};
-                            const currentInput = snapshotInputs[run.id];
-
-                            let rate = 0;
-                            if (currentInput) {
-                                rate = currentInput.new_rate ?? currentInput['new_rate'] ?? 0;
-                            } else {
-                                // Fallback to estimated rate from metrics
-                                rate = metrics.ratePerPc;
-                            }
-
-                            inputsToSend[orderId][run.id] = { new_rate: rate };
+                            inputsToSend[order.id][run.id] = { new_rate: metrics.ratePerPc };
                         }
                     });
                 });
@@ -192,13 +123,8 @@ export default function BillingContextDetailPage() {
             };
 
             await finalizeBillingGroupWithInputs(payload);
-
-            // Clear draft inputs after successful finalization
             setDraftInputs({});
-
-            // Refresh the page data to show updated state
             await fetchDetails();
-
             alert('Billing group finalized successfully!');
         } catch (error) {
             console.error('Failed to finalize group:', error);
@@ -256,60 +182,29 @@ export default function BillingContextDetailPage() {
         );
     }
 
-    // isDraft condition removed - editing always enabled
-
-    // Calculate total amount dynamically based on draft inputs
-    // This is optional for 'perfection' but good for UX.
-    // We can iterate orders -> runs -> check draft input OR snapshot input.
+    // Calculate total amount dynamically
     let displayTotalAmount = 0;
     if (details) {
         details.orders.forEach((order) => {
-            // If order has billing calc result, start with that components?
-            // Actually re-calculating whole group total is complex without backend logic.
-            // We can just rely on the server validation or sum up what we have locally.
-            // Local sum:
-            const snapshotInputs = order.billing?.inputs || {};
-
-            let orderTotal = 0;
+            // ... existing total calculation logic reused or simplified if needed
+            // For brevity, using simplified summation of effective amounts
             order.processes.forEach((p) => {
                 p.runs.forEach((r) => {
-                    // Check draft
-                    const draft = draftInputs[order.id]?.[r.id];
-                    // Check snapshot
-                    const snap = snapshotInputs[r.id]; // billing inputs are flattened usually? or nested?
-                    // Based on sample data: inputs: { runId: { new_rate: x, quantity: y } }
+                    const metrics = getRunBillingMetrics(r, p.name, order.quantity);
+                    const snapshotInput = order.billing?.inputs?.[r.id];
+                    const baseRate = snapshotInput?.new_rate ?? metrics.ratePerPc;
+                    const effectiveRate = draftInputs[order.id]?.[r.id]?.new_rate ?? baseRate;
 
-                    let rate = 0;
-                    let qty = 0;
+                    // Quantity also from snapshot or metrics
+                    // Note: Snapshot might store quantity too if it was fixed at generation time
+                    // But we fallback to metrics.quantity
+                    const qty = snapshotInput?.quantity ?? metrics.quantity;
 
-                    if (snap) {
-                        rate = snap.new_rate ?? snap['new_rate'] ?? 0;
-                        qty = snap.quantity ?? snap['quantity'] ?? 0;
-                    }
-
-                    // Override rate if draft exists
-                    if (draft?.new_rate !== undefined) {
-                        rate = draft.new_rate;
-                    }
-                    // If no snap qty, maybe use run val? but difficult to get here easily without deeper lookup
-                    // Assuming snap has it if invoiced. If not invoiced, we might default to run values
-                    // Since we are in 'billing context', snapshots should exist or be created.
-                    // The modal logic had fallback. Here we assume details.inputs exist.
-
-                    orderTotal += rate * qty;
+                    displayTotalAmount += effectiveRate * qty;
                 });
             });
-            displayTotalAmount += orderTotal;
         });
     }
-    // Fallback if calculation is zero (e.g. initial load without full traversal logic matching)
-    // or just show original result if no edits?
-    // Let's just show details.latestSnapshot.result for now to avoid complexity bugs
-    // OR we ideally show the 'Estimated New Total' if changed.
-    // For simplicity of this task step, I'll stick to displaying the static total
-    // unless I'm confident in the math. The user asked for "update the new rate option",
-    // not necessarily dynamic full client-side recalc (though nice).
-    // I'll show the server-provided total for now to be safe.
 
     return (
         <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -349,7 +244,7 @@ export default function BillingContextDetailPage() {
                                 </div>
                                 <span className="text-sm font-medium text-gray-600">Total Orders</span>
                             </div>
-                            <span className="text-xl font-bold text-gray-900">{details.ordersCount}</span>
+                            <span className="text-xl font-bold text-gray-900">{details.orders.length}</span>
                         </div>
 
                         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
@@ -361,53 +256,14 @@ export default function BillingContextDetailPage() {
                             </div>
                             <div className="text-right">
                                 <span className="text-xl font-bold text-indigo-600 block">
-                                    {details.latestSnapshot ? formatCurrency(details.latestSnapshot.result) : '-'}
+                                    {formatCurrency(displayTotalAmount)}
                                 </span>
-                                {(() => {
-                                    // Calculate dynamic total
-                                    let currentTotal = 0;
-                                    let originalTotal = 0;
-
-                                    details.orders.forEach((order) => {
-                                        const snapshot = order.billing;
-                                        order.processes.forEach((p) => {
-                                            p.runs.forEach((r) => {
-                                                const metrics = getRunBillingMetrics(r, p.name);
-                                                const input = snapshot?.inputs?.[r.id];
-
-                                                const qty = input?.quantity ?? input?.total_quantity ?? input?.['total_quantity'] ?? metrics.quantity;
-                                                const baseRate =
-                                                    input?.new_rate ??
-                                                    input?.['new_rate'] ??
-                                                    metrics.ratePerPc;
-
-                                                const draftRate = draftInputs[order.id]?.[r.id]?.new_rate;
-                                                const effectiveRate = draftRate !== undefined ? draftRate : baseRate;
-
-                                                currentTotal += effectiveRate * qty;
-                                                originalTotal += baseRate * qty;
-                                            });
-                                        });
-                                    });
-
-                                    const diff = currentTotal - originalTotal;
-
-                                    if (diff === 0) return null;
-
-                                    return (
-                                        <div className="mt-1 flex flex-col items-end">
-                                            <span
-                                                className={`text-sm font-medium ${diff > 0 ? 'text-green-600' : 'text-red-600'}`}
-                                            >
-                                                {diff > 0 ? '+' : ''}
-                                                {formatCurrency(diff)}
-                                            </span>
-                                            <span className="text-lg font-bold text-gray-900">
-                                                {formatCurrency(currentTotal)}
-                                            </span>
-                                        </div>
-                                    );
-                                })()}
+                                {details.latestSnapshot && Math.abs(displayTotalAmount - Number(details.latestSnapshot.result)) > 1 && (
+                                    <span className={`text-xs ${displayTotalAmount > Number(details.latestSnapshot.result) ? 'text-green-600' : 'text-red-600'}`}>
+                                        {displayTotalAmount > Number(details.latestSnapshot.result) ? '+' : ''}
+                                        {formatCurrency(displayTotalAmount - Number(details.latestSnapshot.result))}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -454,6 +310,18 @@ export default function BillingContextDetailPage() {
                             const orderSnapshot = order.billing;
                             const isExpanded = expandedOrders.has(order.id);
 
+                            // Calculate order total
+                            let orderCurrentTotal = 0;
+                            order.processes.forEach(p => {
+                                p.runs.forEach(r => {
+                                    const metrics = getRunBillingMetrics(r, p.name, order.quantity);
+                                    const input = orderSnapshot?.inputs?.[r.id];
+                                    const rate = draftInputs[order.id]?.[r.id]?.new_rate ?? input?.new_rate ?? metrics.ratePerPc;
+                                    const qty = input?.quantity ?? metrics.quantity;
+                                    orderCurrentTotal += rate * qty;
+                                });
+                            });
+
                             return (
                                 <div
                                     key={order.id}
@@ -483,7 +351,7 @@ export default function BillingContextDetailPage() {
                                         <div className="flex items-center gap-6 justify-between sm:justify-end">
                                             <div className="text-right">
                                                 <p className="text-lg font-bold text-gray-900">
-                                                    {orderSnapshot ? formatCurrency(orderSnapshot.result) : '-'}
+                                                    {formatCurrency(orderCurrentTotal)}
                                                 </p>
                                                 <p className="text-xs text-gray-500">Total Billed</p>
                                             </div>
@@ -499,109 +367,112 @@ export default function BillingContextDetailPage() {
                                     {/* Expanded Content */}
                                     {isExpanded && (
                                         <div className="border-t border-gray-100 bg-gray-50/50 animate-in slide-in-from-top-1 duration-200">
-                                            {orderSnapshot ? (
-                                                <div className="divide-y divide-gray-100">
-                                                    {order.processes.map((process) => (
-                                                        <div key={process.id} className="p-4">
-                                                            <div className="flex items-center gap-2 mb-3">
-                                                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                                                <span className="font-semibold text-sm text-gray-700">
-                                                                    {process.name}
-                                                                </span>
-                                                            </div>
-                                                            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                                                                {process.runs.map((run, idx) => {
-                                                                    // Get consistent metrics
-                                                                    const metrics = getRunBillingMetrics(run, process.name);
-                                                                    const input = orderSnapshot.inputs?.[run.id] || {};
+                                            <div className="divide-y divide-gray-100">
+                                                {order.processes.map((process) => (
+                                                    <div key={process.id} className="p-4">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                                            <span className="font-semibold text-sm text-gray-700">
+                                                                {process.name}
+                                                            </span>
+                                                        </div>
+                                                        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                                            {process.runs.map((run, idx) => {
+                                                                // Get consistent metrics
+                                                                const metrics = getRunBillingMetrics(run, process.name, order.quantity);
+                                                                const input = orderSnapshot?.inputs?.[run.id] || {};
 
-                                                                    const currentRate = input.new_rate ?? input['new_rate'] ?? metrics.ratePerPc;
-                                                                    const qty = input.quantity ?? input.total_quantity ?? input['total_quantity'] ?? input['quantity'] ?? metrics.quantity;
+                                                                const currentRate = input.new_rate ?? input['new_rate'] ?? metrics.ratePerPc;
+                                                                // If input doesn't have quantity, we fallback to metrics.quantity
+                                                                const qty = input.quantity ?? input.total_quantity ?? input['total_quantity'] ?? input['quantity'] ?? metrics.quantity;
 
-                                                                    const draftVal = draftInputs[order.id]?.[run.id]?.new_rate;
-                                                                    const displayRate =
-                                                                        draftVal !== undefined ? draftVal : currentRate;
-                                                                    const displayTotal = displayRate * qty;
-                                                                    const isEdited =
-                                                                        draftVal !== undefined && (Math.abs(draftVal - currentRate) > 0.01);
+                                                                const draftVal = draftInputs[order.id]?.[run.id]?.new_rate;
+                                                                const displayRate =
+                                                                    draftVal !== undefined ? draftVal : currentRate;
+                                                                const displayTotal = displayRate * qty;
+                                                                const isEdited =
+                                                                    draftVal !== undefined && (Math.abs(draftVal - currentRate) > 0.01);
 
-                                                                    return (
-                                                                        <div
-                                                                            key={run.id}
-                                                                            className={`p-3 flex items-center justify-between gap-4 ${idx !== process.runs.length - 1 ? 'border-b border-gray-100' : ''}`}
-                                                                        >
-                                                                            <div className="min-w-0 flex-1">
-                                                                                <p className="text-sm font-medium text-gray-800 truncate">
-                                                                                    {run.name}
-                                                                                </p>
-                                                                                <p className="text-xs text-gray-500">{qty} units</p>
-                                                                            </div>
+                                                                const values = run.values || {};
+                                                                // Filter fields to show: exclude billing/hidden ones
+                                                                // If runTemplate exists, use its fields.
+                                                                // Exclude: new_rate, new_amount, total_amount, estimated_amount (as they are usually summaries or inputs)
+                                                                // Actually 'total_amount' might be the base, so showing it is good.
+                                                                // Usually we hide 'new_rate', 'new_amount'
 
-                                                                            <div className="flex items-center gap-4">
-                                                                                <div className="text-right">
-                                                                                    <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-1">
-                                                                                        Rate
-                                                                                    </span>
-                                                                                    <div className="flex items-center gap-1">
-                                                                                        <div className="relative group/input">
-                                                                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
-                                                                                                ₹
-                                                                                            </span>
-                                                                                            <input
-                                                                                                type="number"
-                                                                                                className={`w-24 pl-5 pr-2 py-1.5 text-sm border rounded outline-none transition-all text-right font-medium
-                                                                                                    ${isEdited ? 'border-amber-300 bg-amber-50 text-amber-900 ring-2 ring-amber-100' : 'border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'}
-                                                                                                `}
-                                                                                                value={displayRate}
-                                                                                                onChange={(e) =>
-                                                                                                    handleRateChange(order.id, run.id, e.target.value)
-                                                                                                }
-                                                                                                onFocus={(e) => e.target.select()}
-                                                                                                readOnly={
-                                                                                                    !hasPermission(Permission.BILLINGS_UPDATE)
-                                                                                                }
-                                                                                            />
-                                                                                        </div>
-                                                                                        {hasPermission(Permission.BILLINGS_UPDATE) && (
-                                                                                            <button
-                                                                                                className={`p-1.5 rounded-md transition-colors ${isEdited ? 'text-amber-600 bg-amber-100 hover:bg-amber-200' : 'text-gray-300 bg-gray-100 hover:bg-gray-200'}`}
-                                                                                                title="Update Rate"
-                                                                                            >
-                                                                                                <CheckCircle2 className="w-4 h-4" />
-                                                                                            </button>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
 
-                                                                                <div className="text-right min-w-[80px]">
-                                                                                    <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-1">
-                                                                                        Amount
-                                                                                    </span>
-                                                                                    <span className="text-sm font-bold text-gray-900 block py-1.5">
-                                                                                        {formatCurrency(displayTotal)}
-                                                                                    </span>
-                                                                                    {isEdited && displayTotal !== currentRate * qty && (
-                                                                                        <span
-                                                                                            className={`text-xs block font-medium ${displayTotal > currentRate * qty ? 'text-green-600' : 'text-red-600'}`}
-                                                                                        >
-                                                                                            {displayTotal > currentRate * qty ? '+' : ''}
-                                                                                            {formatCurrency(displayTotal - currentRate * qty)}
+                                                                return (
+                                                                    <div
+                                                                        key={run.id}
+                                                                        className={`p-3 flex items-center justify-between gap-4 ${idx !== process.runs.length - 1 ? 'border-b border-gray-100' : ''}`}
+                                                                    >
+                                                                        <div className="flex items-center gap-2 h-full" style={{ alignItems: 'center' }}>
+                                                                            <p className="min-w-0 text-sm font-medium text-gray-800 mb-0">
+                                                                                {run.name}
+                                                                            </p>
+                                                                        </div>
+
+                                                                        {/* RATES & TOTALS */}
+                                                                        <div className="flex items-center gap-4 shrink-0">
+                                                                            <div className="text-right">
+                                                                                <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-1">
+                                                                                    Rate
+                                                                                </span>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <div className="relative group/input">
+                                                                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                                                                                            ₹
                                                                                         </span>
+                                                                                        <input
+                                                                                            type="number"
+                                                                                            className={`w-24 pl-5 pr-2 py-1.5 text-sm border rounded outline-none transition-all text-right font-medium
+                                                                                                ${isEdited ? 'border-amber-300 bg-amber-50 text-amber-900 ring-2 ring-amber-100' : 'border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'}
+                                                                                            `}
+                                                                                            value={displayRate}
+                                                                                            onChange={(e) =>
+                                                                                                handleRateChange(order.id, run.id, e.target.value)
+                                                                                            }
+                                                                                            onFocus={(e) => e.target.select()}
+                                                                                            readOnly={
+                                                                                                !hasPermission(Permission.BILLINGS_UPDATE)
+                                                                                            }
+                                                                                        />
+                                                                                    </div>
+                                                                                    {hasPermission(Permission.BILLINGS_UPDATE) && (
+                                                                                        <button
+                                                                                            className={`p-1.5 rounded-md transition-colors ${isEdited ? 'text-amber-600 bg-amber-100 hover:bg-amber-200' : 'text-gray-300 bg-gray-100 hover:bg-gray-200'}`}
+                                                                                            title="Update Rate"
+                                                                                        >
+                                                                                            <CheckCircle2 className="w-4 h-4" />
+                                                                                        </button>
                                                                                     )}
                                                                                 </div>
                                                                             </div>
+
+                                                                            <div className="text-right min-w-[80px]">
+                                                                                <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-1">
+                                                                                    Amount
+                                                                                </span>
+                                                                                <span className="text-sm font-bold text-gray-900 block py-1.5">
+                                                                                    {formatCurrency(displayTotal)}
+                                                                                </span>
+                                                                                {isEdited && displayTotal !== currentRate * qty && (
+                                                                                    <span
+                                                                                        className={`text-xs block font-medium ${displayTotal > currentRate * qty ? 'text-green-600' : 'text-red-600'}`}
+                                                                                    >
+                                                                                        {displayTotal > currentRate * qty ? '+' : ''}
+                                                                                        {formatCurrency(displayTotal - currentRate * qty)}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
-                                                                    );
-                                                                })}
-                                                            </div>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <div className="p-8 text-center text-gray-500 italic">
-                                                    No billing data available for this order.
-                                                </div>
-                                            )}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>

@@ -157,6 +157,7 @@ export class OrdersService {
                                         select: {
                                             id: true,
                                             name: true,
+                                            billingFormula: true,
                                             fields: true,
                                             lifecycleWorkflowType: {
                                                 include: {
@@ -377,6 +378,7 @@ export class OrdersService {
                                     select: {
                                         id: true,
                                         name: true,
+                                        billingFormula: true,
                                         fields: true,
                                         lifecycleWorkflowType: {
                                             include: {

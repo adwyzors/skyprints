@@ -188,6 +188,7 @@ export interface ProcessRun {
         type: string;
         required: boolean;
     }>;
+    billingFormula?: string;
 }
 
 export interface RunField {

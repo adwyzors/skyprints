@@ -4,6 +4,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { Order } from '@/domain/model/order.model';
 import { apiRequest } from '@/services/api.service';
+import { getRunBillingMetrics } from '@/services/billing-calculator';
 import { getOrderById } from '@/services/orders.service';
 import {
     Calculator,
@@ -89,63 +90,6 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
     const getBillingRate = (runId: string, originalRate: number): number => {
         return billingRates[runId] !== undefined ? billingRates[runId] : originalRate;
     };
-
-    const getRunBillingMetrics = (run: any, processName: string) => {
-        const values = (run.values || {}) as any;
-        let quantity = 0;
-        let amount = 0;
-
-        // Parse items if stringified
-        const items = Array.isArray(values?.items)
-            ? values.items
-            : typeof values?.items === 'string'
-                ? (() => {
-                    try {
-                        return JSON.parse(values.items);
-                    } catch {
-                        return [];
-                    }
-                })()
-                : [];
-
-        switch (processName) {
-            case 'Allover Sublimation':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Sublimation':
-                quantity = items.reduce((sum: number, i: any) => {
-                    const rowSum = Array.isArray(i.quantities)
-                        ? i.quantities.reduce((rs: number, q: any) => rs + (Number(q) || 0), 0)
-                        : 0;
-                    return sum + rowSum;
-                }, 0);
-                amount = Number(values['totalAmount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Plotter':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Positive':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Screen Printing':
-                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
-                amount = Number(values['Estimated Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Embellishment':
-                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
-                amount = Number(values['Final Total']) || Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            default:
-                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['total_quantity']) || (values?.['Quantity'] as number) || 0;
-                amount = Number(values['Total Amount']) || Number(values['totalAmount']) || Number(values['total_amount']) || Number(values['Estimated Amount']) || 0;
-        }
-
-        const ratePerPc = quantity > 0 ? amount / quantity : 0;
-        return { quantity, amount, ratePerPc };
-    };
     const { hasPermission } = useAuth();
 
     // Calculate totals
@@ -157,7 +101,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
 
         order.processes.forEach((process) => {
             process.runs.forEach((run) => {
-                const metrics = getRunBillingMetrics(run, process.name);
+                const metrics = getRunBillingMetrics(run, process.name, order.quantity);
                 const quantity = metrics.quantity;
                 const estimatedRate = metrics.ratePerPc;
                 const billingRate = getBillingRate(run.id, estimatedRate);
@@ -180,7 +124,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
 
         order.processes.forEach((process) => {
             process.runs.forEach((run) => {
-                const metrics = getRunBillingMetrics(run, process.name);
+                const metrics = getRunBillingMetrics(run, process.name, order.quantity);
                 const estimatedRate = metrics.ratePerPc;
                 const billingRate = getBillingRate(run.id, estimatedRate);
                 inputs[run.id] = { new_rate: billingRate };
@@ -224,6 +168,9 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
             'Sublimation',
             'Plotter',
             'Positive',
+            'Diamond',
+            'DTF',
+            'Spangle'
         ].includes(processName);
 
     const isEmbellishment = (processName: string) => processName === 'Embellishment';
@@ -421,7 +368,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                 const isExpanded = expandedRuns.has(run.id);
 
                                                 // Use our helper to get consistent metrics
-                                                const metrics = getRunBillingMetrics(run, process.name);
+                                                const metrics = getRunBillingMetrics(run, process.name, order.quantity);
                                                 const quantity = metrics.quantity;
                                                 const estimatedRate = metrics.ratePerPc;
 

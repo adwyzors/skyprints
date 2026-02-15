@@ -2,6 +2,7 @@
 //apps\frontend\src\components\modals\CompletedOrderModa"use client";
 import { BillingSnapshot } from "@/domain/model/billing.model";
 import { Order } from "@/domain/model/order.model";
+import { getRunBillingMetrics } from "@/services/billing-calculator";
 import { getLatestBillingSnapshot } from "@/services/billing.service";
 import { getOrderById } from "@/services/orders.service";
 import { Calculator, CheckCircle, ExternalLink, FileText, Loader2, Package, X } from "lucide-react";
@@ -41,64 +42,10 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
         fetchData();
     }, [orderId]);
 
-    const getRunBillingMetrics = (runInfo: { run: any, processName: string }) => {
-        const { run, processName } = runInfo;
-        const values = (run.values || {}) as any;
-
-        let quantity = 0;
-        let amount = 0;
-
-        // Parse items if stringified
-        const items = Array.isArray(values?.items)
-            ? values.items
-            : typeof values?.items === 'string'
-                ? (() => { try { return JSON.parse(values.items); } catch { return []; } })()
-                : [];
-
-        switch (processName) {
-            case 'Allover Sublimation':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Sublimation':
-                // Sum of all 4 columns for all rows
-                quantity = items.reduce((sum: number, i: any) => {
-                    const rowSum = Array.isArray(i.quantities)
-                        ? i.quantities.reduce((rs: number, q: any) => rs + (Number(q) || 0), 0)
-                        : 0;
-                    return sum + rowSum;
-                }, 0);
-                amount = Number(values['totalAmount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Plotter':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Positive':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Screen Printing':
-                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
-                amount = Number(values['Estimated Amount']) || Number(values['total_amount']) || 0;
-                break;
-            case 'Embellishment':
-                quantity = Number(values['Total Quantity']) || Number(values['total_quantity']) || 0;
-                amount = Number(values['Final Total']) || Number(values['Total Amount']) || Number(values['total_amount']) || 0;
-                break;
-            default:
-                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['total_quantity']) || (values?.['Quantity'] as number) || 0;
-                amount = Number(values['Total Amount']) || Number(values['totalAmount']) || Number(values['total_amount']) || Number(values['Estimated Amount']) || 0;
-        }
-
-        const ratePerPc = quantity > 0 ? amount / quantity : 0;
-        return { quantity, amount, ratePerPc };
-    };
-
     // Get values from run with billing snapshot data if available
     const getRunValues = (run: Order['processes'][0]['runs'][0], processName: string) => {
         // Get metrics based on process type
-        const metrics = getRunBillingMetrics({run, processName});
+        const metrics = getRunBillingMetrics(run, processName, order?.quantity || 0);
         const quantity = metrics.quantity;
         const estimatedRate = metrics.ratePerPc;
         const estimatedAmount = metrics.amount;
