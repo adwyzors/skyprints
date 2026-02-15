@@ -23,354 +23,354 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
    ================================================= */
 
 function AdminOrdersContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const selectedOrderId = searchParams.get('selectedOrder');
-  const { hasPermission } = useAuth();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const selectedOrderId = searchParams.get('selectedOrder');
+    const { hasPermission } = useAuth();
 
-  /* ================= STATE ================= */
+    /* ================= STATE ================= */
 
-  const [ordersData, setOrdersData] = useState<{
-    orders: OrderCardData[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  }>({
-    orders: [],
-    total: 0,
-    page: 1,
-    limit: 12, // Default limit
-    totalPages: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [openCreate, setOpenCreate] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [pageSize, setPageSize] = useState(12);
+    const [ordersData, setOrdersData] = useState<{
+        orders: OrderCardData[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    }>({
+        orders: [],
+        total: 0,
+        page: 1,
+        limit: 12, // Default limit
+        totalPages: 0,
+    });
+    const [loading, setLoading] = useState(true);
+    const [openCreate, setOpenCreate] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+    const [pageSize, setPageSize] = useState(12);
 
-  // Sidebar State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    // Sidebar State
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Search and filter states
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [filters, setFilters] = useState({
-    status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'],
-    dateRange: 'all',
-    customerId: 'all',
-    locationId: 'all',
-  });
+    // Search and filter states
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [filters, setFilters] = useState({
+        status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'],
+        dateRange: 'all',
+        customerId: 'all',
+        locationId: 'all',
+    });
 
-  // Bulk Selection State
-  // const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  // const [isDeleting, setIsDeleting] = useState(false);
+    // Bulk Selection State
+    // const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+    // const [isDeleting, setIsDeleting] = useState(false);
 
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  /* ================= EFFECTS ================= */
+    /* ================= EFFECTS ================= */
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
-  // Debounce search input
-  const debouncedSearchUpdate = useCallback(
-    debounce((value: string) => {
-      setDebouncedSearch(value);
-      // Reset to page 1 when search changes
-      setOrdersData((prev) => ({ ...prev, page: 1 }));
-    }, 500),
-    [],
-  );
+    // Debounce search input
+    const debouncedSearchUpdate = useCallback(
+        debounce((value: string) => {
+            setDebouncedSearch(value);
+            // Reset to page 1 when search changes
+            setOrdersData((prev) => ({ ...prev, page: 1 }));
+        }, 500),
+        [],
+    );
 
-  useEffect(() => {
-    debouncedSearchUpdate(searchQuery);
-    return () => debouncedSearchUpdate.cancel();
-  }, [searchQuery, debouncedSearchUpdate]);
+    useEffect(() => {
+        debouncedSearchUpdate(searchQuery);
+        return () => debouncedSearchUpdate.cancel();
+    }, [searchQuery, debouncedSearchUpdate]);
 
-  // API Cache with 2-second TTL
-  const cacheRef = useState<{ [key: string]: { data: any; timestamp: number } }>({});
-  const CACHE_TTL = 2000; // 2 seconds
+    // API Cache with 2-second TTL
+    const cacheRef = useState<{ [key: string]: { data: any; timestamp: number } }>({});
+    const CACHE_TTL = 2000; // 2 seconds
 
-  const getCacheKey = (params: GetOrdersParams) => {
-    return JSON.stringify(params);
-  };
+    const getCacheKey = (params: GetOrdersParams) => {
+        return JSON.stringify(params);
+    };
 
-  const getCachedData = (key: string) => {
-    const cached = cacheRef[0][key];
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.data;
-    }
-    return null;
-  };
+    const getCachedData = (key: string) => {
+        const cached = cacheRef[0][key];
+        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+            return cached.data;
+        }
+        return null;
+    };
 
-  const setCachedData = (key: string, data: any) => {
-    cacheRef[0][key] = { data, timestamp: Date.now() };
-  };
+    const setCachedData = (key: string, data: any) => {
+        cacheRef[0][key] = { data, timestamp: Date.now() };
+    };
 
-  const clearCache = () => {
-    cacheRef[0] = {};
-  };
+    const clearCache = () => {
+        cacheRef[0] = {};
+    };
 
-  // Main data fetching effect
-  useEffect(() => {
-    let cancelled = false;
+    // Main data fetching effect
+    useEffect(() => {
+        let cancelled = false;
 
-    const fetchOrders = async () => {
-      setLoading(true);
-      try {
-        // Build query params
-        const params: GetOrdersParams = {
-          page: ordersData.page,
-          limit: pageSize,
+        const fetchOrders = async () => {
+            setLoading(true);
+            try {
+                // Build query params
+                const params: GetOrdersParams = {
+                    page: ordersData.page,
+                    limit: pageSize,
+                };
+
+                // Check cache first
+                const cacheKey = getCacheKey(params);
+                const cachedResult = getCachedData(cacheKey);
+                // Only use cache if filters match the cached params (simplified check for now, can improve)
+                // For now, let's skip cache if filters are active to avoid stale data issues during active filtering
+                // or just rely on the existing caching mechanism which uses params as key.
+                // Actually, we must include filters in params for cache key to work.
+
+                // Add status filters - send comma-separated statuses
+                if (filters.status.length > 0) {
+                    params.status = filters.status.join(',');
+                } else {
+                    // If explicit empty status filter, user wants to see nothing or everything?
+                    // Usually if nothing selected, we might default or show all.
+                    // Let's assume if empty, we send empty string or default.
+                    // Previous logic defaulted to active statuses if none selected.
+                    // But with sidebar, user might deselect all. Let's respect user choice if empty -> fetch nothing or all?
+                    // Let's stick to default active if undefined, but if user explicitly cleared, maybe show all?
+                    // For now, if empty, we'll send empty string which might return all or none depending on backend.
+                    // Reverting to previous default behavior if truly empty might differ from user intent.
+                    // Let's send what is in filters.status.
+                    // If the user clears all statuses, they probably want to see *something* or *nothing*.
+                    // Let's assume if it is empty, we don't filter by status (show all).
+                }
+
+                if (debouncedSearch) {
+                    params.search = debouncedSearch;
+                }
+
+                if (filters.customerId !== 'all') {
+                    params.customerId = filters.customerId;
+                }
+
+                if (filters.locationId && filters.locationId !== 'all') {
+                    params.locationId = filters.locationId;
+                }
+
+                // Handle date filters
+                if (filters.dateRange !== 'all') {
+                    const fromDate = new Date();
+
+                    switch (filters.dateRange) {
+                        case 'today':
+                            fromDate.setHours(0, 0, 0, 0);
+                            params.fromDate = fromDate.toISOString().split('T')[0];
+                            break;
+                        case 'week':
+                            fromDate.setDate(fromDate.getDate() - 7);
+                            params.fromDate = fromDate.toISOString().split('T')[0];
+                            break;
+                        case 'month':
+                            fromDate.setMonth(fromDate.getMonth() - 1);
+                            params.fromDate = fromDate.toISOString().split('T')[0];
+                            break;
+                        case 'quarter':
+                            fromDate.setMonth(fromDate.getMonth() - 3);
+                            params.fromDate = fromDate.toISOString().split('T')[0];
+                            break;
+                    }
+                }
+
+                // Update cache key with full params
+                const fullCacheKey = getCacheKey(params);
+                const fullCachedResult = getCachedData(fullCacheKey);
+
+                if (fullCachedResult && !cancelled) {
+                    setOrdersData(fullCachedResult);
+                    setLoading(false);
+                    return;
+                }
+
+                const fetchedData = await getOrderCards(params);
+                if (!cancelled) {
+                    setOrdersData(fetchedData);
+                    setCachedData(fullCacheKey, fetchedData);
+                }
+            } catch (error) {
+                console.error('Error fetching orders:', error);
+                if (!cancelled) {
+                    setOrdersData((prev) => ({ ...prev, orders: [], total: 0, totalPages: 0 }));
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
         };
 
-        // Check cache first
-        const cacheKey = getCacheKey(params);
-        const cachedResult = getCachedData(cacheKey);
-        // Only use cache if filters match the cached params (simplified check for now, can improve)
-        // For now, let's skip cache if filters are active to avoid stale data issues during active filtering
-        // or just rely on the existing caching mechanism which uses params as key.
-        // Actually, we must include filters in params for cache key to work.
+        const timeoutId = setTimeout(fetchOrders, 300);
+        return () => {
+            cancelled = true;
+            clearTimeout(timeoutId);
+        };
+    }, [debouncedSearch, filters, ordersData.page, pageSize, refreshTrigger]);
 
-        // Add status filters - send comma-separated statuses
-        if (filters.status.length > 0) {
-          params.status = filters.status.join(',');
-        } else {
-          // If explicit empty status filter, user wants to see nothing or everything?
-          // Usually if nothing selected, we might default or show all.
-          // Let's assume if empty, we send empty string or default.
-          // Previous logic defaulted to active statuses if none selected.
-          // But with sidebar, user might deselect all. Let's respect user choice if empty -> fetch nothing or all?
-          // Let's stick to default active if undefined, but if user explicitly cleared, maybe show all?
-          // For now, if empty, we'll send empty string which might return all or none depending on backend.
-          // Reverting to previous default behavior if truly empty might differ from user intent.
-          // Let's send what is in filters.status.
-          // If the user clears all statuses, they probably want to see *something* or *nothing*.
-          // Let's assume if it is empty, we don't filter by status (show all).
-        }
+    /* ================= HANDLERS ================= */
 
-        if (debouncedSearch) {
-          params.search = debouncedSearch;
-        }
+    const handleOrderCreated = () => {
+        clearCache();
+        setRefreshTrigger((prev) => prev + 1);
+        setOpenCreate(false);
+    };
 
-        if (filters.customerId !== 'all') {
-          params.customerId = filters.customerId;
-        }
+    const handlePageSizeChange = (newSize: number) => {
+        setPageSize(newSize);
+        setOrdersData((prev) => ({ ...prev, page: 1, limit: newSize }));
+    };
 
-        if (filters.locationId && filters.locationId !== 'all') {
-          params.locationId = filters.locationId;
-        }
+    const handlePageChange = (newPage: number) => {
+        setOrdersData((prev) => ({ ...prev, page: newPage }));
+    };
 
-        // Handle date filters
-        if (filters.dateRange !== 'all') {
-          const fromDate = new Date();
+    const handleClearFilters = () => {
+        setFilters({
+            status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'], // Reset to default interesting statuses
+            dateRange: 'all',
+            customerId: 'all',
+            locationId: 'all',
+        });
+        setOrdersData((prev) => ({ ...prev, page: 1 }));
+    };
 
-          switch (filters.dateRange) {
-            case 'today':
-              fromDate.setHours(0, 0, 0, 0);
-              params.fromDate = fromDate.toISOString().split('T')[0];
-              break;
-            case 'week':
-              fromDate.setDate(fromDate.getDate() - 7);
-              params.fromDate = fromDate.toISOString().split('T')[0];
-              break;
-            case 'month':
-              fromDate.setMonth(fromDate.getMonth() - 1);
-              params.fromDate = fromDate.toISOString().split('T')[0];
-              break;
-            case 'quarter':
-              fromDate.setMonth(fromDate.getMonth() - 3);
-              params.fromDate = fromDate.toISOString().split('T')[0];
-              break;
-          }
-        }
+    /* ================= BULK ACTIONS ================= */
 
-        // Update cache key with full params
-        const fullCacheKey = getCacheKey(params);
-        const fullCachedResult = getCachedData(fullCacheKey);
+    /* ================= BULK ACTIONS ================= */
 
-        if (fullCachedResult && !cancelled) {
-          setOrdersData(fullCachedResult);
-          setLoading(false);
-          return;
-        }
-
-        const fetchedData = await getOrderCards(params);
-        if (!cancelled) {
-          setOrdersData(fetchedData);
-          setCachedData(fullCacheKey, fetchedData);
-        }
-      } catch (error) {
-        console.error('Error fetching orders:', error);
-        if (!cancelled) {
-          setOrdersData((prev) => ({ ...prev, orders: [], total: 0, totalPages: 0 }));
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+    /* const toggleSelectOrder = (orderId: string, selected: boolean) => {
+      if (selected) {
+        setSelectedOrderIds((prev) => [...prev, orderId]);
+      } else {
+        setSelectedOrderIds((prev) => prev.filter((id) => id !== orderId));
       }
     };
-
-    const timeoutId = setTimeout(fetchOrders, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
+  
+    const handleBulkDelete = async () => {
+      if (!selectedOrderIds.length) return;
+  
+      if (!confirm(`Are you sure you want to delete ${selectedOrderIds.length} orders? This action cannot be undone.`)) {
+        return;
+      }
+  
+      setIsDeleting(true);
+      try {
+        await deleteOrders(selectedOrderIds);
+        setSelectedOrderIds([]);
+        setRefreshTrigger((prev) => prev + 1);
+        clearCache();
+      } catch (error) {
+        console.error('Failed to delete orders', error);
+        alert('Failed to delete orders');
+      } finally {
+        setIsDeleting(false);
+      }
     };
-  }, [debouncedSearch, filters, ordersData.page, pageSize, refreshTrigger]);
+  
+    const handleSelectAllOnPage = () => {
+      if (selectedOrderIds.length === filteredOrders.length) {
+        setSelectedOrderIds([]);
+      } else {
+        setSelectedOrderIds(filteredOrders.map(o => o.id));
+      }
+    }; */
 
-  /* ================= HANDLERS ================= */
+    /* ================= FILTERED ORDERS ================= */
 
-  const handleOrderCreated = () => {
-    clearCache();
-    setRefreshTrigger((prev) => prev + 1);
-    setOpenCreate(false);
-  };
+    const filteredOrders = ordersData.orders;
 
-  const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    setOrdersData((prev) => ({ ...prev, page: 1, limit: newSize }));
-  };
+    /* ================= SSR GUARD ================= */
 
-  const handlePageChange = (newPage: number) => {
-    setOrdersData((prev) => ({ ...prev, page: newPage }));
-  };
-
-  const handleClearFilters = () => {
-    setFilters({
-      status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'], // Reset to default interesting statuses
-      dateRange: 'all',
-      customerId: 'all',
-      locationId: 'all',
-    });
-    setOrdersData((prev) => ({ ...prev, page: 1 }));
-  };
-
-  /* ================= BULK ACTIONS ================= */
-
-  /* ================= BULK ACTIONS ================= */
-
-  /* const toggleSelectOrder = (orderId: string, selected: boolean) => {
-    if (selected) {
-      setSelectedOrderIds((prev) => [...prev, orderId]);
-    } else {
-      setSelectedOrderIds((prev) => prev.filter((id) => id !== orderId));
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (!selectedOrderIds.length) return;
-
-    if (!confirm(`Are you sure you want to delete ${selectedOrderIds.length} orders? This action cannot be undone.`)) {
-      return;
+    if (!isMounted) {
+        return null;
     }
 
-    setIsDeleting(true);
-    try {
-      await deleteOrders(selectedOrderIds);
-      setSelectedOrderIds([]);
-      setRefreshTrigger((prev) => prev + 1);
-      clearCache();
-    } catch (error) {
-      console.error('Failed to delete orders', error);
-      alert('Failed to delete orders');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+    /* ================= UI ================= */
 
-  const handleSelectAllOnPage = () => {
-    if (selectedOrderIds.length === filteredOrders.length) {
-      setSelectedOrderIds([]);
-    } else {
-      setSelectedOrderIds(filteredOrders.map(o => o.id));
-    }
-  }; */
-
-  /* ================= FILTERED ORDERS ================= */
-
-  const filteredOrders = ordersData.orders;
-
-  /* ================= SSR GUARD ================= */
-
-  if (!isMounted) {
-    return null;
-  }
-
-  /* ================= UI ================= */
-
-  return (
-    <div className="flex bg-gray-50/50">
-      {/* LEFT SIDEBAR FILTERS */}
-      <div
-        className={`
+    return (
+        <div className="flex bg-gray-50/50">
+            {/* LEFT SIDEBAR FILTERS */}
+            <div
+                className={`
                 flex-shrink-0 bg-white border-r border-gray-200 min-h-screen overflow-hidden transition-all duration-300 ease-in-out
                 ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
             `}
-      >
-        <div className="w-72 h-full p-3 sticky top-32">
-          <OrdersFilter
-            filters={filters}
-            onChange={(newFilters) => {
-              setFilters(newFilters);
-              setOrdersData((prev) => ({ ...prev, page: 1 }));
-            }}
-            onClear={handleClearFilters}
-            onClose={() => setIsSidebarOpen(false)}
-          />
-        </div>
-      </div>
-
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col w-full relative">
-        {/* HEAD & TOOLBAR */}
-        <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-0">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
-                ? 'bg-blue-50 border-blue-200 text-blue-600'
-                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                }`}
-              title={isSidebarOpen ? 'Collapse Filters' : 'Expand Filters'}
             >
-              {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
-            </button>
-
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900">Production Orders</h1>
-              <p className="text-sm text-gray-500">Manage and track orders</p>
+                <div className="w-72 h-full p-3 sticky top-32">
+                    <OrdersFilter
+                        filters={filters}
+                        onChange={(newFilters) => {
+                            setFilters(newFilters);
+                            setOrdersData((prev) => ({ ...prev, page: 1 }));
+                        }}
+                        onClear={handleClearFilters}
+                        onClose={() => setIsSidebarOpen(false)}
+                    />
+                </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            {/* SEARCH */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search orders..."
-                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full sm:w-64 bg-white shadow-sm transition-all"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            {hasPermission(Permission.ORDERS_CREATE) && (
-              <button
-                onClick={() => setOpenCreate(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">New Order</span>
-              </button>
-            )}
-          </div>
-        </div>
+            {/* MAIN CONTENT AREA */}
+            <div className="flex-1 flex flex-col w-full relative">
+                {/* HEAD & TOOLBAR */}
+                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-0">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
+                                ? 'bg-blue-50 border-blue-200 text-blue-600'
+                                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                                }`}
+                            title={isSidebarOpen ? 'Collapse Filters' : 'Expand Filters'}
+                        >
+                            {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
+                        </button>
 
-        {/* STATUS BAR & BULK ACTIONS */}
-        <div className="sticky top-[73px] z-10 flex flex-col">
-          {/* {selectedOrderIds.length > 0 ? (
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Production Orders</h1>
+                            <p className="text-sm text-gray-500">Manage and track orders</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        {/* SEARCH */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search orders, status, customers..."
+                                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full sm:w-64 bg-white shadow-sm transition-all"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        {hasPermission(Permission.ORDERS_CREATE) && (
+                            <button
+                                onClick={() => setOpenCreate(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm"
+                            >
+                                <Plus className="w-4 h-4" />
+                                <span className="hidden sm:inline">New Order</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* STATUS BAR & BULK ACTIONS */}
+                <div className="sticky top-[73px] z-10 flex flex-col">
+                    {/* {selectedOrderIds.length > 0 ? (
             <div className="flex items-center justify-between px-4 py-2 bg-blue-50 border-b border-blue-100 animate-in slide-in-from-top-2">
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium text-blue-800">
@@ -393,236 +393,236 @@ function AdminOrdersContent() {
               </button>
             </div>
           ) : ( */}
-          <OrderStatusFilter
-            selectedStatuses={filters.status}
-            onChange={(newStatuses) => {
-              setFilters(prev => ({ ...prev, status: newStatuses }));
-              setOrdersData((prev) => ({ ...prev, page: 1 }));
-            }}
-          />
-          {/* )} */}
-        </div>
-
-        {/* CONTENT */}
-        <div className="p-4">
-          {/* Results Summary */}
-          <div className="flex items-center justify-between mb-6">
-            <p className="text-sm text-gray-600">
-              Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span>{' '}
-              of <span className="font-semibold text-gray-800">{ordersData.total}</span> orders
-            </p>
-            <div className="flex items-center gap-3">
-              <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
-              <OrdersViewToggle view={viewMode} onViewChange={setViewMode} />
-            </div>
-          </div>
-
-          {/* Loading/Error/Empty States */}
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-              <span className="ml-3 text-gray-600">Loading orders...</span>
-            </div>
-          ) : filteredOrders.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-100 p-12 text-center text-gray-500 shadow-sm">
-              <Box className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-              <p className="font-medium">No orders found</p>
-              <p className="text-sm mt-1">Try adjusting your search query or filters</p>
-              <button
-                onClick={handleClearFilters}
-                className="mt-4 text-blue-600 text-sm font-medium hover:underline"
-              >
-                Clear all filters
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* GRID VIEW */}
-              <div className={viewMode === 'grid' ? 'block' : 'hidden'}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                  {filteredOrders.map((order) => (
-                    <OrderCard
-                      key={order.id}
-                      order={order}
-                      active={viewMode === 'grid'}
-                    /* selected={selectedOrderIds.includes(order.id)}
-                    onSelect={(selected) => toggleSelectOrder(order.id, selected)} */
+                    <OrderStatusFilter
+                        selectedStatuses={filters.status}
+                        onChange={(newStatuses) => {
+                            setFilters(prev => ({ ...prev, status: newStatuses }));
+                            setOrdersData((prev) => ({ ...prev, page: 1 }));
+                        }}
                     />
-                  ))}
+                    {/* )} */}
                 </div>
-              </div>
 
-              {/* TABLE VIEW */}
-              <div
-                className={`bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm ${viewMode === 'table' ? 'block' : 'hidden'}`}
-              >
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          {/* <input
+                {/* CONTENT */}
+                <div className="p-4">
+                    {/* Results Summary */}
+                    <div className="flex items-center justify-between mb-6">
+                        <p className="text-sm text-gray-600">
+                            Showing <span className="font-semibold text-gray-800">{filteredOrders.length}</span>{' '}
+                            of <span className="font-semibold text-gray-800">{ordersData.total}</span> orders
+                        </p>
+                        <div className="flex items-center gap-3">
+                            <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
+                            <OrdersViewToggle view={viewMode} onViewChange={setViewMode} />
+                        </div>
+                    </div>
+
+                    {/* Loading/Error/Empty States */}
+                    {loading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                            <span className="ml-3 text-gray-600">Loading orders...</span>
+                        </div>
+                    ) : filteredOrders.length === 0 ? (
+                        <div className="bg-white rounded-xl border border-gray-100 p-12 text-center text-gray-500 shadow-sm">
+                            <Box className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                            <p className="font-medium">No orders found</p>
+                            <p className="text-sm mt-1">Try adjusting your search query or filters</p>
+                            <button
+                                onClick={handleClearFilters}
+                                className="mt-4 text-blue-600 text-sm font-medium hover:underline"
+                            >
+                                Clear all filters
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            {/* GRID VIEW */}
+                            <div className={viewMode === 'grid' ? 'block' : 'hidden'}>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                    {filteredOrders.map((order) => (
+                                        <OrderCard
+                                            key={order.id}
+                                            order={order}
+                                            active={viewMode === 'grid'}
+                                        /* selected={selectedOrderIds.includes(order.id)}
+                                        onSelect={(selected) => toggleSelectOrder(order.id, selected)} */
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* TABLE VIEW */}
+                            <div
+                                className={`bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm ${viewMode === 'table' ? 'block' : 'hidden'}`}
+                            >
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead className="bg-gray-50 border-b border-gray-200">
+                                            <tr>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                    {/* <input
                             type="checkbox"
                             checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
                             onChange={handleSelectAllOnPage}
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                           /> */}
-                        </th>
-                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Order Code
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Image
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Job Code
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Date
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Quantity
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Customer
-                        </th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredOrders.map((order, index) => (
-                        <OrderTableRow
-                          key={order.id}
-                          order={order}
-                          index={(ordersData.page - 1) * pageSize + index + 1}
-                          /* selected={selectedOrderIds.includes(order.id)}
-                          onSelect={(selected) => toggleSelectOrder(order.id, selected)} */
-                          onClick={(type, value) => {
-                            if (type === 'image' && value) {
-                              setPreviewImage(value);
-                            } else if (type !== 'row') { // Don't navigate if clicking checkbox (handled inside row but better safe)
-                              router.push(`/admin/orders?selectedOrder=${order.id}`);
-                            } else {
-                              router.push(`/admin/orders?selectedOrder=${order.id}`);
-                            }
-                          }}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
+                                                </th>
+                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                    Order Code
+                                                </th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                    Image
+                                                </th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                    Job Code
+                                                </th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                    Date
+                                                </th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                    Quantity
+                                                </th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                    Customer
+                                                </th>
+                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                    Status
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {filteredOrders.map((order, index) => (
+                                                <OrderTableRow
+                                                    key={order.id}
+                                                    order={order}
+                                                    index={(ordersData.page - 1) * pageSize + index + 1}
+                                                    /* selected={selectedOrderIds.includes(order.id)}
+                                                    onSelect={(selected) => toggleSelectOrder(order.id, selected)} */
+                                                    onClick={(type, value) => {
+                                                        if (type === 'image' && value) {
+                                                            setPreviewImage(value);
+                                                        } else if (type !== 'row') { // Don't navigate if clicking checkbox (handled inside row but better safe)
+                                                            router.push(`/admin/orders?selectedOrder=${order.id}`);
+                                                        } else {
+                                                            router.push(`/admin/orders?selectedOrder=${order.id}`);
+                                                        }
+                                                    }}
+                                                />
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* PAGINATION */}
+                            {ordersData.totalPages >= 1 && (
+                                <div className="flex items-center justify-center pt-6 pb-6">
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handlePageChange(ordersData.page - 1)}
+                                            disabled={ordersData.page === 1}
+                                            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            Previous
+                                        </button>
+
+                                        <div className="flex items-center gap-1">
+                                            {(() => {
+                                                const totalPages = ordersData.totalPages;
+                                                const currentPage = ordersData.page;
+                                                const pages: (number | string)[] = [];
+
+                                                if (totalPages <= 7) {
+                                                    for (let i = 1; i <= totalPages; i++) {
+                                                        pages.push(i);
+                                                    }
+                                                } else {
+                                                    pages.push(1);
+                                                    if (currentPage > 3) pages.push('...');
+                                                    const start = Math.max(2, currentPage - 1);
+                                                    const end = Math.min(totalPages - 1, currentPage + 1);
+                                                    for (let i = start; i <= end; i++) {
+                                                        if (!pages.includes(i)) pages.push(i);
+                                                    }
+                                                    if (currentPage < totalPages - 2) pages.push('...');
+                                                    if (!pages.includes(totalPages)) pages.push(totalPages);
+                                                }
+
+                                                return pages.map((page, index) => {
+                                                    if (page === '...') {
+                                                        return (
+                                                            <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">
+                                                                ...
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <button
+                                                            key={page}
+                                                            onClick={() => handlePageChange(page as number)}
+                                                            className={`px-3 py-1 rounded-lg ${ordersData.page === page
+                                                                ? 'bg-blue-600 text-white'
+                                                                : 'border border-gray-300 hover:bg-gray-50'
+                                                                } transition-colors`}
+                                                        >
+                                                            {page}
+                                                        </button>
+                                                    );
+                                                });
+                                            })()}
+                                        </div>
+
+                                        <button
+                                            onClick={() => handlePageChange(ordersData.page + 1)}
+                                            disabled={ordersData.page === ordersData.totalPages}
+                                            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
-              </div>
+            </div>
 
-              {/* PAGINATION */}
-              {ordersData.totalPages >= 1 && (
-                <div className="flex items-center justify-center pt-6 pb-6">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handlePageChange(ordersData.page - 1)}
-                      disabled={ordersData.page === 1}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Previous
-                    </button>
+            {/* MODALS */}
+            <CreateOrderModal
+                open={openCreate}
+                onClose={() => setOpenCreate(false)}
+                onCreate={handleOrderCreated}
+            />
 
-                    <div className="flex items-center gap-1">
-                      {(() => {
-                        const totalPages = ordersData.totalPages;
-                        const currentPage = ordersData.page;
-                        const pages: (number | string)[] = [];
+            {
+                selectedOrderId && (
+                    <ViewOrderModal
+                        orderId={selectedOrderId}
+                        onClose={() => router.push('/admin/orders')}
+                        onOrderUpdate={() => {
+                            clearCache();
+                            setRefreshTrigger((prev) => prev + 1);
+                        }}
+                    />
+                )
+            }
 
-                        if (totalPages <= 7) {
-                          for (let i = 1; i <= totalPages; i++) {
-                            pages.push(i);
-                          }
-                        } else {
-                          pages.push(1);
-                          if (currentPage > 3) pages.push('...');
-                          const start = Math.max(2, currentPage - 1);
-                          const end = Math.min(totalPages - 1, currentPage + 1);
-                          for (let i = start; i <= end; i++) {
-                            if (!pages.includes(i)) pages.push(i);
-                          }
-                          if (currentPage < totalPages - 2) pages.push('...');
-                          if (!pages.includes(totalPages)) pages.push(totalPages);
-                        }
-
-                        return pages.map((page, index) => {
-                          if (page === '...') {
-                            return (
-                              <span key={`ellipsis-${index}`} className="px-2 py-1 text-gray-500">
-                                ...
-                              </span>
-                            );
-                          }
-                          return (
-                            <button
-                              key={page}
-                              onClick={() => handlePageChange(page as number)}
-                              className={`px-3 py-1 rounded-lg ${ordersData.page === page
-                                ? 'bg-blue-600 text-white'
-                                : 'border border-gray-300 hover:bg-gray-50'
-                                } transition-colors`}
-                            >
-                              {page}
-                            </button>
-                          );
-                        });
-                      })()}
-                    </div>
-
-                    <button
-                      onClick={() => handlePageChange(ordersData.page + 1)}
-                      disabled={ordersData.page === ordersData.totalPages}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* MODALS */}
-      <CreateOrderModal
-        open={openCreate}
-        onClose={() => setOpenCreate(false)}
-        onCreate={handleOrderCreated}
-      />
-
-      {
-        selectedOrderId && (
-          <ViewOrderModal
-            orderId={selectedOrderId}
-            onClose={() => router.push('/admin/orders')}
-            onOrderUpdate={() => {
-              clearCache();
-              setRefreshTrigger((prev) => prev + 1);
-            }}
-          />
-        )
-      }
-
-      <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
-    </div >
-  );
+            <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
+        </div >
+    );
 }
 
 export default function AdminOrdersPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-        </div>
-      }
-    >
-      <AdminOrdersContent />
-    </Suspense>
-  );
+    return (
+        <Suspense
+            fallback={
+                <div className="flex items-center justify-center min-h-screen">
+                    <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                </div>
+            }
+        >
+            <AdminOrdersContent />
+        </Suspense>
+    );
 }

@@ -239,7 +239,7 @@ export class AdminProcessService {
                     {
                         orderProcess: {
                             order: {
-                                code: { contains: search, mode: 'insensitive' },
+                                code: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
                             },
                         },
                     },
@@ -247,16 +247,34 @@ export class AdminProcessService {
                         orderProcess: {
                             order: {
                                 customer: {
-                                    name: { contains: search, mode: 'insensitive' },
+                                    name: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
                                 },
                             },
                         },
                     },
                     {
                         runTemplate: {
-                            name: { contains: search, mode: 'insensitive' },
+                            name: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
                         },
                     },
+                    // Search by lifecycle status (string)
+                    {
+                        lifeCycleStatusCode: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
+                    },
+                    // Search by run status (enum)
+                    ...Object.values(ProcessRunStatus)
+                        .filter(s => s.toLowerCase().includes(search.toLowerCase()))
+                        .map(status => ({ statusCode: status })),
+                    // Search by order status (enum)
+                    ...Object.values(OrderStatus)
+                        .filter(s => s.toLowerCase().includes(search.toLowerCase()))
+                        .map(status => ({
+                            orderProcess: {
+                                order: {
+                                    statusCode: status,
+                                },
+                            },
+                        })),
                 ],
             }),
 

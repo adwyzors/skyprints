@@ -407,7 +407,7 @@ function RunsPageContent() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Search runs..."
+                                placeholder="Search runs, status, customer..."
                                 className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64 bg-white shadow-sm transition-all"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}

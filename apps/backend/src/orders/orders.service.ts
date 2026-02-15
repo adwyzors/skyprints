@@ -91,10 +91,37 @@ export class OrdersService {
             ...(customerId && { customerId }),
 
             ...(search && {
-                code: {
-                    contains: search,
-                    mode: 'insensitive',
-                },
+                OR: [
+                    {
+                        code: {
+                            contains: search,
+                            mode: 'insensitive' as Prisma.QueryMode,
+                        },
+                    },
+                    {
+                        jobCode: {
+                            contains: search,
+                            mode: 'insensitive' as Prisma.QueryMode,
+                        },
+                    },
+                    {
+                        customer: {
+                            name: {
+                                contains: search,
+                                mode: 'insensitive' as Prisma.QueryMode,
+                            },
+                        },
+                    },
+                    // Enable searching by status code partial match
+                    (() => {
+                        const matchingStatuses = Object.values(OrderStatus).filter(s =>
+                            s.toLowerCase().includes(search.toLowerCase())
+                        );
+                        return matchingStatuses.length > 0 ? {
+                            statusCode: { in: matchingStatuses }
+                        } : {};
+                    })()
+                ].filter(condition => Object.keys(condition).length > 0)
             }),
 
             ...((from || to) && {
@@ -262,10 +289,37 @@ export class OrdersService {
             ...(customerId && { customerId }),
 
             ...(search && {
-                code: {
-                    contains: search,
-                    mode: 'insensitive',
-                },
+                OR: [
+                    {
+                        code: {
+                            contains: search,
+                            mode: 'insensitive' as Prisma.QueryMode,
+                        },
+                    },
+                    {
+                        jobCode: {
+                            contains: search,
+                            mode: 'insensitive' as Prisma.QueryMode,
+                        },
+                    },
+                    {
+                        customer: {
+                            name: {
+                                contains: search,
+                                mode: 'insensitive' as Prisma.QueryMode,
+                            },
+                        },
+                    },
+                    // Enable searching by status code partial match
+                    (() => {
+                        const matchingStatuses = Object.values(OrderStatus).filter(s =>
+                            s.toLowerCase().includes(search.toLowerCase())
+                        );
+                        return matchingStatuses.length > 0 ? {
+                            statusCode: { in: matchingStatuses }
+                        } : {};
+                    })()
+                ].filter(condition => Object.keys(condition).length > 0)
             }),
 
             ...((from || to) && {
