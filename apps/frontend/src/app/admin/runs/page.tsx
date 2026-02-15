@@ -35,6 +35,7 @@ interface Run {
             id: string;
             code: string;
             quantity: number;
+            amount?: number;
             customer: {
                 name: string;
             };
@@ -317,6 +318,14 @@ function RunsPageContent() {
                     aValue = a.fields?.Quantity || 0;
                     bValue = b.fields?.Quantity || 0;
                     break;
+                case 'orderQty':
+                    aValue = a.orderProcess.order.quantity || 0;
+                    bValue = b.orderProcess.order.quantity || 0;
+                    break;
+                case 'orderAmount':
+                    aValue = a.orderProcess.order.amount || 0;
+                    bValue = b.orderProcess.order.amount || 0;
+                    break;
                 case 'estRate':
                     aValue = getEstimatedRate(a);
                     bValue = getEstimatedRate(b);
@@ -501,6 +510,12 @@ function RunsPageContent() {
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('quantity')}>
                                                     <div className="flex items-center gap-1">Quantity {sortConfig?.key === 'quantity' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderQty')}>
+                                                    <div className="flex items-center gap-1">Order Qty {sortConfig?.key === 'orderQty' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
+                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderAmount')}>
+                                                    <div className="flex items-center gap-1">Order Amount {sortConfig?.key === 'orderAmount' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                </th>
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('estRate')}>
                                                     <div className="flex items-center gap-1">Est. Rate {sortConfig?.key === 'estRate' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
@@ -585,7 +600,13 @@ function RunsPageContent() {
                                                             )}
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-700">
-                                                            {run.fields?.Quantity || '-'}
+                                                            {run.fields?.Quantity || run.orderProcess.order.quantity || '-'}
+                                                        </td>
+                                                        <td className="px-6 py-4 text-gray-600">
+                                                            {run.orderProcess.order.quantity || '-'}
+                                                        </td>
+                                                        <td className="px-6 py-4 font-medium text-blue-700">
+                                                            {run.orderProcess.order.amount ? `₹${run.orderProcess.order.amount.toLocaleString()}` : '-'}
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-700">
                                                             {(() => {

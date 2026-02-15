@@ -382,7 +382,23 @@ export class AdminProcessService {
                                 select: {
                                     id: true,
                                     code: true,
+                                    quantity: true,
                                     customer: { select: { name: true } },
+                                    billingContexts: {
+                                        take: 1,
+                                        orderBy: { createdAt: 'desc' },
+                                        select: {
+                                            billingContext: {
+                                                select: {
+                                                    snapshots: {
+                                                        where: { isLatest: true },
+                                                        take: 1,
+                                                        select: { result: true }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 },
                             },
                         },
@@ -415,6 +431,11 @@ export class AdminProcessService {
                 }
             }
 
+
+            // Extract billing amount
+            const ctxOrder = run.orderProcess.order as any;
+            const amount = ctxOrder.billingContexts?.[0]?.billingContext?.snapshots?.[0]?.result;
+
             return {
                 ...run,
                 fields: relevantFields,
@@ -422,7 +443,11 @@ export class AdminProcessService {
                 // but keep structure required by DTO (which is now optional)
                 orderProcess: {
                     name: displayProcessName,
-                    order: run.orderProcess.order,
+                    order: {
+                        ...run.orderProcess.order,
+                        billingContexts: undefined, // Create a cleaner response
+                        amount: amount ? Number(amount) : undefined
+                    },
                 },
                 createdAt: undefined, // remove from JSON
                 priority: this.resolvePriority(
