@@ -59,7 +59,7 @@ export class BillingContextController {
         if (res) {
             res.setHeader('x-page', result.meta.page.toString());
             res.setHeader('x-limit', result.meta.limit.toString());
-            res.setHeader('x-total', result.meta.total.toString());
+            res.setHeader('x-total-count', result.meta.total.toString());
             res.setHeader('x-total-pages', result.meta.totalPages.toString());
         }
 

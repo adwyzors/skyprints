@@ -77,7 +77,7 @@ export const getBillingContexts = async (params?: {
   // Extract pagination metadata from headers
   const page = parseInt(headers.get('x-page') || '1', 10);
   const limit = parseInt(headers.get('x-limit') || '12', 10);
-  const total = parseInt(headers.get('x-total') || '0', 10);
+  const total = parseInt(headers.get('x-total-count') || '0', 10);
   const totalPages = parseInt(headers.get('x-total-pages') || '0', 10);
 
   return {
