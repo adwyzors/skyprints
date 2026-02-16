@@ -124,7 +124,7 @@ export default function OrderCard({
 
   return (
     <div className="relative">
-      <div className="absolute top-3 right-3 z-30">
+      <div className="absolute top-3 right-3 z-10">
         <span
           className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 shadow-md ${statusConfig.color}`}
         >

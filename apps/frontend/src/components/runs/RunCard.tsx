@@ -125,7 +125,7 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
     return (
         <div className="relative">
             {/* STATUS & PRIORITY BADGES */}
-            <div className="absolute top-3 right-3 z-30 flex flex-col items-end gap-1.5">
+            <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
                 <span
                     className={`px-2.5 py-1 rounded-full text-xs font-medium border flex items-center gap-1.5 shadow-sm backdrop-blur-sm ${statusConfig.color}`}
                 >

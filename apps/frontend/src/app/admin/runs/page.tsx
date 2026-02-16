@@ -348,11 +348,11 @@ function RunsPageContent() {
 
 
     return (
-        <div className="flex h-full bg-gray-50/50 overflow-hidden scrollbar-hide">
+        <div className="flex bg-gray-50/50 min-h-full scrollbar-hide">
 
-            {/* LEFT SIDEBAR FILTERS */}
+            {/* LEFT SIDEBAR FILTERS - STICKY */}
             <div className={`
-                flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out overflow-hidden
+                sticky top-0 h-[calc(100vh-56px)] flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out z-40
                 ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
             `}>
                 <div className="w-72 h-full overflow-y-auto scrollbar-hide p-3">
@@ -369,10 +369,10 @@ function RunsPageContent() {
             </div>
 
             {/* MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col w-full relative overflow-hidden">
+            <div className="flex-1 flex flex-col w-full relative">
 
-                {/* Header Section */}
-                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                {/* Header Section - STICKY */}
+                <div className="sticky top-0 flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -416,8 +416,8 @@ function RunsPageContent() {
                     </div>
                 </div>
 
-                {/* STATUS BARS */}
-                <div className="flex-shrink-0 z-10">
+                {/* STATUS BARS - STICKY BELOW HEADER */}
+                <div className="sticky top-[73px] flex-shrink-0 z-20 bg-white shadow-sm border-b border-gray-100">
                     <RunStatusFilter
                         selectedStatuses={filters.status}
                         onChange={(newStatuses) => {
@@ -428,7 +428,7 @@ function RunsPageContent() {
                 </div>
 
                 {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto scrollbar-hide">
+                <div className="flex-1 p-4">
                     <div className="p-4">
                         {/* Results Summary */}
                         <div className="flex items-center justify-between mb-6">

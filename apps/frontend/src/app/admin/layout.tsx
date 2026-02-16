@@ -81,6 +81,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const router = useRouter();
     const [isHydrated, setIsHydrated] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+    const [lastScrollY, setLastScrollY] = useState(0);
 
     // Wait for hydration to complete
     useEffect(() => {
@@ -97,6 +99,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setIsSidebarCollapsed(newState);
         localStorage.setItem('admin-sidebar-collapsed', String(newState));
     };
+
+    // Scroll listener for header visibility
+    const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+        const el = e.currentTarget;
+
+        const currentScrollY = el.scrollTop;
+        const maxScroll = el.scrollHeight - el.clientHeight;
+        const scrollDelta = currentScrollY - lastScrollY;
+
+        const isNearTop = currentScrollY <= 20;
+        const isNearBottom = currentScrollY >= maxScroll - 20;
+
+        // Do nothing near boundaries (prevents bounce glitch)
+        if (isNearTop || isNearBottom) {
+            setLastScrollY(currentScrollY);
+            return;
+        }
+
+        if (scrollDelta > 8 && currentScrollY > 80) {
+            setIsHeaderVisible(false);
+        } else if (scrollDelta < -8) {
+            setIsHeaderVisible(true);
+        }
+
+        setLastScrollY(currentScrollY);
+    };
+
 
     if (!isHydrated) {
         return (
@@ -115,8 +144,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
         <RoleGuard allowedRoles={['ADMIN']}>
             <div className="h-screen bg-gray-50 flex flex-col overflow-hidden relative">
-                {/* GLOBAL TOP HEADER - STAYS FIXED */}
-                <AppHeader />
+                {/* GLOBAL TOP HEADER - SCROLL AWARE */}
+                <div
+                    className={`
+                        transition-all duration-300 ease-in-out z-50 overflow-hidden flex-shrink-0
+                        ${isHeaderVisible ? 'h-[56px] opacity-100' : 'h-0 opacity-0 pointer-events-none'}
+                    `}
+                >
+                    <AppHeader />
+                </div>
 
                 <div className="flex flex-1 overflow-hidden relative">
                     {/* COLLAPSIBLE VERTICAL SIDEBAR (Desktop) */}
@@ -199,7 +235,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </aside>
 
                     {/* MAIN CONTENT AREA */}
-                    <main className="flex-1 overflow-y-auto scrollbar-hide bg-gray-50/30 pb-20 md:pb-0">
+                    <main
+                        className="flex-1 overflow-y-auto scrollbar-hide bg-gray-50/30 pb-20 md:pb-0"
+                        onScroll={handleScroll}
+                    >
                         <div className="w-full h-full">
                             {children}
                         </div>

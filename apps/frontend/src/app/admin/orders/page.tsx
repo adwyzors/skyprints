@@ -248,49 +248,6 @@ function AdminOrdersContent() {
         setOrdersData((prev) => ({ ...prev, page: 1 }));
     };
 
-    /* ================= BULK ACTIONS ================= */
-
-    /* ================= BULK ACTIONS ================= */
-
-    /* const toggleSelectOrder = (orderId: string, selected: boolean) => {
-      if (selected) {
-        setSelectedOrderIds((prev) => [...prev, orderId]);
-      } else {
-        setSelectedOrderIds((prev) => prev.filter((id) => id !== orderId));
-      }
-    };
-  
-    const handleBulkDelete = async () => {
-      if (!selectedOrderIds.length) return;
-  
-      if (!confirm(`Are you sure you want to delete ${selectedOrderIds.length} orders? This action cannot be undone.`)) {
-        return;
-      }
-  
-      setIsDeleting(true);
-      try {
-        await deleteOrders(selectedOrderIds);
-        setSelectedOrderIds([]);
-        setRefreshTrigger((prev) => prev + 1);
-        clearCache();
-      } catch (error) {
-        console.error('Failed to delete orders', error);
-        alert('Failed to delete orders');
-      } finally {
-        setIsDeleting(false);
-      }
-    };
-  
-    const handleSelectAllOnPage = () => {
-      if (selectedOrderIds.length === filteredOrders.length) {
-        setSelectedOrderIds([]);
-      } else {
-        setSelectedOrderIds(filteredOrders.map(o => o.id));
-      }
-    }; */
-
-    /* ================= FILTERED ORDERS ================= */
-
     const filteredOrders = ordersData.orders;
 
     /* ================= SSR GUARD ================= */
@@ -302,14 +259,15 @@ function AdminOrdersContent() {
     /* ================= UI ================= */
 
     return (
-        <div className="flex h-full bg-gray-50/50 overflow-hidden scrollbar-hide">
+        <div className="flex bg-gray-50/50 min-h-full scrollbar-hide">
+            {/* LEFT SIDEBAR FILTERS - STICKY to MAIN SCROLL */}
             <div
                 className={`
-                flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto scrollbar-hide transition-all duration-300 ease-in-out
+                sticky top-0 h-[calc(100vh-56px)] flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto scrollbar-hide transition-all duration-300 ease-in-out z-40
                 ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
             `}
             >
-                <div className="w-72 h-full p-3">
+                <div className="w-72 p-3">
                     <OrdersFilter
                         filters={filters}
                         onChange={(newFilters) => {
@@ -323,9 +281,9 @@ function AdminOrdersContent() {
             </div>
 
             {/* MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col w-full relative overflow-hidden">
-                {/* HEAD & TOOLBAR */}
-                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex-1 flex flex-col w-full relative">
+                {/* HEAD & TOOLBAR - STICKY */}
+                <div className="sticky top-0 flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -368,31 +326,8 @@ function AdminOrdersContent() {
                     </div>
                 </div>
 
-                {/* STATUS BAR & BULK ACTIONS */}
-                <div className="sticky top-[73px] z-10 flex flex-col">
-                    {/* {selectedOrderIds.length > 0 ? (
-            <div className="flex items-center justify-between px-4 py-2 bg-blue-50 border-b border-blue-100 animate-in slide-in-from-top-2">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-blue-800">
-                  {selectedOrderIds.length} orders selected
-                </span>
-                <button
-                  onClick={() => setSelectedOrderIds([])}
-                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
-                >
-                  Deselect All
-                </button>
-              </div>
-              <button
-                onClick={handleBulkDelete}
-                disabled={isDeleting}
-                className="flex items-center gap-2 px-4 py-1.5 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors text-sm font-medium shadow-sm"
-              >
-                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                <span>Delete Selected</span>
-              </button>
-            </div>
-          ) : ( */}
+                {/* STATUS BAR & BULK ACTIONS - STICKY BELOW TOOLBAR */}
+                <div className="sticky top-[73px] z-20 flex flex-col bg-white">
                     <OrderStatusFilter
                         selectedStatuses={filters.status}
                         onChange={(newStatuses) => {
@@ -400,11 +335,10 @@ function AdminOrdersContent() {
                             setOrdersData((prev) => ({ ...prev, page: 1 }));
                         }}
                     />
-                    {/* )} */}
                 </div>
 
                 {/* CONTENT */}
-                <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
+                <div className="flex-1 p-4">
                     {/* Results Summary */}
                     <div className="flex items-center justify-between mb-6">
                         <p className="text-sm text-gray-600">
