@@ -147,8 +147,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {/* GLOBAL TOP HEADER - SCROLL AWARE */}
                 <div
                     className={`
-                        transition-all duration-300 ease-in-out z-50 overflow-hidden flex-shrink-0
-                        ${isHeaderVisible ? 'h-[56px] opacity-100' : 'h-0 opacity-0 pointer-events-none'}
+                        transition-all duration-300 ease-in-out z-50 flex-shrink-0
+                        ${isHeaderVisible ? 'h-[56px] opacity-100' : 'h-0 opacity-0 pointer-events-none overflow-hidden'}
                     `}
                 >
                     <AppHeader />
