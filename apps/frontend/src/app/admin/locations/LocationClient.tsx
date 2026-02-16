@@ -1,5 +1,6 @@
 'use client';
 
+import Pagination from '@/components/common/Pagination';
 import { Location } from '@/domain/model/location.model';
 import { MapPin, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
@@ -164,51 +165,15 @@ export default function LocationClient({
                     </table>
                 </div>
 
-                {/* Pagination */}
-                <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
-                    <p className="text-sm text-gray-500">
-                        Showing {locationsData.locations.length} of {locationsData.total} locations
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                        <select
-                            value={locationsData.limit}
-                            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                            className="border px-2 py-1 rounded"
-                        >
-                            {[10, 25, 50, 100].map((size) => (
-                                <option key={size} value={size}>
-                                    {size} per page
-                                </option>
-                            ))}
-                        </select>
-
-                        <button
-                            onClick={() => onPageChange(locationsData.page - 1)}
-                            disabled={locationsData.page === 1}
-                            className="px-3 py-1 border rounded disabled:opacity-50"
-                        >
-                            Previous
-                        </button>
-
-                        {[...Array(locationsData.totalPages)].map((_, i) => (
-                            <button
-                                key={i + 1}
-                                onClick={() => onPageChange(i + 1)}
-                                className={`px-3 py-1 rounded ${locationsData.page === i + 1 ? 'bg-blue-600 text-white' : 'border'}`}
-                            >
-                                {i + 1}
-                            </button>
-                        ))}
-
-                        <button
-                            onClick={() => onPageChange(locationsData.page + 1)}
-                            disabled={locationsData.page === locationsData.totalPages}
-                            className="px-3 py-1 border rounded disabled:opacity-50"
-                        >
-                            Next
-                        </button>
-                    </div>
+                <div className="p-4">
+                    <Pagination
+                        currentPage={locationsData.page}
+                        totalPages={locationsData.totalPages}
+                        onPageChange={onPageChange}
+                        totalItems={locationsData.total}
+                        pageSize={locationsData.limit}
+                        itemLabel="locations"
+                    />
                 </div>
             </div>
 

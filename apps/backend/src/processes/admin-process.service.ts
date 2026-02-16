@@ -182,6 +182,7 @@ export class AdminProcessService {
             createdFrom,
             createdTo,
             processId,
+            orderStatus,
         } = query;
 
         const skip = (page - 1) * limit;
@@ -192,6 +193,8 @@ export class AdminProcessService {
         const orderWhere: Prisma.OrderWhereInput = {
             ...(customerId && { customerId }),
             deletedAt: null,
+            // Filter by order status
+            ...(orderStatus && { statusCode: { in: orderStatus.split(',') as any[] } }),
         };
 
         /* ==========================
@@ -203,7 +206,7 @@ export class AdminProcessService {
             ...(processId && { processId }),
             ...(priority && this.priorityWhere(priority)),
             ...(Object.keys(orderWhere).length > 0 && {
-                order: orderWhere,
+                order: { is: orderWhere },
             }),
         };
 
@@ -239,16 +242,20 @@ export class AdminProcessService {
                     {
                         orderProcess: {
                             order: {
-                                code: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
+                                is: {
+                                    code: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
+                                }
                             },
                         },
                     },
                     {
                         orderProcess: {
                             order: {
-                                customer: {
-                                    name: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
-                                },
+                                is: {
+                                    customer: {
+                                        name: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
+                                    },
+                                }
                             },
                         },
                     },

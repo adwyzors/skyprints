@@ -207,9 +207,9 @@ export default function BillingContextDetailPage() {
     }
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden">
+        <div className="flex h-full bg-gray-50 overflow-hidden scrollbar-hide">
             {/* LEFT COLUMN: Fixed Sidebar */}
-            <div className="w-[400px] shrink-0 border-r border-gray-200 bg-white shadow-lg overflow-y-auto z-10 flex flex-col">
+            <div className="w-[400px] shrink-0 border-r border-gray-200 bg-white shadow-lg overflow-y-auto scrollbar-hide z-10 flex flex-col">
                 <div className="p-6 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100 shrink-0">
                     <Link
                         href="/admin/bills"
@@ -296,7 +296,7 @@ export default function BillingContextDetailPage() {
             </div>
 
             {/* RIGHT COLUMN: Scrollable Order List */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50 scrollbar-hide">
                 <div className="max-w-5xl mx-auto space-y-6 pb-20">
                     <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm sticky top-0 z-20 backdrop-blur-md bg-white/95">
                         <h3 className="text-lg font-bold text-gray-800">Order Costs Breakdown</h3>

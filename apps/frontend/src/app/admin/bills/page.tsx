@@ -2,13 +2,15 @@
 
 import BillingContextCard from "@/components/billing/BillingContextCard";
 import BillingContextTable from "@/components/billing/BillingContextTable";
+import BillsFilter from "@/components/billing/BillsFilter";
+import Pagination from '@/components/common/Pagination';
 import BillingGroupModal from "@/components/modals/BillingGroupModal";
 import OrdersViewToggle from "@/components/orders/OrdersViewToggle";
 import PageSizeSelector from "@/components/orders/PageSizeSelector";
 import { GetBillingContextsResponse } from '@/domain/model/billing.model';
 import { getBillingContexts } from '@/services/billing.service';
 import debounce from 'lodash/debounce';
-import { ChevronLeft, ChevronRight, FileText, Loader2, Search, X } from 'lucide-react';
+import { ChevronLeft, FileText, Filter, Loader2, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
@@ -31,6 +33,7 @@ function BillsPageContent() {
 
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
     const [pageSize, setPageSize] = useState(12);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const [data, setData] = useState<GetBillingContextsResponse>({
         data: [],
@@ -102,154 +105,131 @@ function BillsPageContent() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="p-4 md:p-4 lg:p-6 space-y-6">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Billing Groups</h1>
-                    <p className="text-gray-600 mt-1">Manage and view all billing groups</p>
+        <div className="flex h-full bg-gray-50/50 overflow-hidden scrollbar-hide">
+            {/* LEFT SIDEBAR FILTERS */}
+            <div
+                className={`
+                flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto scrollbar-hide transition-all duration-300 ease-in-out
+                ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
+            `}
+            >
+                <div className="w-72 h-full">
+                    <BillsFilter onClose={() => setIsSidebarOpen(false)} />
                 </div>
+            </div>
 
-                {/* TOOLBAR */}
-                <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-5 shadow-sm">
-                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                        {/* SEARCH BAR */}
-                        <div className="relative flex-1 w-full">
-                            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            {/* MAIN CONTENT AREA */}
+            <div className="flex-1 flex flex-col w-full relative overflow-hidden">
+                {/* Header Section */}
+                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
+                                ? 'bg-blue-50 border-blue-200 text-blue-600'
+                                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                                }`}
+                            title={isSidebarOpen ? "Collapse Filters" : "Expand Filters"}
+                        >
+                            {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
+                        </button>
+
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Billing Groups</h1>
+                            <p className="text-sm text-gray-500">Manage and view all billing groups</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Search billing groups by name..."
+                                placeholder="Search billing groups..."
+                                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64 bg-white shadow-sm transition-all"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
                             {searchQuery && (
                                 <button
                                     onClick={() => setSearchQuery("")}
-                                    className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-lg"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded"
                                 >
-                                    <X className="w-4 h-4 text-gray-400" />
+                                    <X className="w-3 h-3 text-gray-400" />
                                 </button>
                             )}
                         </div>
 
-                        {/* CONTROLS */}
-                        <div className="flex items-center gap-3 w-full md:w-auto">
-                            <OrdersViewToggle view={viewMode} onViewChange={setViewMode} />
-                            <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
-                        </div>
+                        <OrdersViewToggle view={viewMode} onViewChange={setViewMode} />
                     </div>
                 </div>
 
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-                        <p className="text-gray-500 font-medium">Loading billing groups...</p>
-                    </div>
-                ) : data.data.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-gray-500 bg-white rounded-2xl border border-gray-200 border-dashed">
-                        <FileText className="w-16 h-16 mb-4 text-gray-300" />
-                        <p className="text-lg font-medium">No billing groups found</p>
-                        {debouncedSearch ? (
-                            <p className="text-sm">Try adjusting your search query</p>
+                {/* Scrollable Content Area */}
+                <div className="flex-1 overflow-y-auto scrollbar-hide">
+                    <div className="p-4 md:p-6 space-y-6">
+                        {/* Results Summary */}
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm text-gray-600">
+                                Showing <span className="font-semibold text-gray-800">{data.data.length}</span>{' '}
+                                of <span className="font-semibold text-gray-800">{data.total}</span> groups
+                            </p>
+                            <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
+                        </div>
+
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                                <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+                                <p className="text-gray-500 font-medium">Loading billing groups...</p>
+                            </div>
+                        ) : data.data.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-gray-500 bg-white rounded-2xl border border-gray-100 border-dashed shadow-sm">
+                                <FileText className="w-16 h-16 mb-4 text-gray-300" />
+                                <p className="text-lg font-medium">No billing groups found</p>
+                                {debouncedSearch ? (
+                                    <p className="text-sm mt-1">Try adjusting your search query</p>
+                                ) : (
+                                    <p className="text-sm mt-1">Create a group from the Completed Orders page</p>
+                                )}
+                            </div>
                         ) : (
-                            <p className="text-sm">Create a group from the Completed Orders page</p>
+                            <>
+                                {/* GRID VIEW */}
+                                {viewMode === 'grid' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                        {data.data.map((context) => (
+                                            <BillingContextCard
+                                                key={context.id}
+                                                context={context}
+                                                onClick={() => handleContextClick(context.id)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* TABLE VIEW */}
+                                {viewMode === 'table' && (
+                                    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                                        <BillingContextTable
+                                            data={data.data}
+                                            startIndex={(data.page - 1) * pageSize}
+                                            onRowClick={handleContextClick}
+                                        />
+                                    </div>
+                                )}
+
+                                {/* PAGINATION */}
+                                <Pagination
+                                    currentPage={data.page}
+                                    totalPages={data.totalPages}
+                                    onPageChange={handlePageChange}
+                                    totalItems={data.total}
+                                    pageSize={pageSize}
+                                    itemLabel="groups"
+                                />
+                            </>
                         )}
                     </div>
-                ) : (
-                    <>
-                        {/* GRID VIEW */}
-                        {viewMode === 'grid' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                                {data.data.map((context) => (
-                                    <BillingContextCard
-                                        key={context.id}
-                                        context={context}
-                                        onClick={() => handleContextClick(context.id)}
-                                    />
-                                ))}
-                            </div>
-                        )}
-
-                        {/* TABLE VIEW */}
-                        {viewMode === 'table' && (
-                            <BillingContextTable
-                                data={data.data}
-                                startIndex={(data.page - 1) * pageSize}
-                                onRowClick={handleContextClick}
-                            />
-                        )}
-                    </>
-                )}
-
-                {/* PAGINATION */}
-                {!loading && data.totalPages > 1 && (
-                    <div className="flex items-center justify-between bg-white px-4 py-3 border border-gray-200 rounded-2xl shadow-sm">
-                        <div className="flex flex-1 justify-between sm:hidden">
-                            <button
-                                onClick={() => handlePageChange(data.page - 1)}
-                                disabled={data.page === 1}
-                                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                            >
-                                Previous
-                            </button>
-                            <button
-                                onClick={() => handlePageChange(data.page + 1)}
-                                disabled={data.page === data.totalPages}
-                                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                            >
-                                Next
-                            </button>
-                        </div>
-                        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-sm text-gray-700">
-                                    Showing <span className="font-medium">{(data.page - 1) * pageSize + 1}</span> to{' '}
-                                    <span className="font-medium">
-                                        {Math.min(data.page * pageSize, data.total)}
-                                    </span>{' '}
-                                    of <span className="font-medium">{data.total}</span> results
-                                </p>
-                            </div>
-                            <div>
-                                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                                    <button
-                                        onClick={() => handlePageChange(data.page - 1)}
-                                        disabled={data.page === 1}
-                                        className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
-                                    >
-                                        <span className="sr-only">Previous</span>
-                                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                                    </button>
-                                    {/* Pagination logic could be improved for large number of pages, similar to orders page */}
-                                    {/* Using simple array for now as per previous implementation, but respecting totalPages */}
-                                    {[...Array(data.totalPages)].map((_, i) => (
-                                        // Show limited pages if too many, but here we keep it simple or user might want the ellipsis logic
-                                        // Reuse ellipsis logic if requested, or wait for feedback. 
-                                        // Original had simple map. Using simple map for now.
-                                        <button
-                                            key={i + 1}
-                                            onClick={() => handlePageChange(i + 1)}
-                                            className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${data.page === i + 1
-                                                ? 'z-10 bg-indigo-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
-                                                : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-                                                }`}
-                                        >
-                                            {i + 1}
-                                        </button>
-                                    ))}
-                                    <button
-                                        onClick={() => handlePageChange(data.page + 1)}
-                                        disabled={data.page === data.totalPages}
-                                        className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
-                                    >
-                                        <span className="sr-only">Next</span>
-                                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                                    </button>
-                                </nav>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                </div>
             </div>
 
             <BillingGroupModal

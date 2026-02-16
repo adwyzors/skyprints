@@ -1,5 +1,6 @@
 'use client';
 
+import Pagination from '@/components/common/Pagination';
 import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import ViewRunModal from '@/components/modals/ViewRunModal';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
@@ -119,6 +120,7 @@ function RunsPageContent() {
     // Filter State
     const [filters, setFilters] = useState({
         status: ['COMPLETE'] as string[],
+        orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'] as string[],
         priority: [] as string[],
         dateRange: 'all',
         customerId: 'all',
@@ -170,18 +172,9 @@ function RunsPageContent() {
                 }
 
                 // Determine if we should use 'status' (RunStatus) or 'lifeCycleStatusCode'
-                // If a process is selected, or if the selected status is NOT one of the standard RunStatuses, assume it's a lifecycle status.
-                // Standard RunStatuses: CONFIGURE, IN_PROGRESS, COMPLETE, COMPLETED (handling variations)
-
                 const standardRunStatuses = ['CONFIGURE', 'IN_PROGRESS', 'COMPLETE', 'COMPLETED'];
-
-                // Check if any selected status is NOT a standard run status
                 const hasLifecycleStatus = filters.status.some(s => !standardRunStatuses.includes(s));
                 const isProcessSelected = filters.processId && filters.processId !== 'all';
-
-                // If process is selected OR we have non-standard statuses, use lifeCycleStatusCode
-                // Otherwise, use status
-                // We might need to split them if mixed, but for now assuming one mode
 
                 let statusParam = undefined;
                 let lifeCycleStatusParam = undefined;
@@ -196,26 +189,26 @@ function RunsPageContent() {
                     page: runsData.page,
                     limit: pageSize,
                     search: debouncedSearch,
-                    status: statusParam, // Use mapped param
-                    lifeCycleStatusCode: lifeCycleStatusParam, // Use mapped param
+                    status: statusParam,
+                    lifeCycleStatusCode: lifeCycleStatusParam,
                     priority: filters.priority,
                     customerId: filters.customerId,
                     executorUserId: filters.executorId,
                     reviewerUserId: filters.reviewerId,
                     processId: filters.processId,
                     locationId: filters.locationId,
+                    orderStatus: filters.orderStatus,
                     createdFrom,
                     createdTo
                 });
 
                 if (!cancelled) {
-                    //console.log('DEBUG RUNS RESP:', res);
                     setRunsData(prev => ({
                         ...prev,
                         runs: res.runs || [],
                         total: res.total || 0,
                         totalPages: res.totalPages || 0,
-                        totalEstimatedAmount: res.totalEstimatedAmount // Update total amount
+                        totalEstimatedAmount: res.totalEstimatedAmount
                     }));
                 }
             } catch (error) {
@@ -244,6 +237,7 @@ function RunsPageContent() {
     const handleClearFilters = () => {
         setFilters({
             status: ['COMPLETE'],
+            orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'],
             priority: [],
             dateRange: 'all',
             customerId: 'all',
@@ -259,7 +253,7 @@ function RunsPageContent() {
         setSortConfig((current) => {
             if (current?.key === key) {
                 if (current.direction === 'asc') return { key, direction: 'desc' };
-                return null; // Reset to unsorted on third click
+                return null;
             }
             return { key, direction: 'asc' };
         });
@@ -272,7 +266,6 @@ function RunsPageContent() {
             let aValue: any;
             let bValue: any;
 
-            // Helper to get process display name
             const getDisplayName = (run: Run) => {
                 const processName = run.orderProcess?.name;
                 const rawName = run.runTemplate?.name || 'Process Run';
@@ -282,7 +275,6 @@ function RunsPageContent() {
                 return rawName.replace(/ Template$/i, '');
             };
 
-            // Helper to get estimated rate
             const getEstimatedRate = (run: Run) => {
                 if (run.fields?.['Estimated Rate']) return Number(run.fields['Estimated Rate']);
                 const amount = Number(run.fields?.['Estimated Amount'] || 0);
@@ -344,14 +336,11 @@ function RunsPageContent() {
 
             if (aValue === bValue) return 0;
 
-            // Handle string comparison
             if (typeof aValue === 'string' && typeof bValue === 'string') {
-                // Compare ignoring case, but handling numeric sequences correctly (e.g. ORD6 < ORD17)
                 const cmp = aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: 'base' });
                 return sortConfig.direction === 'asc' ? cmp : -cmp;
             }
 
-            // Handle number comparison
             const cmp = aValue > bValue ? 1 : -1;
             return sortConfig.direction === 'asc' ? cmp : -cmp;
         });
@@ -359,14 +348,14 @@ function RunsPageContent() {
 
 
     return (
-        <div className="flex bg-gray-50/50">
+        <div className="flex h-full bg-gray-50/50 overflow-hidden scrollbar-hide">
 
             {/* LEFT SIDEBAR FILTERS */}
             <div className={`
-                flex-shrink-0 bg-white border-r border-gray-200 min-h-screen overflow-hidden transition-all duration-300 ease-in-out
+                flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out overflow-hidden
                 ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
             `}>
-                <div className="w-72 h-full p-3 sticky top-32">
+                <div className="w-72 h-full overflow-y-auto scrollbar-hide p-3">
                     <RunsFilter
                         filters={filters}
                         onChange={(newFilters) => {
@@ -380,10 +369,10 @@ function RunsPageContent() {
             </div>
 
             {/* MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col w-full relative">
+            <div className="flex-1 flex flex-col w-full relative overflow-hidden">
 
                 {/* Header Section */}
-                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-0">
+                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -427,8 +416,8 @@ function RunsPageContent() {
                     </div>
                 </div>
 
-                {/* STATUS BAR */}
-                <div className="sticky top-[73px] z-10 flex flex-col">
+                {/* STATUS BARS */}
+                <div className="flex-shrink-0 z-10">
                     <RunStatusFilter
                         selectedStatuses={filters.status}
                         onChange={(newStatuses) => {
@@ -438,301 +427,282 @@ function RunsPageContent() {
                     />
                 </div>
 
-                {/* Content */}
-                <div className="p-4">
-                    {/* Results Summary */}
-                    <div className="flex items-center justify-between mb-6">
-                        <p className="text-sm text-gray-600">
-                            Showing <span className="font-semibold text-gray-800">{runsData.runs.length}</span>{' '}
-                            of <span className="font-semibold text-gray-800">{runsData.total}</span> runs
-                        </p>
-                        <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
-                    </div>
+                {/* Scrollable Content Area */}
+                <div className="flex-1 overflow-y-auto scrollbar-hide">
+                    <div className="p-4">
+                        {/* Results Summary */}
+                        <div className="flex items-center justify-between mb-6">
+                            <p className="text-sm text-gray-600">
+                                Showing <span className="font-semibold text-gray-800">{runsData.runs.length}</span>{' '}
+                                of <span className="font-semibold text-gray-800">{runsData.total}</span> runs
+                            </p>
+                            <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
+                        </div>
 
-                    {/* Loading/Error/Empty States */}
-                    {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-                            <span className="ml-3 text-gray-600">Loading runs...</span>
-                        </div>
-                    ) : runsData.runs.length === 0 ? (
-                        <div className="bg-white rounded-xl border border-gray-100 p-12 text-center text-gray-500 shadow-sm">
-                            <Box className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                            <p className="font-medium">No runs found</p>
-                            <p className="text-sm mt-1">Try adjusting your search query or filters</p>
-                            <button
-                                onClick={handleClearFilters}
-                                className="mt-4 text-blue-600 text-sm font-medium hover:underline"
-                            >
-                                Clear all filters
-                            </button>
-                        </div>
-                    ) : (
-                        <>
-                            {/* GRID VIEW */}
-                            <div className={viewMode === 'grid' ? 'block' : 'hidden'}>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                                    {runsData.runs.map((run) => (
-                                        <RunCard
-                                            key={run.id}
-                                            run={run}
-                                            active={viewMode === 'grid'}
-                                            onClick={() => handleRunSelection(run.id)}
-                                        />
-                                    ))}
-                                </div>
+                        {/* Loading/Error/Empty States */}
+                        {loading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                                <span className="ml-3 text-gray-600">Loading runs...</span>
                             </div>
+                        ) : runsData.runs.length === 0 ? (
+                            <div className="bg-white rounded-xl border border-gray-100 p-12 text-center text-gray-500 shadow-sm">
+                                <Box className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                                <p className="font-medium">No runs found</p>
+                                <p className="text-sm mt-1">Try adjusting your search query or filters</p>
+                                <button
+                                    onClick={handleClearFilters}
+                                    className="mt-4 text-blue-600 text-sm font-medium hover:underline"
+                                >
+                                    Clear all filters
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                {/* GRID VIEW */}
+                                <div className={viewMode === 'grid' ? 'block' : 'hidden'}>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                        {runsData.runs.map((run) => (
+                                            <RunCard
+                                                key={run.id}
+                                                run={run}
+                                                active={viewMode === 'grid'}
+                                                onClick={() => handleRunSelection(run.id)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
 
-                            {/* TABLE VIEW */}
-                            <div className={`bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden ${viewMode === 'table' ? 'block' : 'hidden'}`}>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm text-left">
-                                        <thead>
-                                            <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderCode')}>
-                                                    <div className="flex items-center gap-1">Order Code {sortConfig?.key === 'orderCode' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                                <th className="px-6 py-4">
-                                                    Image
-                                                </th>
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('process')}>
-                                                    <div className="flex items-center gap-1">Process {sortConfig?.key === 'process' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('runNumber')}>
-                                                    <div className="flex items-center gap-1">Run # {sortConfig?.key === 'runNumber' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('customer')}>
-                                                    <div className="flex items-center gap-1">Customer {sortConfig?.key === 'customer' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('priority')}>
-                                                    <div className="flex items-center gap-1">Priority {sortConfig?.key === 'priority' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('quantity')}>
-                                                    <div className="flex items-center gap-1">Quantity {sortConfig?.key === 'quantity' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderQty')}>
-                                                    <div className="flex items-center gap-1">Order Qty {sortConfig?.key === 'orderQty' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderAmount')}>
-                                                    <div className="flex items-center gap-1">Order Amount {sortConfig?.key === 'orderAmount' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('estRate')}>
-                                                    <div className="flex items-center gap-1">Est. Rate {sortConfig?.key === 'estRate' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('estTotal')}>
-                                                    <div className="flex items-center gap-1">Est. Total {sortConfig?.key === 'estTotal' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                                <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('status')}>
-                                                    <div className="flex items-center gap-1">Status {sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-50">
-                                            {sortedRuns.map((run) => {
-                                                // Process Name Logic
-                                                const processName = run.orderProcess?.name;
-                                                const rawName = run.runTemplate?.name || 'Process Run';
-                                                let displayName = rawName.replace(/ Template$/i, '');
+                                {/* TABLE VIEW */}
+                                <div className={`bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden ${viewMode === 'table' ? 'block' : 'hidden'}`}>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead>
+                                                <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderCode')}>
+                                                        <div className="flex items-center gap-1">Order Code {sortConfig?.key === 'orderCode' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                    <th className="px-6 py-4">
+                                                        Image
+                                                    </th>
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('process')}>
+                                                        <div className="flex items-center gap-1">Process {sortConfig?.key === 'process' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('runNumber')}>
+                                                        <div className="flex items-center gap-1">Run # {sortConfig?.key === 'runNumber' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('customer')}>
+                                                        <div className="flex items-center gap-1">Customer {sortConfig?.key === 'customer' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('priority')}>
+                                                        <div className="flex items-center gap-1">Priority {sortConfig?.key === 'priority' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('quantity')}>
+                                                        <div className="flex items-center gap-1">Quantity {sortConfig?.key === 'quantity' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderQty')}>
+                                                        <div className="flex items-center gap-1">Order Qty {sortConfig?.key === 'orderQty' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderAmount')}>
+                                                        <div className="flex items-center gap-1">Order Amount {sortConfig?.key === 'orderAmount' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('estRate')}>
+                                                        <div className="flex items-center gap-1">Est. Rate {sortConfig?.key === 'estRate' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('estTotal')}>
+                                                        <div className="flex items-center gap-1">Est. Total {sortConfig?.key === 'estTotal' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                    <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('status')}>
+                                                        <div className="flex items-center gap-1">Status {sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50">
+                                                {sortedRuns.map((run) => {
+                                                    const processName = run.orderProcess?.name;
+                                                    const rawName = run.runTemplate?.name || 'Process Run';
+                                                    let displayName = rawName.replace(/ Template$/i, '');
 
-                                                if (processName && (processName.toLowerCase().includes('embellishment') || rawName.toLowerCase().includes('embellishment'))) {
-                                                    displayName = processName;
-                                                }
+                                                    if (processName && (processName.toLowerCase().includes('embellishment') || rawName.toLowerCase().includes('embellishment'))) {
+                                                        displayName = processName;
+                                                    }
 
-                                                return (
-                                                    <tr
-                                                        key={run.id}
-                                                        className="group hover:bg-blue-50/30 transition-colors cursor-pointer"
-                                                        onClick={() => handleRunSelection(run.id)}
-                                                    >
-                                                        <td className="px-6 py-4 font-medium text-gray-900">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-                                                                    #{typeof run.orderProcess.order.code === 'object' ? (run.orderProcess.order.code as any).code.split("/")[0].replace("ORD", "") : run.orderProcess.order.code.split("/")[0].replace("ORD", "")}
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            {run.fields?.images && run.fields.images.length > 0 ? (
-                                                                <div className="w-12 h-12 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 relative group">
-                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                    <img
-                                                                        src={run.fields.images[0]}
-                                                                        alt={`Run ${run.runNumber}`}
-                                                                        className="w-full h-full object-cover"
-                                                                    />
-                                                                    <div
-                                                                        className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors w-full h-full z-10"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setPreviewImage(run.fields.images?.[0] || null);
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                            ) : (
-                                                                <div className="w-12 h-12 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center">
-                                                                    <span className="text-gray-300 text-xs text-center px-1">No img</span>
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-2 text-gray-700">
-                                                                <Activity className="w-4 h-4 text-gray-400" />
-                                                                {displayName}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-gray-500">
-                                                            {run.runNumber}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-2 text-gray-600">
-                                                                <User className="w-4 h-4 text-gray-400" />
-                                                                {run.orderProcess.order.customer.name}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            {run.priority && (
-                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${run.priority === 'HIGH' ? 'text-red-600 bg-red-50 border-red-100' :
-                                                                    run.priority === 'MEDIUM' ? 'text-orange-600 bg-orange-50 border-orange-100' :
-                                                                        'text-blue-600 bg-blue-50 border-blue-100'
-                                                                    }`}>
-                                                                    {run.priority}
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-6 py-4 text-gray-700">
-                                                            {run.fields?.Quantity || run.orderProcess.order.quantity || '-'}
-                                                        </td>
-                                                        <td className="px-6 py-4 text-gray-600">
-                                                            {run.orderProcess.order.quantity || '-'}
-                                                        </td>
-                                                        <td className="px-6 py-4 font-medium text-blue-700">
-                                                            {run.orderProcess.order.amount ? `₹${run.orderProcess.order.amount.toLocaleString()}` : '-'}
-                                                        </td>
-                                                        <td className="px-6 py-4 text-gray-700">
-                                                            {(() => {
-                                                                const rate = run.fields?.['Estimated Rate'];
-                                                                if (rate) return `₹${rate}`;
-
-                                                                const amount = Number(run.fields?.['Estimated Amount'] || 0);
-                                                                const qty = Number(run.fields?.Quantity || 0);
-                                                                if (amount && qty) return `₹${(amount / qty).toFixed(2).replace(/\.00$/, '')}`;
-
-                                                                return '-';
-                                                            })()}
-                                                        </td>
-                                                        <td className="px-6 py-4 font-medium text-green-700">
-                                                            {run.fields?.['Estimated Amount'] ? `₹${run.fields['Estimated Amount'].toLocaleString()}` : '-'}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            {(() => {
-                                                                // Logic from RunCard.tsx
-                                                                const status = run.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (run.lifeCycleStatusCode || run.statusCode);
-                                                                const s = status?.toUpperCase();
-                                                                let config = {
-                                                                    label: status || 'Unknown',
-                                                                    color: 'bg-gray-50 text-gray-700 border-gray-200',
-                                                                    icon: <Clock className="w-3.5 h-3.5" />,
-                                                                };
-
-                                                                switch (s) {
-                                                                    case 'COMPLETED':
-                                                                    case 'COMPLETE':
-                                                                        config = {
-                                                                            label: 'Completed',
-                                                                            color: 'bg-green-50 text-green-700 border-green-200',
-                                                                            icon: <CheckCircle className="w-3.5 h-3.5" />,
-                                                                        };
-                                                                        break;
-                                                                    case 'IN_PROGRESS':
-                                                                        config = {
-                                                                            label: 'In Progress',
-                                                                            color: 'bg-blue-50 text-blue-700 border-blue-200',
-                                                                            icon: <Activity className="w-3.5 h-3.5" />,
-                                                                        };
-                                                                        break;
-                                                                    case 'PENDING':
-                                                                        config = {
-                                                                            label: 'Pending',
-                                                                            color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-                                                                            icon: <Clock className="w-3.5 h-3.5" />,
-                                                                        };
-                                                                        break;
-                                                                    case 'CONFIGURE':
-                                                                        config = {
-                                                                            label: 'Configure',
-                                                                            color: 'bg-orange-50 text-orange-700 border-orange-200',
-                                                                            icon: <Activity className="w-3.5 h-3.5" />,
-                                                                        };
-                                                                        break;
-                                                                    case 'DESIGN':
-                                                                        config = {
-                                                                            label: 'Design',
-                                                                            color: 'bg-purple-50 text-purple-700 border-purple-200',
-                                                                            icon: <Activity className="w-3.5 h-3.5" />,
-                                                                        };
-                                                                        break;
-                                                                }
-
-                                                                return (
-                                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${config.color}`}>
-                                                                        {config.icon}
-                                                                        {config.label}
+                                                    return (
+                                                        <tr
+                                                            key={run.id}
+                                                            className="group hover:bg-blue-50/30 transition-colors cursor-pointer"
+                                                            onClick={() => handleRunSelection(run.id)}
+                                                        >
+                                                            <td className="px-6 py-4 font-medium text-gray-900">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                                                                        #{typeof run.orderProcess.order.code === 'object' ? (run.orderProcess.order.code as any).code.split("/")[0].replace("ORD", "") : run.orderProcess.order.code.split("/")[0].replace("ORD", "")}
                                                                     </span>
-                                                                );
-                                                            })()}
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                {run.fields?.images && run.fields.images.length > 0 ? (
+                                                                    <div className="w-12 h-12 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 relative group">
+                                                                        <img
+                                                                            src={run.fields.images[0]}
+                                                                            alt={`Run ${run.runNumber}`}
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                        <div
+                                                                            className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors w-full h-full z-10"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setPreviewImage(run.fields.images?.[0] || null);
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="w-12 h-12 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center">
+                                                                        <span className="text-gray-300 text-xs text-center px-1">No img</span>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-2 text-gray-700">
+                                                                    <Activity className="w-4 h-4 text-gray-400" />
+                                                                    {displayName}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-500">
+                                                                {run.runNumber}
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex items-center gap-2 text-gray-600">
+                                                                    <User className="w-4 h-4 text-gray-400" />
+                                                                    {run.orderProcess.order.customer.name}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                {run.priority && (
+                                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase ${run.priority === 'HIGH' ? 'text-red-600 bg-red-50 border-red-100' :
+                                                                        run.priority === 'MEDIUM' ? 'text-orange-600 bg-orange-50 border-orange-100' :
+                                                                            'text-blue-600 bg-blue-50 border-blue-100'
+                                                                        }`}>
+                                                                        {run.priority}
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-700">
+                                                                {run.fields?.Quantity || run.orderProcess.order.quantity || '-'}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-600">
+                                                                {run.orderProcess.order.quantity || '-'}
+                                                            </td>
+                                                            <td className="px-6 py-4 font-medium text-blue-700">
+                                                                {run.orderProcess.order.amount ? `₹${run.orderProcess.order.amount.toLocaleString()}` : '-'}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-gray-700">
+                                                                {(() => {
+                                                                    const rate = run.fields?.['Estimated Rate'];
+                                                                    if (rate) return `₹${rate}`;
+                                                                    const amount = Number(run.fields?.['Estimated Amount'] || 0);
+                                                                    const qty = Number(run.fields?.Quantity || 0);
+                                                                    if (amount && qty) return `₹${(amount / qty).toFixed(2).replace(/\.00$/, '')}`;
+                                                                    return '-';
+                                                                })()}
+                                                            </td>
+                                                            <td className="px-6 py-4 font-medium text-green-700">
+                                                                {run.fields?.['Estimated Amount'] ? `₹${run.fields['Estimated Amount'].toLocaleString()}` : '-'}
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                {(() => {
+                                                                    const status = run.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (run.lifeCycleStatusCode || run.statusCode);
+                                                                    const s = status?.toUpperCase();
+                                                                    let config = {
+                                                                        label: status || 'Unknown',
+                                                                        color: 'bg-gray-50 text-gray-700 border-gray-200',
+                                                                        icon: <Clock className="w-3.5 h-3.5" />,
+                                                                    };
+
+                                                                    switch (s) {
+                                                                        case 'COMPLETED':
+                                                                        case 'COMPLETE':
+                                                                            config = {
+                                                                                label: 'Completed',
+                                                                                color: 'bg-green-50 text-green-700 border-green-200',
+                                                                                icon: <CheckCircle className="w-3.5 h-3.5" />,
+                                                                            };
+                                                                            break;
+                                                                        case 'IN_PROGRESS':
+                                                                            config = {
+                                                                                label: 'In Progress',
+                                                                                color: 'bg-blue-50 text-blue-700 border-blue-200',
+                                                                                icon: <Activity className="w-3.5 h-3.5" />,
+                                                                            };
+                                                                            break;
+                                                                        case 'PENDING':
+                                                                            config = {
+                                                                                label: 'Pending',
+                                                                                color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                                                                                icon: <Clock className="w-3.5 h-3.5" />,
+                                                                            };
+                                                                            break;
+                                                                        case 'CONFIGURE':
+                                                                            config = {
+                                                                                label: 'Configure',
+                                                                                color: 'bg-orange-50 text-orange-700 border-orange-200',
+                                                                                icon: <Activity className="w-3.5 h-3.5" />,
+                                                                            };
+                                                                            break;
+                                                                        case 'DESIGN':
+                                                                            config = {
+                                                                                label: 'Design',
+                                                                                color: 'bg-purple-50 text-purple-700 border-purple-200',
+                                                                                icon: <Activity className="w-3.5 h-3.5" />,
+                                                                            };
+                                                                            break;
+                                                                    }
+
+                                                                    return (
+                                                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${config.color}`}>
+                                                                            {config.icon}
+                                                                            {config.label}
+                                                                        </span>
+                                                                    );
+                                                                })()}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Pagination Footer */}
-                            <div className="flex items-center justify-between pt-6 pb-6">
-                                <div className="flex items-center gap-2 mx-auto">
-                                    <button
-                                        onClick={() => handlePageChange(runsData.page - 1)}
-                                        disabled={runsData.page === 1}
-                                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        Previous
-                                    </button>
-
-                                    <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-2 rounded-lg">
-                                        {runsData.page} / {runsData.totalPages}
-                                    </span>
-
-                                    <button
-                                        onClick={() => handlePageChange(runsData.page + 1)}
-                                        disabled={runsData.page === runsData.totalPages}
-                                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        Next
-                                    </button>
-                                </div>
-                            </div>
-                        </>
-                    )}
+                                {/* PAGINATION */}
+                                <Pagination
+                                    currentPage={runsData.page}
+                                    totalPages={runsData.totalPages}
+                                    onPageChange={handlePageChange}
+                                    totalItems={runsData.total}
+                                    pageSize={pageSize}
+                                    itemLabel="runs"
+                                />
+                            </>
+                        )}
+                    </div>
                 </div>
-
-                {/* VIEW RUN MODAL */}
-                {selectedRunId && (
-                    <ViewRunModal
-                        runId={selectedRunId}
-                        onClose={() => handleRunSelection(null)}
-                        onRunUpdate={() => {
-                            // Refresh list to reflect any status changes
-                            setRunsData(prev => ({ ...prev }));
-                            setFilters(prev => ({ ...prev }));
-                        }}
-                    />
-                )}
-
-                <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
             </div>
-        </div >
+
+            {/* VIEW RUN MODAL */}
+            {selectedRunId && (
+                <ViewRunModal
+                    runId={selectedRunId}
+                    onClose={() => handleRunSelection(null)}
+                    onRunUpdate={() => {
+                        setRunsData(prev => ({ ...prev }));
+                        setFilters(prev => ({ ...prev }));
+                    }}
+                />
+            )}
+
+            <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
+        </div>
     );
 }
 

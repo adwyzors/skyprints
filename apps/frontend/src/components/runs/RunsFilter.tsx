@@ -23,6 +23,7 @@ interface RunsFilterProps {
         reviewerId: string;
         processId?: string; // Add processId to filters
         locationId?: string;
+        orderStatus: string[];
     };
     onChange: (newFilters: any) => void;
     onClear: () => void;
@@ -36,6 +37,15 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
     const [locations, setLocations] = useState<Location[]>([]);
     const [statuses, setStatuses] = useState<string[]>(['PENDING', 'CONFIGURE', 'DESIGN', 'IN_PROGRESS', 'PRODUCTION_READY', 'COMPLETE']);
     const [loadingStatuses, setLoadingStatuses] = useState(false);
+
+    const orderStatusOptions = [
+        { value: 'CONFIGURE', label: 'To Configure', color: 'purple' },
+        { value: 'PRODUCTION_READY', label: 'Ready', color: 'yellow' },
+        { value: 'IN_PRODUCTION', label: 'In Production', color: 'blue' },
+        { value: 'COMPLETE', label: 'Complete', color: 'green' },
+        { value: 'BILLED', label: 'Billed', color: 'gray' },
+        { value: 'GROUP_BILLED', label: 'Group Billed', color: 'gray' },
+    ];
 
     useEffect(() => {
         const fetchData = async () => {
@@ -115,6 +125,14 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
         onChange({ ...filters, priority: next });
     };
 
+    const handleOrderStatusChange = (status: string) => {
+        const current = filters.orderStatus;
+        const next = current.includes(status)
+            ? current.filter(s => s !== status)
+            : [...current, status];
+        onChange({ ...filters, orderStatus: next });
+    };
+
     // Custom clear handler to include processId reset
     const handleClear = () => {
         onClear();
@@ -141,7 +159,26 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                 </div>
             </div>
 
-            <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-6 flex-1 overflow-y-auto pr-2 scrollbar-hide">
+
+                {/* Order Status */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Order Status</label>
+                    <div className="flex flex-wrap gap-2">
+                        {orderStatusOptions.map(option => (
+                            <button
+                                key={option.value}
+                                onClick={() => handleOrderStatusChange(option.value)}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filters.orderStatus.includes(option.value)
+                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                                    }`}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {/* Process */}
                 <div>
@@ -185,6 +222,7 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                         </div>
                     </div>
                 )}
+
 
                 {/* Priority */}
                 <div>

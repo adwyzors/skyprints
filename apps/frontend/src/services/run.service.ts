@@ -75,6 +75,7 @@ export interface GetRunsParams {
     customerId?: string;
     processId?: string;
     locationId?: string;
+    orderStatus?: string | string[];
 }
 
 export interface GetRunsResponse {
@@ -109,6 +110,7 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
     appendParam('status', params.status);
     appendParam('lifeCycleStatusCode', params.lifeCycleStatusCode);
     appendParam('priority', params.priority);
+    appendParam('orderStatus', params.orderStatus);
 
     if (params.executorUserId && params.executorUserId !== 'all') queryParams.append('executorUserId', params.executorUserId);
     if (params.reviewerUserId && params.reviewerUserId !== 'all') queryParams.append('reviewerUserId', params.reviewerUserId);

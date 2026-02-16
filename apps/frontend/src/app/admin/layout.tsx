@@ -3,207 +3,245 @@
 import RoleGuard from '@/auth/RoleGuard';
 import AppHeader from '@/components/layout/AppHeader';
 import {
-  Activity,
-  Calendar,
-  CheckCircle,
-  CreditCard,
-  FileText,
-  MapPin,
-  Package,
-  Plus,
-  Users
+    Activity,
+    CheckCircle,
+    ChevronLeft,
+    ChevronUp,
+    CreditCard,
+    FileText,
+    MapPin,
+    Package,
+    Users
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 const tabs = [
-  // {
-  //   label: 'Dashboard',
-  //   path: '/admin/dashboard',
-  //   icon: <Home className="w-4 h-4" />,
-  //   badge: null,
-  // },
-  {
-    label: 'Orders',
-    path: '/admin/orders',
-    icon: <Package className="w-4 h-4" />,
-    badge: null,
-  },
-  {
-    label: 'Rate Confirmation',
-    path: '/admin/billing',
-    icon: <CreditCard className="w-4 h-4" />,
-    badge: null,
-  },
-  {
-    label: 'Billing Ready',
-    path: '/admin/completed',
-    icon: <CheckCircle className="w-4 h-4" />,
-    badge: null,
-  },
-  {
-    label: 'Bills',
-    path: '/admin/bills',
-    icon: <FileText className="w-4 h-4" />,
-    badge: null,
-  },
-  {
-    label: 'Run Activity',
-    path: '/admin/runs',
-    icon: <Activity className="w-4 h-4" />,
-    badge: null,
-  },
-  {
-    label: 'Customers',
-    path: '/admin/customers',
-    icon: <Users className="w-4 h-4" />,
-    badge: null,
-  },
-  {
-    label: 'Locations',
-    path: '/admin/locations',
-    icon: <MapPin className="w-4 h-4" />,
-    badge: null,
-  },
+    // {
+    //   label: 'Dashboard',
+    //   path: '/admin/dashboard',
+    //   icon: <Home className="w-4 h-4" />,
+    //   badge: null,
+    // },
+    {
+        label: 'Orders',
+        path: '/admin/orders',
+        icon: <Package className="w-4 h-4" />,
+        badge: null,
+    },
+    {
+        label: 'Rate Confirmation',
+        path: '/admin/billing',
+        icon: <CreditCard className="w-4 h-4" />,
+        badge: null,
+    },
+    {
+        label: 'Billing Ready',
+        path: '/admin/completed',
+        icon: <CheckCircle className="w-4 h-4" />,
+        badge: null,
+    },
+    {
+        label: 'Bills',
+        path: '/admin/bills',
+        icon: <FileText className="w-4 h-4" />,
+        badge: null,
+    },
+    {
+        label: 'Run Activity',
+        path: '/admin/runs',
+        icon: <Activity className="w-4 h-4" />,
+        badge: null,
+    },
+    {
+        label: 'Customers',
+        path: '/admin/customers',
+        icon: <Users className="w-4 h-4" />,
+        badge: null,
+    },
+    {
+        label: 'Locations',
+        path: '/admin/locations',
+        icon: <MapPin className="w-4 h-4" />,
+        badge: null,
+    },
 
-  // {
-  //   label: 'Reports',
-  //   path: '/admin/reports',
-  //   icon: <BarChart3 className="w-4 h-4" />,
-  //   badge: null,
-  // },
+    // {
+    //   label: 'Reports',
+    //   path: '/admin/reports',
+    //   icon: <BarChart3 className="w-4 h-4" />,
+    //   badge: null,
+    // },
 ];
 
 
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [showQuickActions, setShowQuickActions] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+    const pathname = usePathname();
+    const router = useRouter();
+    const [isHydrated, setIsHydrated] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Wait for hydration to complete
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+    // Wait for hydration to complete
+    useEffect(() => {
+        setIsHydrated(true);
+        // Load preference from localStorage if available
+        const saved = localStorage.getItem('admin-sidebar-collapsed');
+        if (saved !== null) {
+            setIsSidebarCollapsed(saved === 'true');
+        }
+    }, []);
 
-  const isOrdersSection = pathname.startsWith('/admin/orders');
-  const activeTab = tabs.find((tab) => pathname.startsWith(tab.path)) || tabs[0];
+    const toggleSidebar = () => {
+        const newState = !isSidebarCollapsed;
+        setIsSidebarCollapsed(newState);
+        localStorage.setItem('admin-sidebar-collapsed', String(newState));
+    };
 
-  const quickActions = [
-    {
-      label: 'Create Order',
-      icon: <Plus className="w-4 h-4" />,
-      onClick: () => router.push('/admin/orders/new'),
-    },
-    {
-      label: 'Generate Report',
-      icon: <FileText className="w-4 h-4" />,
-      onClick: () => console.log('Generate Report'),
-    },
-    {
-      label: 'Schedule Production',
-      icon: <Calendar className="w-4 h-4" />,
-      onClick: () => console.log('Schedule Production'),
-    },
-    {
-      label: 'Customer Onboarding',
-      icon: <Users className="w-4 h-4" />,
-      onClick: () => router.push('/admin/customers/new'),
-    },
-  ];
+    if (!isHydrated) {
+        return (
+            <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+                <AppHeader />
+                <div className="flex flex-1 overflow-hidden">
+                    <div className="w-16 bg-white border-r border-gray-200" />
+                    <main className="flex-1 overflow-y-auto">
+                        {children}
+                    </main>
+                </div>
+            </div>
+        );
+    }
 
-  // Don't render interactive elements during SSR or before hydration
-  if (!isHydrated) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <AppHeader />
-        <div className="sticky top-16 z-40 bg-white border-b border-gray-200 shadow-sm">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-14">
-              <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
-                {tabs.map((tab) => {
-                  const active = pathname.startsWith(tab.path);
-                  return (
-                    <div
-                      key={tab.path}
-                      className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg mx-1 ${active ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-600'
-                        }`}
+        <RoleGuard allowedRoles={['ADMIN']}>
+            <div className="h-screen bg-gray-50 flex flex-col overflow-hidden relative">
+                {/* GLOBAL TOP HEADER - STAYS FIXED */}
+                <AppHeader />
+
+                <div className="flex flex-1 overflow-hidden relative">
+                    {/* COLLAPSIBLE VERTICAL SIDEBAR (Desktop) */}
+                    <aside
+                        className={`
+                            hidden md:flex bg-white border-r border-gray-200 flex-col transition-all duration-300 ease-in-out z-40
+                            ${isSidebarCollapsed ? 'w-[72px]' : 'w-64'}
+                        `}
                     >
-                      <span className={`${active ? 'text-blue-600' : 'text-gray-500'}`}>
-                        {tab.icon}
-                      </span>
-                      <span>{tab.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
+                        {/* NAVIGATION LINKS */}
+                        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 scrollbar-hide">
+                            {tabs.map((tab) => {
+                                const active = pathname.startsWith(tab.path);
+                                const hasBadge = tab.badge !== null;
+
+                                return (
+                                    <button
+                                        key={tab.path}
+                                        onClick={() => router.push(tab.path)}
+                                        className={`
+                                            relative flex items-center h-11 w-full rounded-xl transition-all duration-200 group
+                                            ${active
+                                                ? 'bg-blue-50 text-blue-700 shadow-sm'
+                                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                                            }
+                                        `}
+                                        title={isSidebarCollapsed ? tab.label : ''}
+                                    >
+                                        <div className={`flex items-center justify-center min-w-[48px] ${active ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                                            {tab.icon}
+                                        </div>
+
+                                        <span
+                                            className={`
+                                                font-medium text-sm whitespace-nowrap transition-all duration-300 overflow-hidden
+                                                ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}
+                                            `}
+                                        >
+                                            {tab.label}
+                                        </span>
+
+                                        {/* ACTIVE INDICATOR (VERTICAL) */}
+                                        {active && (
+                                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-600 rounded-l-full" />
+                                        )}
+
+                                        {/* BADGE */}
+                                        {hasBadge && !isSidebarCollapsed && (
+                                            <span className="ml-auto mr-2 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
+                                                {tab.badge}
+                                            </span>
+                                        )}
+                                        {hasBadge && isSidebarCollapsed && (
+                                            <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600 border border-white" />
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </nav>
+
+                        {/* SIDEBAR FOOTER / COLLAPSE TOGGLE */}
+                        <div className="p-3 border-t border-gray-100 bg-gray-50/50">
+                            <button
+                                onClick={toggleSidebar}
+                                className="flex items-center h-10 w-full rounded-xl text-gray-400 hover:text-gray-600 hover:bg-white hover:shadow-sm transition-all group"
+                            >
+                                <div className="flex items-center justify-center min-w-[48px]">
+                                    {isSidebarCollapsed ? <ChevronUp className="w-5 h-5 rotate-90" /> : <ChevronLeft className="w-5 h-5" />}
+                                </div>
+                                <span
+                                    className={`
+                                        text-xs font-semibold uppercase tracking-wider transition-all duration-300 overflow-hidden
+                                        ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}
+                                    `}
+                                >
+                                    Collapse Menu
+                                </span>
+                            </button>
+                        </div>
+                    </aside>
+
+                    {/* MAIN CONTENT AREA */}
+                    <main className="flex-1 overflow-y-auto scrollbar-hide bg-gray-50/30 pb-20 md:pb-0">
+                        <div className="w-full h-full">
+                            {children}
+                        </div>
+                    </main>
+
+                    {/* BOTTOM NAVIGATION (Mobile) */}
+                    <nav className="md:hidden fixed bottom-4 left-4 right-4 bg-white/80 backdrop-blur-xl border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-x-auto scrollbar-hide">
+                        <div className="flex items-center justify-between p-2 min-w-max">
+                            {tabs.map((tab) => {
+                                const active = pathname.startsWith(tab.path);
+                                const hasBadge = tab.badge !== null;
+
+                                return (
+                                    <button
+                                        key={tab.path}
+                                        onClick={() => router.push(tab.path)}
+                                        className={`
+                                            flex flex-col items-center justify-center px-4 py-2 rounded-xl transition-all duration-200
+                                            ${active
+                                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
+                                                : 'text-gray-500 hover:bg-gray-50'
+                                            }
+                                        `}
+                                    >
+                                        <div className="relative">
+                                            {tab.icon}
+                                            {hasBadge && (
+                                                <span className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold border-2 border-white ${active ? 'bg-orange-500' : 'bg-blue-600 text-white'}`}>
+                                                    {tab.badge}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <span className="text-[10px] font-bold mt-1 uppercase tracking-tight">
+                                            {tab.label.split(' ')[0]}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </nav>
+                </div>
             </div>
-          </div>
-        </div>
-        <main className="px-4 sm:px-6 lg:px-8 pb-8">
-          <div className="w-full mx-auto">{children}</div>
-        </main>
-      </div>
+        </RoleGuard>
     );
-  }
-
-  return (
-    <RoleGuard allowedRoles={['ADMIN']}>
-      <div className="min-h-screen bg-gray-50">
-        <AppHeader />
-
-        {/* MAIN NAVIGATION BAR */}
-        <div className="sticky top-14 z-40 bg-white border-b border-gray-200 shadow-sm">
-          <div className="px-4 sm:px-4 lg:px-6">
-            <div className="flex items-center justify-between h-14">
-              {/* LEFT - MAIN TABS */}
-              <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
-                {tabs.map((tab) => {
-                  const active = pathname.startsWith(tab.path);
-                  const hasBadge = tab.badge !== null;
-
-                  return (
-                    <button
-                      key={tab.path}
-                      onClick={() => router.push(tab.path)}
-                      className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg mx-1 transition-all duration-200 ${active
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                    >
-                      <span className={`${active ? 'text-blue-600' : 'text-gray-500'}`}>
-                        {tab.icon}
-                      </span>
-                      <span>{tab.label}</span>
-
-                      {/* BADGE */}
-                      {hasBadge && (
-                        <span
-                          className={`absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center ${active ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
-                            }`}
-                        >
-                          {tab.badge}
-                        </span>
-                      )}
-
-                      {/* ACTIVE INDICATOR */}
-                      {active && (
-                        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-blue-600 rounded-t-full" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* MAIN CONTENT */}
-        <main className="px-4 sm:px-4 lg:px-6 pb-6">
-          <div className="w-full mx-auto">{children}</div>
-        </main>
-      </div>
-    </RoleGuard>
-  );
 }

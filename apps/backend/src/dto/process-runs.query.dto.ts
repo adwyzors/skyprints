@@ -68,4 +68,8 @@ export class ProcessRunsQueryDto {
     @IsOptional()
     @IsString()
     locationId?: string;
+
+    @IsOptional()
+    @IsString()
+    orderStatus?: string;
 }
