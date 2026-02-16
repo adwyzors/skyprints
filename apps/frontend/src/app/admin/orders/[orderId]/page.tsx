@@ -71,7 +71,7 @@ export default function OrderConfigPage() {
 
     const showBillingView = useMemo(() => {
         if (!order) return false;
-        return ['BILLED', 'COMPLETE'].includes(order.status.toUpperCase());
+        return ['BILLED', 'COMPLETE', 'GROUP_BILLED'].includes(order.status.toUpperCase());
     }, [order]);
 
     const isInitialMount = useRef(true);
