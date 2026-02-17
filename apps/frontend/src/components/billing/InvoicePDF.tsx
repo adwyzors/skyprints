@@ -144,6 +144,7 @@ interface InvoiceData {
     cgstAmount: string;
     sgstAmount: string;
     tdsAmount: string;
+    tdsRate: string;
     total: string;
 }
 
@@ -267,19 +268,23 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                         <Text style={styles.totalValue}>{parseFloat(invoiceData.subtotal).toFixed(2)}</Text>
                     </View>
 
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>CGST (2.5%):</Text>
-                        <Text style={styles.totalValue}>{invoiceData.cgstAmount}</Text>
-                    </View>
+                    {parseFloat(invoiceData.cgstAmount) > 0 && (
+                        <View style={styles.totalRow}>
+                            <Text style={styles.totalLabel}>CGST (2.5%):</Text>
+                            <Text style={styles.totalValue}>{invoiceData.cgstAmount}</Text>
+                        </View>
+                    )}
 
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>SGST (2.5%):</Text>
-                        <Text style={styles.totalValue}>{invoiceData.sgstAmount}</Text>
-                    </View>
+                    {parseFloat(invoiceData.sgstAmount) > 0 && (
+                        <View style={styles.totalRow}>
+                            <Text style={styles.totalLabel}>SGST (2.5%):</Text>
+                            <Text style={styles.totalValue}>{invoiceData.sgstAmount}</Text>
+                        </View>
+                    )}
 
                     {parseFloat(invoiceData.tdsAmount) > 0 && (
                         <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>TDS (2%):</Text>
+                            <Text style={styles.totalLabel}>TDS ({invoiceData.tdsRate}%):</Text>
                             <Text style={styles.totalValue}>{invoiceData.tdsAmount}</Text>
                         </View>
                     )}

@@ -55,12 +55,12 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                 return sum + (Number(order.billing?.result) || 0);
             }, 0);
 
-            // Calculate GST amounts (2.5% each for CGST and SGST)
-            const cgstAmount = (totalAmount * 2.5) / 100;
-            const sgstAmount = (totalAmount * 2.5) / 100;
+            // Calculate GST amounts (2.5% each for CGST and SGST) - Only if tax is enabled
+            const cgstAmount = details.orders[0]?.customer?.tax ? (totalAmount * 2.5) / 100 : 0;
+            const sgstAmount = details.orders[0]?.customer?.tax ? (totalAmount * 2.5) / 100 : 0;
 
-            // Calculate TDS (based on customer's TDS No, defaulting to 0)
-            const tdsRate = details.orders[0]?.customer?.tdsno || 0;
+            // Calculate TDS (fixed rate of 2%, decoupled from tdsno which is a registration number)
+            const tdsRate = 2;
             const tdsAmount = details.orders[0]?.customer?.tds ? (totalAmount * tdsRate) / 100 : 0;
 
             // Calculate final total
@@ -110,6 +110,7 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                 cgstAmount: cgstAmount.toFixed(2),
                 sgstAmount: sgstAmount.toFixed(2),
                 tdsAmount: tdsAmount.toFixed(2),
+                tdsRate: tdsRate.toString(),
                 total: finalTotal.toFixed(2),
             };
 
