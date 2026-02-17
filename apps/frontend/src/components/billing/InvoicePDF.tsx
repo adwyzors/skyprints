@@ -69,10 +69,11 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#ccc',
     },
-    colSrNo: { width: '8%', textAlign: 'center', paddingHorizontal: 5 },
-    colOrderCode: { width: '22%', textAlign: 'center', paddingHorizontal: 5 },
-    colQuantity: { width: '15%', textAlign: 'center', paddingHorizontal: 5 },
-    colRate: { width: '25%', textAlign: 'center', paddingHorizontal: 5 },
+    colSrNo: { width: '5%', textAlign: 'center', paddingHorizontal: 5 },
+    colOrderCode: { width: '15%', textAlign: 'center', paddingHorizontal: 5 },
+    colJobCode: { width: '20%', textAlign: 'center', paddingHorizontal: 5 },
+    colQuantity: { width: '10%', textAlign: 'center', paddingHorizontal: 5 },
+    colRate: { width: '20%', textAlign: 'center', paddingHorizontal: 5 },
     colAmount: { width: '30%', textAlign: 'center', paddingHorizontal: 5 },
     totalsContainer: {
         marginTop: 10,
@@ -245,6 +246,7 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                     <View style={styles.tableHeader}>
                         <Text style={styles.colSrNo}>#</Text>
                         <Text style={styles.colOrderCode}>Order Code</Text>
+                        <Text style={styles.colJobCode}>Job Code</Text>
                         <Text style={styles.colQuantity}>Quantity</Text>
                         <Text style={styles.colRate}>Rate</Text>
                         <Text style={styles.colAmount}>Amount</Text>
@@ -254,14 +256,8 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                     {invoiceData.items.map((item) => (
                         <View key={item.srNo} style={styles.tableRow}>
                             <Text style={styles.colSrNo}>{item.srNo}</Text>
-                            <View style={styles.colOrderCode}>
-                                <Text style={{ fontWeight: 'bold' }}>{item.orderCode}</Text>
-                                {item.jobCode && (
-                                    <Text style={{ fontSize: 7, color: '#444', marginTop: 1, fontStyle: 'italic' }}>
-                                        {item.jobCode}
-                                    </Text>
-                                )}
-                            </View>
+                            <Text style={styles.colOrderCode}>{item.orderCode}</Text>
+                            <Text style={styles.colJobCode}>{item.jobCode || '-'}</Text>
                             <Text style={styles.colQuantity}>{item.quantity}</Text>
                             <Text style={styles.colRate}>{parseFloat(item.rate).toFixed(2)}</Text>
                             <Text style={styles.colAmount}>{parseFloat(item.amount).toFixed(2)}</Text>
