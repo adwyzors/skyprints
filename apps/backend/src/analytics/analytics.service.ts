@@ -324,7 +324,7 @@ export class AnalyticsService {
                     where: {
                         isActive: true,
                         deletedAt: null,
-                        role: { in: ['ADMIN', 'MANAGER'] } // Managers and Admins are typically the executors/reviewers
+                        role: 'MANAGER'
                     },
                     select: { id: true, name: true }
                 })
