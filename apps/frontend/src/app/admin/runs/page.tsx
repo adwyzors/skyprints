@@ -1,5 +1,7 @@
 'use client';
 
+import { Permission } from '@/auth/permissions';
+import { withAuth } from '@/auth/withAuth';
 import Pagination from '@/components/common/Pagination';
 import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import ViewRunModal from '@/components/modals/ViewRunModal';
@@ -353,7 +355,7 @@ function RunsPageContent() {
             {/* LEFT SIDEBAR FILTERS - STICKY */}
             <div className={`
                 sticky top-0 h-[calc(100vh-56px)] flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out z-40
-                ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
+                ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0 pointer-events-none'}
             `}>
                 <div className="w-72 h-full overflow-y-auto scrollbar-hide p-3">
                     <RunsFilter
@@ -372,17 +374,17 @@ function RunsPageContent() {
             <div className="flex-1 flex flex-col w-full relative">
 
                 {/* Header Section - STICKY */}
-                <div className="sticky top-0 flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="sticky top-0 flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
-                                ? 'bg-blue-50 border-blue-200 text-blue-600'
-                                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                            className={`p-2 rounded-lg border transition-all duration-200 relative ${isSidebarOpen
+                                ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm'
                                 }`}
-                            title={isSidebarOpen ? "Collapse Filters" : "Expand Filters"}
+                            title={isSidebarOpen ? "Close Filters" : "Show Filters"}
                         >
-                            {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
+                            {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5 font-bold" />}
                         </button>
 
                         <div>
@@ -706,6 +708,8 @@ function RunsPageContent() {
     );
 }
 
+const ProtectedRunsPageContent = withAuth(RunsPageContent, { permission: Permission.RUNS_VIEW });
+
 export default function RunsPage() {
     return (
         <Suspense fallback={
@@ -713,7 +717,7 @@ export default function RunsPage() {
                 <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
             </div>
         }>
-            <RunsPageContent />
+            <ProtectedRunsPageContent />
         </Suspense>
     );
 }

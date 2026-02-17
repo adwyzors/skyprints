@@ -1,48 +1,49 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import { redirectToLogin } from "./authClient";
 import { useAuth } from "./useAuth";
 
 type WithAuthOptions = {
-  permission?: string;
+    permission?: string;
 };
 
 export function withAuth<P extends object>(
-  Component: React.ComponentType<P>,
-  options?: WithAuthOptions
+    Component: React.ComponentType<P>,
+    options?: WithAuthOptions
 ) {
-  const ProtectedComponent: React.FC<P> = (props) => {
-    const { isAuthenticated, hasPermission, loading } = useAuth();
-    const pathname = usePathname();
+    const ProtectedComponent: React.FC<P> = (props) => {
+        const { isAuthenticated, hasPermission, loading } = useAuth();
+        const pathname = usePathname();
+        const router = useRouter();
 
-    useEffect(() => {
-      if (loading) return;
+        useEffect(() => {
+            if (loading) return;
 
-      if (!isAuthenticated) {
-        console.warn("[AUTH] Not authenticated → redirect");
-        redirectToLogin(pathname);
-        return;
-      }
+            if (!isAuthenticated) {
+                console.warn("[AUTH] Not authenticated → redirect");
+                redirectToLogin(pathname);
+                return;
+            }
 
-      if (
-        options?.permission &&
-        !hasPermission(options.permission)
-      ) {
-        console.warn("[AUTH] Permission denied", options.permission);
-        window.location.href = "/403";
-      }
-    }, [loading, isAuthenticated, pathname]);
+            if (
+                options?.permission &&
+                !hasPermission(options.permission)
+            ) {
+                console.warn("[AUTH] Permission denied", options.permission);
+                router.replace("/403");
+            }
+        }, [loading, isAuthenticated, pathname, router]);
 
-    if (loading) return null;
-    if (!isAuthenticated) return null;
+        if (loading) return null;
+        if (!isAuthenticated) return null;
 
-    return <Component {...props} />;
-  };
+        return <Component {...props} />;
+    };
 
-  ProtectedComponent.displayName =
-    `withAuth(${Component.displayName || Component.name || "Component"})`;
+    ProtectedComponent.displayName =
+        `withAuth(${Component.displayName || Component.name || "Component"})`;
 
-  return ProtectedComponent;
+    return ProtectedComponent;
 }

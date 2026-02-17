@@ -1,4 +1,6 @@
 "use client";
+import { Permission } from '@/auth/permissions';
+import { withAuth } from '@/auth/withAuth';
 //apps\frontend\src\app\admin\completed\page.tsx
 import Pagination from '@/components/common/Pagination';
 import CompletedFilter from "@/components/completed/CompletedFilter";
@@ -435,6 +437,8 @@ function CompletedContent() {
     );
 }
 
+const ProtectedCompletedContent = withAuth(CompletedContent, { permission: Permission.BILLINGS_VIEW });
+
 export default function CompletedPage() {
     return (
         <Suspense
@@ -444,7 +448,7 @@ export default function CompletedPage() {
                 </div>
             }
         >
-            <CompletedContent />
+            <ProtectedCompletedContent />
         </Suspense>
     );
 }

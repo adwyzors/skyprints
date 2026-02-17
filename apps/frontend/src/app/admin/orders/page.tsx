@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
+import { withAuth } from '@/auth/withAuth';
 import Pagination from '@/components/common/Pagination';
 import CreateOrderModal from '@/components/modals/CreateOrderModal';
 import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
@@ -488,6 +489,8 @@ function AdminOrdersContent() {
     );
 }
 
+const ProtectedOrdersContent = withAuth(AdminOrdersContent, { permission: Permission.ORDERS_VIEW });
+
 export default function AdminOrdersPage() {
     return (
         <Suspense
@@ -497,7 +500,7 @@ export default function AdminOrdersPage() {
                 </div>
             }
         >
-            <AdminOrdersContent />
+            <ProtectedOrdersContent />
         </Suspense>
     );
 }

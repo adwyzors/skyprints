@@ -1,9 +1,12 @@
 'use client';
 
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import RoleGuard from '@/auth/RoleGuard';
 import AppHeader from '@/components/layout/AppHeader';
 import {
     Activity,
+    BarChart3,
     CheckCircle,
     ChevronLeft,
     ChevronUp,
@@ -14,64 +17,65 @@ import {
     Users
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const tabs = [
-    // {
-    //   label: 'Dashboard',
-    //   path: '/admin/dashboard',
-    //   icon: <Home className="w-4 h-4" />,
-    //   badge: null,
-    // },
+    {
+        label: 'Dashboard',
+        path: '/admin/dashboard',
+        icon: <BarChart3 className="w-4 h-4" />,
+        badge: null,
+        permission: Permission.ANALYTICS_VIEW,
+    },
     {
         label: 'Orders',
         path: '/admin/orders',
         icon: <Package className="w-4 h-4" />,
         badge: null,
+        permission: Permission.ORDERS_VIEW,
     },
     {
         label: 'Rate Confirmation',
         path: '/admin/billing',
         icon: <CreditCard className="w-4 h-4" />,
         badge: null,
+        permission: Permission.BILLINGS_VIEW,
     },
     {
         label: 'Billing Ready',
         path: '/admin/completed',
         icon: <CheckCircle className="w-4 h-4" />,
         badge: null,
+        permission: Permission.BILLINGS_VIEW,
     },
     {
         label: 'Bills',
         path: '/admin/bills',
         icon: <FileText className="w-4 h-4" />,
         badge: null,
+        permission: Permission.BILLINGS_VIEW,
     },
     {
         label: 'Run Activity',
         path: '/admin/runs',
         icon: <Activity className="w-4 h-4" />,
         badge: null,
+        permission: Permission.RUNS_VIEW,
     },
     {
         label: 'Customers',
         path: '/admin/customers',
         icon: <Users className="w-4 h-4" />,
         badge: null,
+        permission: Permission.CUSTOMERS_VIEW,
     },
     {
         label: 'Locations',
         path: '/admin/locations',
         icon: <MapPin className="w-4 h-4" />,
         badge: null,
+        permission: Permission.LOCATIONS_VIEW,
     },
-
-    // {
-    //   label: 'Reports',
-    //   path: '/admin/reports',
-    //   icon: <BarChart3 className="w-4 h-4" />,
-    //   badge: null,
-    // },
 ];
 
 
@@ -79,10 +83,15 @@ const tabs = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
+    const { hasPermission } = useAuth();
     const [isHydrated, setIsHydrated] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isHeaderVisible, setIsHeaderVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
+
+    const filteredTabs = useMemo(() => {
+        return tabs.filter(tab => !tab.permission || hasPermission(tab.permission));
+    }, [hasPermission]);
 
     // Wait for hydration to complete
     useEffect(() => {
@@ -164,7 +173,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     >
                         {/* NAVIGATION LINKS */}
                         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 scrollbar-hide">
-                            {tabs.map((tab) => {
+                            {filteredTabs.map((tab) => {
                                 const active = pathname.startsWith(tab.path);
                                 const hasBadge = tab.badge !== null;
 
@@ -247,7 +256,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     {/* BOTTOM NAVIGATION (Mobile) */}
                     <nav className="md:hidden fixed bottom-4 left-4 right-4 bg-white/80 backdrop-blur-xl border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-x-auto scrollbar-hide">
                         <div className="flex items-center justify-between p-2 min-w-max">
-                            {tabs.map((tab) => {
+                            {filteredTabs.map((tab) => {
                                 const active = pathname.startsWith(tab.path);
                                 const hasBadge = tab.badge !== null;
 

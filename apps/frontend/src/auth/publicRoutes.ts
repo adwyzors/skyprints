@@ -6,4 +6,7 @@ export const PUBLIC_ROUTES = [
     '/about',
     '/pricing',
     '/auth/callback',
+    '/403',
+    '/404',
+    '/error',
 ];

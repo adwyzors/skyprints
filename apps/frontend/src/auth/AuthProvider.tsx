@@ -91,19 +91,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [requiresAuth]);
 
+    const isAuthenticated = !!user;
+
+    const isAuthorized = useMemo(() => {
+        if (isPublicRoute(pathname)) return true;
+        if (!isAuthenticated || !user) return false;
+
+        const userRole = user.user?.role || '';
+
+        // Strict prefix-based protection
+        if (pathname.startsWith('/admin') && userRole !== 'ADMIN') {
+            return false;
+        }
+
+        if (pathname.startsWith('/manager') && !['ADMIN', 'MANAGER'].includes(userRole)) {
+            return false;
+        }
+
+        return true;
+    }, [pathname, user, isAuthenticated]);
+
+    // Redirect to 403 if not authorized but authenticated
+    useEffect(() => {
+        if (!loading && isAuthenticated && !isAuthorized && pathname !== '/403') {
+            router.replace('/403');
+        }
+    }, [loading, isAuthenticated, isAuthorized, pathname, router]);
+
     const value = useMemo(() => ({
         user,
-        isAuthenticated: !!user,
+        isAuthenticated,
         hasPermission,
         hasAnyPermission,
         hasAllPermissions,
         loading,
         refresh,
-    }), [user, loading, hasPermission, hasAnyPermission, hasAllPermissions, refresh]);
+    }), [user, loading, hasPermission, hasAnyPermission, hasAllPermissions, refresh, isAuthenticated]);
 
     return (
         <AuthContext.Provider value={value}>
-            {children}
+            {(isPublicRoute(pathname) || (isAuthenticated && isAuthorized)) ? (
+                children
+            ) : (
+                loading ? (
+                    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+                        <div className="relative">
+                            <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-2 h-2 bg-blue-600 rounded-full animate-ping" />
+                            </div>
+                        </div>
+                        <p className="mt-4 text-sm font-bold text-gray-400 uppercase tracking-[0.2em] animate-pulse">Initializing Terminal</p>
+                    </div>
+                ) : null
+            )}
         </AuthContext.Provider>
     );
 }

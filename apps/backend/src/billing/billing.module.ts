@@ -13,6 +13,8 @@ import { BillingContextService } from "./services/billing-context.service";
 import { BillingSnapshotService } from "./services/billing-snapshot.service";
 import { BillingService } from "./services/billing.service";
 
+import { AnalyticsModule } from "../analytics/analytics.module";
+
 @Module({
     controllers: [
         BillingController,
@@ -36,6 +38,6 @@ import { BillingService } from "./services/billing.service";
     exports: [
         BillingService
     ],
-    imports: [OrdersModule]
+    imports: [OrdersModule, AnalyticsModule]
 })
 export class BillingModule { }

@@ -434,3 +434,98 @@ model BillingSnapshot {
   @@index([intent])
 }
 
+///////////////////////////////
+// ANALYTICS (PROJECTIONS)
+///////////////////////////////
+
+model DailyAnalytics {
+  id          String   @id @default(uuid())
+  date        DateTime @unique // Day level truncation
+  
+  totalRevenue Decimal @default(0) @db.Decimal(18, 4)
+  totalOrders   Int     @default(0)
+  totalUnits    Int     @default(0)
+  
+  billedRevenue Decimal @default(0) @db.Decimal(18, 4)
+  billedOrders  Int     @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+}
+
+model ProcessAnalytics {
+  id          String   @id @default(uuid())
+  processId   String
+  processName String
+  
+  totalRevenue Decimal @default(0) @db.Decimal(18, 4)
+  totalRuns     Int     @default(0)
+  totalUnits    Int     @default(0)
+  
+  avgLeadTime   Float   @default(0) // In hours
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([processId])
+  @@index([processId])
+}
+
+model UserPerformance {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  userName    String
+  role        String
+  
+  runsExecuted Int     @default(0)
+  runsReviewed Int     @default(0)
+  
+  totalBilledVolume Decimal @default(0) @db.Decimal(18, 4)
+  
+  lastActiveAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([role])
+}
+
+model OrderAnalytics {
+  id          String   @id @default(uuid())
+  orderId     String   @unique
+  orderCode   String
+  
+  customerId  String
+  customerName String
+  
+  totalAmount  Decimal @default(0) @db.Decimal(18, 4)
+  totalUnits   Int
+  
+  cycleTimeHours Float? // Time from creation to billed
+  
+  status       String
+  billedAt     DateTime?
+  
+  createdAt    DateTime @default(now())
+
+  @@index([orderId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model LocationAnalytics {
+  id            String   @id @default(uuid())
+  locationId    String   @unique
+  locationName  String
+  
+  totalRevenue  Decimal @default(0) @db.Decimal(18, 4)
+  totalRuns      Int     @default(0)
+  totalUnits     Int     @default(0)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([locationId])
+}

@@ -108,6 +108,26 @@ export class PrismaService {
         return prisma.billingSnapshot;
     }
 
+    get dailyAnalytics() {
+        return prisma.dailyAnalytics;
+    }
+
+    get processAnalytics() {
+        return prisma.processAnalytics;
+    }
+
+    get userPerformance() {
+        return prisma.userPerformance;
+    }
+
+    get orderAnalytics() {
+        return prisma.orderAnalytics;
+    }
+
+    get locationAnalytics() {
+        return prisma.locationAnalytics;
+    }
+
     /* ---------- TRANSACTIONS ---------- */
 
     // Functional transaction

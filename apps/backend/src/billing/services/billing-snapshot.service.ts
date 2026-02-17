@@ -4,6 +4,7 @@ import { BillingSnapshotIntent, CalculationType, OrderStatus, Prisma } from "@pr
 import { Decimal } from "@prisma/client/runtime/library";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
 import pLimit from 'p-limit';
+import { AnalyticsService } from "../../analytics/analytics.service";
 import { ContextLogger } from "../../common/logger/context.logger";
 import { OrdersService } from "../../orders/orders.service";
 import {
@@ -22,7 +23,8 @@ export class BillingSnapshotService {
         private readonly prisma: PrismaService,
         private readonly calculator: BillingCalculatorService,
         private readonly contextResolver: BillingContextResolver,
-        private readonly ordersService: OrdersService
+        private readonly ordersService: OrdersService,
+        private readonly analyticsService: AnalyticsService
     ) { }
 
     private async saveDraftTx(
@@ -273,6 +275,30 @@ export class BillingSnapshotService {
                     statusCode: OrderStatus.GROUP_BILLED,
                 },
             });
+
+            /* -------------------------------
+               8.1 Update Analytics for Group
+            ------------------------------- */
+            // We need to fetch the results for each order
+            for (const orderId of orderIds) {
+                // Since this is the first group billing, we attribute revenue to analytics
+                // We'll need to calculate or fetch the latest snapshot result
+                const latestSnapshot = await this.prisma.billingSnapshot.findFirst({
+                    where: {
+                        billingContext: {
+                            type: 'ORDER',
+                            orders: { some: { orderId } }
+                        },
+                        isLatest: true,
+                        intent: 'FINAL'
+                    },
+                    orderBy: { createdAt: "desc" }
+                });
+
+                if (latestSnapshot) {
+                    await this.analyticsService.trackOrderFinalized(orderId, Number(latestSnapshot.result), latestSnapshot.createdAt);
+                }
+            }
 
             this.logger.debug(
                 `GROUP_BILLED transition affected ${res.count} orders`,

@@ -1,5 +1,6 @@
 "use client";
-
+import { Permission } from '@/auth/permissions';
+import { withAuth } from '@/auth/withAuth';
 import BillingContextCard from "@/components/billing/BillingContextCard";
 import BillingContextTable from "@/components/billing/BillingContextTable";
 import BillsFilter from "@/components/billing/BillsFilter";
@@ -21,10 +22,12 @@ export default function BillsPage() {
                 <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
             </div>
         }>
-            <BillsPageContent />
+            <ProtectedBillsPageContent />
         </Suspense>
     );
 }
+
+const ProtectedBillsPageContent = withAuth(BillsPageContent, { permission: Permission.BILLINGS_VIEW });
 
 function BillsPageContent() {
     const router = useRouter();

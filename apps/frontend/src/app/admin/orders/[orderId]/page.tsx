@@ -12,11 +12,12 @@ import {
     Save,
     X,
 } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
+import { notFound, useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
+import { withAuth } from '@/auth/withAuth';
 import AddProcessModal from '@/components/modals/AddProcessModal';
 import EditOrderModal from '@/components/modals/EditOrderModal';
 import AlloverSublimationConfig from '@/components/orders/AlloverSublimationConfig';
@@ -40,7 +41,7 @@ import { getManagers, User as ManagerUser } from '@/services/user.service';
 
 
 
-export default function OrderConfigPage() {
+function OrderConfigPage() {
     const router = useRouter();
     const { orderId } = useParams<{ orderId: string }>();
 
@@ -223,12 +224,17 @@ export default function OrderConfigPage() {
         );
     }
 
-    if (error || !order) {
+    if (error === 'Order not found' || !order) {
+        if (!loading) notFound();
+        return null;
+    }
+
+    if (error) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
                     <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-gray-700 mb-2">{error || 'Order not found'}</h2>
+                    <h2 className="text-xl font-semibold text-gray-700 mb-2">{error}</h2>
                     <button
                         onClick={() => router.push('/admin/orders')}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -983,3 +989,5 @@ export default function OrderConfigPage() {
         </div>
     );
 }
+
+export default withAuth(OrderConfigPage, { permission: Permission.ORDERS_VIEW });

@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
+import { withAuth } from '@/auth/withAuth';
 import { BillingContextDetails } from '@/domain/model/billing.model';
 import { getRunBillingMetrics } from '@/services/billing-calculator';
 import { getBillingContextById } from '@/services/billing.service';
@@ -20,7 +21,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function BillingContextDetailPage() {
+function BillingContextDetailPage() {
     const { contextId } = useParams<{ contextId: string }>();
     // Ensure contextId is always a string to satisfy API types
     const safeContextId = Array.isArray(contextId) ? contextId[0] : contextId;
@@ -503,3 +504,5 @@ async function finalizeBillingGroupWithInputs(payload: any) {
     }
     return response.json();
 }
+
+export default withAuth(BillingContextDetailPage, { permission: Permission.BILLINGS_VIEW });

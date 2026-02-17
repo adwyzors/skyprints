@@ -23,6 +23,8 @@ import { RunTemplatesModule } from './run-templates/run-templates.module';
 import { RunsModule } from './runs/runs.module';
 import { WorkflowModule } from './workflow/workflow.module';
 
+import { AnalyticsModule } from './analytics/analytics.module';
+
 @Module({
     imports: [ConfigModule.forRoot({
         isGlobal: true, // VERY IMPORTANT
@@ -43,6 +45,7 @@ import { WorkflowModule } from './workflow/workflow.module';
         LocationsModule,
         BillingModule,
         HealthModule,
+        AnalyticsModule,
         JobsModule,
     ],
     providers: [

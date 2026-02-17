@@ -1,12 +1,14 @@
 'use client';
 
 import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
+import { withAuth } from '@/auth/withAuth';
 import RunCard from '@/components/runs/RunCard';
 import { getRuns } from '@/services/run.service';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-export default function ManagerRunsPage() {
+function ManagerRunsPage() {
     const { user } = useAuth();
     const [runs, setRuns] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -16,7 +18,6 @@ export default function ManagerRunsPage() {
         setLoading(true);
         try {
             // Fetch runs where user is Assigned (Executor OR Reviewer)
-            // Backend was updated to support 'assignedUserId' in the service/DTO
             const res = await getRuns({
                 assignedUserId: user.id
             });
@@ -60,3 +61,5 @@ export default function ManagerRunsPage() {
         </div>
     );
 }
+
+export default withAuth(ManagerRunsPage, { permission: Permission.RUNS_VIEW });

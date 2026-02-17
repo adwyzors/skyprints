@@ -1,4 +1,6 @@
 'use client';
+import { Permission } from '@/auth/permissions';
+import { withAuth } from '@/auth/withAuth';
 import BillingFilter from '@/components/billing/BillingFilter';
 import Pagination from '@/components/common/Pagination';
 import BillingModal from '@/components/modals/BillingModal';
@@ -308,6 +310,8 @@ function BillingContent() {
     );
 }
 
+const ProtectedBillingContent = withAuth(BillingContent, { permission: Permission.BILLINGS_VIEW });
+
 export default function BillingPage() {
     return (
         <Suspense
@@ -317,7 +321,7 @@ export default function BillingPage() {
                 </div>
             }
         >
-            <BillingContent />
+            <ProtectedBillingContent />
         </Suspense>
     );
 }

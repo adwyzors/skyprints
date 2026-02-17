@@ -1,9 +1,9 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from './AuthProvider';
+import { redirectToLogin } from './authClient';
 
 interface RoleGuardProps {
     children: React.ReactNode;
@@ -17,7 +17,7 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
     useEffect(() => {
         if (!loading) {
             if (!isAuthenticated) {
-                router.replace('/auth/login');
+                redirectToLogin(window.location.pathname + window.location.search);
                 return;
             }
 
@@ -39,8 +39,10 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
 
     if (loading) {
         return (
-            <div className="flex h-screen w-full items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+                <div className="relative">
+                    <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+                </div>
             </div>
         );
     }
