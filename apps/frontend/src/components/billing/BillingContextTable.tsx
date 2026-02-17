@@ -34,6 +34,8 @@ export default function BillingContextTable({ data, startIndex, onRowClick }: Bi
                             <th className="px-6 py-4 font-semibold text-gray-700 w-16">Sr No</th>
                             <th className="px-6 py-4 font-semibold text-gray-700">Bill Name</th>
                             <th className="px-6 py-4 font-semibold text-gray-700">Date</th>
+                            <th className="px-6 py-4 font-semibold text-gray-700">Customer</th>
+                            <th className="px-6 py-4 font-semibold text-gray-700">Job & Description</th>
                             <th className="px-6 py-4 font-semibold text-gray-700 text-center">Orders</th>
                             <th className="px-6 py-4 font-semibold text-gray-700 text-right">Total</th>
                             <th className="px-6 py-4 font-semibold text-gray-700 w-10"></th>
@@ -62,10 +64,20 @@ export default function BillingContextTable({ data, startIndex, onRowClick }: Bi
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-gray-600">
+                                    <td className="px-6 py-4 text-gray-600 font-medium">
                                         <div className="flex items-center gap-2">
                                             <Calendar className="w-4 h-4 text-gray-400" />
                                             {formatDate(context.latestSnapshot?.createdAt)}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="text-sm text-gray-900 font-semibold max-w-[150px] truncate" title={context.customerNames}>
+                                            {context.customerNames || '-'}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="text-xs text-gray-500 max-w-[200px] truncate" title={context.jobCodes}>
+                                            {context.jobCodes || '-'}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">

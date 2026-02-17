@@ -112,6 +112,17 @@ export class BillingContextService {
                     _count: {
                         select: { orders: true }
                     },
+                    orders: {
+                        include: {
+                            order: {
+                                include: {
+                                    customer: {
+                                        select: { name: true }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     snapshots: {
                         orderBy: {
                             createdAt: 'desc'
@@ -125,6 +136,8 @@ export class BillingContextService {
 
         const data = contexts.map(ctx => {
             const snapshot = ctx.snapshots[0];
+            const uniqueCustomers = Array.from(new Set(ctx.orders.map(o => o.order.customer.name))).join(', ');
+            const uniqueJobCodes = Array.from(new Set(ctx.orders.map(o => o.order.jobCode).filter(Boolean))).join(', ');
 
             return {
                 id: ctx.id,
@@ -132,6 +145,8 @@ export class BillingContextService {
                 name: ctx.name,
                 description: ctx.description,
                 ordersCount: ctx._count.orders,
+                customerNames: uniqueCustomers,
+                jobCodes: uniqueJobCodes,
                 latestSnapshot: snapshot
                     ? {
                         id: snapshot.id,
@@ -146,11 +161,9 @@ export class BillingContextService {
                     : null
             };
         });
-        const res = {
-            "data": data
-        }
+
         return {
-            res,
+            res: { data },
             meta: {
                 page,
                 limit,
@@ -236,6 +249,7 @@ export class BillingContextService {
                 return {
                     id: order.id,
                     code: order.code,
+                    jobCode: order.jobCode,
                     status: order.statusCode,
                     quantity: order.quantity,
                     customer: {

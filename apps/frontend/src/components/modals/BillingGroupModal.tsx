@@ -96,7 +96,8 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                 // Orders table data
                 items: details.orders.map((order, index) => ({
                     srNo: index + 1,
-                    orderCode: order.code, // Using order.code as per data structure
+                    orderCode: order.code,
+                    jobCode: order.jobCode || '', // Include job code
                     quantity: order.quantity,
                     rate:
                         order.billing?.result && order.quantity > 0

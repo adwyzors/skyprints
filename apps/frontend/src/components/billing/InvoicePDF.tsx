@@ -124,6 +124,7 @@ const styles = StyleSheet.create({
 interface InvoiceItem {
     srNo: number;
     orderCode: string;
+    jobCode: string;
     quantity: number;
     rate: string;
     amount: string;
@@ -253,7 +254,14 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                     {invoiceData.items.map((item) => (
                         <View key={item.srNo} style={styles.tableRow}>
                             <Text style={styles.colSrNo}>{item.srNo}</Text>
-                            <Text style={styles.colOrderCode}>{item.orderCode}</Text>
+                            <View style={styles.colOrderCode}>
+                                <Text style={{ fontWeight: 'bold' }}>{item.orderCode}</Text>
+                                {item.jobCode && (
+                                    <Text style={{ fontSize: 7, color: '#444', marginTop: 1, fontStyle: 'italic' }}>
+                                        {item.jobCode}
+                                    </Text>
+                                )}
+                            </View>
                             <Text style={styles.colQuantity}>{item.quantity}</Text>
                             <Text style={styles.colRate}>{parseFloat(item.rate).toFixed(2)}</Text>
                             <Text style={styles.colAmount}>{parseFloat(item.amount).toFixed(2)}</Text>

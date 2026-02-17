@@ -20,6 +20,8 @@ export interface BillingContext {
     description?: string;
     ordersCount: number;
     latestSnapshot?: BillingSnapshot;
+    customerNames?: string;
+    jobCodes?: string;
 }
 
 export interface GetBillingContextsResponse {
@@ -37,6 +39,7 @@ export interface BillingContextDetails extends BillingContext {
 export interface OrderBillingSummary {
     id: string;
     code: string;
+    jobCode?: string;
     status: string;
     quantity: number;
     customer: {
