@@ -124,7 +124,7 @@ function DashboardClient() {
         : '';
 
     return (
-        <div className="p-6 space-y-6 bg-gray-50/50 min-h-screen">
+        <div className="p-6 pb-24 md:pb-6 space-y-6 bg-gray-50/50 min-h-screen">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Business Reports</h1>
@@ -336,62 +336,62 @@ function DashboardClient() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Users className="w-5 h-5 text-indigo-600" />
-                            <h3 className="font-bold text-gray-900">Staff Utilization</h3>
-                        </div>
-                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded">Ranked by Volume Managed</span>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Users className="w-5 h-5 text-indigo-600" />
+                        <h3 className="font-bold text-gray-900">Staff Utilization</h3>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50/80 border-b border-gray-100 text-left">
-                                <tr>
-                                    <th className="px-6 py-3 font-bold text-gray-600">Manager</th>
-                                    <th className="px-6 py-3 font-bold text-gray-600">Role</th>
-                                    <th className="px-6 py-3 font-bold text-gray-600 text-center">Executed</th>
-                                    <th className="px-6 py-3 font-bold text-gray-600 text-center">Reviewed</th>
-                                    <th className="px-6 py-3 font-bold text-gray-600 text-right">Volume Handled</th>
-                                    <th className="px-6 py-3 font-bold text-gray-600">Productivity</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {stats.topUsers.length > 0 ? (
-                                    stats.topUsers.map((user, idx) => (
-                                        <tr key={user.userId} className="hover:bg-gray-50/30 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-                                                        {user.userName.charAt(0)}
-                                                    </div>
-                                                    <span className="font-bold text-gray-900">{user.userName}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="text-[10px] font-bold uppercase py-0.5 px-2 bg-gray-100 text-gray-500 rounded border border-gray-200">{user.role}</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-center font-bold text-gray-700">{user.runsExecuted}</td>
-                                            <td className="px-6 py-4 text-center font-bold text-gray-700">{user.runsReviewed}</td>
-                                            <td className="px-6 py-4 text-right font-bold text-blue-600">₹{parseFloat(user.totalBilledVolume).toLocaleString()}</td>
-                                            <td className="px-6 py-4">
-                                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                                                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, ((user.runsReviewed + user.runsExecuted) / ((stats.topUsers[0]?.runsReviewed || 1) + (stats.topUsers[0]?.runsExecuted || 0))) * 100)}%` }}></div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">No activity logs found.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded">Ranked by Volume Managed</span>
                 </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-gray-50/80 border-b border-gray-100 text-left">
+                            <tr>
+                                <th className="px-6 py-3 font-bold text-gray-600">Manager</th>
+                                <th className="px-6 py-3 font-bold text-gray-600">Role</th>
+                                <th className="px-6 py-3 font-bold text-gray-600 text-center">Executed</th>
+                                <th className="px-6 py-3 font-bold text-gray-600 text-center">Reviewed</th>
+                                <th className="px-6 py-3 font-bold text-gray-600 text-right">Volume Handled</th>
+                                <th className="px-6 py-3 font-bold text-gray-600">Productivity</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {stats.topUsers.length > 0 ? (
+                                stats.topUsers.map((user, idx) => (
+                                    <tr key={user.userId} className="hover:bg-gray-50/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+                                                    {user.userName.charAt(0)}
+                                                </div>
+                                                <span className="font-bold text-gray-900">{user.userName}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="text-[10px] font-bold uppercase py-0.5 px-2 bg-gray-100 text-gray-500 rounded border border-gray-200">{user.role}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center font-bold text-gray-700">{user.runsExecuted}</td>
+                                        <td className="px-6 py-4 text-center font-bold text-gray-700">{user.runsReviewed}</td>
+                                        <td className="px-6 py-4 text-right font-bold text-blue-600">₹{parseFloat(user.totalBilledVolume).toLocaleString()}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, ((user.runsReviewed + user.runsExecuted) / ((stats.topUsers[0]?.runsReviewed || 1) + (stats.topUsers[0]?.runsExecuted || 0))) * 100)}%` }}></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">No activity logs found.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
                     <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
                         <Zap className="w-5 h-5 text-blue-600" />
@@ -416,6 +416,44 @@ function DashboardClient() {
                                 </div>
                             );
                         })}
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
+                    <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                        <Users className="w-5 h-5 text-emerald-600" />
+                        <h3 className="font-bold text-gray-900">Customer Insights</h3>
+                    </div>
+                    <div className="p-4 space-y-4 flex-1 overflow-y-auto max-h-[400px] scrollbar-hide">
+                        {stats.topCustomers?.length > 0 ? (
+                            stats.topCustomers.map((cust) => {
+                                const share = (parseFloat(cust.totalRevenue) / (totalRevenue || 1)) * 100;
+                                return (
+                                    <div key={cust.customerId} className="space-y-2 group">
+                                        <div className="flex justify-between items-end">
+                                            <span className="font-bold text-xs text-gray-700 uppercase tracking-tight truncate max-w-[180px] group-hover:text-blue-600 transition-colors">
+                                                {cust.customerName}
+                                            </span>
+                                            <span className="text-xs font-bold text-gray-900">₹{parseFloat(cust.totalRevenue).toLocaleString()}</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-50">
+                                            <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${Math.max(5, share)}%` }}></div>
+                                        </div>
+                                        <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                                            <div className="flex gap-3">
+                                                <span>{cust.totalOrders} Orders</span>
+                                                <span>{cust.totalUnits.toLocaleString()} Pcs</span>
+                                            </div>
+                                            <span className="text-emerald-600">Contribution: {share.toFixed(1)}%</span>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="py-20 text-center text-gray-400 text-sm italic border border-dashed border-gray-100 rounded-xl">
+                                No customer transaction data found.
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

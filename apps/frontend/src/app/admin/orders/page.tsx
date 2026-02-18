@@ -65,10 +65,6 @@ function AdminOrdersContent() {
         locationId: 'all',
     });
 
-    // Bulk Selection State
-    // const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-    // const [isDeleting, setIsDeleting] = useState(false);
-
     const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     /* ================= EFFECTS ================= */
@@ -129,29 +125,8 @@ function AdminOrdersContent() {
                     limit: pageSize,
                 };
 
-                // Check cache first
-                const cacheKey = getCacheKey(params);
-                const cachedResult = getCachedData(cacheKey);
-                // Only use cache if filters match the cached params (simplified check for now, can improve)
-                // For now, let's skip cache if filters are active to avoid stale data issues during active filtering
-                // or just rely on the existing caching mechanism which uses params as key.
-                // Actually, we must include filters in params for cache key to work.
-
-                // Add status filters - send comma-separated statuses
                 if (filters.status.length > 0) {
                     params.status = filters.status.join(',');
-                } else {
-                    // If explicit empty status filter, user wants to see nothing or everything?
-                    // Usually if nothing selected, we might default or show all.
-                    // Let's assume if empty, we send empty string or default.
-                    // Previous logic defaulted to active statuses if none selected.
-                    // But with sidebar, user might deselect all. Let's respect user choice if empty -> fetch nothing or all?
-                    // Let's stick to default active if undefined, but if user explicitly cleared, maybe show all?
-                    // For now, if empty, we'll send empty string which might return all or none depending on backend.
-                    // Reverting to previous default behavior if truly empty might differ from user intent.
-                    // Let's send what is in filters.status.
-                    // If the user clears all statuses, they probably want to see *something* or *nothing*.
-                    // Let's assume if it is empty, we don't filter by status (show all).
                 }
 
                 if (debouncedSearch) {
@@ -169,7 +144,6 @@ function AdminOrdersContent() {
                 // Handle date filters
                 if (filters.dateRange !== 'all') {
                     const fromDate = new Date();
-
                     switch (filters.dateRange) {
                         case 'today':
                             fromDate.setHours(0, 0, 0, 0);
@@ -264,8 +238,8 @@ function AdminOrdersContent() {
             {/* LEFT SIDEBAR FILTERS - STICKY to MAIN SCROLL */}
             <div
                 className={`
-                sticky top-0 h-[calc(100vh-56px)] flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto scrollbar-hide transition-all duration-300 ease-in-out z-40
-                ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
+                relative h-[calc(100vh-56px)] flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto scrollbar-hide transition-all duration-300 ease-in-out z-40
+                ${isSidebarOpen ? 'w-72 opacity-100' : 'w-0 opacity-0 pointer-events-none'}
             `}
             >
                 <div className="w-72 p-3">
@@ -282,9 +256,9 @@ function AdminOrdersContent() {
             </div>
 
             {/* MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col w-full relative">
-                {/* HEAD & TOOLBAR - STICKY */}
-                <div className="sticky top-0 flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex-1 flex flex-col w-full relative min-w-0">
+                {/* HEAD & TOOLBAR */}
+                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -327,8 +301,8 @@ function AdminOrdersContent() {
                     </div>
                 </div>
 
-                {/* STATUS BAR & BULK ACTIONS - STICKY BELOW TOOLBAR */}
-                <div className="sticky top-[73px] z-20 flex flex-col bg-white">
+                {/* STATUS BAR & BULK ACTIONS */}
+                <div className="z-10 flex flex-col bg-white border-b border-gray-100">
                     <OrderStatusFilter
                         selectedStatuses={filters.status}
                         onChange={(newStatuses) => {
@@ -339,7 +313,7 @@ function AdminOrdersContent() {
                 </div>
 
                 {/* CONTENT */}
-                <div className="flex-1 p-4">
+                <div className="flex-1 p-6 pb-24 md:pb-6">
                     {/* Results Summary */}
                     <div className="flex items-center justify-between mb-6">
                         <p className="text-sm text-gray-600">
@@ -361,7 +335,7 @@ function AdminOrdersContent() {
                     ) : filteredOrders.length === 0 ? (
                         <div className="bg-white rounded-xl border border-gray-100 p-12 text-center text-gray-500 shadow-sm">
                             <Box className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                            <p className="font-medium">No orders found</p>
+                            <p className="font-medium text-gray-900">No orders found</p>
                             <p className="text-sm mt-1">Try adjusting your search query or filters</p>
                             <button
                                 onClick={handleClearFilters}
@@ -374,14 +348,12 @@ function AdminOrdersContent() {
                         <>
                             {/* GRID VIEW */}
                             <div className={viewMode === 'grid' ? 'block' : 'hidden'}>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                     {filteredOrders.map((order) => (
                                         <OrderCard
                                             key={order.id}
                                             order={order}
                                             active={viewMode === 'grid'}
-                                        /* selected={selectedOrderIds.includes(order.id)}
-                                        onSelect={(selected) => toggleSelectOrder(order.id, selected)} */
                                         />
                                     ))}
                                 </div>
@@ -389,56 +361,47 @@ function AdminOrdersContent() {
 
                             {/* TABLE VIEW */}
                             <div
-                                className={`bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm ${viewMode === 'table' ? 'block' : 'hidden'}`}
+                                className={`bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm ${viewMode === 'table' ? 'block' : 'hidden'}`}
                             >
                                 <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead className="bg-gray-50 border-b border-gray-200">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-gray-50 border-b border-gray-100">
                                             <tr>
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                                                    {/* <input
-                            type="checkbox"
-                            checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
-                            onChange={handleSelectAllOnPage}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                          /> */}
+                                                <th className="px-6 py-4 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                                    #
                                                 </th>
-                                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">
                                                     Order Code
                                                 </th>
-                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">
                                                     Image
                                                 </th>
-                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">
                                                     Job Code
                                                 </th>
-                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">
                                                     Date
                                                 </th>
-                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">
                                                     Quantity
                                                 </th>
-                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">
                                                     Customer
                                                 </th>
-                                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">
                                                     Status
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        <tbody className="bg-white divide-y divide-gray-50">
                                             {filteredOrders.map((order, index) => (
                                                 <OrderTableRow
                                                     key={order.id}
                                                     order={order}
                                                     index={(ordersData.page - 1) * pageSize + index + 1}
-                                                    /* selected={selectedOrderIds.includes(order.id)}
-                                                    onSelect={(selected) => toggleSelectOrder(order.id, selected)} */
                                                     onClick={(type, value) => {
                                                         if (type === 'image' && value) {
                                                             setPreviewImage(value);
-                                                        } else if (type !== 'row') { // Don't navigate if clicking checkbox (handled inside row but better safe)
-                                                            router.push(`/admin/orders?selectedOrder=${order.id}`);
                                                         } else {
                                                             router.push(`/admin/orders?selectedOrder=${order.id}`);
                                                         }
@@ -451,14 +414,16 @@ function AdminOrdersContent() {
                             </div>
 
                             {/* PAGINATION */}
-                            <Pagination
-                                currentPage={ordersData.page}
-                                totalPages={ordersData.totalPages}
-                                onPageChange={handlePageChange}
-                                totalItems={ordersData.total}
-                                pageSize={pageSize}
-                                itemLabel="orders"
-                            />
+                            <div className="mt-8">
+                                <Pagination
+                                    currentPage={ordersData.page}
+                                    totalPages={ordersData.totalPages}
+                                    onPageChange={handlePageChange}
+                                    totalItems={ordersData.total}
+                                    pageSize={pageSize}
+                                    itemLabel="orders"
+                                />
+                            </div>
                         </>
                     )}
                 </div>
@@ -495,7 +460,7 @@ export default function AdminOrdersPage() {
     return (
         <Suspense
             fallback={
-                <div className="flex items-center justify-center min-h-screen">
+                <div className="flex items-center justify-center min-h-screen bg-gray-50">
                     <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
                 </div>
             }

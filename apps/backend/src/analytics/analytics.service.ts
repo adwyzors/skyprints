@@ -218,11 +218,39 @@ export class AnalyticsService {
             this.getLiveProductionState()
         ]);
 
+        const topCustomers = await this.prisma.orderAnalytics.groupBy({
+            by: ['customerId', 'customerName'],
+            where: {
+                status: 'BILLED',
+                billedAt: { gte: startDate }
+            },
+            _sum: {
+                totalAmount: true,
+                totalUnits: true
+            },
+            _count: {
+                orderId: true
+            },
+            orderBy: {
+                _sum: {
+                    totalAmount: 'desc'
+                }
+            },
+            take: 10
+        });
+
         return {
             daily,
             topProcesses,
             topUsers,
             topLocations,
+            topCustomers: topCustomers.map(c => ({
+                customerId: c.customerId,
+                customerName: c.customerName,
+                totalRevenue: c._sum.totalAmount || 0,
+                totalUnits: c._sum.totalUnits || 0,
+                totalOrders: c._count.orderId || 0
+            })),
             currentWorkload,
             productionState
         };

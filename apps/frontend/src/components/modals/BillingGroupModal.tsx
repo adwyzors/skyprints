@@ -50,6 +50,15 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
         if (!details) return;
 
         try {
+            // Check if all orders belong to the same customer
+            const firstCustomer = details.orders[0]?.customer?.name;
+            const differentCustomers = details.orders.some(o => o.customer?.name !== firstCustomer);
+
+            if (differentCustomers) {
+                alert("Cannot generate invoice: All orders in a group must belong to the same customer.");
+                return;
+            }
+
             // Calculate total amount from all orders
             const totalAmount = details.orders.reduce((sum, order) => {
                 return sum + (Number(order.billing?.result) || 0);
@@ -122,7 +131,7 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `invoice_${details.name}_${new Date().toISOString().split('T')[0]}.pdf`;
+            link.download = `invoice_${details.orders[0]?.customer?.name.replace(/\s+/g, '_')}_${details.name}_${new Date().toISOString().split('T')[0]}.pdf`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

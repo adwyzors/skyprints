@@ -99,7 +99,23 @@ export class BillingContextService {
 
         const where: any = {
             type: "GROUP",
-            name: { contains: search, mode: 'insensitive' }
+            ...(search && {
+                OR: [
+                    { name: { contains: search, mode: 'insensitive' } },
+                    {
+                        orders: {
+                            some: {
+                                order: {
+                                    OR: [
+                                        { code: { contains: search, mode: 'insensitive' } },
+                                        { customer: { name: { contains: search, mode: 'insensitive' } } }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ]
+            })
         };
 
         const [total, contexts] = await Promise.all([

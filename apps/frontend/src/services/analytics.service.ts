@@ -36,11 +36,20 @@ export interface LocationAnalytics {
     totalUnits: number;
 }
 
+export interface CustomerAnalytics {
+    customerId: string;
+    customerName: string;
+    totalRevenue: string;
+    totalUnits: number;
+    totalOrders: number;
+}
+
 export interface DashboardStats {
     daily: DailyAnalytics[];
     topProcesses: ProcessAnalytics[];
     topUsers: UserPerformance[];
     topLocations: LocationAnalytics[];
+    topCustomers: CustomerAnalytics[];
     currentWorkload: {
         byLocation: { id: string, name: string, count: number }[];
         byManager: { id: string, name: string, count: number }[];

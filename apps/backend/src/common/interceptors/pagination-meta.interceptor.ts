@@ -21,7 +21,7 @@ export class PaginationInterceptor implements NestInterceptor {
                     return result;
                 }
 
-                const { page, limit, total, totalPages, totalEstimatedAmount } = result.meta;
+                const { page, limit, total, totalPages, totalEstimatedAmount, totalQuantity } = result.meta;
 
                 if (page !== undefined) {
                     response.setHeader('x-page', String(page));
@@ -41,6 +41,10 @@ export class PaginationInterceptor implements NestInterceptor {
 
                 if (totalEstimatedAmount !== undefined) {
                     response.setHeader('x-total-estimated-amount', String(totalEstimatedAmount));
+                }
+
+                if (totalQuantity !== undefined) {
+                    response.setHeader('x-total-quantity', String(totalQuantity));
                 }
 
                 return result.data ?? result;

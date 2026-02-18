@@ -165,7 +165,7 @@ function BillingContent() {
                 ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
             `}
             >
-                <div className="w-72 h-full p-3 sticky top-32">
+                <div className="w-72 h-full p-3  top-32">
                     <BillingFilter
                         filters={filters}
                         onChange={(newFilters) => {
@@ -181,7 +181,7 @@ function BillingContent() {
             {/* MAIN CONTENT AREA */}
             <div className="flex-1 flex flex-col w-full relative">
                 {/* HEAD & TOOLBAR */}
-                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-0">
+                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4  top-0">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}

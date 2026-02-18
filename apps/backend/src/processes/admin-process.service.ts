@@ -282,6 +282,11 @@ export class AdminProcessService {
                                 },
                             },
                         })),
+                    {
+                        location: {
+                            name: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
+                        },
+                    },
                 ],
             }),
 
@@ -479,6 +484,11 @@ export class AdminProcessService {
                     const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
                     const val = parseFloat(cleanAmt);
                     return sum + (isNaN(val) ? 0 : val);
+                }, 0),
+                totalQuantity: allCandidates.reduce((sum, run) => {
+                    const qty = (run.fields as any)?.['Quantity'] || (run.orderProcess as any)?.order?.quantity;
+                    if (qty === undefined || qty === null) return sum;
+                    return sum + (Number(qty) || 0);
                 }, 0),
             },
         };

@@ -299,7 +299,7 @@ function BillingContextDetailPage() {
             {/* RIGHT COLUMN: Scrollable Order List */}
             <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50 scrollbar-hide">
                 <div className="max-w-5xl mx-auto space-y-6 pb-20">
-                    <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm sticky top-0 z-20 backdrop-blur-md bg-white/95">
+                    <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm  top-0 z-20 backdrop-blur-md bg-white/95">
                         <h3 className="text-lg font-bold text-gray-800">Order Costs Breakdown</h3>
                         <span className="text-sm text-gray-500 font-medium bg-gray-100 px-3 py-1 rounded-full">
                             {details.orders.length} orders

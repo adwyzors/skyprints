@@ -18,7 +18,7 @@
             "headers": [
                 {
                     "key": "Access-Control-Expose-Headers",
-                    "value": "x-total-count, x-total-pages, x-page, x-limit, x-total-estimated-amount"
+                    "value": "x-total-count, x-total-pages, x-page, x-limit, x-total-estimated-amount, x-total-quantity"
                 }
             ]
         }
