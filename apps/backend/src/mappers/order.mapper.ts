@@ -9,6 +9,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         code: order.code,
         jobCode: order.jobCode,
         images: order.images || [],
+        useOrderImageForRuns: order.useOrderImageForRuns || false,
         totalProcesses: order.totalProcesses,
         completedProcesses: order.completedProcesses,
 
@@ -35,45 +36,55 @@ export function toOrderSummary(order: any): OrderSummaryDto {
             totalRuns: op.totalRuns,
             completedRuns: op.lifecycleCompletedRuns,
 
-            runs: op.runs.map((run: any) => ({
-                id: run.id,
-                runNumber: run.runNumber,
-                displayName: run.displayName,
+            runs: op.runs.map((run: any) => {
+                const runFields = run.fields || {};
+                const runImages = (runFields.images && runFields.images.length > 0)
+                    ? runFields.images
+                    : (order.useOrderImageForRuns ? order.images : []);
 
-                configStatus: run.statusCode,
-                lifecycleStatus: run.lifeCycleStatusCode,
+                return {
+                    id: run.id,
+                    runNumber: run.runNumber,
+                    displayName: run.displayName,
 
-                executor: run.executor
-                    ? {
-                        id: run.executor.id,
-                        name: run.executor.name,
-                    }
-                    : null,
+                    configStatus: run.statusCode,
+                    lifecycleStatus: run.lifeCycleStatusCode,
 
-                reviewer: run.reviewer
-                    ? {
-                        id: run.reviewer.id,
-                        name: run.reviewer.name,
-                    }
-                    : null,
+                    executor: run.executor
+                        ? {
+                            id: run.executor.id,
+                            name: run.executor.name,
+                        }
+                        : null,
 
-                location: run.location
-                    ? {
-                        id: run.location.id,
-                        name: run.location.name,
-                        code: run.location.code,
-                    }
-                    : null,
+                    reviewer: run.reviewer
+                        ? {
+                            id: run.reviewer.id,
+                            name: run.reviewer.name,
+                        }
+                        : null,
 
-                lifecycle: buildLifecycleProgress(
-                    run.runTemplate.lifecycleWorkflowType.statuses,
-                    run.lifeCycleStatusCode,
-                ),
+                    location: run.location
+                        ? {
+                            id: run.location.id,
+                            name: run.location.name,
+                            code: run.location.code,
+                        }
+                        : null,
 
-                values: run.fields,
-                fields: run.runTemplate.fields,
-                billingFormula: run.runTemplate.billingFormula,
-            })),
+                    lifecycle: buildLifecycleProgress(
+                        run.runTemplate.lifecycleWorkflowType.statuses,
+                        run.lifeCycleStatusCode,
+                    ),
+
+                    values: {
+                        ...runFields,
+                        images: runImages,
+                    },
+                    fields: run.runTemplate.fields,
+                    billingFormula: run.runTemplate.billingFormula,
+                };
+            }),
         })),
     };
 }

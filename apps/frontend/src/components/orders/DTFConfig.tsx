@@ -50,6 +50,18 @@ export default function DTFConfig({
     // --- Image Handling ---
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
     const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
+    // Pre-existing image URLs from run.values.images (shown in edit form)
+    const [existingRunImages, setExistingRunImages] = useState<Record<string, string[]>>(
+        () => {
+            const init: Record<string, string[]> = {};
+            order.processes.forEach(p => p.runs.forEach(r => {
+                if (r.values?.images && Array.isArray(r.values.images) && r.values.images.length > 0) {
+                    init[r.id] = r.values.images as string[];
+                }
+            }));
+            return init;
+        }
+    );
 
     const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
         // ... (Same standard image upload logic)
@@ -130,6 +142,13 @@ export default function DTFConfig({
             [runId]: (prev[runId] || []).filter((_, i) => i !== index),
         }));
         setImagePreviews((prev) => ({
+            ...prev,
+            [runId]: (prev[runId] || []).filter((_, i) => i !== index),
+        }));
+    };
+
+    const removeExistingImage = (runId: string, index: number) => {
+        setExistingRunImages((prev) => ({
             ...prev,
             [runId]: (prev[runId] || []).filter((_, i) => i !== index),
         }));

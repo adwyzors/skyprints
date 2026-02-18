@@ -41,6 +41,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     const [dataLoading, setDataLoading] = useState(false);
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+    const [useOrderImageForRuns, setUseOrderImageForRuns] = useState(false);
 
     /* ================= RESET FORM ================= */
     const resetForm = () => {
@@ -51,6 +52,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
         setError(null);
         setSelectedImages([]);
         setImagePreviews([]);
+        setUseOrderImageForRuns(false);
     };
 
     /* ================= FETCH DATA ================= */
@@ -232,6 +234,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                 })),
                 ...(jobCode.trim() ? { jobCode: jobCode.trim() } : {}),
                 images: selectedImages,
+                useOrderImageForRuns,
             };
 
             const createdOrder = await createOrder(payload);
@@ -473,6 +476,22 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* USE ORDER IMAGE FOR RUNS CHECKBOX */}
+                                    {selectedImages.length > 0 && (
+                                        <div className="mt-4 flex items-center gap-2 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                                            <input
+                                                type="checkbox"
+                                                id="useOrderImageForRuns"
+                                                checked={useOrderImageForRuns}
+                                                onChange={(e) => setUseOrderImageForRuns(e.target.checked)}
+                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                            <label htmlFor="useOrderImageForRuns" className="text-sm font-medium text-gray-700 cursor-pointer">
+                                                Use these images for all process runs by default
+                                            </label>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* PROCESSES */}

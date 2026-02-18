@@ -395,6 +395,8 @@ export class AdminProcessService {
                                     id: true,
                                     code: true,
                                     quantity: true,
+                                    images: true,
+                                    useOrderImageForRuns: true,
                                     customer: { select: { name: true } },
                                     billingContexts: {
                                         take: 1,
@@ -433,7 +435,13 @@ export class AdminProcessService {
 
             if (run.fields) {
                 const f = run.fields as any;
-                if (f.images) relevantFields['images'] = f.images;
+                const orderSnapshot = run.orderProcess.order;
+
+                const runImages = (f.images && f.images.length > 0)
+                    ? f.images
+                    : (orderSnapshot.useOrderImageForRuns ? orderSnapshot.images : []);
+
+                relevantFields['images'] = runImages;
                 if (f['Quantity']) relevantFields['Quantity'] = f['Quantity'];
                 if (f['Estimated Amount']) relevantFields['Estimated Amount'] = f['Estimated Amount'];
 
@@ -787,7 +795,7 @@ export class AdminProcessService {
      * RUN DETAIL
      * ========================================================= */
 
-    async getRunById(id: string): Promise<any> { // Typing as any to bypass circular dep issues internally, mapped to DTO in controller
+    async getRunById(id: string): Promise<any> {
         const run = await this.prisma.processRun.findUnique({
             where: { id },
             include: {
@@ -823,6 +831,8 @@ export class AdminProcessService {
                                 id: true,
                                 code: true,
                                 statusCode: true,
+                                images: true,
+                                useOrderImageForRuns: true,
                                 customer: { select: { name: true } },
                             },
                         },
@@ -848,7 +858,7 @@ export class AdminProcessService {
                 run.orderProcess.remainingRuns,
                 run.orderProcess.lifecycleCompletedRuns,
                 run.orderProcess.totalRuns,
-                run.statusCode
+                run.statusCode,
             ),
             displayName: run.displayName,
             configStatus: run.statusCode,
@@ -856,7 +866,12 @@ export class AdminProcessService {
                 run.runTemplate.lifecycleWorkflowType.statuses,
                 run.lifeCycleStatusCode,
             ),
-            fields: run.fields as Record<string, any> || {},
+            fields: {
+                ...(run.fields as Record<string, any> || {}),
+                images: ((run.fields as any)?.images?.length > 0)
+                    ? (run.fields as any).images
+                    : (run.orderProcess.order.useOrderImageForRuns ? run.orderProcess.order.images : []),
+            },
             templateFields: run.runTemplate.fields as any[], // Typing bypass
             // Ensure orderProcess matches DTO
             orderProcess: {

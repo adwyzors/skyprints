@@ -116,11 +116,33 @@ export default function EmbellishmentConfig({
     // Update local order when parent order changes
     useEffect(() => {
         setLocalOrder(order);
+        // Re-sync existing images when order refreshes (e.g., after save)
+        setExistingRunImages(() => {
+            const init: Record<string, string[]> = {};
+            order.processes.forEach(p => p.runs.forEach(r => {
+                if (r.values?.images && Array.isArray(r.values.images) && r.values.images.length > 0) {
+                    init[r.id] = r.values.images as string[];
+                }
+            }));
+            return init;
+        });
     }, [order]);
 
     // State to store selected images for each run
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
     const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
+    // Pre-existing image URLs from run.values.images (shown in edit form)
+    const [existingRunImages, setExistingRunImages] = useState<Record<string, string[]>>(
+        () => {
+            const init: Record<string, string[]> = {};
+            order.processes.forEach(p => p.runs.forEach(r => {
+                if (r.values?.images && Array.isArray(r.values.images) && r.values.images.length > 0) {
+                    init[r.id] = r.values.images as string[];
+                }
+            }));
+            return init;
+        }
+    );
 
     // Get field configurations from run.fields array
     const getRunFieldConfigs = (run: ProcessRun) => run.fields ?? [];
@@ -189,10 +211,12 @@ export default function EmbellishmentConfig({
         if (!files) return;
 
         const fileArray = Array.from(files);
-        const currentImages = runImages[runId] || [];
+        const currentNewImages = runImages[runId] || [];
+        const currentExisting = existingRunImages[runId] || [];
+        const totalCurrent = currentNewImages.length + currentExisting.length;
 
-        // Restrict to 2 photos
-        if (currentImages.length + fileArray.length > 2) {
+        // Restrict to 2 photos total (existing + new)
+        if (totalCurrent + fileArray.length > 2) {
             alert('Maximum 2 photos allowed per run');
             return;
         }
@@ -283,6 +307,13 @@ export default function EmbellishmentConfig({
             [runId]: (prev[runId] || []).filter((_, i) => i !== index),
         }));
         setImagePreviews((prev) => ({
+            ...prev,
+            [runId]: (prev[runId] || []).filter((_, i) => i !== index),
+        }));
+    };
+
+    const removeExistingImage = (runId: string, index: number) => {
+        setExistingRunImages((prev) => ({
             ...prev,
             [runId]: (prev[runId] || []).filter((_, i) => i !== index),
         }));

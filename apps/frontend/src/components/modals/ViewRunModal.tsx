@@ -260,6 +260,8 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                 fieldDefinitions={run.templateFields || []}
                                 initialExecutor={run.executor}
                                 initialReviewer={run.reviewer}
+                                orderImages={run.orderProcess.order.images || []}
+                                useOrderImageForRuns={run.orderProcess.order.useOrderImageForRuns || false}
                                 onSaveSuccess={() => {
                                     fetchRun();
                                     if (onRunUpdate) onRunUpdate();

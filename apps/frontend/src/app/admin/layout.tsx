@@ -126,7 +126,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <RoleGuard allowedRoles={['ADMIN']}>
             <div className="h-screen bg-gray-50 flex flex-col overflow-hidden relative">
                 {/* GLOBAL TOP HEADER */}
-                <div className="flex-shrink-0 z-[200] bg-white">
+                <div className="flex-shrink-0 bg-white">
                     <AppHeader />
                 </div>
 

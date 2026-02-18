@@ -177,6 +177,7 @@ export async function createOrder(
         processes: payload.processes,
         jobCode: payload.jobCode,
         images: imageUrls, // Send URLs instead of files
+        useOrderImageForRuns: payload.useOrderImageForRuns,
     };
 
     return apiRequest('/orders', {

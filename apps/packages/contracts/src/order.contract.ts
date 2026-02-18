@@ -10,6 +10,7 @@ export const CreateOrderSchema = z.object({
     quantity: z.number().int().positive(),
     jobCode: z.string().optional(),
     images: z.array(z.string().url()).optional(),
+    useOrderImageForRuns: z.boolean().optional(),
     processes: z.array(CreateOrderProcessSchema).min(1),
 });
 
@@ -22,6 +23,7 @@ export const UpdateOrderSchema = z.object({
     quantity: z.number().int().positive().optional(),
     jobCode: z.string().nullable().optional(),
     images: z.array(z.string().url()).optional(),
+    useOrderImageForRuns: z.boolean().optional(),
 });
 
 export type UpdateOrderDto =

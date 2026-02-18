@@ -5,6 +5,7 @@ import {
     FileText,
     Grid,
     Hash,
+    Image as ImageIcon,
     IndianRupee,
     Package,
     Palette,
@@ -31,6 +32,10 @@ interface RunConfigFormProps {
     fieldDefinitions: Array<{ key: string; required?: boolean; type?: string }>;
     initialExecutor?: { id: string; name: string } | null;
     initialReviewer?: { id: string; name: string } | null;
+    /** Order-level images to show as defaults when useOrderImageForRuns is true */
+    orderImages?: string[];
+    /** Whether the order is configured to use order images for all runs */
+    useOrderImageForRuns?: boolean;
     onSaveSuccess: () => void;
     onCancel: () => void;
 }
@@ -139,6 +144,8 @@ export default function RunConfigForm({
     fieldDefinitions,
     initialExecutor,
     initialReviewer,
+    orderImages = [],
+    useOrderImageForRuns = false,
     onSaveSuccess,
     onCancel
 }: RunConfigFormProps) {
@@ -160,7 +167,22 @@ export default function RunConfigForm({
     // Image state
     const [images, setImages] = useState<File[]>([]);
     const [previews, setPreviews] = useState<string[]>([]); // New uploads
-    const [existingImages, setExistingImages] = useState<string[]>(initialValues.images || []);
+
+    // Determine which images are "default" (inherited from order) vs run-specific.
+    // The backend pre-populates run.fields.images with order images when useOrderImageForRuns=true,
+    // so we detect defaults by checking if the run's images are exactly the order images.
+    const runImages: string[] = initialValues.images || [];
+    const isUsingOrderDefaults = useOrderImageForRuns &&
+        orderImages.length > 0 &&
+        runImages.length > 0 &&
+        runImages.every(img => orderImages.includes(img)) &&
+        orderImages.every(img => runImages.includes(img));
+
+    const [existingImages, setExistingImages] = useState<string[]>(runImages);
+    // Track which images are "default" order images so we can show the badge
+    const [defaultImageUrls] = useState<Set<string>>(
+        new Set(isUsingOrderDefaults ? orderImages : [])
+    );
 
     const [managers, setManagers] = useState<ManagerUser[]>([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -437,30 +459,61 @@ export default function RunConfigForm({
                 {/* Images */}
                 <div className="mt-6">
                     <div className="flex items-center justify-between mb-2">
-                        <label className="text-sm font-medium text-gray-700">Reference Images (Max 2)</label>
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-medium text-gray-700">Reference Images (Max 2)</label>
+                            {useOrderImageForRuns && existingImages.some(url => defaultImageUrls.has(url)) && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium rounded-full">
+                                    <ImageIcon className="w-3 h-3" />
+                                    Using order defaults
+                                </span>
+                            )}
+                        </div>
                         <span className="text-xs text-gray-500">
                             {existingImages.length + images.length}/2
                         </span>
                     </div>
 
-                    <div className="flex gap-4">
+                    {/* Info banner when showing default order images */}
+                    {useOrderImageForRuns && existingImages.some(url => defaultImageUrls.has(url)) && (
+                        <div className="mb-3 flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                            <ImageIcon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-amber-600" />
+                            <span>
+                                These images are inherited from the order. You can keep them or remove and upload run-specific images.
+                            </span>
+                        </div>
+                    )}
+
+                    <div className="flex gap-4 flex-wrap">
                         {/* Existing Images */}
-                        {existingImages.map((url, i) => (
-                            <div key={`existing-${i}`} className="relative group w-24 h-24 border rounded overflow-hidden">
-                                <img src={url} alt="Ref" className="w-full h-full object-cover" />
-                                <button
-                                    onClick={() => removeExistingImage(i)}
-                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                    <X className="w-3 h-3" />
-                                </button>
-                            </div>
-                        ))}
+                        {existingImages.map((url, i) => {
+                            const isDefault = defaultImageUrls.has(url);
+                            return (
+                                <div key={`existing-${i}`} className={`relative group w-24 h-24 border-2 rounded overflow-hidden ${isDefault ? 'border-amber-300' : 'border-gray-200'
+                                    }`}>
+                                    <img src={url} alt="Ref" className="w-full h-full object-cover" />
+                                    {isDefault && (
+                                        <div className="absolute bottom-0 left-0 right-0 bg-amber-500/90 text-white text-[9px] font-semibold text-center py-0.5 leading-tight">
+                                            ORDER DEFAULT
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={() => removeExistingImage(i)}
+                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title={isDefault ? 'Remove default image' : 'Remove image'}
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            );
+                        })}
 
                         {/* New Previews */}
                         {previews.map((url, i) => (
-                            <div key={`new-${i}`} className="relative group w-24 h-24 border rounded overflow-hidden">
+                            <div key={`new-${i}`} className="relative group w-24 h-24 border-2 border-blue-300 rounded overflow-hidden">
                                 <img src={url} alt="Preview" className="w-full h-full object-cover opacity-80" />
+                                <div className="absolute bottom-0 left-0 right-0 bg-blue-500/90 text-white text-[9px] font-semibold text-center py-0.5 leading-tight">
+                                    NEW
+                                </div>
                                 <button
                                     onClick={() => removeNewImage(i)}
                                     className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"

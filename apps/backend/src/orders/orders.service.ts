@@ -560,6 +560,7 @@ export class OrdersService {
                         totalProcesses: dto.processes.length,
                         completedProcesses: 0,
                         images: uploadedImageUrls,
+                        useOrderImageForRuns: dto.useOrderImageForRuns ?? false,
                         ...(dto.jobCode && { jobCode: dto.jobCode }),
                     },
                 });

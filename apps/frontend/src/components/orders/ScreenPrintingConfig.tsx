@@ -121,11 +121,33 @@ export default function ScreenPrintingConfig({
     // Update local order when parent order changes
     useEffect(() => {
         setLocalOrder(order);
+        // Re-sync existing images when order refreshes (e.g., after save)
+        setExistingRunImages(() => {
+            const init: Record<string, string[]> = {};
+            order.processes.forEach(p => p.runs.forEach(r => {
+                if (r.values?.images && Array.isArray(r.values.images) && r.values.images.length > 0) {
+                    init[r.id] = r.values.images as string[];
+                }
+            }));
+            return init;
+        });
     }, [order]);
 
     // State to store selected images for each run
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
     const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
+    // Pre-existing image URLs from run.values.images (shown in edit form)
+    const [existingRunImages, setExistingRunImages] = useState<Record<string, string[]>>(
+        () => {
+            const init: Record<string, string[]> = {};
+            order.processes.forEach(p => p.runs.forEach(r => {
+                if (r.values?.images && Array.isArray(r.values.images) && r.values.images.length > 0) {
+                    init[r.id] = r.values.images as string[];
+                }
+            }));
+            return init;
+        }
+    );
 
     // Get field configurations from run.fields array
     const getRunFieldConfigs = (run: ProcessRun) => run.fields ?? [];
@@ -192,10 +214,12 @@ export default function ScreenPrintingConfig({
         if (!files) return;
 
         const fileArray = Array.from(files);
-        const currentImages = runImages[runId] || [];
+        const currentNewImages = runImages[runId] || [];
+        const currentExisting = existingRunImages[runId] || [];
+        const totalCurrent = currentNewImages.length + currentExisting.length;
 
-        // Restrict to 2 photos
-        if (currentImages.length + fileArray.length > 2) {
+        // Restrict to 2 photos total (existing + new)
+        if (totalCurrent + fileArray.length > 2) {
             alert('Maximum 2 photos allowed per run');
             return;
         }
@@ -286,6 +310,13 @@ export default function ScreenPrintingConfig({
             [runId]: (prev[runId] || []).filter((_, i) => i !== index),
         }));
         setImagePreviews((prev) => ({
+            ...prev,
+            [runId]: (prev[runId] || []).filter((_, i) => i !== index),
+        }));
+    };
+
+    const removeExistingImage = (runId: string, index: number) => {
+        setExistingRunImages((prev) => ({
             ...prev,
             [runId]: (prev[runId] || []).filter((_, i) => i !== index),
         }));
@@ -449,27 +480,22 @@ export default function ScreenPrintingConfig({
         setError(null);
 
         try {
-            // Send the values object AND images to configureRun
-            // Get images for this run if any
-            const images = runImages[runId] || [];
-            const imageUrls: string[] = [];
+            // Build final image list: existing (pre-loaded) + newly uploaded
+            const existingUrls = existingRunImages[runId] || [];
+            const newFiles = runImages[runId] || [];
+            const imageUrls: string[] = [...existingUrls];
 
-            if (images.length > 0) {
-                //console.log(`Starting upload for ${images.length} images...`);
-                const uploadPromises = images.map(async (file) => {
-                    // A. Get Presigned URL
+            if (newFiles.length > 0) {
+                const uploadPromises = newFiles.map(async (file) => {
                     const { uploadUrl, publicUrl } = await apiRequest<{
                         uploadUrl: string;
                         publicUrl: string;
                     }>(`/orders/upload-url?filename=${encodeURIComponent(file.name)}`);
 
-                    // B. Upload File to Cloudflare (PUT)
                     await fetch(uploadUrl, {
                         method: 'PUT',
                         body: file,
-                        headers: {
-                            'Content-Type': file.type,
-                        },
+                        headers: { 'Content-Type': file.type },
                     });
 
                     return publicUrl;
@@ -524,6 +550,11 @@ export default function ScreenPrintingConfig({
                     return newState;
                 });
                 setImagePreviews((prev) => {
+                    const newState = { ...prev };
+                    delete newState[runId];
+                    return newState;
+                });
+                setExistingRunImages((prev) => {
                     const newState = { ...prev };
                     delete newState[runId];
                     return newState;
@@ -818,6 +849,15 @@ export default function ScreenPrintingConfig({
             // Show EDITABLE form for unconfigured runs
             const currentImages = runImages[run.id] || [];
             const currentPreviews = imagePreviews[run.id] || [];
+            const currentExistingImages = existingRunImages[run.id] || [];
+            const totalImageCount = currentExistingImages.length + currentImages.length;
+            // Detect if existing images are order defaults
+            const orderImgs: string[] = (localOrder as any).images || [];
+            const useOrderImgForRuns: boolean = (localOrder as any).useOrderImageForRuns || false;
+            const isShowingOrderDefaults = useOrderImgForRuns &&
+                orderImgs.length > 0 &&
+                currentExistingImages.length > 0 &&
+                currentExistingImages.every(img => orderImgs.includes(img));
             const currentManagerSelection = runManagers[run.id] || {
                 executorId: run.executor?.id,
                 reviewerId: run.reviewer?.id,
@@ -973,13 +1013,79 @@ export default function ScreenPrintingConfig({
                                 <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                                     <Palette className="w-3.5 h-3.5" />
                                     Reference Images (Max 2)
+                                    {isShowingOrderDefaults && (
+                                        <span className="ml-1 px-1.5 py-0.5 bg-amber-100 border border-amber-300 text-amber-700 text-[10px] font-semibold rounded-full">
+                                            Order Default
+                                        </span>
+                                    )}
                                 </label>
-                                <div className="text-xs text-gray-500">{currentImages.length}/2 uploaded</div>
+                                <div className="text-xs text-gray-500">{totalImageCount}/2</div>
                             </div>
 
-                            <div className="flex gap-3 items-start">
+                            {/* Info banner for order defaults */}
+                            {isShowingOrderDefaults && (
+                                <div className="mb-2 flex items-center gap-1.5 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                                    <Palette className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                                    <span>Inherited from order. Keep or remove and upload run-specific images.</span>
+                                </div>
+                            )}
+
+                            <div className="flex gap-3 items-start flex-wrap">
+                                {/* EXISTING (PRE-LOADED) IMAGES */}
+                                {currentExistingImages.map((url, idx) => {
+                                    const isDefault = isShowingOrderDefaults && orderImgs.includes(url);
+                                    return (
+                                        <div
+                                            key={`existing-${idx}`}
+                                            className={`relative group w-20 h-20 border-2 rounded-lg overflow-hidden ${isDefault ? 'border-amber-300' : 'border-gray-200'
+                                                }`}
+                                        >
+                                            <img
+                                                src={url}
+                                                alt={`Existing ${idx + 1}`}
+                                                className="w-full h-full object-cover"
+                                            />
+                                            {isDefault && (
+                                                <div className="absolute bottom-0 left-0 right-0 bg-amber-500/90 text-white text-[8px] font-bold text-center py-0.5">
+                                                    ORDER DEFAULT
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={() => removeExistingImage(run.id, idx)}
+                                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                                title="Remove image"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+
+                                {/* NEW UPLOAD PREVIEWS */}
+                                {currentPreviews.map((preview, idx) => (
+                                    <div
+                                        key={`new-${idx}`}
+                                        className="relative group w-20 h-20 border-2 border-blue-300 rounded-lg overflow-hidden"
+                                    >
+                                        <img
+                                            src={preview}
+                                            alt={`New ${idx + 1}`}
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <div className="absolute bottom-0 left-0 right-0 bg-blue-500/90 text-white text-[8px] font-bold text-center py-0.5">
+                                            NEW
+                                        </div>
+                                        <button
+                                            onClick={() => removeImage(run.id, idx)}
+                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+
                                 {/* UPLOAD BUTTON */}
-                                {currentImages.length < 2 && (
+                                {totalImageCount < 2 && (
                                     <div className="relative">
                                         <input
                                             type="file"
@@ -998,26 +1104,6 @@ export default function ScreenPrintingConfig({
                                         </label>
                                     </div>
                                 )}
-
-                                {/* PREVIEWS */}
-                                {currentPreviews.map((preview, idx) => (
-                                    <div
-                                        key={idx}
-                                        className="relative group w-20 h-20 border rounded-lg overflow-hidden"
-                                    >
-                                        <img
-                                            src={preview}
-                                            alt={`Preview ${idx + 1}`}
-                                            className="w-full h-full object-cover"
-                                        />
-                                        <button
-                                            onClick={() => removeImage(run.id, idx)}
-                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                ))}
                             </div>
                         </div>
 
@@ -1050,8 +1136,8 @@ export default function ScreenPrintingConfig({
                                     onClick={() => saveRun(process.id, run.id)}
                                     disabled={!areAllFieldsFilled(run) || isSaving === run.id}
                                     className={`px-4 py-1 text-sm font-medium rounded transition-colors flex items-center gap-1 ${areAllFieldsFilled(run)
-                                            ? 'bg-green-600 hover:bg-green-700 text-white'
-                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                         }`}
                                 >
                                     {isSaving === run.id ? (
@@ -1101,8 +1187,8 @@ export default function ScreenPrintingConfig({
                                     {/* RUN HEADER - COMPACT */}
                                     <div
                                         className={`border rounded p-2 transition-colors ${isConfigured
-                                                ? 'bg-green-50 border-green-200 hover:bg-green-100'
-                                                : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
+                                            ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                                            : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">
