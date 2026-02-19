@@ -500,10 +500,16 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                     </div>
                     {mode === 'view' && hasPermission(Permission.RUNS_UPDATE) && (
                         <div className="flex items-center gap-2">
-                            <button onClick={() => { setEditForm(null); setEditingRunId(run.id); }} className="text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs border border-blue-200 flex items-center gap-1">
-                                <Edit className="w-3 h-3" /> Edit
+                            <button
+                                onClick={() => { setEditForm(null); setEditingRunId(run.id); }}
+                                className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200 transition-colors"
+                            >
+                                <Edit className="w-3 h-3" />
+                                Edit
                             </button>
-                            <button onClick={() => setOpenRunId(null)}><X className="w-4 h-4 text-gray-500" /></button>
+                            <button onClick={() => setOpenRunId(null)} className="text-gray-500 hover:text-gray-700 text-sm">
+                                <X className="w-4 h-4" />
+                            </button>
                         </div>
                     )}
                     {mode === 'edit' && <button onClick={() => { setOpenRunId(null); setEditingRunId(null); }}><X className="w-4 h-4 text-gray-500" /></button>}

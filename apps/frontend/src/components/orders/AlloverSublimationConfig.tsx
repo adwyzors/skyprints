@@ -583,7 +583,7 @@ export default function AlloverSublimationConfig({
                                             setEditingRunId(run.id);
                                             // Form init handled by useEffect
                                         }}
-                                        className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200"
+                                        className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200 transition-colors"
                                     >
                                         <Edit className="w-3 h-3" />
                                         Edit

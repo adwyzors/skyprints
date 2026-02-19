@@ -76,6 +76,7 @@ export default function EmbellishmentConfig({
     const [error, setError] = useState<string | null>(null);
     const [isAddingRun, setIsAddingRun] = useState(false);
     const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
+    const [editingRunId, setEditingRunId] = useState<string | null>(null);
 
     const handleAddRun = async (processId: string) => {
         setIsAddingRun(true);
@@ -570,6 +571,7 @@ export default function EmbellishmentConfig({
 
                 alert(`Run ${run.runNumber} configured successfully`);
                 setOpenRunId(null); // Close the form after successful save
+                setEditingRunId(null); // Clear edit mode if active
 
                 // Refresh from server to get latest data including image URLs
                 if (onRefresh) {
@@ -734,8 +736,9 @@ export default function EmbellishmentConfig({
     // Function to render form or view based on run status
     const renderRunFormOrView = (process: any, run: ProcessRun) => {
         const isConfigured = run.configStatus === 'COMPLETE';
+        const isEditing = editingRunId === run.id;
 
-        if (isConfigured) {
+        if (isConfigured && !isEditing) {
             // Show READ-ONLY view for configured runs
             return (
                 <div className="bg-gray-50 border border-gray-300 rounded p-3">
@@ -745,12 +748,23 @@ export default function EmbellishmentConfig({
                                 <div className="w-2 h-2 bg-green-500 rounded-full" />
                                 <h3 className="font-semibold text-sm">View Run {run.runNumber} Configuration</h3>
                             </div>
-                            <button
-                                onClick={() => setOpenRunId(null)}
-                                className="text-gray-500 hover:text-gray-700 text-sm"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
+                            {hasPermission(Permission.RUNS_UPDATE) && (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setEditingRunId(run.id)}
+                                        className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200 transition-colors"
+                                    >
+                                        <Edit className="w-3 h-3" />
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={() => setOpenRunId(null)}
+                                        className="text-gray-500 hover:text-gray-700 text-sm"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* READ-ONLY COMPACT TABLE */}
@@ -1126,7 +1140,10 @@ export default function EmbellishmentConfig({
 
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => setOpenRunId(null)}
+                                    onClick={() => {
+                                        setOpenRunId(null);
+                                        setEditingRunId(null);
+                                    }}
                                     disabled={isSaving === run.id}
                                     className="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-100 transition-colors disabled:opacity-50"
                                 >
@@ -1136,8 +1153,8 @@ export default function EmbellishmentConfig({
                                     onClick={() => saveRun(process.id, run.id)}
                                     disabled={!areAllFieldsFilled(run) || isSaving === run.id}
                                     className={`px-4 py-1 text-sm font-medium rounded transition-colors flex items-center gap-1 ${areAllFieldsFilled(run)
-                                            ? 'bg-green-600 hover:bg-green-700 text-white'
-                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                                         }`}
                                 >
                                     {isSaving === run.id ? (
@@ -1187,8 +1204,8 @@ export default function EmbellishmentConfig({
                                     {/* RUN HEADER - COMPACT */}
                                     <div
                                         className={`border rounded p-2 transition-colors ${isConfigured
-                                                ? 'bg-green-50 border-green-200 hover:bg-green-100'
-                                                : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
+                                            ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                                            : 'bg-gray-50 border-gray-300 hover:bg-gray-100'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">

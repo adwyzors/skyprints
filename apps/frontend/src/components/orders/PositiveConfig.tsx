@@ -462,8 +462,16 @@ export default function PositiveConfig({
                     </div>
                     {mode === 'view' && hasPermission(Permission.RUNS_UPDATE) && (
                         <div className="flex items-center gap-2">
-                            <button onClick={() => setEditingRunId(run.id)} className="text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs border border-blue-200">Edit</button>
-                            <button onClick={() => setOpenRunId(null)}><X className="w-4 h-4 text-gray-500" /></button>
+                            <button
+                                onClick={() => setEditingRunId(run.id)}
+                                className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200 transition-colors"
+                            >
+                                <Edit className="w-3 h-3" />
+                                Edit
+                            </button>
+                            <button onClick={() => setOpenRunId(null)} className="text-gray-500 hover:text-gray-700 text-sm">
+                                <X className="w-4 h-4" />
+                            </button>
                         </div>
                     )}
                     {mode === 'edit' && (
@@ -471,8 +479,8 @@ export default function PositiveConfig({
                     )}
                 </div>
 
-                    {mode === 'edit' && (
-                <div className="bg-white border border-gray-200 rounded p-4 space-y-4">
+                {mode === 'edit' && (
+                    <div className="bg-white border border-gray-200 rounded p-4 space-y-4">
                         <div className="grid grid-cols-2 gap-4 mb-2">
                             <SearchableManagerSelect
                                 label="Executor"
@@ -493,8 +501,8 @@ export default function PositiveConfig({
                                 onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                             />
                         </div>
-                </div>
-                    )}
+                    </div>
+                )}
 
 
                 {/* IMAGE UPLOAD SECTION */}
