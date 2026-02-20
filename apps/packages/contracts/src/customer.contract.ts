@@ -43,3 +43,14 @@ export const QueryCustomerSchema = z.object({
 export type QueryCustomerDto =
     z.infer<typeof QueryCustomerSchema>;
 
+
+/* =========================
+ * Bulk Delete Customers
+ * ========================= */
+
+export const BulkDeleteSchema = z.object({
+    ids: z.array(z.string().uuid()).min(1),
+});
+
+export type BulkDeleteDto = z.infer<typeof BulkDeleteSchema>;
+

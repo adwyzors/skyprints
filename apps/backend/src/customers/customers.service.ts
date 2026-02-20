@@ -20,6 +20,13 @@ export class CustomersService {
             throw new ConflictException('Customer code already exists');
         }
 
+        if (dto.gstno) {
+            const existingGst = await this.repo.findByGst(dto.gstno);
+            if (existingGst) {
+                throw new ConflictException('Customer with this GST number already exists');
+            }
+        }
+
         return this.repo.create({
             ...dto,
             code,
@@ -37,6 +44,13 @@ export class CustomersService {
                     throw new ConflictException('Customer code already exists');
                 }
                 dto.code = code;
+            }
+        }
+
+        if (dto.gstno && dto.gstno !== customer.gstno) {
+            const existingGst = await this.repo.findByGst(dto.gstno);
+            if (existingGst) {
+                throw new ConflictException('Customer with this GST number already exists');
             }
         }
 
@@ -60,6 +74,12 @@ export class CustomersService {
                     },
                     {
                         code: {
+                            contains: search,
+                            mode: 'insensitive',
+                        },
+                    },
+                    {
+                        gstno: {
                             contains: search,
                             mode: 'insensitive',
                         },
@@ -98,8 +118,12 @@ export class CustomersService {
         return customer;
     }
 
-    //async deactivate(id: string) {
-    //    await this.findOne(id);
-    //    return this.repo.update(id, { isActive: false });
-    //}
+    async softDelete(id: string) {
+        await this.findOne(id);
+        return this.repo.softDelete(id);
+    }
+
+    async softDeleteMany(ids: string[]) {
+        return this.repo.softDeleteMany(ids);
+    }
 }

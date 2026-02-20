@@ -60,3 +60,16 @@ export async function getCustomersWithHeaders(params: { page?: number; limit?: n
         totalPages,
     };
 }
+
+export async function deleteCustomer(id: string): Promise<void> {
+    await apiRequest(`/customers/${id}`, {
+        method: "DELETE",
+    });
+}
+
+export async function deleteCustomers(ids: string[]): Promise<void> {
+    await apiRequest("/customers", {
+        method: "DELETE",
+        body: JSON.stringify({ ids }),
+    });
+}
