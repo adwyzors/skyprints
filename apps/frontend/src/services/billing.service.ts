@@ -8,96 +8,100 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
  * Get latest billing snapshot - handles null response when no snapshot exists
  */
 export const getLatestBillingSnapshot = async (orderId: string): Promise<BillingSnapshot | null> => {
-  const response = await fetch(`${API_BASE_URL}/billing/snapshots/latest`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ orderId }),
-  });
+    const response = await fetch(`${API_BASE_URL}/billing/snapshots/latest`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+    });
 
-  if (!response.ok) {
-    console.log(response);
-    alert('Failed to fetch billing snapshot');
-    //throw new Error('Failed to fetch billing snapshot');
-  }
+    if (!response.ok) {
+        console.log(response);
+        alert('Failed to fetch billing snapshot');
+        //throw new Error('Failed to fetch billing snapshot');
+    }
 
-  const text = await response.text();
-  if (!text || text === 'null') {
-    return null;
-  }
-  return JSON.parse(text) as BillingSnapshot;
+    const text = await response.text();
+    if (!text || text === 'null') {
+        return null;
+    }
+    return JSON.parse(text) as BillingSnapshot;
 };
 
 export const updateBillingSnapshot = async (orderId: string, data: BillingSnapshot): Promise<BillingSnapshot> => {
-  return apiRequest<BillingSnapshot>(`/billing/snapshots/${orderId}`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+    return apiRequest<BillingSnapshot>(`/billing/snapshots/${orderId}`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 };
 
 export const createBillingSnapshot = async (orderId: string): Promise<BillingSnapshot> => {
-  return apiRequest<BillingSnapshot>(`/billing/snapshots/${orderId}`, {
-    method: 'POST',
-  });
+    return apiRequest<BillingSnapshot>(`/billing/snapshots/${orderId}`, {
+        method: 'POST',
+    });
 };
 
 export interface CreateBillingContextPayload {
-  type: 'GROUP';
-  name: string;
-  description?: string;
-  orderIds: string[];
+    type: 'GROUP';
+    name: string;
+    description?: string;
+    orderIds: string[];
 }
 
 export const createBillingContext = async (
-  data: CreateBillingContextPayload
+    data: CreateBillingContextPayload
 ): Promise<{ id: string }> => {
-  return apiRequest<{ id: string }>('/billing/contexts', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+    return apiRequest<{ id: string }>('/billing/contexts', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 };
 
 export const getBillingContexts = async (params?: {
-  page?: number;
-  limit?: number;
-  search?: string;
+    page?: number;
+    limit?: number;
+    search?: string;
 }): Promise<GetBillingContextsResponse> => {
-  const query = new URLSearchParams();
-  if (params?.page) query.append('page', params.page.toString());
-  if (params?.limit) query.append('limit', params.limit.toString());
-  if (params?.search) query.append('search', params.search);
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.search) query.append('search', params.search);
 
-  const queryString = query.toString();
-  const url = queryString ? `/billing/contexts?${queryString}` : '/billing/contexts';
+    const queryString = query.toString();
+    const url = queryString ? `/billing/contexts?${queryString}` : '/billing/contexts';
 
-  const { data, headers } = await apiRequestWithHeaders<{ data: any[] }>(url, {
-    method: 'GET',
-  });
+    const { data, headers } = await apiRequestWithHeaders<{ data: any[] }>(url, {
+        method: 'GET',
+    });
 
-  // Extract pagination metadata from headers
-  const page = parseInt(headers.get('x-page') || '1', 10);
-  const limit = parseInt(headers.get('x-limit') || '12', 10);
-  const total = parseInt(headers.get('x-total-count') || '0', 10);
-  const totalPages = parseInt(headers.get('x-total-pages') || '0', 10);
+    // Extract pagination metadata from headers
+    const page = parseInt(headers.get('x-page') || '1', 10);
+    const limit = parseInt(headers.get('x-limit') || '12', 10);
+    const total = parseInt(headers.get('x-total-count') || '0', 10);
+    const totalPages = parseInt(headers.get('x-total-pages') || '0', 10);
+    const totalQuantity = parseInt(headers.get('x-total-quantity') || '0', 10);
+    const totalEstimatedAmount = parseFloat(headers.get('x-total-estimated-amount') || '0');
 
-  return {
-    data: data.data,
-    page,
-    limit,
-    total,
-    totalPages,
-  };
+    return {
+        data: data.data,
+        page,
+        limit,
+        total,
+        totalPages,
+        totalQuantity,
+        totalEstimatedAmount
+    };
 };
 
 export const getBillingContextById = async (id: string): Promise<BillingContextDetails> => {
-  return apiRequest<BillingContextDetails>(`/billing/contexts/${id}`, {
-    method: 'GET',
-  });
+    return apiRequest<BillingContextDetails>(`/billing/contexts/${id}`, {
+        method: 'GET',
+    });
 };
 
 export const finalizeBillingGroup = async (contextId: string): Promise<void> => {
-  return apiRequest<void>('/billing/finalize/group', {
-    method: 'POST',
-    body: JSON.stringify({ billingContextId: contextId }),
-  });
+    return apiRequest<void>('/billing/finalize/group', {
+        method: 'POST',
+        body: JSON.stringify({ billingContextId: contextId }),
+    });
 };

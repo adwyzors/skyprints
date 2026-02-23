@@ -61,6 +61,8 @@ export class BillingContextController {
             res.setHeader('x-limit', result.meta.limit.toString());
             res.setHeader('x-total-count', result.meta.total.toString());
             res.setHeader('x-total-pages', result.meta.totalPages.toString());
+            res.setHeader('x-total-quantity', (result.meta as any).totalQuantity.toString());
+            res.setHeader('x-total-estimated-amount', (result.meta as any).totalEstimatedAmount.toString());
         }
 
         // Return only the data

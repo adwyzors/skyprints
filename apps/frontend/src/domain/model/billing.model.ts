@@ -30,6 +30,8 @@ export interface GetBillingContextsResponse {
     limit: number;
     total: number;
     totalPages: number;
+    totalQuantity?: number;
+    totalEstimatedAmount?: number;
 }
 
 export interface BillingContextDetails extends BillingContext {

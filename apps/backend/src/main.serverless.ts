@@ -7,34 +7,34 @@ import { PaginationInterceptor } from './common/interceptors/pagination-meta.int
 let cachedApp: any;
 
 export async function createApp() {
-  if (cachedApp) {
-    return cachedApp;
-  }
+    if (cachedApp) {
+        return cachedApp;
+    }
 
-  const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule);
 
-  app.setGlobalPrefix('api/v1');
+    app.setGlobalPrefix('api/v1');
 
-  app.use(cookieParser());
+    app.use(cookieParser());
 
-  app.enableCors({
-    origin: process.env.FRONT_END_BASE_URL?.split(',') ?? ['http://localhost:3000'],
-    credentials: true,
-    exposedHeaders: ['x-total-count, x-total-pages, x-page, x-limit, x-total-estimated-amount','x-total-quantity'],
-  });
+    app.enableCors({
+        origin: process.env.FRONT_END_BASE_URL?.split(',') ?? ['http://localhost:3000'],
+        credentials: true,
+        exposedHeaders: ['x-total-count', 'x-total-pages', 'x-page', 'x-limit', 'x-total-estimated-amount', 'x-total-quantity'],
+    });
 
-  app.useGlobalInterceptors(new PaginationInterceptor());
+    app.useGlobalInterceptors(new PaginationInterceptor());
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+    app.useGlobalPipes(
+        new ValidationPipe({
+            whitelist: true,
+            forbidNonWhitelisted: true,
+            transform: true,
+        }),
+    );
 
-  await app.init();
+    await app.init();
 
-  cachedApp = app;
-  return app;
+    cachedApp = app;
+    return app;
 }

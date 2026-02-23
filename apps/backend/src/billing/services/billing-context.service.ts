@@ -118,7 +118,7 @@ export class BillingContextService {
             })
         };
 
-        const [total, contexts] = await Promise.all([
+        const [total, contexts, totalsAgg] = await Promise.all([
             this.prisma.billingContext.count({ where }),
             this.prisma.billingContext.findMany({
                 skip,
@@ -147,8 +147,39 @@ export class BillingContextService {
                     }
                 },
                 orderBy: { createdAt: "desc" }
+            }),
+            // Calculate totals for all matching contexts
+            this.prisma.billingContext.findMany({
+                where,
+                select: {
+                    orders: {
+                        select: {
+                            order: {
+                                select: { quantity: true }
+                            }
+                        }
+                    },
+                    snapshots: {
+                        where: { isLatest: true },
+                        select: { result: true }
+                    }
+                }
             })
         ]);
+
+        let totalQuantity = 0;
+        let totalEstimatedAmount = 0;
+
+        totalsAgg.forEach(ctx => {
+            // Group total quantity is sum of its orders
+            ctx.orders.forEach(o => {
+                totalQuantity += o.order.quantity;
+            });
+            // Group total amount is its latest snapshot result
+            if (ctx.snapshots[0]) {
+                totalEstimatedAmount += Number(ctx.snapshots[0].result);
+            }
+        });
 
         const data = contexts.map(ctx => {
             const snapshot = ctx.snapshots[0];
@@ -185,6 +216,8 @@ export class BillingContextService {
                 limit,
                 total,
                 totalPages: Math.ceil(total / limit),
+                totalQuantity,
+                totalEstimatedAmount
             },
         };
     }

@@ -25,6 +25,8 @@ export interface GetOrdersResponse {
     page: number;
     limit: number;
     totalPages: number;
+    totalQuantity?: number;
+    totalEstimatedAmount?: number;
 }
 
 export interface GetOrderCardsResponse {
@@ -33,6 +35,8 @@ export interface GetOrderCardsResponse {
     page: number;
     limit: number;
     totalPages: number;
+    totalQuantity?: number;
+    totalEstimatedAmount?: number;
 }
 
 /* =====================================================
@@ -74,6 +78,8 @@ export async function getOrders(params: GetOrdersParams = {}): Promise<GetOrders
     const page = parseInt(headers.get('x-page') || String(requestedPage), 10);
     const limit = parseInt(headers.get('x-limit') || String(requestedLimit), 10);
     const totalPages = parseInt(headers.get('x-total-pages') || '1', 10);
+    const totalQuantity = parseInt(headers.get('x-total-quantity') || '0', 10);
+    const totalEstimatedAmount = parseFloat(headers.get('x-total-estimated-amount') || '0');
 
     const dtos = OrderSummarySchema.array().parse(ordersArray);
 
@@ -83,6 +89,8 @@ export async function getOrders(params: GetOrdersParams = {}): Promise<GetOrders
         page,
         limit,
         totalPages,
+        totalQuantity,
+        totalEstimatedAmount
     };
 }
 
@@ -110,13 +118,17 @@ export async function getOrderCards(params: GetOrdersParams = {}): Promise<GetOr
     const page = parseInt(headers.get('x-page') || String(requestedPage), 10);
     const limit = parseInt(headers.get('x-limit') || String(requestedLimit), 10);
     const totalPages = parseInt(headers.get('x-total-pages') || '0', 10);
+    const totalQuantity = parseInt(headers.get('x-total-quantity') || '0', 10);
+    const totalEstimatedAmount = parseFloat(headers.get('x-total-estimated-amount') || '0');
 
     return {
         orders: res || [],
         total,
         page,
         limit,
-        totalPages
+        totalPages,
+        totalQuantity,
+        totalEstimatedAmount
     };
 }
 

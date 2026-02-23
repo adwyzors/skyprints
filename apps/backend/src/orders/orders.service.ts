@@ -144,7 +144,7 @@ export class OrdersService {
             }),
         };
 
-        const [total, orders] = await this.prisma.transaction([
+        const [total, orders, totalsAgg, allRuns] = await this.prisma.transaction([
             this.prisma.order.count({ where }),
 
             this.prisma.order.findMany({
@@ -212,7 +212,29 @@ export class OrdersService {
                     },
                 },
             }),
+
+            this.prisma.order.aggregate({
+                where,
+                _sum: { quantity: true }
+            }),
+
+            this.prisma.processRun.findMany({
+                where: {
+                    orderProcess: {
+                        order: where
+                    }
+                },
+                select: { fields: true }
+            })
         ]);
+
+        const totalEstimatedAmount = allRuns.reduce((sum, run) => {
+            const amt = (run.fields as any)?.['Estimated Amount'];
+            if (amt === undefined || amt === null) return sum;
+            const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
+            const val = parseFloat(cleanAmt);
+            return sum + (isNaN(val) ? 0 : val);
+        }, 0);
 
         return {
             data: orders.map(toOrderSummary),
@@ -221,6 +243,8 @@ export class OrdersService {
                 limit,
                 total,
                 totalPages: Math.ceil(total / limit),
+                totalQuantity: totalsAgg._sum.quantity || 0,
+                totalEstimatedAmount
             },
         };
     }
@@ -342,7 +366,7 @@ export class OrdersService {
             }),
         };
 
-        const [total, orders] = await this.prisma.transaction([
+        const [total, orders, totalsAgg, allRuns] = await this.prisma.transaction([
             this.prisma.order.count({ where }),
 
             this.prisma.order.findMany({
@@ -375,7 +399,29 @@ export class OrdersService {
                     },
                 },
             }),
+
+            this.prisma.order.aggregate({
+                where,
+                _sum: { quantity: true }
+            }),
+
+            this.prisma.processRun.findMany({
+                where: {
+                    orderProcess: {
+                        order: where
+                    }
+                },
+                select: { fields: true }
+            })
         ]);
+
+        const totalEstimatedAmount = allRuns.reduce((sum, run) => {
+            const amt = (run.fields as any)?.['Estimated Amount'];
+            if (amt === undefined || amt === null) return sum;
+            const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
+            const val = parseFloat(cleanAmt);
+            return sum + (isNaN(val) ? 0 : val);
+        }, 0);
 
         const mappedOrders = orders.map(order => ({
             id: order.id,
@@ -399,6 +445,8 @@ export class OrdersService {
                 limit,
                 total,
                 totalPages: Math.ceil(total / limit),
+                totalQuantity: totalsAgg._sum.quantity || 0,
+                totalEstimatedAmount
             },
         };
     }

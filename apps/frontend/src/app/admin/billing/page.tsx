@@ -24,12 +24,16 @@ function BillingContent() {
         page: number;
         limit: number;
         totalPages: number;
+        totalQuantity?: number;
+        totalEstimatedAmount?: number;
     }>({
         orders: [],
         total: 0,
         page: 1,
         limit: 12,
         totalPages: 0,
+        totalQuantity: 0,
+        totalEstimatedAmount: 0,
     });
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -195,10 +199,19 @@ function BillingContent() {
                         </button>
 
                         <div>
-                            <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-                                Rate Configuration
-                            </h1>
-                            <p className="text-sm text-gray-500">Configure rates for completed orders</p>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-2xl font-bold tracking-tight text-gray-900">Rate Configuration</h1>
+                                <div className="flex items-center gap-2">
+                                    <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-bold rounded-full border border-green-200 whitespace-nowrap">
+                                        Total: ₹{ordersData.totalEstimatedAmount?.toLocaleString() || 0}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-sm font-bold rounded-full border border-blue-100 whitespace-nowrap">
+                                        <span className="text-[10px] text-blue-400 uppercase tracking-wider">Total pcs</span>
+                                        {ordersData.totalQuantity?.toLocaleString() || 0}
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-500 mt-0.5">Configure rates for completed orders</p>
                         </div>
                     </div>
 
