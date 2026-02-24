@@ -53,6 +53,9 @@ export class AdminProcessService {
         ];
 
         if (workflowTypeIds.length === 0) {
+            if (processId !== 'Embellishment' && processId !== 'Embellish') {
+                return await this.getLifeCycleStatusesByProcess('Embellishment');
+            }
             return [];
         }
 
@@ -67,8 +70,8 @@ export class AdminProcessService {
             },
         });
 
-        if (statuses.length === 0) {
-            return await this.getLifeCycleStatusesByProcess('Embellishment'); //TODO: hardcoded for now
+        if (statuses.length === 0 && processId !== 'Embellishment') {
+            return await this.getLifeCycleStatusesByProcess('Embellishment');
         }
 
         return statuses;
