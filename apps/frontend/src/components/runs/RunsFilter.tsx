@@ -4,11 +4,12 @@ import SearchableCustomerSelect from '@/components/common/SearchableCustomerSele
 import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
 import SearchableManagerSelect from '@/components/common/SearchableManagerSelect';
 import SearchableProcessSelect from '@/components/common/SearchableProcessSelect';
+import { STATIC_PROCESSES } from '@/constants/processes';
 import { Location } from '@/domain/model/location.model';
 import { ProcessSummary } from '@/domain/model/process.model';
 import { getCustomers } from '@/services/customer.service';
 import { getLocations } from '@/services/location.service';
-import { getProcesses, getProcessLifecycleStatuses } from '@/services/process.service';
+import { getProcessLifecycleStatuses } from '@/services/process.service';
 import { getManagers } from '@/services/user.service';
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -33,7 +34,7 @@ interface RunsFilterProps {
 export default function RunsFilter({ filters, onChange, onClear, onClose }: RunsFilterProps) {
     const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
     const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
-    const [processes, setProcesses] = useState<ProcessSummary[]>([]);
+    const [processes, setProcesses] = useState<ProcessSummary[]>(STATIC_PROCESSES);
     const [locations, setLocations] = useState<Location[]>([]);
     const [statuses, setStatuses] = useState<string[]>(['PENDING', 'CONFIGURE', 'DESIGN', 'IN_PROGRESS', 'PRODUCTION_READY', 'COMPLETE']);
     const [loadingStatuses, setLoadingStatuses] = useState(false);
@@ -50,15 +51,13 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [custs, mgrs, procs, locs] = await Promise.all([
+                const [custs, mgrs, locs] = await Promise.all([
                     getCustomers(),
                     getManagers(),
-                    getProcesses(),
                     getLocations()
                 ]);
                 setCustomers(custs);
                 setManagers(mgrs);
-                setProcesses(procs);
                 setLocations(locs);
             } catch (error) {
                 console.error("Failed to fetch filter data", error);
@@ -186,7 +185,7 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                     <SearchableProcessSelect
                         processes={processes}
                         selectedProcessId={filters.processId || null}
-                        onSelect={(id) => handleProcessChange(id)}
+                        onSelect={(id: string) => handleProcessChange(id)}
                         placeholder="Search processes..."
                         allowClear={false}
                         inputClassName="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
@@ -264,7 +263,7 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                     <SearchableCustomerSelect
                         customers={customers}
                         selectedCustomerId={filters.customerId === 'all' ? null : filters.customerId}
-                        onSelect={(id) => onChange({ ...filters, customerId: id || 'all' })}
+                        onSelect={(id: string) => onChange({ ...filters, customerId: id || 'all' })}
                         placeholder="Search customers..."
                         allowClear={false}
                         inputClassName="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
@@ -277,7 +276,7 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                     <SearchableManagerSelect
                         users={managers}
                         selectedUserId={filters.executorId === 'all' ? null : filters.executorId}
-                        onSelect={(id) => onChange({ ...filters, executorId: id || 'all' })}
+                        onSelect={(id: string) => onChange({ ...filters, executorId: id || 'all' })}
                         placeholder="Search executors..."
                         allowClear={false}
                         inputClassName="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
@@ -290,7 +289,7 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                     <SearchableManagerSelect
                         users={managers}
                         selectedUserId={filters.reviewerId === 'all' ? null : filters.reviewerId}
-                        onSelect={(id) => onChange({ ...filters, reviewerId: id || 'all' })}
+                        onSelect={(id: string) => onChange({ ...filters, reviewerId: id || 'all' })}
                         placeholder="Search reviewers..."
                         allowClear={false}
                         inputClassName="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
@@ -303,7 +302,7 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                     <SearchableLocationSelect
                         label="Location"
                         valueId={filters.locationId}
-                        onChange={(id) => onChange({ ...filters, locationId: id })}
+                        onChange={(id: string) => onChange({ ...filters, locationId: id })}
                         locations={locations}
                         placeholder="Search locations..."
                     />

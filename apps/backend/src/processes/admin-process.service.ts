@@ -29,7 +29,12 @@ export class AdminProcessService {
     async getLifeCycleStatusesByProcess(processId: string): Promise<LifeCycleStatusDto[]> {
         // 1️⃣ Get all lifecycle workflow type IDs used by this process
         const runDefs = await this.prisma.processRunDefinition.findMany({
-            where: { processId },
+            where: {
+                OR: [
+                    { processId },
+                    { process: { name: processId } }
+                ]
+            },
             select: {
                 runTemplate: {
                     select: {
@@ -203,7 +208,6 @@ export class AdminProcessService {
         // Note: priority filter here uses the "absolute remaining" logic from priorityWhere, 
         // while the sort uses "percentage" logic from resolvePriority.
         const orderProcessWhere: Prisma.OrderProcessWhereInput = {
-            ...(processId && { processId }),
             ...(priority && this.priorityWhere(priority)),
             ...(Object.keys(orderWhere).length > 0 && {
                 order: { is: orderWhere },
@@ -236,6 +240,17 @@ export class AdminProcessService {
                     },
                 }
                 : {}),
+
+            ...(processId && {
+                OR: [
+                    { orderProcess: { process: { name: processId } } },
+                    { orderProcess: { processId: processId } },
+                    {
+                        orderProcess: { process: { name: { in: ['Embellish', 'Embellishment'] } } },
+                        fields: { path: ['Process Name'], equals: processId }
+                    }
+                ]
+            }),
 
             ...(search && {
                 OR: [

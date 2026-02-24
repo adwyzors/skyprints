@@ -9,8 +9,9 @@ import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import RunCard from '@/components/runs/RunCard';
 import RunsFilter from '@/components/runs/RunsFilter';
 import RunsViewToggle from '@/components/runs/RunsViewToggle';
+import { STATIC_PROCESSES } from '@/constants/processes';
 import { getLocations } from '@/services/location.service';
-import { getProcessLifecycleStatuses, getProcesses } from '@/services/process.service';
+import { getProcessLifecycleStatuses } from '@/services/process.service';
 import { getRuns } from '@/services/run.service';
 import debounce from 'lodash/debounce';
 import {
@@ -146,11 +147,8 @@ function RunsPageContent() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [procs, locs] = await Promise.all([
-                    getProcesses(),
-                    getLocations()
-                ]);
-                setProcesses(procs);
+                const locs = await getLocations();
+                setProcesses(STATIC_PROCESSES);
                 setLocations(locs);
             } catch (error) {
                 console.error("Failed to fetch filter options", error);
