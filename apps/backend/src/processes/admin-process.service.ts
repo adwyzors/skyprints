@@ -67,6 +67,10 @@ export class AdminProcessService {
             },
         });
 
+        if (statuses.length === 0) {
+            return await this.getLifeCycleStatusesByProcess('Embellishment'); //TODO: hardcoded for now
+        }
+
         return statuses;
     }
 
