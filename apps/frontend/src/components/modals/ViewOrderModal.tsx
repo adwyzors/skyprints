@@ -211,6 +211,45 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
     };
 
     /* =================================================
+       RBAC HELPERS
+       ================================================= */
+    const DIGITAL_PROCESSES = ['Sublimation', 'Plotter', 'DTF', 'Laser', 'Allover Sublimation'];
+
+    const getCanTransition = (run: any, currentCode: string, targetCode?: string) => {
+        // Full permission can do everything
+        if (hasPermission(Permission.RUNS_UPDATE)) return true;
+
+        const processName = (order?.processes || []).find(p => p.runs.some(r => r.id === run.id))?.name || '';
+        const isDigitalProcess = DIGITAL_PROCESSES.includes(processName);
+
+        // Find next step if targetCode not provided
+        let nextCode = targetCode;
+        if (!nextCode) {
+            const steps = run?.lifecycle || [];
+            const idx = steps.findIndex((s: any) => s.code === currentCode);
+            if (idx !== -1 && idx < steps.length - 1) {
+                nextCode = steps[idx + 1].code;
+            }
+        }
+
+        // DIGITAL Role Constraints
+        if (hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
+            if (isDigitalProcess && currentCode === 'PRODUCTION' && nextCode === 'FUSING') {
+                return true;
+            }
+        }
+
+        // FUSING Role Constraints
+        if (hasPermission(Permission.RUNS_TRANSITION_FUSING)) {
+            if (currentCode === 'FUSING' || currentCode === 'CURING') {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    /* =================================================
        ACTIONS
        ================================================= */
 
@@ -237,6 +276,17 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
 
     const handleTransition = async (processId: string, runId: string, targetStatusCode?: string) => {
         if (!order) return;
+
+        // Find the run
+        const run = order.processes.find(p => p.id === processId)?.runs.find(r => r.id === runId);
+        if (!run) return;
+
+        const currentStatus = run.lifecycleStatus;
+        if (!getCanTransition(run, currentStatus, targetStatusCode)) {
+            alert('You do not have permission to perform this transition');
+            return;
+        }
+
         setUpdating(true);
         try {
             // Find the run to get its current values to pass to backend
@@ -291,7 +341,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
         }
     };
 
-    const { hasPermission } = useAuth();
+    const { user, hasPermission } = useAuth();
 
     /* =================================================
        UI GUARDS
@@ -755,7 +805,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                                 <RotateCcw className="w-4 h-4" />
                                                                                             </button>
                                                                                         )}
-                                                                                        {!isCurrent && !isCompleted && !isRunComplete && (
+                                                                                        {!isCurrent && !isCompleted && !isRunComplete && getCanTransition(run, run.lifecycleStatus, step.code) && (
                                                                                             <button
                                                                                                 onClick={() =>
                                                                                                     handleTransition(process.id, run.id, step.code)
@@ -771,7 +821,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                 </div>
 
                                                                                 {/* NEXT BUTTON */}
-                                                                                {isCurrent && !isCompleted && !isRunComplete && (
+                                                                                {isCurrent && !isCompleted && !isRunComplete && getCanTransition(run, run.lifecycleStatus) && (
                                                                                     <div className="mt-4 pt-4 border-t border-blue-200">
                                                                                         <button
                                                                                             onClick={() => handleTransition(process.id, run.id)}

@@ -28,7 +28,7 @@ function AdminOrdersContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const selectedOrderId = searchParams.get('selectedOrder');
-    const { hasPermission } = useAuth();
+    const { user, hasPermission } = useAuth();
 
     /* ================= STATE ================= */
 
@@ -75,7 +75,18 @@ function AdminOrdersContent() {
 
     useEffect(() => {
         setIsMounted(true);
-    }, []);
+
+        // Apply location restriction if applicable
+        const userLocation = user?.user?.location;
+        const hasGlobalView = hasPermission(Permission.LOCATIONS_ALL_VIEW);
+
+        if (userLocation && !hasGlobalView) {
+            setFilters(prev => ({
+                ...prev,
+                locationId: userLocation.id || userLocation.name
+            }));
+        }
+    }, [user, hasPermission]);
 
     // Debounce search input
     const debouncedSearchUpdate = useCallback(
@@ -218,11 +229,14 @@ function AdminOrdersContent() {
     };
 
     const handleClearFilters = () => {
+        const userLocation = user?.user?.location;
+        const hasGlobalView = hasPermission(Permission.LOCATIONS_ALL_VIEW);
+
         setFilters({
             status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'], // Reset to default interesting statuses
             dateRange: 'all',
             customerId: 'all',
-            locationId: 'all',
+            locationId: (userLocation && !hasGlobalView) ? (userLocation.id || userLocation.name) : 'all',
         });
         setOrdersData((prev) => ({ ...prev, page: 1 }));
     };

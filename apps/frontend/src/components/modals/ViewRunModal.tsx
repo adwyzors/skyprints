@@ -22,7 +22,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [configModalOpen, setConfigModalOpen] = useState(false);
-    const { hasPermission } = useAuth();
+    const { user, hasPermission } = useAuth();
 
     const router = useRouter(); // Moved to top
     const hasFetchedRef = useRef(false);
@@ -61,10 +61,56 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
     };
 
     /* =================================================
+       RBAC HELPERS
+       ================================================= */
+    const DIGITAL_PROCESSES = ['Sublimation', 'Plotter', 'DTF', 'Laser', 'Allover Sublimation'];
+
+    const getCanTransition = (currentCode: string, targetCode?: string) => {
+        // Full permission can do everything
+        if (hasPermission(Permission.RUNS_UPDATE)) return true;
+
+        const processName = run?.orderProcess?.name || '';
+        const isDigitalProcess = DIGITAL_PROCESSES.includes(processName);
+
+        // Find next step if targetCode not provided
+        let nextCode = targetCode;
+        if (!nextCode) {
+            const steps = run?.lifecycle || [];
+            const idx = steps.findIndex((s: any) => s.code === currentCode);
+            if (idx !== -1 && idx < steps.length - 1) {
+                nextCode = steps[idx + 1].code;
+            }
+        }
+
+        // DIGITAL Role Constraints
+        if (hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
+            if (isDigitalProcess && currentCode === 'PRODUCTION' && nextCode === 'FUSING') {
+                return true;
+            }
+        }
+
+        // FUSING Role Constraints
+        if (hasPermission(Permission.RUNS_TRANSITION_FUSING)) {
+            if (currentCode === 'FUSING' || currentCode === 'CURING') {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    /* =================================================
        ACTIONS
        ================================================= */
     const handleTransition = async (targetStatusCode?: string) => {
         if (!run) return;
+
+        const currentStatus = run.lifecycleStatus || run.lifeCycleStatusCode;
+        if (!getCanTransition(currentStatus, targetStatusCode)) {
+            alert('You do not have permission to perform this transition');
+            return;
+        }
+
         setUpdating(true);
         try {
             const currentStatus = run.lifecycleStatus || run.lifeCycleStatusCode;
@@ -324,7 +370,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                             {/* Skip/Rollback Action */}
                                                             {!isCurrent && (
                                                                 <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
-                                                                    {!isCompleted && (
+                                                                    {!isCompleted && getCanTransition(currentStepCode, step.code) && (
                                                                         <button
                                                                             onClick={() => handleTransition(step.code)}
                                                                             disabled={updating}
@@ -357,7 +403,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                         </p>
 
                                                         {/* CURRENT ACTION */}
-                                                        {isCurrent && (
+                                                        {isCurrent && getCanTransition(currentStepCode) && (
                                                             <button
                                                                 onClick={() => handleTransition()}
                                                                 disabled={updating}

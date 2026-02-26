@@ -1,7 +1,8 @@
-'use client';
-
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import SearchableCustomerSelect from '@/components/common/SearchableCustomerSelect';
 import { getCustomers } from '@/services/customer.service';
+import { getLocations } from '@/services/location.service';
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -10,6 +11,7 @@ interface OrdersFilterProps {
         status: string[];
         dateRange: string;
         customerId: string;
+        locationId: string;
     };
     onChange: (newFilters: any) => void;
     onClear: () => void;
@@ -18,14 +20,18 @@ interface OrdersFilterProps {
 
 export default function OrdersFilter({ filters, onChange, onClear, onClose }: OrdersFilterProps) {
     const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
+    const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
+    const { hasPermission } = useAuth();
 
     useEffect(() => {
         const fetchFilters = async () => {
             try {
-                const [custs] = await Promise.all([
-                    getCustomers()
+                const [custs, locs] = await Promise.all([
+                    getCustomers(),
+                    getLocations()
                 ]);
                 setCustomers(custs);
+                setLocations(locs);
             } catch (error) {
                 console.error("Failed to fetch filter data", error);
             }
@@ -73,6 +79,23 @@ export default function OrdersFilter({ filters, onChange, onClear, onClose }: Or
                         <option value="quarter">This Quarter</option>
                     </select>
                 </div>
+
+                {/* Location */}
+                {hasPermission(Permission.LOCATIONS_ALL_VIEW) && (
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Location</label>
+                        <select
+                            value={filters.locationId}
+                            onChange={(e) => onChange({ ...filters, locationId: e.target.value })}
+                            className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
+                        >
+                            <option value="all">All Locations</option>
+                            {locations.map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
 
                 {/* Customer */}
                 <div>

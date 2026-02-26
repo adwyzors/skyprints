@@ -15,6 +15,8 @@ export enum Permission {
     RUNS_DELETE = "runs:delete",
     RUNS_UPDATE = "runs:update",
     RUNS_LIFECYCLE_UPDATE = "runs:lifecycle:update",
+    RUNS_TRANSITION_DIGITAL = "runs:transition:digital",
+    RUNS_TRANSITION_FUSING = "runs:transition:fusing",
 
     RATES_VIEW = "rates:view",
     RATES_CREATE = "rates:create",
@@ -43,4 +45,5 @@ export enum Permission {
     LOCATIONS_CREATE = "locations:create",
     LOCATIONS_UPDATE = "locations:update",
     LOCATIONS_DELETE = "locations:delete",
+    LOCATIONS_ALL_VIEW = "locations:all:view",
 }

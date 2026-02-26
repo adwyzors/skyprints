@@ -1,5 +1,6 @@
 'use client';
 
+import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
 import Pagination from '@/components/common/Pagination';
@@ -68,7 +69,10 @@ interface Run {
     };
 }
 
+const DIGITAL_PROCESS_NAMES = ['Sublimation', 'Plotter', 'DTF', 'Laser', 'Allover Sublimation'];
+
 function RunsPageContent() {
+    const { user, hasPermission } = useAuth();
     const [runsData, setRunsData] = useState<{
         runs: Run[];
         total: number;
@@ -149,13 +153,45 @@ function RunsPageContent() {
             try {
                 const locs = await getLocations();
                 setProcesses(STATIC_PROCESSES);
-                setLocations(locs);
+
+                // If user has a specific location, filter the locations list and set the filter
+                const userLocation = user?.user?.location;
+                const hasGlobalView = hasPermission(Permission.LOCATIONS_ALL_VIEW);
+
+                if (userLocation && !hasGlobalView) {
+                    const filteredLocs = locs.filter((l: any) => l.id === userLocation.id || l.name === userLocation.name);
+                    setLocations(filteredLocs);
+                    if (filteredLocs.length > 0) {
+                        setFilters(prev => ({ ...prev, locationId: filteredLocs[0].id }));
+                    }
+                } else {
+                    setLocations(locs);
+                }
+
+                // Apply Digital/Fusing Role Defaults & Restrictions
+                const isDigital = hasPermission(Permission.RUNS_TRANSITION_DIGITAL);
+                const isFusing = hasPermission(Permission.RUNS_TRANSITION_FUSING);
+                const hasFullUpdate = hasPermission(Permission.RUNS_UPDATE);
+
+                if (!hasFullUpdate) {
+                    if (isDigital) {
+                        setFilters(prev => ({
+                            ...prev,
+                            lifeCycleStatus: ['PRODUCTION']
+                        }));
+                    } else if (isFusing) {
+                        setFilters(prev => ({
+                            ...prev,
+                            lifeCycleStatus: ['FUSING', 'CURING']
+                        }));
+                    }
+                }
             } catch (error) {
                 console.error("Failed to fetch filter options", error);
             }
         };
         fetchData();
-    }, []);
+    }, [user]);
 
     // Fetch Dynamic Statuses
     useEffect(() => {
@@ -477,21 +513,23 @@ function RunsPageContent() {
                             </div>
                         </div>
 
-                        {/* Location Pills */}
-                        <div className="flex items-center gap-2">
-                            {locations.map(loc => (
-                                <button
-                                    key={loc.id}
-                                    onClick={() => handleFilterChange('locationId', filters.locationId === loc.id ? 'all' : loc.id)}
-                                    className={`px-5 py-1.5 text-xs font-bold rounded-lg border transition-all ${filters.locationId === loc.id
-                                        ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-                                        }`}
-                                >
-                                    {loc.name}
-                                </button>
-                            ))}
-                        </div>
+                        {/* Location Pills - Only show if user has more than 1 location option (e.g. Admin) */}
+                        {locations.length > 1 && (
+                            <div className="flex items-center gap-2">
+                                {locations.map(loc => (
+                                    <button
+                                        key={loc.id}
+                                        onClick={() => handleFilterChange('locationId', filters.locationId === loc.id ? 'all' : loc.id)}
+                                        className={`px-5 py-1.5 text-xs font-bold rounded-lg border transition-all ${filters.locationId === loc.id
+                                            ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                                            }`}
+                                    >
+                                        {loc.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Process Dropdown */}
                         <div className="flex items-center gap-3">
@@ -507,9 +545,17 @@ function RunsPageContent() {
                                     className="w-full appearance-none pl-4 pr-10 py-2 text-xs font-bold bg-white border border-blue-200 text-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer hover:border-blue-400 transition-all shadow-sm"
                                 >
                                     <option value="all" className="text-gray-900 bg-white">Select Process</option>
-                                    {processes.map(p => (
-                                        <option key={p.id} value={p.id} className="text-gray-900 bg-white">{p.name}</option>
-                                    ))}
+                                    {processes
+                                        .filter(p => {
+                                            if (hasPermission(Permission.RUNS_UPDATE)) return true;
+                                            if (hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
+                                                return DIGITAL_PROCESS_NAMES.includes(p.name);
+                                            }
+                                            return true;
+                                        })
+                                        .map(p => (
+                                            <option key={p.id} value={p.id} className="text-gray-900 bg-white">{p.name}</option>
+                                        ))}
                                 </select>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500 pointer-events-none" />
                             </div>
@@ -529,9 +575,20 @@ function RunsPageContent() {
                                     className="w-full appearance-none pl-4 pr-10 py-2 text-xs font-bold bg-white border border-blue-200 text-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer hover:border-blue-400 transition-all shadow-sm disabled:opacity-50 disabled:bg-gray-50 disabled:border-gray-200 disabled:text-gray-400"
                                 >
                                     <option value="all" className="text-gray-900 bg-white">Select Status</option>
-                                    {lifecycleStatuses.map(s => (
-                                        <option key={s} value={s} className="text-gray-900 bg-white">{s}</option>
-                                    ))}
+                                    {lifecycleStatuses
+                                        .filter(s => {
+                                            if (hasPermission(Permission.RUNS_UPDATE)) return true;
+                                            if (hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
+                                                return s === 'PRODUCTION';
+                                            }
+                                            if (hasPermission(Permission.RUNS_TRANSITION_FUSING)) {
+                                                return s === 'FUSING' || s === 'CURING';
+                                            }
+                                            return true;
+                                        })
+                                        .map(s => (
+                                            <option key={s} value={s} className="text-gray-900 bg-white">{s}</option>
+                                        ))}
                                 </select>
                                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500 pointer-events-none" />
                             </div>
