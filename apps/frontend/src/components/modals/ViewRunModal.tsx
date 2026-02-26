@@ -93,16 +93,13 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                 setRun((prev: any) => {
                     if (!prev) return prev;
 
-                    const updatedLifecycle = (prev.lifecycle || []).map((step: any) => {
-                        // Mark steps before new status as completed
-                        const stepIndex = prev.lifecycle.findIndex((s: any) => s.code === step.code);
-                        const newStatusIndex = prev.lifecycle.findIndex((s: any) => s.code === nextStatusCode);
+                    const newStatusIndex = (prev.lifecycle || []).findIndex((s: any) => s.code === nextStatusCode);
 
-                        if (stepIndex < newStatusIndex) {
-                            return { ...step, completed: true };
-                        }
-                        // Current step is not completed yet (unless it's terminal, handled by backend usually but for UI we assume active)
-                        return step;
+                    const updatedLifecycle = (prev.lifecycle || []).map((step: any, index: number) => {
+                        return {
+                            ...step,
+                            completed: index < newStatusIndex
+                        };
                     });
 
                     return {

@@ -186,19 +186,12 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                     // Get current status before update
                                     const currentStatus = run.lifecycleStatus;
 
-                                    // Update lifecycle: mark all steps UP TO (but not including) the new status as completed
-                                    const lifecycle = run.lifecycle?.map((step: any) => {
-                                        if (run.lifecycle) {
-                                            const stepIndex = run.lifecycle.findIndex((s: any) => s.code === step.code);
-                                            const newStatusIndex = run.lifecycle.findIndex(
-                                                (s: any) => s.code === newStatus,
-                                            );
-                                            // Mark all steps BEFORE the new status as completed
-                                            if (stepIndex < newStatusIndex) {
-                                                return { ...step, completed: true };
-                                            }
-                                        }
-                                        return step;
+                                    const newStatusIndex = (run.lifecycle || []).findIndex((s: any) => s.code === newStatus);
+                                    const lifecycle = run.lifecycle?.map((step: any, index: number) => {
+                                        return {
+                                            ...step,
+                                            completed: index < newStatusIndex
+                                        };
                                     });
 
                                     return {
