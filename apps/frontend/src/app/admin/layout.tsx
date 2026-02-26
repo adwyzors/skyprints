@@ -39,7 +39,7 @@ const tabs = [
         path: '/admin/billing',
         icon: <CreditCard className="w-4 h-4" />,
         badge: null,
-        permission: Permission.BILLINGS_VIEW,
+        permission: Permission.RATES_VIEW,
     },
     {
         label: 'Billing Ready',

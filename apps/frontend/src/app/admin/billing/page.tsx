@@ -323,7 +323,7 @@ function BillingContent() {
     );
 }
 
-const ProtectedBillingContent = withAuth(BillingContent, { permission: Permission.BILLINGS_VIEW });
+const ProtectedBillingContent = withAuth(BillingContent, { permission: Permission.RATES_VIEW });
 
 export default function BillingPage() {
     return (
