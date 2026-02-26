@@ -709,7 +709,15 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                                         <Palette className="w-5 h-5" />
                                     </div>
                                     <div className="text-left">
-                                        <h3 className="font-semibold text-gray-900">Run {run.runNumber}</h3>
+                                        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                                            Run {run.runNumber}
+                                            {run.location && (
+                                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-normal flex items-center gap-1">
+                                                    <MapPin className="w-3 h-3" />
+                                                    {run.location.code}
+                                                </span>
+                                            )}
+                                        </h3>
                                         <div className="text-xs text-gray-500 flex gap-2">
                                             <span className={run.configStatus === 'COMPLETE' ? 'text-green-600 font-medium' : 'text-amber-600'}>{run.configStatus === 'COMPLETE' ? 'Configured' : 'Pending Configuration'}</span>
                                             <span>•</span>
