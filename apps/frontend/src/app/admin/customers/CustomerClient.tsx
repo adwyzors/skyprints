@@ -1,3 +1,5 @@
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import Pagination from '@/components/common/Pagination';
 import CustomerModal from '@/components/modals/CustomerModal';
 import { Customer } from '@/domain/model/customer.model';
@@ -30,10 +32,16 @@ export default function CustomerClient({
     refetch,
     loading,
 }: CustomerClientProps) {
+    const { hasPermission, hasAnyPermission } = useAuth();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(undefined);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const canCreate = hasPermission(Permission.CUSTOMERS_CREATE);
+    const canUpdate = hasPermission(Permission.CUSTOMERS_UPDATE);
+    const canDelete = hasPermission(Permission.CUSTOMERS_DELETE);
+    const canManage = hasAnyPermission([Permission.CUSTOMERS_UPDATE, Permission.CUSTOMERS_DELETE]);
 
     const handleCreateClick = () => {
         setSelectedCustomer(undefined);
@@ -41,6 +49,7 @@ export default function CustomerClient({
     };
 
     const handleEditClick = (customer: Customer) => {
+        if (!canUpdate) return;
         setSelectedCustomer(customer);
         setIsModalOpen(true);
     };
@@ -123,7 +132,7 @@ export default function CustomerClient({
 
                 <div className="flex items-center gap-3">
                     {/* BATCH ACTIONS */}
-                    {selectedIds.length > 0 && (
+                    {selectedIds.length > 0 && canDelete && (
                         <button
                             onClick={handleDeleteBulk}
                             disabled={isDeleting}
@@ -145,13 +154,15 @@ export default function CustomerClient({
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <button
-                        onClick={handleCreateClick}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span className="hidden sm:inline">New Customer</span>
-                    </button>
+                    {canCreate && (
+                        <button
+                            onClick={handleCreateClick}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span className="hidden sm:inline">New Customer</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -162,14 +173,16 @@ export default function CustomerClient({
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50 border-b border-gray-200">
                                 <tr>
-                                    <th className="px-6 py-4 w-10">
-                                        <input
-                                            type="checkbox"
-                                            checked={customersData.customers.length > 0 && selectedIds.length === customersData.customers.length}
-                                            onChange={toggleSelectAll}
-                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition-all"
-                                        />
-                                    </th>
+                                    {canManage && (
+                                        <th className="px-6 py-4 w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={customersData.customers.length > 0 && selectedIds.length === customersData.customers.length}
+                                                onChange={toggleSelectAll}
+                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition-all"
+                                            />
+                                        </th>
+                                    )}
                                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
                                         Code
                                     </th>
@@ -209,16 +222,18 @@ export default function CustomerClient({
                                             <tr
                                                 key={customer.id}
                                                 onClick={() => handleEditClick(customer)}
-                                                className={`hover:bg-blue-50/40 transition-colors group cursor-pointer ${isSelected ? 'bg-blue-50/60' : ''}`}
+                                                className={`hover:bg-blue-50/40 transition-colors group ${canUpdate ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'bg-blue-50/60' : ''}`}
                                             >
-                                                <td className="px-6 py-4" onClick={(e) => toggleSelect(customer.id, e)}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={() => { }} // handled by row/td click
-                                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition-all"
-                                                    />
-                                                </td>
+                                                {canManage && (
+                                                    <td className="px-6 py-4" onClick={(e) => toggleSelect(customer.id, e)}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() => { }} // handled by row/td click
+                                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition-all"
+                                                        />
+                                                    </td>
+                                                )}
                                                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-bold text-blue-600">
                                                     {customer.code}
                                                 </td>
@@ -258,13 +273,15 @@ export default function CustomerClient({
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right">
-                                                    <button
-                                                        onClick={(e) => handleDeleteSingle(customer.id, customer.name, e)}
-                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                        title="Delete Customer"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
+                                                    {canDelete && (
+                                                        <button
+                                                            onClick={(e) => handleDeleteSingle(customer.id, customer.name, e)}
+                                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                            title="Delete Customer"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );

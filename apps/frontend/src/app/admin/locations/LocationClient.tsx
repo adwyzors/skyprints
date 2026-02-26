@@ -1,5 +1,7 @@
 'use client';
 
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import Pagination from '@/components/common/Pagination';
 import { Location } from '@/domain/model/location.model';
 import { MapPin, Plus, Search } from 'lucide-react';
@@ -31,8 +33,12 @@ export default function LocationClient({
     refetch,
     loading,
 }: LocationClientProps) {
+    const { hasPermission } = useAuth();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState<Location | undefined>(undefined);
+
+    const canCreate = hasPermission(Permission.LOCATIONS_CREATE);
+    const canUpdate = hasPermission(Permission.LOCATIONS_UPDATE);
 
     const handleCreateClick = () => {
         setSelectedLocation(undefined);
@@ -40,6 +46,7 @@ export default function LocationClient({
     };
 
     const handleEditClick = (location: Location) => {
+        if (!canUpdate) return;
         setSelectedLocation(location);
         setIsModalOpen(true);
     };
@@ -76,13 +83,15 @@ export default function LocationClient({
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <button
-                        onClick={handleCreateClick}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span className="hidden sm:inline">New Location</span>
-                    </button>
+                    {canCreate && (
+                        <button
+                            onClick={handleCreateClick}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span className="hidden sm:inline">New Location</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -129,7 +138,7 @@ export default function LocationClient({
                                         <tr
                                             key={location.id}
                                             onClick={() => handleEditClick(location)}
-                                            className="hover:bg-blue-50/30 transition-colors group cursor-pointer"
+                                            className={`hover:bg-blue-50/30 transition-colors group ${canUpdate ? 'cursor-pointer' : 'cursor-default'}`}
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
                                                 {location.code}
