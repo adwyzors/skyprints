@@ -12,6 +12,7 @@ import {
     Circle,
     FastForward,
     FileText,
+    RotateCcw,
     Settings
 } from 'lucide-react';
 import ConfigurationModal from './ConfigurationModal';
@@ -746,6 +747,20 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                         )}
                                                                                         {isCompleted && (
                                                                                             <CheckCircle className="w-4 h-4 text-green-600" />
+                                                                                        )}
+                                                                                        {!isCurrent && isCompleted && hasPermission(Permission.RUNS_LIFECYCLE_UPDATE) && (
+                                                                                            <button
+                                                                                                onClick={() => {
+                                                                                                    if (confirm(`Are you sure you want to rollback to ${getStatusDisplayName(step.code)}?`)) {
+                                                                                                        handleTransition(process.id, run.id, step.code);
+                                                                                                    }
+                                                                                                }}
+                                                                                                disabled={updating}
+                                                                                                className="p-1 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                                                                                                title={`Rollback to ${getStatusDisplayName(step.code)}`}
+                                                                                            >
+                                                                                                <RotateCcw className="w-4 h-4" />
+                                                                                            </button>
                                                                                         )}
                                                                                         {!isCurrent && !isCompleted && !isRunComplete && (
                                                                                             <button

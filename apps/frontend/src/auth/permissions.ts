@@ -14,6 +14,7 @@ export enum Permission {
     RUNS_CREATE = "runs:create",
     RUNS_DELETE = "runs:delete",
     RUNS_UPDATE = "runs:update",
+    RUNS_LIFECYCLE_UPDATE = "runs:lifecycle:update",
 
     RATES_VIEW = "rates:view",
     RATES_CREATE = "rates:create",

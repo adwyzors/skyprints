@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from 'react';
 
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import { getRunById, transitionLifeCycle } from '@/services/run.service';
-import { ArrowRight, CheckCircle, ChevronRight, FastForward, Settings, User, X } from 'lucide-react';
+import { ArrowRight, CheckCircle, ChevronRight, FastForward, RotateCcw, Settings, User, X } from 'lucide-react';
 import Link from 'next/link';
 import RunConfigForm from '../runs/RunConfigForm';
 import ConfigurationModal from './ConfigurationModal';
@@ -20,6 +22,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [configModalOpen, setConfigModalOpen] = useState(false);
+    const { hasPermission } = useAuth();
 
     const router = useRouter(); // Moved to top
     const hasFetchedRef = useRef(false);
@@ -321,16 +324,34 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                                 {getStatusDisplayName(step.code)}
                                                             </h4>
 
-                                                            {/* Skip Action */}
-                                                            {!isCurrent && !isCompleted && (
-                                                                <button
-                                                                    onClick={() => handleTransition(step.code)}
-                                                                    disabled={updating}
-                                                                    className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                                    title="Skip to this step"
-                                                                >
-                                                                    <FastForward className="w-4 h-4" />
-                                                                </button>
+                                                            {/* Skip/Rollback Action */}
+                                                            {!isCurrent && (
+                                                                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
+                                                                    {!isCompleted && (
+                                                                        <button
+                                                                            onClick={() => handleTransition(step.code)}
+                                                                            disabled={updating}
+                                                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                                            title="Skip to this step"
+                                                                        >
+                                                                            <FastForward className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
+                                                                    {isCompleted && hasPermission(Permission.RUNS_LIFECYCLE_UPDATE) && (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                if (confirm(`Are you sure you want to rollback to ${getStatusDisplayName(step.code)}?`)) {
+                                                                                    handleTransition(step.code);
+                                                                                }
+                                                                            }}
+                                                                            disabled={updating}
+                                                                            className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
+                                                                            title="Rollback to this step"
+                                                                        >
+                                                                            <RotateCcw className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                             )}
                                                         </div>
 

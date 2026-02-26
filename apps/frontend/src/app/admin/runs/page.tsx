@@ -132,7 +132,7 @@ function RunsPageContent() {
     // Filter State
     const [filters, setFilters] = useState({
         status: ['COMPLETE'] as string[], // This maps to top-level run status
-        lifeCycleStatus: [] as string[],  // This maps to process-specific status
+        lifeCycleStatus: ['FUSING'] as string[],  // Default to Fusing
         orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'] as string[],
         priority: [] as string[],
         dateRange: 'all',
@@ -161,7 +161,8 @@ function RunsPageContent() {
     useEffect(() => {
         const fetchStatuses = async () => {
             if (!filters.processId || filters.processId === 'all') {
-                setLifecycleStatuses([]);
+                // If no process is selected, show common statuses that people might want to filter by
+                setLifecycleStatuses(['FUSING', 'COMPLETE', 'PENDING']);
                 return;
             }
             try {
@@ -170,6 +171,11 @@ function RunsPageContent() {
                     ? dynamicStatuses.map((s: any) => s.code || s.name)
                     : dynamicStatuses;
                 setLifecycleStatuses(normalized);
+
+                // If FUSING is available in the new process, auto-select it if nothing else is selected or if we want to stick with Fusing
+                if (normalized.includes('FUSING') && (filters.lifeCycleStatus.length === 0 || filters.lifeCycleStatus.includes('FUSING'))) {
+                    setFilters(prev => ({ ...prev, lifeCycleStatus: ['FUSING'] }));
+                }
             } catch (error) {
                 console.error("Failed to fetch dynamic statuses", error);
             }
@@ -515,7 +521,7 @@ function RunsPageContent() {
                             <div className="relative min-w-[180px]">
                                 <select
                                     value={filters.lifeCycleStatus[0] || 'all'}
-                                    disabled={!filters.processId || filters.processId === 'all'}
+                                    disabled={false} // Enable for all processes
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         handleFilterChange('lifeCycleStatus', val === 'all' ? [] : [val]);
