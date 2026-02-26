@@ -670,29 +670,31 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                 >
                                     Cancel
                                 </button>
-                                <button
-                                    onClick={finalizeBilling}
-                                    disabled={submitting}
-                                    className={`px-8 py-3 font-medium rounded-xl transition-all flex items-center gap-3 ${!submitting
-                                        ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl'
-                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                        }`}
-                                >
-                                    {submitting ? (
-                                        <>
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                            <span>Processing...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <IndianRupee className="w-5 h-5" />
-                                            <div className="text-left">
-                                                <div className="font-bold">Finalize Billing</div>
-                                                <div className="text-xs opacity-90">₹{totalAmount.toLocaleString()}</div>
-                                            </div>
-                                        </>
-                                    )}
-                                </button>
+                                {hasPermission(Permission.RATES_UPDATE) && (
+                                    <button
+                                        onClick={finalizeBilling}
+                                        disabled={submitting}
+                                        className={`px-8 py-3 font-medium rounded-xl transition-all flex items-center gap-3 ${!submitting
+                                            ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl'
+                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                            }`}
+                                    >
+                                        {submitting ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                <span>Processing...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <IndianRupee className="w-5 h-5" />
+                                                <div className="text-left">
+                                                    <div className="font-bold">Finalize Billing</div>
+                                                    <div className="text-xs opacity-90">₹{totalAmount.toLocaleString()}</div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
