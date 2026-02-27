@@ -285,11 +285,12 @@ function RunsPageContent() {
                     }
                 }
 
-                // Determine process restricting for Digital role
-                let processIdParam = filters.processId;
                 const isDigitalUser = hasPermission(Permission.RUNS_TRANSITION_DIGITAL);
 
-                if (isDigitalUser && filters.processId === 'all') {
+                // Determine process restricting for Digital role
+                let processIdParam = filters.processId;
+
+                if (isDigitalUser && (filters.processId === 'all' || !filters.processId)) {
                     // Include all digital processes + Embellishment (which we'll sub-filter)
                     processIdParam = [...DIGITAL_PROCESS_NAMES, 'Embellishment'] as any;
                 }

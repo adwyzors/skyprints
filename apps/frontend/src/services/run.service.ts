@@ -102,7 +102,9 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
     const appendParam = (key: string, value?: string | string[]) => {
         if (!value) return;
         if (Array.isArray(value)) {
-            if (value.length > 0) queryParams.append(key, value.join(','));
+            value.forEach(v => {
+                if (v) queryParams.append(key, v);
+            });
         } else {
             queryParams.append(key, value);
         }
@@ -116,9 +118,12 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
     if (params.executorUserId && params.executorUserId !== 'all') queryParams.append('executorUserId', params.executorUserId);
     if (params.reviewerUserId && params.reviewerUserId !== 'all') queryParams.append('reviewerUserId', params.reviewerUserId);
     if (params.assignedUserId) queryParams.append('assignedUserId', params.assignedUserId);
-    if (params.customerId && params.customerId !== 'all') queryParams.append('customerId', params.customerId);
-    if (params.processId && params.processId !== 'all') queryParams.append('processId', params.processId);
-    if (params.locationId && params.locationId !== 'all') queryParams.append('locationId', params.locationId);
+
+    // Use appendParam for these to handle arrays if they ever become arrays, 
+    // and to benefit from the 'all' check logic if added there (optional)
+    if (params.customerId && params.customerId !== 'all') appendParam('customerId', params.customerId);
+    if (params.processId && params.processId !== 'all') appendParam('processId', params.processId);
+    if (params.locationId && params.locationId !== 'all') appendParam('locationId', params.locationId);
 
     if (params.createdFrom) queryParams.append('createdFrom', params.createdFrom);
     if (params.createdTo) queryParams.append('createdTo', params.createdTo);
