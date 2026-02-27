@@ -70,7 +70,11 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
         if (hasPermission(Permission.RUNS_LIFECYCLE_UPDATE)) return true;
 
         const processName = run?.orderProcess?.name || '';
-        const isDigitalProcess = DIGITAL_PROCESSES.includes(processName);
+
+        // Embellishment process can be digital if its internal "Process Name" value reflects a digital process
+        const internalProcessName = run?.fields?.['Process Name'] || run?.values?.['Process Name'] || '';
+        const isDigitalProcess = DIGITAL_PROCESSES.includes(processName) ||
+            (processName === 'Embellishment' && DIGITAL_PROCESSES.includes(internalProcessName));
 
         // Find next step if targetCode not provided
         let nextCode = targetCode;
@@ -91,7 +95,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
 
         // FUSING Role Constraints
         if (hasPermission(Permission.RUNS_TRANSITION_FUSING)) {
-            if (currentCode === 'FUSING' || currentCode === 'CURING') {
+            if (isDigitalProcess && (currentCode === 'FUSING' || currentCode === 'CURING')) {
                 return true;
             }
         }

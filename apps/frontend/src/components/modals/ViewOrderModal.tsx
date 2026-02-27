@@ -220,7 +220,11 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
         if (hasPermission(Permission.RUNS_LIFECYCLE_UPDATE)) return true;
 
         const processName = (order?.processes || []).find(p => p.runs.some(r => r.id === run.id))?.name || '';
-        const isDigitalProcess = DIGITAL_PROCESSES.includes(processName);
+
+        // Embellishment process can be digital if its internal "Process Name" value reflects a digital process
+        const internalProcessName = run.values?.['Process Name'] || run.fields?.['Process Name'] || '';
+        const isDigitalProcess = DIGITAL_PROCESSES.includes(processName) ||
+            (processName === 'Embellishment' && DIGITAL_PROCESSES.includes(internalProcessName));
 
         // Find next step if targetCode not provided
         let nextCode = targetCode;
@@ -241,7 +245,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
 
         // FUSING Role Constraints
         if (hasPermission(Permission.RUNS_TRANSITION_FUSING)) {
-            if (currentCode === 'FUSING' || currentCode === 'CURING') {
+            if (isDigitalProcess && (currentCode === 'FUSING' || currentCode === 'CURING')) {
                 return true;
             }
         }
