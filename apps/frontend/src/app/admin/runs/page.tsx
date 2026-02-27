@@ -285,6 +285,15 @@ function RunsPageContent() {
                     }
                 }
 
+                // Determine process restricting for Digital role
+                let processIdParam = filters.processId;
+                const isDigitalUser = hasPermission(Permission.RUNS_TRANSITION_DIGITAL);
+
+                if (isDigitalUser && filters.processId === 'all') {
+                    // Include all digital processes + Embellishment (which we'll sub-filter)
+                    processIdParam = [...DIGITAL_PROCESS_NAMES, 'Embellishment'] as any;
+                }
+
                 const res = await getRuns({
                     page: runsData.page,
                     limit: pageSize,
@@ -295,7 +304,7 @@ function RunsPageContent() {
                     customerId: filters.customerId,
                     executorUserId: filters.executorId,
                     reviewerUserId: filters.reviewerId,
-                    processId: filters.processId,
+                    processId: processIdParam,
                     locationId: filters.locationId,
                     orderStatus: filters.orderStatus,
                     createdFrom,
@@ -303,12 +312,32 @@ function RunsPageContent() {
                 });
 
                 if (!cancelled) {
+                    let finalRuns = res.runs || [];
+
+                    // Sub-filter Embellishment runs for Digital role
+                    if (isDigitalUser) {
+                        finalRuns = finalRuns.filter(run => {
+                            const processName = run.orderProcess?.name || '';
+                            const internalProcessName = run.fields?.['Process Name'] || run.fields?.process_name || '';
+
+                            // If it's one of the primary digital processes, show it
+                            if (DIGITAL_PROCESS_NAMES.includes(processName)) return true;
+
+                            // If it's Embellishment, only show if the internal process is digital
+                            if (processName === 'Embellishment') {
+                                return DIGITAL_PROCESS_NAMES.includes(internalProcessName);
+                            }
+
+                            return false;
+                        });
+                    }
+
                     setRunsData(prev => ({
                         ...prev,
-                        runs: res.runs || [],
+                        runs: finalRuns,
                         total: res.total || 0,
                         totalPages: res.totalPages || 0,
-                        totalEstimatedAmount: res.totalEstimatedAmount,
+                        totalEstimatedAmount: res.totalEstimatedAmount || 0,
                         totalQuantity: res.totalQuantity || 0
                     }));
                 }

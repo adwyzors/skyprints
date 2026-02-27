@@ -25,10 +25,13 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
     const orderCode = typeof rawOrderCode === 'object' ? (rawOrderCode as any).code : rawOrderCode;
     const customerName = run.orderProcess?.order?.customer?.name;
     const processName = run.orderProcess?.name;
+    const internalProcessName = run.fields?.['Process Name'] || run.fields?.process_name;
     const rawName = run.runTemplate?.name || 'Process Run';
     let displayName = rawName.replace(/ Template$/i, '');
 
-    if (processName && (processName.toLowerCase().includes('embellishment') || rawName.toLowerCase().includes('embellishment'))) {
+    if (processName === 'Embellishment' || rawName.includes('Embellishment')) {
+        displayName = internalProcessName || processName;
+    } else if (processName) {
         displayName = processName;
     }
 
