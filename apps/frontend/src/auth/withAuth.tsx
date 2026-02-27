@@ -1,9 +1,10 @@
 "use client";
 
+import { ADMIN_TABS } from "@/config/navigation";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import { redirectToLogin } from "./authClient";
-import { useAuth } from "./useAuth";
+import { useAuth } from "./AuthProvider";
 
 type WithAuthOptions = {
     permission?: string;
@@ -29,12 +30,22 @@ export function withAuth<P extends object>(
 
             if (
                 options?.permission &&
-                !hasPermission(options.permission)
+                !hasPermission(options.permission as any)
             ) {
                 console.warn("[AUTH] Permission denied", options.permission);
-                router.replace("/403");
+
+                // Try to find the first authorized tab as a fallback
+                const firstAllowedTab = ADMIN_TABS.find(tab =>
+                    !tab.permission || hasPermission(tab.permission as any)
+                );
+
+                if (firstAllowedTab && firstAllowedTab.path !== pathname) {
+                    router.replace(firstAllowedTab.path);
+                } else {
+                    router.replace("/403");
+                }
             }
-        }, [loading, isAuthenticated, pathname, router]);
+        }, [loading, isAuthenticated, pathname, router, hasPermission]);
 
         if (loading) return null;
         if (!isAuthenticated) return null;

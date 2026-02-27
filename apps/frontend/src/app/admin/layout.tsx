@@ -1,82 +1,16 @@
 'use client';
 
 import { useAuth } from '@/auth/AuthProvider';
-import { Permission } from '@/auth/permissions';
 import RoleGuard from '@/auth/RoleGuard';
 import AppHeader from '@/components/layout/AppHeader';
 import {
-    Activity,
-    BarChart3,
-    CheckCircle,
     ChevronLeft,
-    ChevronUp,
-    CreditCard,
-    FileText,
-    MapPin,
-    Package,
-    Users
+    ChevronUp
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-const tabs = [
-    {
-        label: 'Dashboard',
-        path: '/admin/dashboard',
-        icon: <BarChart3 className="w-4 h-4" />,
-        badge: null,
-        permission: Permission.ANALYTICS_VIEW,
-    },
-    {
-        label: 'Orders',
-        path: '/admin/orders',
-        icon: <Package className="w-4 h-4" />,
-        badge: null,
-        permission: Permission.ORDERS_VIEW,
-    },
-    {
-        label: 'Rate Confirmation',
-        path: '/admin/billing',
-        icon: <CreditCard className="w-4 h-4" />,
-        badge: null,
-        permission: Permission.RATES_VIEW,
-    },
-    {
-        label: 'Billing Ready',
-        path: '/admin/completed',
-        icon: <CheckCircle className="w-4 h-4" />,
-        badge: null,
-        permission: Permission.BILLINGS_VIEW,
-    },
-    {
-        label: 'Bills',
-        path: '/admin/bills',
-        icon: <FileText className="w-4 h-4" />,
-        badge: null,
-        permission: Permission.BILLINGS_VIEW,
-    },
-    {
-        label: 'Run Activity',
-        path: '/admin/runs',
-        icon: <Activity className="w-4 h-4" />,
-        badge: null,
-        permission: Permission.RUNS_VIEW,
-    },
-    {
-        label: 'Customers',
-        path: '/admin/customers',
-        icon: <Users className="w-4 h-4" />,
-        badge: null,
-        permission: Permission.CUSTOMERS_VIEW,
-    },
-    {
-        label: 'Locations',
-        path: '/admin/locations',
-        icon: <MapPin className="w-4 h-4" />,
-        badge: null,
-        permission: Permission.LOCATIONS_VIEW,
-    },
-];
+import { ADMIN_TABS } from '@/config/navigation';
 
 
 
@@ -88,7 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const filteredTabs = useMemo(() => {
-        return tabs.filter(tab => !tab.permission || hasPermission(tab.permission));
+        return ADMIN_TABS.filter(tab => !tab.permission || hasPermission(tab.permission as any));
     }, [hasPermission]);
 
     // Wait for hydration to complete

@@ -1,5 +1,6 @@
 'use client';
 
+import { ADMIN_TABS } from '@/config/navigation';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from './AuthProvider';
@@ -11,7 +12,7 @@ interface RoleGuardProps {
 }
 
 export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
-    const { user, loading, isAuthenticated } = useAuth();
+    const { user, loading, isAuthenticated, hasPermission } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
@@ -29,13 +30,22 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
                 if (userRole === 'MANAGER') {
                     router.replace('/manager/runs');
                 } else if (userRole === 'ADMIN') {
-                    router.replace('/admin/orders'); // Default admin landing
+                    // Try to find the first authorized tab as a fallback
+                    const firstAllowedTab = ADMIN_TABS.find(tab =>
+                        !tab.permission || hasPermission(tab.permission as any)
+                    );
+
+                    if (firstAllowedTab) {
+                        router.replace(firstAllowedTab.path);
+                    } else {
+                        router.replace('/admin/runs'); // Logic fallback
+                    }
                 } else {
                     router.replace('/403');
                 }
             }
         }
-    }, [loading, isAuthenticated, user, allowedRoles, router]);
+    }, [loading, isAuthenticated, user, allowedRoles, router, hasPermission]);
 
     if (loading) {
         return (
