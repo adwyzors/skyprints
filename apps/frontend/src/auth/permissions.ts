@@ -14,6 +14,7 @@ export enum Permission {
     RUNS_CREATE = "runs:create",
     RUNS_DELETE = "runs:delete",
     RUNS_UPDATE = "runs:update",
+    RUNS_LIFECYCLE_ROLLBACK = "runs:lifecycle:rollback",
     RUNS_LIFECYCLE_UPDATE = "runs:lifecycle:update",
     RUNS_TRANSITION_DIGITAL = "runs:transition:digital",
     RUNS_TRANSITION_FUSING = "runs:transition:fusing",

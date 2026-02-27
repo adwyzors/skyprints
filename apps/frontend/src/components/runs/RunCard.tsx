@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, CheckCircle, ChevronRight, Clock, IndianRupee, Package, User, Users } from 'lucide-react';
+import { Activity, CheckCircle, ChevronRight, Clock, IndianRupee, MapPin, Package, User, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -42,6 +42,7 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
     const executorName = run.executor?.name;
     const reviewerName = run.reviewer?.name;
     const priority = run.priority;
+    const locationCode = run.location?.code;
 
     // Helper for status configuration
     const getStatusConfig = (status: string) => {
@@ -197,8 +198,14 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
                 <div className="p-4 space-y-3 flex-1 flex flex-col bg-white">
                     {/* Header: Title */}
                     <div>
-                        <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate text-[15px]">
-                            {displayName} <span className="text-gray-400 font-normal">#{runNumber}</span>
+                        <h3 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate text-[15px] flex items-center gap-2">
+                            <span>{displayName} <span className="text-gray-400 font-normal">#{runNumber}</span></span>
+                            {locationCode && (
+                                <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                                    <MapPin className="w-2.5 h-2.5" />
+                                    {locationCode}
+                                </span>
+                            )}
                         </h3>
                         <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                             <span className="font-medium text-gray-700">{orderCode.split("/")[0]}</span>

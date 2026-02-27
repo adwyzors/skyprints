@@ -508,7 +508,15 @@ export default function SpangleConfig({
                                         <Palette className="w-5 h-5" />
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-gray-900">Run {run.runNumber}</h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-gray-900">Run {run.runNumber}</h3>
+                                            {run.location && (
+                                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                    <MapPin className="w-3 h-3" />
+                                                    {run.location.code}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="text-xs text-gray-500">{run.configStatus === 'COMPLETE' ? 'Configured' : 'Pending'} • {run.lifecycleStatus}</div>
                                     </div>
                                 </div>

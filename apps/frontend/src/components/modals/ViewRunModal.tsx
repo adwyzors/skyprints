@@ -380,7 +380,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                                             <FastForward className="w-4 h-4" />
                                                                         </button>
                                                                     )}
-                                                                    {isCompleted && hasPermission(Permission.RUNS_LIFECYCLE_UPDATE) && (
+                                                                    {isCompleted && hasPermission(Permission.RUNS_LIFECYCLE_ROLLBACK) && (
                                                                         <button
                                                                             onClick={() => {
                                                                                 if (confirm(`Are you sure you want to rollback to ${getStatusDisplayName(step.code)}?`)) {

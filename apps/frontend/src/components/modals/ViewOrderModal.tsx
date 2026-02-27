@@ -791,7 +791,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                         {isCompleted && (
                                                                                             <CheckCircle className="w-4 h-4 text-green-600" />
                                                                                         )}
-                                                                                        {!isCurrent && isCompleted && hasPermission(Permission.RUNS_LIFECYCLE_UPDATE) && (
+                                                                                        {!isCurrent && isCompleted && hasPermission(Permission.RUNS_LIFECYCLE_ROLLBACK) && (
                                                                                             <button
                                                                                                 onClick={() => {
                                                                                                     if (confirm(`Are you sure you want to rollback to ${getStatusDisplayName(step.code)}?`)) {

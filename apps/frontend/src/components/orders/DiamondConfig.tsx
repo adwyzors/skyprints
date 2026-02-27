@@ -2,6 +2,7 @@ import {
     CheckCircle,
     ChevronRight,
     Edit,
+    MapPin,
     Palette,
     Plus,
     Trash2,
@@ -774,6 +775,12 @@ export default function DiamondConfig({
                                     <div className="flex items-center gap-2">
                                         <div className={`w-2 h-2 rounded-full ${run.configStatus === 'COMPLETE' ? 'bg-green-500' : 'bg-yellow-500'}`} />
                                         <span className="font-medium text-sm">Run {run.runNumber}</span>
+                                        {run.location && (
+                                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                <MapPin className="w-3 h-3" />
+                                                {run.location.code}
+                                            </span>
+                                        )}
                                         {run.configStatus === 'COMPLETE' && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Configured</span>}
                                     </div>
                                     <ChevronRight className="w-4 h-4 text-gray-400" />

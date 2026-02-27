@@ -763,6 +763,12 @@ export default function PlotterConfig({
                                     <div onClick={() => setOpenRunId(run.id)} className="flex items-center gap-2 flex-1">
                                         <div className={`w-2 h-2 rounded-full ${run.configStatus === 'COMPLETE' ? 'bg-green-500' : 'bg-yellow-500'}`} />
                                         <span className="font-medium text-sm">Run {run.runNumber}</span>
+                                        {run.location && (
+                                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                <MapPin className="w-3 h-3" />
+                                                {run.location.code}
+                                            </span>
+                                        )}
                                         {run.configStatus === 'COMPLETE' && (
                                             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
                                                 <CheckCircle className="w-3 h-3" /> Configured

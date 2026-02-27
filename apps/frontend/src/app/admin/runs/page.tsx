@@ -27,6 +27,7 @@ import {
     Clock,
     Filter,
     Loader2,
+    MapPin,
     Search,
     User
 } from 'lucide-react';
@@ -60,6 +61,11 @@ interface Run {
     };
     reviewer?: {
         name: string;
+    };
+    location?: {
+        id: string;
+        name: string;
+        code: string;
     };
     fields: {
         Quantity?: number;
@@ -726,6 +732,12 @@ function RunsPageContent() {
                                                             <div className="flex items-center gap-2 text-gray-700 font-semibold">
                                                                 <Activity className="w-3.5 h-3.5 text-blue-400" />
                                                                 {displayName}
+                                                                {run.location && (
+                                                                    <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                                                                        <MapPin className="w-2.5 h-2.5 text-gray-400" />
+                                                                        {run.location.code}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-500 font-medium">
