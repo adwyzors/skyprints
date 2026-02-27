@@ -67,7 +67,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
 
     const getCanTransition = (currentCode: string, targetCode?: string) => {
         // Full permission can do everything
-        if (hasPermission(Permission.RUNS_UPDATE)) return true;
+        if (hasPermission(Permission.RUNS_LIFECYCLE_UPDATE)) return true;
 
         const processName = run?.orderProcess?.name || '';
         const isDigitalProcess = DIGITAL_PROCESSES.includes(processName);
