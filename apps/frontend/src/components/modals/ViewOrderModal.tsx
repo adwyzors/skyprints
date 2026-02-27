@@ -217,7 +217,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
 
     const getCanTransition = (run: any, currentCode: string, targetCode?: string) => {
         // Full permission can do everything
-        if (hasPermission(Permission.RUNS_UPDATE)) return true;
+        if (hasPermission(Permission.RUNS_LIFECYCLE_UPDATE)) return true;
 
         const processName = (order?.processes || []).find(p => p.runs.some(r => r.id === run.id))?.name || '';
         const isDigitalProcess = DIGITAL_PROCESSES.includes(processName);
