@@ -1,5 +1,7 @@
 'use client';
 
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import SearchableCustomerSelect from '@/components/common/SearchableCustomerSelect';
 import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
 import SearchableManagerSelect from '@/components/common/SearchableManagerSelect';
@@ -32,12 +34,15 @@ interface RunsFilterProps {
 }
 
 export default function RunsFilter({ filters, onChange, onClear, onClose }: RunsFilterProps) {
+    const { hasPermission } = useAuth();
     const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
     const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
     const [processes, setProcesses] = useState<ProcessSummary[]>(STATIC_PROCESSES);
     const [locations, setLocations] = useState<Location[]>([]);
     const [statuses, setStatuses] = useState<string[]>(['PENDING', 'CONFIGURE', 'DESIGN', 'IN_PROGRESS', 'PRODUCTION_READY', 'COMPLETE']);
     const [loadingStatuses, setLoadingStatuses] = useState(false);
+
+    const DIGITAL_PROCESS_NAMES = ['Sublimation', 'Plotter', 'DTF', 'Laser', 'Allover Sublimation'];
 
     const orderStatusOptions = [
         { value: 'CONFIGURE', label: 'To Configure', color: 'purple' },
@@ -161,29 +166,37 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
             <div className="space-y-6 flex-1 overflow-y-auto pr-2 scrollbar-hide">
 
                 {/* Order Status */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Order Status</label>
-                    <div className="flex flex-wrap gap-2">
-                        {orderStatusOptions.map(option => (
-                            <button
-                                key={option.value}
-                                onClick={() => handleOrderStatusChange(option.value)}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filters.orderStatus.includes(option.value)
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-                                    }`}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
+                {!hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING) && (
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Order Status</label>
+                        <div className="flex flex-wrap gap-2">
+                            {orderStatusOptions.map(option => (
+                                <button
+                                    key={option.value}
+                                    onClick={() => handleOrderStatusChange(option.value)}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filters.orderStatus.includes(option.value)
+                                        ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                                        }`}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Process */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Process</label>
                     <SearchableProcessSelect
-                        processes={processes}
+                        processes={processes.filter(p => {
+                            if (hasPermission(Permission.RUNS_UPDATE)) return true;
+                            if (hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
+                                return DIGITAL_PROCESS_NAMES.includes(p.name);
+                            }
+                            return true;
+                        })}
                         selectedProcessId={filters.processId || null}
                         onSelect={(id: string) => handleProcessChange(id)}
                         placeholder="Search processes..."
@@ -192,8 +205,8 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                     />
                 </div>
 
-                {/* Status - Only show if process is selected */}
-                {filters.processId && filters.processId !== 'all' && (
+                {/* Status - Only show if process is selected and user is not restricted */}
+                {filters.processId && filters.processId !== 'all' && !hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING) && (
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
                             Status

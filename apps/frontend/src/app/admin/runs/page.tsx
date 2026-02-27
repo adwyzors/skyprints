@@ -142,7 +142,7 @@ function RunsPageContent() {
     // Filter State
     const [filters, setFilters] = useState({
         status: ['COMPLETE'] as string[], // This maps to top-level run status
-        lifeCycleStatus: ['FUSING'] as string[],  // Default to Fusing
+        lifeCycleStatus: [] as string[],
         orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'] as string[],
         priority: [] as string[],
         dateRange: 'all',
@@ -152,6 +152,26 @@ function RunsPageContent() {
         processId: 'all',
         locationId: 'all',
     });
+
+    // Restrict filters for specific roles
+    useEffect(() => {
+        if (!user) return;
+
+        if (hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
+            setFilters(prev => ({
+                ...prev,
+                status: ['COMPLETE'],
+                orderStatus: ['IN_PRODUCTION'],
+                lifeCycleStatus: ['PRODUCTION'],
+            }));
+        } else if (hasPermission(Permission.RUNS_TRANSITION_FUSING)) {
+            setFilters(prev => ({
+                ...prev,
+                status: ['COMPLETE'],
+                lifeCycleStatus: ['FUSING', 'CURING'],
+            }));
+        }
+    }, [user?.roles]);
 
     // Fetch Filter Data
     useEffect(() => {
@@ -215,7 +235,8 @@ function RunsPageContent() {
                 setLifecycleStatuses(normalized);
 
                 // If FUSING is available in the new process, auto-select it if nothing else is selected or if we want to stick with Fusing
-                if (normalized.includes('FUSING') && (filters.lifeCycleStatus.length === 0 || filters.lifeCycleStatus.includes('FUSING'))) {
+                // Only if not a Digital user who should stay on PRODUCTION
+                if (normalized.includes('FUSING') && (filters.lifeCycleStatus.length === 0 || filters.lifeCycleStatus.includes('FUSING')) && !hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
                     setFilters(prev => ({ ...prev, lifeCycleStatus: ['FUSING'] }));
                 }
             } catch (error) {
@@ -314,18 +335,46 @@ function RunsPageContent() {
     };
 
     const handleClearFilters = () => {
-        setFilters({
-            status: ['COMPLETE'],
-            lifeCycleStatus: [],
-            orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'],
-            priority: [],
-            dateRange: 'all',
-            customerId: 'all',
-            executorId: 'all',
-            reviewerId: 'all',
-            processId: 'all',
-            locationId: 'all'
-        });
+        if (hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
+            setFilters({
+                status: ['COMPLETE'],
+                lifeCycleStatus: ['PRODUCTION'],
+                orderStatus: ['IN_PRODUCTION'],
+                priority: [],
+                dateRange: 'all',
+                customerId: 'all',
+                executorId: 'all',
+                reviewerId: 'all',
+                processId: 'all',
+                locationId: 'all'
+            });
+        } else if (hasPermission(Permission.RUNS_TRANSITION_FUSING)) {
+            setFilters({
+                status: ['COMPLETE'],
+                lifeCycleStatus: ['FUSING', 'CURING'],
+                orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'],
+                priority: [],
+                dateRange: 'all',
+                customerId: 'all',
+                executorId: 'all',
+                reviewerId: 'all',
+                processId: 'all',
+                locationId: 'all'
+            });
+        } else {
+            setFilters({
+                status: ['COMPLETE'],
+                lifeCycleStatus: [],
+                orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'],
+                priority: [],
+                dateRange: 'all',
+                customerId: 'all',
+                executorId: 'all',
+                reviewerId: 'all',
+                processId: 'all',
+                locationId: 'all'
+            });
+        }
         setRunsData((prev) => ({ ...prev, page: 1 }));
     };
 
@@ -492,32 +541,36 @@ function RunsPageContent() {
                 <div className="flex-shrink-0 z-20 bg-white border-b border-gray-100 px-4 py-3">
                     <div className="flex flex-wrap items-center gap-8">
                         {/* Status Pills */}
-                        <div className="flex items-center gap-3 text-gray-400">
-                            <span className="text-[10px] font-bold uppercase tracking-widest">Status:</span>
-                            <div className="flex gap-2">
-                                {[
-                                    { value: 'CONFIGURE', label: 'To Configure' },
-                                    { value: 'COMPLETE', label: 'Complete' }
-                                ].map(opt => (
-                                    <button
-                                        key={opt.value}
-                                        onClick={() => {
-                                            const current = filters.status;
-                                            const next = current.includes(opt.value)
-                                                ? current.filter(s => s !== opt.value)
-                                                : [...current, opt.value];
-                                            handleFilterChange('status', next);
-                                        }}
-                                        className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition-all ${filters.status.includes(opt.value)
-                                            ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
+                        {!hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING) && (
+                            <div className="flex items-center gap-3 text-gray-400">
+                                <span className="text-[10px] font-bold uppercase tracking-widest">Status:</span>
+                                <div className="flex gap-2">
+                                    {[
+                                        { value: 'CONFIGURE', label: 'To Configure' },
+                                        { value: 'PRODUCTION_READY', label: 'Ready' },
+                                        { value: 'IN_PRODUCTION', label: 'In Production' },
+                                        { value: 'COMPLETE', label: 'Complete' }
+                                    ].map(opt => (
+                                        <button
+                                            key={opt.value}
+                                            onClick={() => {
+                                                const current = filters.status;
+                                                const next = current.includes(opt.value)
+                                                    ? current.filter(s => s !== opt.value)
+                                                    : [...current, opt.value];
+                                                handleFilterChange('status', next);
+                                            }}
+                                            className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition-all ${filters.status.includes(opt.value)
+                                                ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                                                }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Location Pills - Only show if user has more than 1 location option (e.g. Admin) */}
                         {locations.length > 1 && (
@@ -573,7 +626,7 @@ function RunsPageContent() {
                             <div className="relative min-w-[180px]">
                                 <select
                                     value={filters.lifeCycleStatus[0] || 'all'}
-                                    disabled={false} // Enable for all processes
+                                    disabled={hasPermission(Permission.RUNS_TRANSITION_DIGITAL)}
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         handleFilterChange('lifeCycleStatus', val === 'all' ? [] : [val]);
