@@ -567,7 +567,7 @@ function OrderConfigPage() {
                                                 });
                                             }}
                                         />
-                                    ) : process.name === 'DTF' ? (
+                                    ) : process.name === 'DTF' || process.name === 'Direct to Film (DTF)' ? (
                                         <DTFConfig
                                             key={process.id}
                                             order={{ ...order, processes: [process] }}
