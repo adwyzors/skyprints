@@ -541,7 +541,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                 );
                                             })}
                                         </div>
-                                    ) : process.name === 'DTF' ? (
+                                    ) : process.name === 'DTF' || process.name === 'Direct to Film (DTF)'  ? (
                                         <div className="divide-y divide-gray-100">
                                             {process.runs.map((run) => {
                                                 const values = run.values || {};
