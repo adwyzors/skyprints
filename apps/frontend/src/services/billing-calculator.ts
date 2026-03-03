@@ -60,8 +60,8 @@ export const getRunBillingMetrics = (
             0;
     }
 
-    // 2. Fallback to Legacy Hardcoded Logic if no formula or quantity not found
-    if (quantity === 0 && !formula) {
+    // 2. Fallback to Legacy Hardcoded Logic if no quantity found
+    if (quantity === 0) {
         // Parse items if stringified
         const items = Array.isArray(values?.items)
             ? values.items
@@ -71,50 +71,51 @@ export const getRunBillingMetrics = (
 
         switch (processName) {
             case 'Allover Sublimation':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity || i.pcs || i.qty) || 0), 0) || orderQuantity;
+                amount = Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['totalAmount']) || Number(values['estimated_amount']) || 0;
                 break;
             case 'Sublimation':
                 // Sum of all 4 columns for all rows
                 quantity = items.reduce((sum: number, i: any) => {
                     const rowSum = Array.isArray(i.quantities)
                         ? i.quantities.reduce((rs: number, q: any) => rs + (Number(q) || 0), 0)
-                        : 0;
+                        : (Number(i.quantity || i.pcs || i.qty) || 0);
                     return sum + rowSum;
-                }, 0);
-                amount = Number(values['totalAmount']) || Number(values['total_amount']) || 0;
+                }, 0) || orderQuantity;
+                amount = Number(values['totalAmount']) || Number(values['total_amount']) || Number(values['Total Amount']) || Number(values['estimated_amount']) || 0;
                 break;
             case 'Plotter':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0);
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity || i.pcs || i.qty) || 0), 0) || orderQuantity;
+                amount = Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['estimated_amount']) || 0;
                 break;
             case 'Positive':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity) || 0), 0) || orderQuantity;
-                amount = Number(values['Total Amount']) || Number(values['total_amount']) || 0;
+                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity || i.pcs || i.qty) || 0), 0) || orderQuantity;
+                amount = Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['estimated_amount']) || 0;
                 break;
             case 'Screen Printing':
-                quantity = Number(values['Quantity']) || Number(values['quantity']) || 0;
-                amount = Number(values['Estimated Amount']) || Number(values['estimated_amount']) || 0;
+                quantity = Number(values['Quantity']) || Number(values['quantity']) || Number(values['pcs']) || orderQuantity || 0;
+                amount = Number(values['Estimated Amount']) || Number(values['estimated_amount']) || Number(values['Total Amount']) || Number(values['total_amount']) || 0;
                 break;
             case 'Embellishment':
-                quantity = Number(values['Quantity']) || Number(values['quantity']) || 0;
-                amount = Number(values['Estimated Amount']) || Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['estimated_amount']) || 0;
+                quantity = Number(values['Quantity']) || Number(values['quantity']) || Number(values['pcs']) || orderQuantity || 0;
+                amount = Number(values['Estimated Amount']) || Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['estimated_amount']) || Number(values['Actual Total']) || 0;
                 break;
             case 'DTF':
-                quantity = Number(values['Total Layouts']) || orderQuantity || 0;
-                amount = Number(values['Actual Total']) || Number(values['Total Amount']) || 0;
+            case 'Direct to Film (DTF)':
+                quantity = Number(values['Total Layouts']) || Number(values['total_layouts']) || Number(values['pcs']) || orderQuantity || 0;
+                amount = Number(values['Actual Total']) || Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['estimated_amount']) || 0;
                 break;
             case 'Diamond':
-                quantity = Number(values['Quantity']) || orderQuantity || 0;
-                amount = Number(values['Total Amount']) || Number(values['Actual Total']) || 0;
+                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['Quantity']) || Number(values['quantity']) || Number(values['pcs']) || orderQuantity || 0;
+                amount = Number(values['Total Amount']) || Number(values['Actual Total']) || Number(values['total_amount']) || Number(values['totalAmount']) || Number(values['Estimated Amount']) || Number(values['estimated_amount']) || 0;
                 break;
             case 'Spangle':
-                quantity = Number(values['Quantity']) || Number(values['quantity']) || orderQuantity || 0;
-                amount = Number(values['Estimated Amount']) || Number(values['estimated_amount']) || 0;
+                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['Quantity']) || Number(values['quantity']) || Number(values['pcs']) || orderQuantity || 0;
+                amount = Number(values['Estimated Amount']) || Number(values['estimated_amount']) || Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['totalAmount']) || 0;
                 break;
             default:
-                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['total_quantity']) || (values?.['Quantity'] as number) || orderQuantity || 0;
-                amount = Number(values['Total Amount']) || Number(values['totalAmount']) || Number(values['total_amount']) || Number(values['Estimated Amount']) || Number(values['Actual Total']) || 0;
+                quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['total_quantity']) || Number(values['Quantity']) || Number(values['quantity']) || Number(values['pcs']) || orderQuantity || 0;
+                amount = Number(values['Total Amount']) || Number(values['totalAmount']) || Number(values['total_amount']) || Number(values['Estimated Amount']) || Number(values['Actual Total']) || Number(values['estimated_amount']) || 0;
         }
     }
 

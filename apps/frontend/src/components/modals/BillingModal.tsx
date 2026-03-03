@@ -9,13 +9,12 @@ import { getOrderById } from '@/services/orders.service';
 import {
     Calculator,
     ChevronDown,
-    Clock,
     Edit2,
     FileText,
     IndianRupee,
     Loader2,
     Package,
-    X,
+    X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import EditOrderModal from './EditOrderModal';
@@ -175,7 +174,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
 
     const isEmbellishment = (processName: string) => processName === 'Embellishment';
 
-    const parseDTFItems = (items: unknown): any[] => {
+    const parseJsonItems = (items: unknown): any[] => {
         if (Array.isArray(items)) return items;
 
         if (typeof items === 'string') {
@@ -366,6 +365,8 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                         <div className="divide-y divide-gray-100">
                                             {process.runs.map((run) => {
                                                 const isExpanded = expandedRuns.has(run.id);
+                                                const values = run.values || {};
+                                                const items = parseJsonItems(values.items);
 
                                                 // Use our helper to get consistent metrics
                                                 const metrics = getRunBillingMetrics(run, process.name, order.quantity);
@@ -536,110 +537,88 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                     </div>
                                                                 </div>
                                                             )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : process.name === 'DTF' || process.name === 'Direct to Film (DTF)'  ? (
-                                        <div className="divide-y divide-gray-100">
-                                            {process.runs.map((run) => {
-                                                const values = run.values || {};
-                                                const items = parseDTFItems(values.items);
 
-                                                return (
-                                                    <div key={run.id} className="bg-white px-5 py-4">
-                                                        {/* HEADER */}
-                                                        <div className="flex items-center justify-between mb-4">
-                                                            <div>
-                                                                <div className="font-medium text-gray-800">
-                                                                    Run {run.runNumber} – {run.displayName}
+                                                            {/* PROCESS-SPECIFIC ITEMS TABLE (Expanded) */}
+                                                            {isExpanded && items.length > 0 && (
+                                                                <div className="mt-4 px-4 pb-4">
+                                                                    <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                                                                        <div className="px-4 py-2 border-b border-gray-200 bg-gray-100/50 flex items-center justify-between">
+                                                                            <span className="text-[10px] uppercase font-bold text-gray-500">Run Details Breakdown</span>
+                                                                        </div>
+                                                                        <table className="w-full text-xs">
+                                                                            <thead className="bg-gray-100/50 text-gray-600">
+                                                                                <tr>
+                                                                                    <th className="px-3 py-2 text-left">Particulars</th>
+                                                                                    {process.name === 'Sublimation' ? (
+                                                                                        <>
+                                                                                            <th className="px-3 py-2 text-right">Size</th>
+                                                                                            <th className="px-3 py-2 text-right">W/H</th>
+                                                                                            <th className="px-3 py-2 text-right">Q1-Q4</th>
+                                                                                            <th className="px-3 py-2 text-right">Sum</th>
+                                                                                        </>
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            <th className="px-3 py-2 text-right">
+                                                                                                {process.name === 'Allover Sublimation' ? 'H/Qty' : process.name === 'Diamond' ? 'Size' : process.name === 'Plotter' ? 'W/H' : 'Layouts'}
+                                                                                            </th>
+                                                                                            <th className="px-3 py-2 text-right">
+                                                                                                {process.name === 'Allover Sublimation' || process.name === 'Diamond' || process.name === 'Plotter' || process.name === 'Positive' ? 'Qty' : 'Area'}
+                                                                                            </th>
+                                                                                        </>
+                                                                                    )}
+                                                                                    <th className="px-3 py-2 text-right">Row Total</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody className="divide-y divide-gray-200">
+                                                                                {items.map((item: any, idx: number) => (
+                                                                                    <tr key={idx} className="hover:bg-white transition-colors">
+                                                                                        <td className="px-3 py-2 text-gray-700">
+                                                                                            {item.particulars || item.design || item.designSizes || item.description || item.fileSizes || '-'}
+                                                                                        </td>
+                                                                                        {process.name === 'Sublimation' ? (
+                                                                                            <>
+                                                                                                <td className="px-3 py-2 text-right text-gray-600">{item.size || '-'}</td>
+                                                                                                <td className="px-3 py-2 text-right text-gray-600">{item.width}x{item.height}</td>
+                                                                                                <td className="px-3 py-2 text-right text-gray-600">
+                                                                                                    {Array.isArray(item.quantities) ? item.quantities.join('|') : '-'}
+                                                                                                </td>
+                                                                                                <td className="px-3 py-2 text-right text-gray-600">{item.sum || item.quantity || 0}</td>
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <>
+                                                                                                <td className="px-3 py-2 text-right text-gray-600">
+                                                                                                    {item.numberOfLayouts || item.height || item.fSize || (item.width && item.height ? `${item.width}x${item.height}` : null) || '-'}
+                                                                                                </td>
+                                                                                                <td className="px-3 py-2 text-right text-gray-600">
+                                                                                                    {item.area || item.quantity || '-'}
+                                                                                                </td>
+                                                                                            </>
+                                                                                        )}
+                                                                                        <td className="px-3 py-2 text-right font-medium text-gray-900 font-mono">
+                                                                                            ₹{Number(item.rowTotal || item.amount || item.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="text-xs text-gray-500">
-                                                                    Status: {run.lifecycleStatus}
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="text-right">
-                                                                <div className="text-sm text-gray-600">Actual Total</div>
-                                                                <div className="text-lg font-bold text-green-700">
-                                                                    ₹{Number(values['Actual Total'] || 0).toLocaleString()}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* SUMMARY */}
-                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                                                                <div className="text-xs text-gray-500">Total Area</div>
-                                                                <div className="font-bold text-gray-800">
-                                                                    {Number(values['Total Area'] || 0).toLocaleString()}
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                                                                <div className="text-xs text-gray-500">Total Layouts</div>
-                                                                <div className="font-bold text-gray-800">
-                                                                    {Number(values['Total Layouts'] || 0)}
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                                                                <div className="text-xs text-gray-500">Per PC Cost</div>
-                                                                <div className="font-bold text-gray-800">
-                                                                    ₹{Number(values['Per PC Cost'] || 0).toLocaleString()}
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                                                                <div className="text-xs text-gray-500">Efficiency %</div>
-                                                                <div className="font-bold text-gray-800">
-                                                                    {Number(values['Efficiency %'] || 0)}%
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* ITEMS TABLE */}
-                                                        <div className="border border-gray-200 rounded-lg overflow-hidden">
-                                                            <table className="w-full text-sm">
-                                                                <thead className="bg-gray-50 text-gray-600">
-                                                                    <tr>
-                                                                        <th className="px-3 py-2 text-left">Particulars</th>
-                                                                        <th className="px-3 py-2 text-right">Layouts</th>
-                                                                        <th className="px-3 py-2 text-right">Area</th>
-                                                                        <th className="px-3 py-2 text-right">Row Total</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                    {items.map((item, idx) => (
-                                                                        <tr key={idx} className="border-t">
-                                                                            <td className="px-3 py-2">{item.particulars}</td>
-                                                                            <td className="px-3 py-2 text-right">
-                                                                                {item.numberOfLayouts}
-                                                                            </td>
-                                                                            <td className="px-3 py-2 text-right">{item.area}</td>
-                                                                            <td className="px-3 py-2 text-right font-medium">
-                                                                                ₹{Number(item.rowTotal || 0).toLocaleString()}
-                                                                            </td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </tbody>
-                                                            </table>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     ) : (
-                                        // OTHER PROCESSES - Coming Soon
-                                        <div className="p-8 text-center">
-                                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                <Clock className="w-8 h-8 text-gray-400" />
+                                        // OTHER PROCESSES - Default Fallback
+                                        <div className="p-8 text-center bg-gray-50/50">
+                                            <div className="w-16 h-16 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <Package className="w-8 h-8 text-gray-400" />
                                             </div>
-                                            <h4 className="text-lg font-semibold text-gray-700 mb-2">Coming Soon</h4>
+                                            <h4 className="text-lg font-semibold text-gray-700 mb-2">Process Not Configured</h4>
                                             <p className="text-gray-500 text-sm max-w-md mx-auto">
-                                                Billing configuration for {process.name} is not yet available. This feature
-                                                will be added in a future update.
+                                                Full billing support for {process.name} is not enabled.
+                                                You can still view run details by clicking the edit/view buttons on the order page.
                                             </p>
                                         </div>
                                     )}
@@ -647,68 +626,68 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                             ))}
                         </div>
                     </div>
+                </div>
 
-                    {/* ACTION BUTTONS BUTTONS STICKY FOOTER */}
-                    <div className="shrink-0 p-6 border-t border-gray-200 bg-white">
-                        <div className="flex items-center justify-between">
-                            <div className="text-sm text-gray-600">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <IndianRupee className="w-4 h-4 text-green-500" />
-                                    <span>Billing rates are stored separately and won't affect production rates</span>
-                                </div>
-                                <p>
-                                    Once finalized, the order status will change to "BILLED" and moved to completed
-                                    orders.
-                                </p>
+                {/* ACTION BUTTONS BUTTONS STICKY FOOTER */}
+                <div className="shrink-0 p-6 border-t border-gray-200 bg-white">
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-600">
+                            <div className="flex items-center gap-2 mb-1">
+                                <IndianRupee className="w-4 h-4 text-green-500" />
+                                <span>Billing rates are stored separately and won't affect production rates</span>
                             </div>
+                            <p>
+                                Once finalized, the order status will change to "BILLED" and moved to completed
+                                orders.
+                            </p>
+                        </div>
 
-                            <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={onClose}
+                                disabled={submitting}
+                                className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            {hasPermission(Permission.RATES_UPDATE) && (
                                 <button
-                                    onClick={onClose}
+                                    onClick={finalizeBilling}
                                     disabled={submitting}
-                                    className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                    className={`px-8 py-3 font-medium rounded-xl transition-all flex items-center gap-3 ${!submitting
+                                        ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl'
+                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        }`}
                                 >
-                                    Cancel
+                                    {submitting ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            <span>Processing...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <IndianRupee className="w-5 h-5" />
+                                            <div className="text-left">
+                                                <div className="font-bold">Finalize Billing</div>
+                                                <div className="text-xs opacity-90">₹{totalAmount.toLocaleString()}</div>
+                                            </div>
+                                        </>
+                                    )}
                                 </button>
-                                {hasPermission(Permission.RATES_UPDATE) && (
-                                    <button
-                                        onClick={finalizeBilling}
-                                        disabled={submitting}
-                                        className={`px-8 py-3 font-medium rounded-xl transition-all flex items-center gap-3 ${!submitting
-                                            ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl'
-                                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                            }`}
-                                    >
-                                        {submitting ? (
-                                            <>
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                                <span>Processing...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <IndianRupee className="w-5 h-5" />
-                                                <div className="text-left">
-                                                    <div className="font-bold">Finalize Billing</div>
-                                                    <div className="text-xs opacity-90">₹{totalAmount.toLocaleString()}</div>
-                                                </div>
-                                            </>
-                                        )}
-                                    </button>
-                                )}
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
-
-                {order && (
-                    <EditOrderModal
-                        open={isEditModalOpen}
-                        onClose={() => setIsEditModalOpen(false)}
-                        onSuccess={refreshOrder}
-                        order={order}
-                    />
-                )}
             </div>
+
+            {order && (
+                <EditOrderModal
+                    open={isEditModalOpen}
+                    onClose={() => setIsEditModalOpen(false)}
+                    onSuccess={refreshOrder}
+                    order={order}
+                />
+            )}
         </div>
     );
 }

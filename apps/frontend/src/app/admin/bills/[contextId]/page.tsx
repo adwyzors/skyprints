@@ -160,8 +160,21 @@ function BillingContextDetailPage() {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
             currency: 'INR',
-            maximumFractionDigits: 0,
+            maximumFractionDigits: 2,
         }).format(Number(amount));
+    };
+
+    const parseJsonItems = (items: unknown): any[] => {
+        if (Array.isArray(items)) return items;
+        if (typeof items === 'string') {
+            try {
+                const parsed = JSON.parse(items);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+        return [];
     };
 
     if (loading) {
@@ -395,78 +408,140 @@ function BillingContextDetailPage() {
                                                                     draftVal !== undefined && (Math.abs(draftVal - currentRate) > 0.01);
 
                                                                 const values = run.values || {};
-                                                                // Filter fields to show: exclude billing/hidden ones
-                                                                // If runTemplate exists, use its fields.
-                                                                // Exclude: new_rate, new_amount, total_amount, estimated_amount (as they are usually summaries or inputs)
-                                                                // Actually 'total_amount' might be the base, so showing it is good.
-                                                                // Usually we hide 'new_rate', 'new_amount'
-
+                                                                const items = parseJsonItems(values.items);
+                                                                const isDTF = process.name === 'DTF' || process.name === 'Direct to Film (DTF)';
 
                                                                 return (
-                                                                    <div
-                                                                        key={run.id}
-                                                                        className={`p-3 flex items-center justify-between gap-4 ${idx !== process.runs.length - 1 ? 'border-b border-gray-100' : ''}`}
-                                                                    >
-                                                                        <div className="flex items-center gap-2 h-full" style={{ alignItems: 'center' }}>
-                                                                            <p className="min-w-0 text-sm font-medium text-gray-800 mb-0">
-                                                                                {run.name}
-                                                                            </p>
-                                                                        </div>
-
-                                                                        {/* RATES & TOTALS */}
-                                                                        <div className="flex items-center gap-4 shrink-0">
-                                                                            <div className="text-right">
-                                                                                <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-1">
-                                                                                    Rate
-                                                                                </span>
-                                                                                <div className="flex items-center gap-1">
-                                                                                    <div className="relative group/input">
-                                                                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
-                                                                                            ₹
+                                                                    <div key={run.id} className={`${idx !== process.runs.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                                                                        <div className="p-3 flex items-center justify-between gap-4">
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <p className="text-sm font-semibold text-gray-900 truncate">
+                                                                                    {run.name}
+                                                                                </p>
+                                                                                <div className="flex items-center gap-2 mt-1">
+                                                                                    <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded-md border border-gray-200 uppercase font-bold">
+                                                                                        Qty: {qty}
+                                                                                    </span>
+                                                                                    {isDTF && values['Total Area'] && (
+                                                                                        <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md border border-blue-100 uppercase font-bold">
+                                                                                            Area: {values['Total Area']}
                                                                                         </span>
-                                                                                        <input
-                                                                                            type="number"
-                                                                                            className={`w-24 pl-5 pr-2 py-1.5 text-sm border rounded outline-none transition-all text-right font-medium
-                                                                                                ${isEdited ? 'border-amber-300 bg-amber-50 text-amber-900 ring-2 ring-amber-100' : 'border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'}
-                                                                                            `}
-                                                                                            value={displayRate}
-                                                                                            onChange={(e) =>
-                                                                                                handleRateChange(order.id, run.id, e.target.value)
-                                                                                            }
-                                                                                            onFocus={(e) => e.target.select()}
-                                                                                            readOnly={
-                                                                                                !hasPermission(Permission.BILLINGS_UPDATE)
-                                                                                            }
-                                                                                        />
-                                                                                    </div>
-                                                                                    {hasPermission(Permission.BILLINGS_UPDATE) && (
-                                                                                        <button
-                                                                                            className={`p-1.5 rounded-md transition-colors ${isEdited ? 'text-amber-600 bg-amber-100 hover:bg-amber-200' : 'text-gray-300 bg-gray-100 hover:bg-gray-200'}`}
-                                                                                            title="Update Rate"
-                                                                                        >
-                                                                                            <CheckCircle2 className="w-4 h-4" />
-                                                                                        </button>
                                                                                     )}
                                                                                 </div>
                                                                             </div>
 
-                                                                            <div className="text-right min-w-[80px]">
-                                                                                <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-1">
-                                                                                    Amount
-                                                                                </span>
-                                                                                <span className="text-sm font-bold text-gray-900 block py-1.5">
-                                                                                    {formatCurrency(displayTotal)}
-                                                                                </span>
-                                                                                {isEdited && displayTotal !== currentRate * qty && (
-                                                                                    <span
-                                                                                        className={`text-xs block font-medium ${displayTotal > currentRate * qty ? 'text-green-600' : 'text-red-600'}`}
-                                                                                    >
-                                                                                        {displayTotal > currentRate * qty ? '+' : ''}
-                                                                                        {formatCurrency(displayTotal - currentRate * qty)}
+                                                                            {/* RATES & TOTALS */}
+                                                                            <div className="flex items-center gap-4 shrink-0">
+                                                                                <div className="text-right">
+                                                                                    <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-1">
+                                                                                        Rate
                                                                                     </span>
-                                                                                )}
+                                                                                    <div className="flex items-center gap-1">
+                                                                                        <div className="relative group/input">
+                                                                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                                                                                                ₹
+                                                                                            </span>
+                                                                                            <input
+                                                                                                type="number"
+                                                                                                step="0.00001"
+                                                                                                className={`w-28 pl-5 pr-2 py-1.5 text-sm border rounded outline-none transition-all text-right font-medium
+                                                                                                    ${isEdited ? 'border-amber-300 bg-amber-50 text-amber-900 ring-2 ring-amber-100' : 'border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'}
+                                                                                                `}
+                                                                                                value={displayRate}
+                                                                                                onChange={(e) =>
+                                                                                                    handleRateChange(order.id, run.id, e.target.value)
+                                                                                                }
+                                                                                                onFocus={(e) => e.target.select()}
+                                                                                                readOnly={
+                                                                                                    !hasPermission(Permission.BILLINGS_UPDATE)
+                                                                                                }
+                                                                                            />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="text-right min-w-[100px]">
+                                                                                    <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-1">
+                                                                                        Amount
+                                                                                    </span>
+                                                                                    <span className="text-sm font-bold text-gray-900 block py-1.5">
+                                                                                        {formatCurrency(displayTotal)}
+                                                                                    </span>
+                                                                                    {isEdited && Math.abs(displayTotal - currentRate * qty) > 0.01 && (
+                                                                                        <span
+                                                                                            className={`text-[10px] block font-bold ${displayTotal > currentRate * qty ? 'text-green-600' : 'text-red-600'}`}
+                                                                                        >
+                                                                                            {displayTotal > currentRate * qty ? '+' : ''}
+                                                                                            {formatCurrency(displayTotal - currentRate * qty)}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
                                                                         </div>
+
+                                                                        {/* Items Table for specific processes */}
+                                                                        {items.length > 0 && (
+                                                                            <div className="px-3 pb-3">
+                                                                                <div className="bg-gray-50/50 rounded-lg border border-gray-100 overflow-hidden">
+                                                                                    <table className="w-full text-[10px]">
+                                                                                        <thead className="bg-gray-100/50 text-gray-500 uppercase">
+                                                                                            <tr>
+                                                                                                <th className="px-2 py-1 text-left">Particulars</th>
+                                                                                                {process.name === 'Sublimation' ? (
+                                                                                                    <>
+                                                                                                        <th className="px-2 py-1 text-right">Size</th>
+                                                                                                        <th className="px-2 py-1 text-right">W/H</th>
+                                                                                                        <th className="px-2 py-1 text-right">Q1-Q4</th>
+                                                                                                        <th className="px-2 py-1 text-right">Sum</th>
+                                                                                                    </>
+                                                                                                ) : (
+                                                                                                    <>
+                                                                                                        <th className="px-2 py-1 text-right">
+                                                                                                            {process.name === 'Allover Sublimation' ? 'H/Qty' : process.name === 'Diamond' ? 'Size' : process.name === 'Plotter' ? 'W/H' : 'Layouts'}
+                                                                                                        </th>
+                                                                                                        <th className="px-2 py-1 text-right">
+                                                                                                            {process.name === 'Allover Sublimation' || process.name === 'Diamond' || process.name === 'Plotter' || process.name === 'Positive' ? 'Qty' : 'Area'}
+                                                                                                        </th>
+                                                                                                    </>
+                                                                                                )}
+                                                                                                <th className="px-2 py-1 text-right">Row Total</th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody className="divide-y divide-gray-100">
+                                                                                            {items.map((item: any, idx: number) => (
+                                                                                                <tr key={idx}>
+                                                                                                    <td className="px-2 py-1 text-gray-600">
+                                                                                                        {item.particulars || item.design || item.designSizes || item.description || item.fileSizes || '-'}
+                                                                                                    </td>
+                                                                                                    {process.name === 'Sublimation' ? (
+                                                                                                        <>
+                                                                                                            <td className="px-2 py-1 text-right text-gray-600">{item.size || '-'}</td>
+                                                                                                            <td className="px-2 py-1 text-right text-gray-600">{item.width}x{item.height}</td>
+                                                                                                            <td className="px-2 py-1 text-right text-gray-600">
+                                                                                                                {Array.isArray(item.quantities) ? item.quantities.join('|') : '-'}
+                                                                                                            </td>
+                                                                                                            <td className="px-2 py-1 text-right text-gray-600">{item.sum || item.quantity || 0}</td>
+                                                                                                        </>
+                                                                                                    ) : (
+                                                                                                        <>
+                                                                                                            <td className="px-2 py-1 text-right text-gray-600">
+                                                                                                                {item.numberOfLayouts || item.height || item.fSize || (item.width && item.height ? `${item.width}x${item.height}` : null) || '-'}
+                                                                                                            </td>
+                                                                                                            <td className="px-2 py-1 text-right text-gray-600">
+                                                                                                                {item.area || item.quantity || '-'}
+                                                                                                            </td>
+                                                                                                        </>
+                                                                                                    )}
+                                                                                                    <td className="px-2 py-1 text-right font-medium text-gray-800">
+                                                                                                        {formatCurrency(item.rowTotal || item.amount || item.total || 0)}
+                                                                                                    </td>
+                                                                                                </tr>
+                                                                                            ))}
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 );
                                                             })}
