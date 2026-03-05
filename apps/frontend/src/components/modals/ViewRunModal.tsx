@@ -285,13 +285,13 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                             </div>
 
                             {/* Run Images */}
-                            {run.values?.images && run.values.images.length > 0 && (
+                            {run.fields?.images && run.fields.images.length > 0 && (
                                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                                     <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                                         <ImageIcon className="w-3 h-3" /> Run Images
                                     </h3>
                                     <div className="flex gap-2">
-                                        {run.values.images.map((url: string, i: number) => (
+                                        {run.fields.images.map((url: string, i: number) => (
                                             <div
                                                 key={i}
                                                 className="w-20 h-20 border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:border-blue-500 transition-colors"
