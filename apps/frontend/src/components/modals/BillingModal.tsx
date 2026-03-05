@@ -11,6 +11,7 @@ import {
     ChevronDown,
     Edit2,
     FileText,
+    Image as ImageIcon,
     IndianRupee,
     Loader2,
     Package,
@@ -18,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import EditOrderModal from './EditOrderModal';
+import ImagePreviewModal from './ImagePreviewModal';
 
 interface Props {
     orderId: string;
@@ -38,6 +40,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     // Fetch order details when modal opens
     useEffect(() => {
@@ -249,7 +252,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                         </div>
 
                         {/* ORDER INFO */}
-                        <div className="space-y-4 mb-8">
+                        <div className="space-y-4 mb-6">
                             <div className="bg-white border border-gray-200 rounded-xl p-4">
                                 <div className="flex items-center gap-2 mb-3">
                                     <div className="w-2 h-2 bg-blue-500 rounded-full" />
@@ -271,6 +274,31 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                 </div>
                             </div>
                         </div>
+
+                        {/* ORDER IMAGES */}
+                        {order.images && order.images.length > 0 && (
+                            <div className="bg-white border border-gray-200 rounded-xl p-4 mb-8">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <ImageIcon className="w-4 h-4 text-blue-500" />
+                                    <span className="font-medium text-gray-700">Order Images</span>
+                                </div>
+                                <div className="flex gap-2 h-20">
+                                    {order.images.map((url, i) => (
+                                        <div
+                                            key={i}
+                                            className="w-20 h-20 border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:border-blue-500 transition-colors"
+                                            onClick={() => setSelectedImage(url)}
+                                        >
+                                            <img
+                                                src={url}
+                                                alt={`Order ${i + 1}`}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* AMOUNT SUMMARY */}
                         <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-5">
@@ -687,6 +715,12 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                     order={order}
                 />
             )}
+
+            <ImagePreviewModal
+                imageUrl={selectedImage}
+                onClose={() => setSelectedImage(null)}
+                title="Order Image"
+            />
         </div>
     );
 }

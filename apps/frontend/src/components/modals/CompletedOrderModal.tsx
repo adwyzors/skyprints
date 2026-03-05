@@ -5,9 +5,10 @@ import { Order } from "@/domain/model/order.model";
 import { getRunBillingMetrics } from "@/services/billing-calculator";
 import { getLatestBillingSnapshot } from "@/services/billing.service";
 import { getOrderById } from "@/services/orders.service";
-import { Calculator, CheckCircle, ExternalLink, FileText, Loader2, Package, X } from "lucide-react";
+import { Calculator, CheckCircle, ExternalLink, FileText, Image as ImageIcon, Loader2, Package, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import ImagePreviewModal from "./ImagePreviewModal";
 
 interface Props {
     orderId: string;
@@ -20,6 +21,7 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
     const [billingSnapshot, setBillingSnapshot] = useState<BillingSnapshot | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<"summary" | "runs">("summary");
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     // Fetch order and billing snapshot when modal opens
     useEffect(() => {
@@ -267,6 +269,31 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
                                 </div>
                             </div>
 
+                            {/* ORDER IMAGES */}
+                            {order.images && order.images.length > 0 && (
+                                <div className="bg-white border border-gray-200 rounded-xl p-5">
+                                    <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                        <ImageIcon className="w-4 h-4 text-blue-500" />
+                                        Order Images
+                                    </h3>
+                                    <div className="flex gap-4 h-24">
+                                        {order.images.map((url, i) => (
+                                            <div
+                                                key={i}
+                                                className="w-24 h-24 border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:border-blue-500 transition-colors"
+                                                onClick={() => setSelectedImage(url)}
+                                            >
+                                                <img
+                                                    src={url}
+                                                    alt={`Order ${i + 1}`}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* AMOUNT SUMMARY */}
                             <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6">
                                 <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -457,6 +484,11 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
                     </div>
                 </div>
             </div>
+            <ImagePreviewModal
+                imageUrl={selectedImage}
+                onClose={() => setSelectedImage(null)}
+                title="Order Image"
+            />
         </div>
     );
 }

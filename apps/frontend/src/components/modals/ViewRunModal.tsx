@@ -6,10 +6,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { getRunById, transitionLifeCycle } from '@/services/run.service';
-import { ArrowRight, CheckCircle, ChevronRight, FastForward, RotateCcw, Settings, User, X } from 'lucide-react';
+import { ArrowRight, CheckCircle, ChevronRight, FastForward, Image as ImageIcon, RotateCcw, Settings, User, X } from 'lucide-react';
 import Link from 'next/link';
 import RunConfigForm from '../runs/RunConfigForm';
 import ConfigurationModal from './ConfigurationModal';
+import ImagePreviewModal from './ImagePreviewModal';
 
 interface ViewRunModalProps {
     runId: string;
@@ -22,6 +23,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [configModalOpen, setConfigModalOpen] = useState(false);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const { user, hasPermission } = useAuth();
 
     const router = useRouter(); // Moved to top
@@ -281,6 +283,30 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Run Images */}
+                            {run.values?.images && run.values.images.length > 0 && (
+                                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <ImageIcon className="w-3 h-3" /> Run Images
+                                    </h3>
+                                    <div className="flex gap-2">
+                                        {run.values.images.map((url: string, i: number) => (
+                                            <div
+                                                key={i}
+                                                className="w-20 h-20 border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:border-blue-500 transition-colors"
+                                                onClick={() => setSelectedImage(url)}
+                                            >
+                                                <img
+                                                    src={url}
+                                                    alt={`Run Image ${i + 1}`}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -446,6 +472,11 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                     />
                 )
             }
+            <ImagePreviewModal
+                imageUrl={selectedImage}
+                onClose={() => setSelectedImage(null)}
+                title="Run Image"
+            />
         </div >
     );
 }
