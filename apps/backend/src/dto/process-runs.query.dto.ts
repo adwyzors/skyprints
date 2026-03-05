@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
     IsInt,
     IsOptional,
@@ -24,6 +24,7 @@ export class ProcessRunsQueryDto {
     search?: string;
 
     @IsOptional()
+    @Transform(({ value }) => Array.isArray(value) ? value.join(',') : value)
     @IsString()
     status?: string;
 
@@ -46,10 +47,12 @@ export class ProcessRunsQueryDto {
     assignedUserId?: string;
 
     @IsOptional()
+    @Transform(({ value }) => Array.isArray(value) ? value.join(',') : value)
     @IsString()
     lifeCycleStatusCode?: string;
 
     @IsOptional()
+    @Transform(({ value }) => Array.isArray(value) ? value.join(',') : value)
     @IsString()
     priority?: string;
 
@@ -70,6 +73,7 @@ export class ProcessRunsQueryDto {
     locationId?: string;
 
     @IsOptional()
+    @Transform(({ value }) => Array.isArray(value) ? value.join(',') : value)
     @IsString()
     orderStatus?: string;
 }
