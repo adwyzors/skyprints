@@ -887,7 +887,10 @@ export class OrdersService {
                         // 🔑 replace images entirely
                         ...(dto.images && { images: dto.images }),
 
-                        ...(order.statusCode !== OrderStatus.CONFIGURE && {
+                        // 🔑 If it's PRODUCTION_READY, move it back to CONFIGURE for re-verification. 
+                        // But don't touch status for IN_PRODUCTION, COMPLETE, or BILLED/GROUP_BILLED 
+                        // as they are further along and resetting would be destructive.
+                        ...(order.statusCode === OrderStatus.PRODUCTION_READY && {
                             statusCode: OrderStatus.CONFIGURE,
                             completedProcesses: 0,
                         }),
