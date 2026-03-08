@@ -35,6 +35,13 @@ export const ADMIN_TABS: NavTab[] = [
         permission: Permission.ORDERS_VIEW,
     },
     {
+        label: 'Run Activity',
+        path: '/admin/runs',
+        icon: <Activity className="w-4 h-4" />,
+        badge: null,
+        permission: Permission.RUNS_VIEW,
+    },
+    {
         label: 'Rate Confirmation',
         path: '/admin/billing',
         icon: <CreditCard className="w-4 h-4" />,
@@ -54,13 +61,6 @@ export const ADMIN_TABS: NavTab[] = [
         icon: <FileText className="w-4 h-4" />,
         badge: null,
         permission: Permission.BILLINGS_VIEW,
-    },
-    {
-        label: 'Run Activity',
-        path: '/admin/runs',
-        icon: <Activity className="w-4 h-4" />,
-        badge: null,
-        permission: Permission.RUNS_VIEW,
     },
     {
         label: 'Customers',

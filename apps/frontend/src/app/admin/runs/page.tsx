@@ -143,7 +143,7 @@ function RunsPageContent() {
     const [filters, setFilters] = useState({
         status: ['COMPLETE'] as string[], // This maps to top-level run status
         lifeCycleStatus: [] as string[],
-        orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'] as string[],
+        orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'] as string[],
         priority: [] as string[],
         dateRange: 'all',
         customerId: 'all',
@@ -382,7 +382,7 @@ function RunsPageContent() {
             setFilters({
                 status: ['COMPLETE'],
                 lifeCycleStatus: ['FUSING', 'CURING'],
-                orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'],
+                orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'],
                 priority: [],
                 dateRange: 'all',
                 customerId: 'all',
@@ -395,7 +395,7 @@ function RunsPageContent() {
             setFilters({
                 status: ['COMPLETE'],
                 lifeCycleStatus: [],
-                orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'],
+                orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'],
                 priority: [],
                 dateRange: 'all',
                 customerId: 'all',

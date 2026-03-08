@@ -550,7 +550,7 @@ export default function LaserConfig({
         // View Mode
         if (isConfigured && !isEditing) {
             const values = run.values as LaserRunValues;
-            const items = values.items || [];
+            const items = parseItems(values.items);
             const totalAmt = values['Total Amount'] || 0;
             const totalQty = values['Total Quantity'] || 0;
             const totalTime = values['Total Laser Time'] || 0;
@@ -925,7 +925,7 @@ export default function LaserConfig({
             {localOrder.processes.map(process => (
                 <div key={process.id} className="space-y-4">
                     {process.runs.map(run => {
-                        const items = (run.values.items as unknown as LaserItem[]) || [];
+                        const items = parseItems(run.values.items);
                         const itemCount = items.length;
                         const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 

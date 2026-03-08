@@ -174,6 +174,30 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
                     </button>
                 </div>
 
+                {/* Order Images Section */}
+                {order.images && order.images.length > 0 && (
+                    <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100 mx-6 mt-6">
+                        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <ImageIcon className="w-3 h-3" /> Order Images
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                            {order.images.map((url, i) => (
+                                <div
+                                    key={i}
+                                    className="w-20 h-20 border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:border-blue-500 transition-colors shadow-sm bg-white"
+                                    onClick={() => setSelectedImage(url)}
+                                >
+                                    <img
+                                        src={url}
+                                        alt={`Order ${i + 1}`}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* TABS */}
                 <div className="border-b border-gray-200">
                     <div className="flex gap-6 px-6">
@@ -441,6 +465,30 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
                                                             </div>
                                                         </div>
                                                     </div>
+
+                                                    {/* Run Images Section */}
+                                                    {(run.values?.images || (run as any).fields?.images) && ((run.values?.images?.length || (run as any).fields?.images?.length) > 0) && (
+                                                        <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                                                            <div className="text-[10px] uppercase font-bold text-gray-500 mb-3 flex items-center gap-2">
+                                                                <ImageIcon className="w-3 h-3" /> Run Images
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {(run.values?.images || (run as any).fields?.images || []).map((url: string, i: number) => (
+                                                                    <div
+                                                                        key={i}
+                                                                        className="w-16 h-16 border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:border-blue-500 transition-colors bg-white shadow-sm"
+                                                                        onClick={() => setSelectedImage(url)}
+                                                                    >
+                                                                        <img
+                                                                            src={url}
+                                                                            alt={`Run ${run.runNumber} img ${i + 1}`}
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
 
                                                     {/* RUN VALUES */}
                                                     {Object.keys(run.values || {}).length > 0 && (

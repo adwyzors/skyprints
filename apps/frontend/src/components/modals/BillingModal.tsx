@@ -536,6 +536,30 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                         </div>
                                                                     </div>
 
+                                                                    {/* Run Images Section */}
+                                                                    {((run as any).fields?.images || run.values?.images) && ((run as any).fields?.images?.length || run.values?.images?.length) > 0 && (
+                                                                        <div className="mb-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                                                            <div className="text-[10px] uppercase font-bold text-gray-500 mb-3 flex items-center gap-2">
+                                                                                <ImageIcon className="w-3 h-3" /> Run Images
+                                                                            </div>
+                                                                            <div className="flex flex-wrap gap-3">
+                                                                                {((run as any).fields?.images || run.values?.images || []).map((url: string, i: number) => (
+                                                                                    <div
+                                                                                        key={i}
+                                                                                        className="w-20 h-20 border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:border-blue-500 transition-colors shadow-sm bg-white"
+                                                                                        onClick={() => setSelectedImage(url)}
+                                                                                    >
+                                                                                        <img
+                                                                                            src={url}
+                                                                                            alt={`Run ${run.runNumber} img ${i + 1}`}
+                                                                                            className="w-full h-full object-cover"
+                                                                                        />
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+
                                                                     {/* Run Values Overview */}
                                                                     <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
                                                                         <div className="text-[10px] uppercase font-bold text-gray-500 mb-3">Run Values Overview</div>

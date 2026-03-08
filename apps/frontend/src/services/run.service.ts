@@ -102,9 +102,8 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
     const appendParam = (key: string, value?: string | string[]) => {
         if (!value) return;
         if (Array.isArray(value)) {
-            value.forEach(v => {
-                if (v) queryParams.append(key, v);
-            });
+            const joinedValue = value.filter(v => !!v).join(',');
+            if (joinedValue) queryParams.append(key, joinedValue);
         } else {
             queryParams.append(key, value);
         }
