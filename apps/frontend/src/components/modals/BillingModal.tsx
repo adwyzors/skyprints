@@ -172,7 +172,8 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
             'Positive',
             'Diamond',
             'DTF',
-            'Spangle'
+            'Spangle',
+            'Laser'
         ].includes(processName);
 
     const isEmbellishment = (processName: string) => processName === 'Embellishment';
