@@ -20,6 +20,7 @@ import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
 import AddProcessModal from '@/components/modals/AddProcessModal';
 import EditOrderModal from '@/components/modals/EditOrderModal';
+import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import AlloverSublimationConfig from '@/components/orders/AlloverSublimationConfig';
 import ComingSoonConfig from '@/components/orders/ComingSoonConfig';
 import DiamondConfig from '@/components/orders/DiamondConfig';
@@ -57,6 +58,7 @@ function OrderConfigPage() {
     const [isAddProcessModalOpen, setIsAddProcessModalOpen] = useState(false);
     const [locations, setLocations] = useState<Location[]>([]);
     const [managers, setManagers] = useState<ManagerUser[]>([]);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     const toggleBillingRunExpansion = (runId: string) => {
         setExpandedBillingRuns((prev) => {
@@ -298,6 +300,27 @@ function OrderConfigPage() {
                                         <span className="text-sm font-medium text-blue-700">Job: {order.jobCode}</span>
                                     </div>
                                 )}
+
+                                {/* ORDER IMAGES */}
+                                {order.images && order.images.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 ml-2">
+                                        {order.images.map((img, idx) => (
+                                            <div
+                                                key={idx}
+                                                onClick={() => setPreviewImage(img)}
+                                                className="w-10 h-10 rounded-lg border border-gray-200 overflow-hidden cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group relative bg-gray-50 flex-shrink-0"
+                                            >
+                                                <img
+                                                    src={img}
+                                                    alt={`Order ${order.code} - ${idx + 1}`}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
                                 {billingData && (
                                     <div className="flex items-center gap-2">
                                         <Calculator className="w-4 h-4 text-gray-500" />
@@ -989,6 +1012,11 @@ function OrderConfigPage() {
                 onClose={() => setIsAddProcessModalOpen(false)}
                 onSuccess={refreshOrder}
                 orderId={order.id}
+            />
+
+            <ImagePreviewModal
+                imageUrl={previewImage}
+                onClose={() => setPreviewImage(null)}
             />
         </div>
     );
