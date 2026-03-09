@@ -10,6 +10,7 @@ import {
     CheckCircle,
     ChevronRight,
     Circle,
+    Clock,
     FastForward,
     FileText,
     RotateCcw,
@@ -608,30 +609,44 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                     {/* PRODUCTION READY - START PRODUCTION */}
                     {order.status === 'PRODUCTION_READY' && (
                         <div className="flex flex-col items-center justify-center h-full">
-                            <div className="text-center text-gray-500 mb-6">
-                                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Settings className="w-8 h-8 text-blue-600" />
-                                </div>
-                                <h3 className="text-xl font-semibold text-gray-800 mb-2">Ready for Production</h3>
-                                <p className="max-w-xs mx-auto">
-                                    All configurations are set. Initialize the production process to view runs.
-                                </p>
-                            </div>
+                            {hasPermission(Permission.ORDERS_UPDATE) ? (
+                                <>
+                                    <div className="text-center text-gray-500 mb-6">
+                                        <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <Settings className="w-8 h-8 text-blue-600" />
+                                        </div>
+                                        <h3 className="text-xl font-semibold text-gray-800 mb-2">Ready for Production</h3>
+                                        <p className="max-w-xs mx-auto">
+                                            All configurations are set. Initialize the production process to view runs.
+                                        </p>
+                                    </div>
 
-                            <button
-                                onClick={handleStartProduction}
-                                disabled={updating}
-                                className="flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:shadow-none"
-                            >
-                                {updating ? (
-                                    <span>Starting...</span>
-                                ) : (
-                                    <>
-                                        <span>Start Production</span>
-                                        <ChevronRight className="w-5 h-5" />
-                                    </>
-                                )}
-                            </button>
+                                    <button
+                                        onClick={handleStartProduction}
+                                        disabled={updating}
+                                        className="flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:shadow-none"
+                                    >
+                                        {updating ? (
+                                            <span>Starting...</span>
+                                        ) : (
+                                            <>
+                                                <span>Start Production</span>
+                                                <ChevronRight className="w-5 h-5" />
+                                            </>
+                                        )}
+                                    </button>
+                                </>
+                            ) : (
+                                <div className="text-center p-8">
+                                    <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                                        <Clock className="w-10 h-10 text-blue-500 animate-pulse" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-gray-800 mb-3">Order is Ready</h3>
+                                    <p className="text-gray-500 max-w-sm mx-auto text-lg leading-relaxed">
+                                        All configurations are complete. Production will start shortly.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
 

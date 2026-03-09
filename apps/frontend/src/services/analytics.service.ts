@@ -64,8 +64,11 @@ export interface DashboardStats {
     } | null;
 }
 
-export async function getDashboardStats(period: string = '7d'): Promise<DashboardStats> {
-    return apiRequest<DashboardStats>(`/analytics/dashboard?period=${period}`);
+export async function getDashboardStats(period: string = '7d', fromDate?: string, toDate?: string): Promise<DashboardStats> {
+    let url = `/analytics/dashboard?period=${period}`;
+    if (fromDate) url += `&fromDate=${fromDate}`;
+    if (toDate) url += `&toDate=${toDate}`;
+    return apiRequest<DashboardStats>(url);
 }
 
 export async function syncAnalytics(): Promise<{ processed: number }> {

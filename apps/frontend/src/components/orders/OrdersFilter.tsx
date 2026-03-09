@@ -12,6 +12,8 @@ interface OrdersFilterProps {
         dateRange: string;
         customerId: string;
         locationId: string;
+        startDate?: string;
+        endDate?: string;
     };
     onChange: (newFilters: any) => void;
     onClear: () => void;
@@ -67,17 +69,51 @@ export default function OrdersFilter({ filters, onChange, onClear, onClose }: Or
                 {/* Date Range */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Created Date</label>
-                    <select
-                        value={filters.dateRange}
-                        onChange={(e) => onChange({ ...filters, dateRange: e.target.value })}
-                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
-                    >
-                        <option value="all">All Time</option>
-                        <option value="today">Today</option>
-                        <option value="week">This Week</option>
-                        <option value="month">This Month</option>
-                        <option value="quarter">This Quarter</option>
-                    </select>
+                    <div className="space-y-3">
+                        <select
+                            value={filters.dateRange}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                onChange({
+                                    ...filters,
+                                    dateRange: val,
+                                    // Reset custom dates if switching away from custom
+                                    ...(val !== 'custom' && { startDate: '', endDate: '' })
+                                });
+                            }}
+                            className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
+                        >
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="quarter">This Quarter</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+
+                        {filters.dateRange === 'custom' && (
+                            <div className="grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">From</label>
+                                    <input
+                                        type="date"
+                                        value={filters.startDate || ''}
+                                        onChange={(e) => onChange({ ...filters, startDate: e.target.value })}
+                                        className="w-full text-xs border-gray-200 rounded-lg focus:ring-blue-500 bg-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1">To</label>
+                                    <input
+                                        type="date"
+                                        value={filters.endDate || ''}
+                                        onChange={(e) => onChange({ ...filters, endDate: e.target.value })}
+                                        className="w-full text-xs border-gray-200 rounded-lg focus:ring-blue-500 bg-white"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Location */}

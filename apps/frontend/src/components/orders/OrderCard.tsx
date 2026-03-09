@@ -240,15 +240,27 @@ export default function OrderCard({
                     {/* ACTION */}
                     {showConfigure && (
                         <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    router.push(`/admin/orders/${order.id}`);
-                                }}
-                                className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors flex items-center gap-0.5"
-                            >
-                                Configure order <ChevronRight className="w-3 h-3" />
-                            </button>
+                            {['IN_PRODUCTION', 'PRODUCTION_READY', 'COMPLETE', 'COMPLETED', 'BILLED'].includes(order.status) ? (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        router.push(`/admin/orders?selectedOrder=${order.id}`);
+                                    }}
+                                    className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors flex items-center gap-0.5"
+                                >
+                                    View order <ChevronRight className="w-3 h-3" />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        router.push(`/admin/orders/${order.id}`);
+                                    }}
+                                    className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline transition-colors flex items-center gap-0.5"
+                                >
+                                    Configure order <ChevronRight className="w-3 h-3" />
+                                </button>
+                            )}
                             {hasPermission(Permission.ORDERS_DELETE) && (
                                 <button
                                     onClick={async (e) => {

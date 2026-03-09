@@ -27,20 +27,23 @@ const PERIODS = [
     { label: '6 Months', value: '6m' },
     { label: '1 Year', value: '1y' },
     { label: 'All Time', value: 'all' },
+    { label: 'Custom', value: 'custom' },
 ];
 
 function DashboardClient() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [period, setPeriod] = useState('7d');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
 
-    const fetchStats = async (p: string) => {
+    const fetchStats = async (p: string, from?: string, to?: string) => {
         try {
             setLoading(true);
-            const data = await getDashboardStats(p);
+            const data = await getDashboardStats(p, from, to);
             setStats(data);
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
@@ -51,12 +54,27 @@ function DashboardClient() {
     };
 
     useEffect(() => {
-        fetchStats(period);
-    }, [period]);
+        // Load persisted period
+        const savedPeriod = localStorage.getItem('dashboard-period');
+        if (savedPeriod && PERIODS.some(p => p.value === savedPeriod)) {
+            setPeriod(savedPeriod);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (period === 'custom') {
+            if (startDate && endDate) {
+                fetchStats(period, startDate, endDate);
+            }
+        } else {
+            fetchStats(period);
+        }
+        localStorage.setItem('dashboard-period', period);
+    }, [period, startDate, endDate]);
 
     const handleRefresh = () => {
         setIsRefreshing(true);
-        fetchStats(period);
+        fetchStats(period, startDate, endDate);
     };
 
     const handleSync = async () => {
@@ -131,7 +149,25 @@ function DashboardClient() {
                     <p className="text-sm text-gray-500">Analyze performance and resource utilization</p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                    {period === 'custom' && (
+                        <div className="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-gray-200 shadow-sm animate-in fade-in slide-in-from-right-2 duration-300">
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="text-xs border-none focus:ring-0 p-0 w-28 text-gray-600 font-medium"
+                            />
+                            <span className="text-gray-300 text-xs">→</span>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="text-xs border-none focus:ring-0 p-0 w-28 text-gray-600 font-medium"
+                            />
+                        </div>
+                    )}
+
                     <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
                         {PERIODS.map((p) => (
                             <button

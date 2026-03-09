@@ -146,6 +146,8 @@ function RunsPageContent() {
         orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'] as string[],
         priority: [] as string[],
         dateRange: 'all',
+        startDate: '',
+        endDate: '',
         customerId: 'all',
         executorId: 'all',
         reviewerId: 'all',
@@ -173,12 +175,22 @@ function RunsPageContent() {
         }
     }, [user?.roles]);
 
-    // Fetch Filter Data
+    // Fetch Filter Data & Load Persistence
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const locs = await getLocations();
                 setProcesses(STATIC_PROCESSES);
+
+                // Load persisted UI configs
+                const savedViewMode = localStorage.getItem('runs-view-mode');
+                if (savedViewMode === 'grid' || savedViewMode === 'table') setViewMode(savedViewMode);
+
+                const savedPageSize = localStorage.getItem('runs-page-size');
+                if (savedPageSize) setPageSize(Number(savedPageSize));
+
+                const savedSidebarOpen = localStorage.getItem('runs-sidebar-open');
+                if (savedSidebarOpen !== null) setIsSidebarOpen(savedSidebarOpen === 'true');
 
                 // If user has a specific location, filter the locations list and set the filter
                 const userLocation = user?.user?.location;
@@ -268,20 +280,25 @@ function RunsPageContent() {
                 // Determine date range for filtering
                 let createdFrom, createdTo;
                 if (filters.dateRange !== 'all') {
-                    const fromDate = new Date();
-                    switch (filters.dateRange) {
-                        case 'today':
-                            fromDate.setHours(0, 0, 0, 0);
-                            createdFrom = fromDate.toISOString().split('T')[0];
-                            break;
-                        case 'week':
-                            fromDate.setDate(fromDate.getDate() - 7);
-                            createdFrom = fromDate.toISOString().split('T')[0];
-                            break;
-                        case 'month':
-                            fromDate.setMonth(fromDate.getMonth() - 1);
-                            createdFrom = fromDate.toISOString().split('T')[0];
-                            break;
+                    if (filters.dateRange === 'custom') {
+                        createdFrom = filters.startDate;
+                        createdTo = filters.endDate;
+                    } else {
+                        const fromDate = new Date();
+                        switch (filters.dateRange) {
+                            case 'today':
+                                fromDate.setHours(0, 0, 0, 0);
+                                createdFrom = fromDate.toISOString().split('T')[0];
+                                break;
+                            case 'week':
+                                fromDate.setDate(fromDate.getDate() - 7);
+                                createdFrom = fromDate.toISOString().split('T')[0];
+                                break;
+                            case 'month':
+                                fromDate.setMonth(fromDate.getMonth() - 1);
+                                createdFrom = fromDate.toISOString().split('T')[0];
+                                break;
+                        }
                     }
                 }
 
@@ -361,6 +378,7 @@ function RunsPageContent() {
 
     const handlePageSizeChange = (newSize: number) => {
         setPageSize(newSize);
+        localStorage.setItem('runs-page-size', String(newSize));
         setRunsData((prev) => ({ ...prev, page: 1, limit: newSize }));
     };
 
@@ -372,6 +390,8 @@ function RunsPageContent() {
                 orderStatus: ['IN_PRODUCTION'],
                 priority: [],
                 dateRange: 'all',
+                startDate: '',
+                endDate: '',
                 customerId: 'all',
                 executorId: 'all',
                 reviewerId: 'all',
@@ -385,6 +405,8 @@ function RunsPageContent() {
                 orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'],
                 priority: [],
                 dateRange: 'all',
+                startDate: '',
+                endDate: '',
                 customerId: 'all',
                 executorId: 'all',
                 reviewerId: 'all',
@@ -398,6 +420,8 @@ function RunsPageContent() {
                 orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'],
                 priority: [],
                 dateRange: 'all',
+                startDate: '',
+                endDate: '',
                 customerId: 'all',
                 executorId: 'all',
                 reviewerId: 'all',
@@ -525,7 +549,11 @@ function RunsPageContent() {
                 <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            onClick={() => {
+                                const next = !isSidebarOpen;
+                                setIsSidebarOpen(next);
+                                localStorage.setItem('runs-sidebar-open', String(next));
+                            }}
                             className={`p-2 rounded-lg border transition-all duration-200 ${isSidebarOpen
                                 ? 'bg-blue-600 border-blue-600 text-white shadow-md'
                                 : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-sm'
@@ -563,7 +591,13 @@ function RunsPageContent() {
                                 onChange={(e) => setSearch(e.target.value)}
                             />
                         </div>
-                        <RunsViewToggle view={viewMode} onViewChange={setViewMode} />
+                        <RunsViewToggle
+                            view={viewMode}
+                            onViewChange={(v) => {
+                                setViewMode(v);
+                                localStorage.setItem('runs-view-mode', v);
+                            }}
+                        />
                     </div>
                 </div>
 

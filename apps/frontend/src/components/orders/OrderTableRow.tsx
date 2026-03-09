@@ -51,26 +51,31 @@ export default function OrderTableRow({ order, index, onClick, selected = false,
                 <span className="font-semibold text-gray-900">{order.code.split("/")[0].replace("ORD", "")}</span>
             </td>
             <td className="px-6 py-4">
-                {order.images && order.images.length > 0 ? (
-                    <div
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onClick('image', order.images[0]);
-                        }}
-                        className="w-12 h-12 rounded-lg border border-gray-200 overflow-hidden cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group relative bg-gray-50"
-                    >
-                        <img
-                            src={order.images[0]}
-                            alt={`Order ${order.code}`}
-                            className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                    </div>
-                ) : (
-                    <div className="w-12 h-12 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center">
-                        <span className="text-gray-300 text-xs text-center px-1">No img</span>
-                    </div>
-                )}
+                <div className="flex flex-wrap gap-1 max-w-[120px]">
+                    {order.images && order.images.length > 0 ? (
+                        order.images.map((image, idx) => (
+                            <div
+                                key={idx}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onClick('image', image);
+                                }}
+                                className="w-10 h-10 rounded border border-gray-200 overflow-hidden cursor-pointer hover:border-blue-400 hover:shadow-sm transition-all group relative bg-gray-50 flex-shrink-0"
+                            >
+                                <img
+                                    src={image}
+                                    alt={`Order ${order.code} - ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                            </div>
+                        ))
+                    ) : (
+                        <div className="w-10 h-10 rounded border border-gray-100 bg-gray-50 flex items-center justify-center">
+                            <span className="text-gray-300 text-[10px] text-center px-1">No img</span>
+                        </div>
+                    )}
+                </div>
             </td>
 
             <td className="px-6 py-4">

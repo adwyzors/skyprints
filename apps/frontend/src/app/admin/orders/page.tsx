@@ -67,6 +67,8 @@ function AdminOrdersContent() {
         dateRange: 'all',
         customerId: 'all',
         locationId: 'all',
+        startDate: '',
+        endDate: '',
     });
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -75,6 +77,22 @@ function AdminOrdersContent() {
 
     useEffect(() => {
         setIsMounted(true);
+
+        // Load persisted UI configurations
+        const savedViewMode = localStorage.getItem('orders-view-mode');
+        if (savedViewMode === 'grid' || savedViewMode === 'table') {
+            setViewMode(savedViewMode);
+        }
+
+        const savedPageSize = localStorage.getItem('orders-page-size');
+        if (savedPageSize) {
+            setPageSize(Number(savedPageSize));
+        }
+
+        const savedSidebarOpen = localStorage.getItem('orders-sidebar-open');
+        if (savedSidebarOpen !== null) {
+            setIsSidebarOpen(savedSidebarOpen === 'true');
+        }
 
         // Apply location restriction if applicable
         const userLocation = user?.user?.location;
@@ -158,24 +176,29 @@ function AdminOrdersContent() {
 
                 // Handle date filters
                 if (filters.dateRange !== 'all') {
-                    const fromDate = new Date();
-                    switch (filters.dateRange) {
-                        case 'today':
-                            fromDate.setHours(0, 0, 0, 0);
-                            params.fromDate = fromDate.toISOString().split('T')[0];
-                            break;
-                        case 'week':
-                            fromDate.setDate(fromDate.getDate() - 7);
-                            params.fromDate = fromDate.toISOString().split('T')[0];
-                            break;
-                        case 'month':
-                            fromDate.setMonth(fromDate.getMonth() - 1);
-                            params.fromDate = fromDate.toISOString().split('T')[0];
-                            break;
-                        case 'quarter':
-                            fromDate.setMonth(fromDate.getMonth() - 3);
-                            params.fromDate = fromDate.toISOString().split('T')[0];
-                            break;
+                    if (filters.dateRange === 'custom') {
+                        if (filters.startDate) params.fromDate = filters.startDate;
+                        if (filters.endDate) params.toDate = filters.endDate;
+                    } else {
+                        const fromDate = new Date();
+                        switch (filters.dateRange) {
+                            case 'today':
+                                fromDate.setHours(0, 0, 0, 0);
+                                params.fromDate = fromDate.toISOString().split('T')[0];
+                                break;
+                            case 'week':
+                                fromDate.setDate(fromDate.getDate() - 7);
+                                params.fromDate = fromDate.toISOString().split('T')[0];
+                                break;
+                            case 'month':
+                                fromDate.setMonth(fromDate.getMonth() - 1);
+                                params.fromDate = fromDate.toISOString().split('T')[0];
+                                break;
+                            case 'quarter':
+                                fromDate.setMonth(fromDate.getMonth() - 3);
+                                params.fromDate = fromDate.toISOString().split('T')[0];
+                                break;
+                        }
                     }
                 }
 
@@ -221,6 +244,7 @@ function AdminOrdersContent() {
 
     const handlePageSizeChange = (newSize: number) => {
         setPageSize(newSize);
+        localStorage.setItem('orders-page-size', String(newSize));
         setOrdersData((prev) => ({ ...prev, page: 1, limit: newSize }));
     };
 
@@ -237,6 +261,8 @@ function AdminOrdersContent() {
             dateRange: 'all',
             customerId: 'all',
             locationId: (userLocation && !hasGlobalView) ? (userLocation.id || userLocation.name) : 'all',
+            startDate: '',
+            endDate: '',
         });
         setOrdersData((prev) => ({ ...prev, page: 1 }));
     };
@@ -279,7 +305,11 @@ function AdminOrdersContent() {
                 <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            onClick={() => {
+                                const newState = !isSidebarOpen;
+                                setIsSidebarOpen(newState);
+                                localStorage.setItem('orders-sidebar-open', String(newState));
+                            }}
                             className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
                                 ? 'bg-blue-50 border-blue-200 text-blue-600'
                                 : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
@@ -351,7 +381,13 @@ function AdminOrdersContent() {
                         </p>
                         <div className="flex items-center gap-3">
                             <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
-                            <OrdersViewToggle view={viewMode} onViewChange={setViewMode} />
+                            <OrdersViewToggle
+                                view={viewMode}
+                                onViewChange={(newMode) => {
+                                    setViewMode(newMode);
+                                    localStorage.setItem('orders-view-mode', newMode);
+                                }}
+                            />
                         </div>
                     </div>
 

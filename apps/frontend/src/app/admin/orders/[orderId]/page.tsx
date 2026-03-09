@@ -946,6 +946,10 @@ function OrderConfigPage() {
                                 {configuredRunsCount === allRuns.length && (
                                     <button
                                         onClick={async () => {
+                                            if (order.status !== 'CONFIGURE') {
+                                                router.push(`/admin/orders?selectedOrder=${order.id}`);
+                                                return;
+                                            }
                                             setLoading(true);
                                             try {
                                                 await setProductionReady(order.id);
@@ -958,7 +962,7 @@ function OrderConfigPage() {
                                         }}
                                         className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-lg hover:from-green-700 hover:to-green-800 transition-all shadow-sm hover:shadow flex items-center gap-2"
                                     >
-                                        <span>Production Ready</span>
+                                        <span>{order.status === 'CONFIGURE' ? 'Production Ready' : 'View Order Progress'}</span>
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path
                                                 strokeLinecap="round"
