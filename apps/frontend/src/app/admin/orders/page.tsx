@@ -15,7 +15,6 @@ import OrderTableRow from '@/components/orders/OrderTableRow';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import { OrderCardData } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrderCards } from '@/services/orders.service';
-import debounce from 'lodash/debounce';
 import { Box, ChevronLeft, Filter, Loader2, Plus, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
@@ -32,6 +31,25 @@ function AdminOrdersContent() {
 
     /* ================= STATE ================= */
 
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('limit') || '12');
+    const searchQuery = searchParams.get('search') || '';
+    const statusCodes = searchParams.get('status')?.split(',') || ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'];
+    const dateRange = searchParams.get('dateRange') || 'all';
+    const customerId = searchParams.get('customerId') || 'all';
+    const locationId = searchParams.get('locationId') || 'all';
+    const startDate = searchParams.get('startDate') || '';
+    const endDate = searchParams.get('endDate') || '';
+
+    const filters = {
+        status: statusCodes,
+        dateRange,
+        customerId,
+        locationId,
+        startDate,
+        endDate
+    };
+
     const [ordersData, setOrdersData] = useState<{
         orders: OrderCardData[];
         total: number;
@@ -44,7 +62,7 @@ function AdminOrdersContent() {
         orders: [],
         total: 0,
         page: 1,
-        limit: 12, // Default limit
+        limit: 12,
         totalPages: 0,
         totalQuantity: 0,
         totalEstimatedAmount: 0,
@@ -54,22 +72,7 @@ function AdminOrdersContent() {
     const [isMounted, setIsMounted] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-    const [pageSize, setPageSize] = useState(12);
-
-    // Sidebar State
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-    // Search and filter states
-    const [searchQuery, setSearchQuery] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [filters, setFilters] = useState({
-        status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'],
-        dateRange: 'all',
-        customerId: 'all',
-        locationId: 'all',
-        startDate: '',
-        endDate: '',
-    });
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -77,104 +80,94 @@ function AdminOrdersContent() {
 
     useEffect(() => {
         setIsMounted(true);
-
-        // Load persisted UI configurations
         const savedViewMode = localStorage.getItem('orders-view-mode');
-        if (savedViewMode === 'grid' || savedViewMode === 'table') {
-            setViewMode(savedViewMode);
-        }
-
-        const savedPageSize = localStorage.getItem('orders-page-size');
-        if (savedPageSize) {
-            setPageSize(Number(savedPageSize));
-        }
+        if (savedViewMode === 'grid' || savedViewMode === 'table') setViewMode(savedViewMode);
 
         const savedSidebarOpen = localStorage.getItem('orders-sidebar-open');
-        if (savedSidebarOpen !== null) {
-            setIsSidebarOpen(savedSidebarOpen === 'true');
+        if (savedSidebarOpen !== null) setIsSidebarOpen(savedSidebarOpen === 'true');
+
+        // Apply defaults to URL if missing
+        const next = new URLSearchParams(searchParams.toString());
+        let changed = false;
+
+        if (!searchParams.get('status')) {
+            next.set('status', filters.status.join(','));
+            changed = true;
+        }
+        if (!searchParams.get('limit')) {
+            next.set('limit', '12');
+            changed = true;
+        }
+        if (!searchParams.get('page')) {
+            next.set('page', '1');
+            changed = true;
         }
 
         // Apply location restriction if applicable
         const userLocation = user?.user?.location;
         const hasGlobalView = hasPermission(Permission.LOCATIONS_ALL_VIEW);
+        if (userLocation && !hasGlobalView && !searchParams.get('locationId')) {
+            next.set('locationId', userLocation.id || userLocation.name);
+            changed = true;
+        }
 
-        if (userLocation && !hasGlobalView) {
-            setFilters(prev => ({
-                ...prev,
-                locationId: userLocation.id || userLocation.name
-            }));
+        if (changed) {
+            router.replace(`/admin/orders?${next.toString()}`);
         }
     }, [user, hasPermission]);
 
-    // Debounce search input
-    const debouncedSearchUpdate = useCallback(
-        debounce((value: string) => {
-            setDebouncedSearch(value);
-            // Reset to page 1 when search changes
-            setOrdersData((prev) => ({ ...prev, page: 1 }));
-        }, 500),
-        [],
-    );
-
+    // Persist sidebar state
     useEffect(() => {
-        debouncedSearchUpdate(searchQuery);
-        return () => debouncedSearchUpdate.cancel();
-    }, [searchQuery, debouncedSearchUpdate]);
+        if (isMounted) {
+            localStorage.setItem('orders-sidebar-open', String(isSidebarOpen));
+        }
+    }, [isSidebarOpen, isMounted]);
 
-    // API Cache with 2-second TTL
-    const cacheRef = useState<{ [key: string]: { data: any; timestamp: number } }>({});
-    const CACHE_TTL = 2000; // 2 seconds
+    const updateParams = useCallback((newParams: Record<string, string | string[] | number | null>) => {
+        const next = new URLSearchParams(searchParams.toString());
+        Object.entries(newParams).forEach(([key, val]) => {
+            if (val === null || val === 'all' || val === undefined) {
+                next.delete(key);
+            } else if (Array.isArray(val)) {
+                next.set(key, val.join(','));
+            } else {
+                next.set(key, String(val));
+            }
+        });
+        // Always reset page to 1 when filters change, unless page itself is being changed
+        if (!newParams.page) next.set('page', '1');
 
-    const getCacheKey = (params: GetOrdersParams) => {
-        return JSON.stringify(params);
+        router.push(`/admin/orders?${next.toString()}`);
+    }, [searchParams, router]);
+
+    // Search logic moved to URL
+    const onSearchChange = (val: string) => {
+        updateParams({ search: val || null });
     };
 
+    const cacheRef = useState<{ [key: string]: { data: any; timestamp: number } }>({});
+    const CACHE_TTL = 2000;
+    const getCacheKey = (params: GetOrdersParams) => JSON.stringify(params);
     const getCachedData = (key: string) => {
         const cached = cacheRef[0][key];
-        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-            return cached.data;
-        }
-        return null;
+        return (cached && Date.now() - cached.timestamp < CACHE_TTL) ? cached.data : null;
     };
-
     const setCachedData = (key: string, data: any) => {
         cacheRef[0][key] = { data, timestamp: Date.now() };
     };
+    const clearCache = () => { cacheRef[0] = {}; };
 
-    const clearCache = () => {
-        cacheRef[0] = {};
-    };
-
-    // Main data fetching effect
     useEffect(() => {
         let cancelled = false;
-
         const fetchOrders = async () => {
             setLoading(true);
             try {
-                // Build query params
-                const params: GetOrdersParams = {
-                    page: ordersData.page,
-                    limit: pageSize,
-                };
+                const params: GetOrdersParams = { page, limit: pageSize };
+                if (filters.status.length > 0) params.status = filters.status.join(',');
+                if (searchQuery) params.search = searchQuery;
+                if (filters.customerId !== 'all') params.customerId = filters.customerId;
+                if (filters.locationId && filters.locationId !== 'all') params.locationId = filters.locationId;
 
-                if (filters.status.length > 0) {
-                    params.status = filters.status.join(',');
-                }
-
-                if (debouncedSearch) {
-                    params.search = debouncedSearch;
-                }
-
-                if (filters.customerId !== 'all') {
-                    params.customerId = filters.customerId;
-                }
-
-                if (filters.locationId && filters.locationId !== 'all') {
-                    params.locationId = filters.locationId;
-                }
-
-                // Handle date filters
                 if (filters.dateRange !== 'all') {
                     if (filters.dateRange === 'custom') {
                         if (filters.startDate) params.fromDate = filters.startDate;
@@ -182,30 +175,17 @@ function AdminOrdersContent() {
                     } else {
                         const fromDate = new Date();
                         switch (filters.dateRange) {
-                            case 'today':
-                                fromDate.setHours(0, 0, 0, 0);
-                                params.fromDate = fromDate.toISOString().split('T')[0];
-                                break;
-                            case 'week':
-                                fromDate.setDate(fromDate.getDate() - 7);
-                                params.fromDate = fromDate.toISOString().split('T')[0];
-                                break;
-                            case 'month':
-                                fromDate.setMonth(fromDate.getMonth() - 1);
-                                params.fromDate = fromDate.toISOString().split('T')[0];
-                                break;
-                            case 'quarter':
-                                fromDate.setMonth(fromDate.getMonth() - 3);
-                                params.fromDate = fromDate.toISOString().split('T')[0];
-                                break;
+                            case 'today': fromDate.setHours(0, 0, 0, 0); break;
+                            case 'week': fromDate.setDate(fromDate.getDate() - 7); break;
+                            case 'month': fromDate.setMonth(fromDate.getMonth() - 1); break;
+                            case 'quarter': fromDate.setMonth(fromDate.getMonth() - 3); break;
                         }
+                        params.fromDate = fromDate.toISOString().split('T')[0];
                     }
                 }
 
-                // Update cache key with full params
                 const fullCacheKey = getCacheKey(params);
                 const fullCachedResult = getCachedData(fullCacheKey);
-
                 if (fullCachedResult && !cancelled) {
                     setOrdersData(fullCachedResult);
                     setLoading(false);
@@ -219,20 +199,15 @@ function AdminOrdersContent() {
                 }
             } catch (error) {
                 console.error('Error fetching orders:', error);
-                if (!cancelled) {
-                    setOrdersData((prev) => ({ ...prev, orders: [], total: 0, totalPages: 0 }));
-                }
+                if (!cancelled) setOrdersData((prev) => ({ ...prev, orders: [], total: 0, totalPages: 0 }));
             } finally {
                 if (!cancelled) setLoading(false);
             }
         };
 
         const timeoutId = setTimeout(fetchOrders, 300);
-        return () => {
-            cancelled = true;
-            clearTimeout(timeoutId);
-        };
-    }, [debouncedSearch, filters, ordersData.page, pageSize, refreshTrigger]);
+        return () => { cancelled = true; clearTimeout(timeoutId); };
+    }, [searchQuery, filters, page, pageSize, refreshTrigger]);
 
     /* ================= HANDLERS ================= */
 
@@ -243,28 +218,15 @@ function AdminOrdersContent() {
     };
 
     const handlePageSizeChange = (newSize: number) => {
-        setPageSize(newSize);
-        localStorage.setItem('orders-page-size', String(newSize));
-        setOrdersData((prev) => ({ ...prev, page: 1, limit: newSize }));
+        updateParams({ limit: newSize, page: 1 });
     };
 
     const handlePageChange = (newPage: number) => {
-        setOrdersData((prev) => ({ ...prev, page: newPage }));
+        updateParams({ page: newPage });
     };
 
     const handleClearFilters = () => {
-        const userLocation = user?.user?.location;
-        const hasGlobalView = hasPermission(Permission.LOCATIONS_ALL_VIEW);
-
-        setFilters({
-            status: ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'], // Reset to default interesting statuses
-            dateRange: 'all',
-            customerId: 'all',
-            locationId: (userLocation && !hasGlobalView) ? (userLocation.id || userLocation.name) : 'all',
-            startDate: '',
-            endDate: '',
-        });
-        setOrdersData((prev) => ({ ...prev, page: 1 }));
+        router.push('/admin/orders'); // Clean URL
     };
 
     const filteredOrders = ordersData.orders;
@@ -290,8 +252,7 @@ function AdminOrdersContent() {
                     <OrdersFilter
                         filters={filters}
                         onChange={(newFilters) => {
-                            setFilters(newFilters);
-                            setOrdersData((prev) => ({ ...prev, page: 1 }));
+                            updateParams(newFilters);
                         }}
                         onClear={handleClearFilters}
                         onClose={() => setIsSidebarOpen(false)}
@@ -344,8 +305,8 @@ function AdminOrdersContent() {
                                 type="text"
                                 placeholder="Search orders, status, customers..."
                                 className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full sm:w-64 bg-white shadow-sm transition-all"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                defaultValue={searchQuery}
+                                onChange={(e) => onSearchChange(e.target.value)}
                             />
                         </div>
                         {hasPermission(Permission.ORDERS_CREATE) && (
@@ -365,8 +326,7 @@ function AdminOrdersContent() {
                     <OrderStatusFilter
                         selectedStatuses={filters.status}
                         onChange={(newStatuses) => {
-                            setFilters(prev => ({ ...prev, status: newStatuses }));
-                            setOrdersData((prev) => ({ ...prev, page: 1 }));
+                            updateParams({ status: newStatuses });
                         }}
                     />
                 </div>

@@ -14,7 +14,6 @@ import { STATIC_PROCESSES } from '@/constants/processes';
 import { getLocations } from '@/services/location.service';
 import { getProcessLifecycleStatuses } from '@/services/process.service';
 import { getRuns } from '@/services/run.service';
-import debounce from 'lodash/debounce';
 import {
     Activity,
     ArrowDown,
@@ -79,6 +78,33 @@ const DIGITAL_PROCESS_NAMES = ['Sublimation', 'Plotter', 'DTF', 'Laser', 'Allove
 
 function RunsPageContent() {
     const { user, hasPermission } = useAuth();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('limit') || '20');
+    const search = searchParams.get('search') || '';
+    const selectedRunId = searchParams.get('selectedRun');
+    const sortKey = searchParams.get('sortKey') || null;
+    const sortDir = (searchParams.get('sortDir') as 'asc' | 'desc') || 'desc';
+
+    // Derived filters from URL
+    const filters = {
+        status: searchParams.get('status')?.split(',') || ['COMPLETE'],
+        lifeCycleStatus: searchParams.get('lifeCycleStatus')?.split(',') || [],
+        orderStatus: searchParams.get('orderStatus')?.split(',') || ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'],
+        priority: searchParams.get('priority')?.split(',') || [],
+        dateRange: searchParams.get('dateRange') || 'all',
+        startDate: searchParams.get('startDate') || '',
+        endDate: searchParams.get('endDate') || '',
+        customerId: searchParams.get('customerId') || 'all',
+        executorId: searchParams.get('executorId') || 'all',
+        reviewerId: searchParams.get('reviewerId') || 'all',
+        processId: searchParams.get('processId') || 'all',
+        locationId: searchParams.get('locationId') || 'all',
+    };
+
     const [runsData, setRunsData] = useState<{
         runs: Run[];
         total: number;
@@ -91,166 +117,97 @@ function RunsPageContent() {
         runs: [],
         total: 0,
         page: 1,
-        limit: 12,
+        limit: 20,
         totalPages: 0,
         totalEstimatedAmount: 0,
         totalQuantity: 0
     });
 
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const pathname = usePathname();
-
-    const [selectedRunId, setSelectedRunId] = useState<string | null>(searchParams.get('selectedRun'));
+    const [loading, setLoading] = useState(true);
+    const [isMounted, setIsMounted] = useState(false);
+    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-    // Filter Data State
     const [processes, setProcesses] = useState<any[]>([]);
     const [locations, setLocations] = useState<any[]>([]);
     const [lifecycleStatuses, setLifecycleStatuses] = useState<string[]>([]);
 
-    useEffect(() => {
-        const runParam = searchParams.get('selectedRun');
-        if (runParam !== selectedRunId) {
-            setSelectedRunId(runParam);
-        }
-    }, [searchParams]);
+    const updateParams = useCallback((newParams: Record<string, string | string[] | number | null>) => {
+        const next = new URLSearchParams(searchParams.toString());
+        Object.entries(newParams).forEach(([key, val]) => {
+            if (val === null || val === 'all' || val === undefined || (Array.isArray(val) && val.length === 0)) {
+                next.delete(key);
+            } else if (Array.isArray(val)) {
+                next.set(key, val.join(','));
+            } else {
+                next.set(key, String(val));
+            }
+        });
+        if (!newParams.page && !newParams.selectedRun) next.set('page', '1');
+        router.push(`${pathname}?${next.toString()}`, { scroll: false });
+    }, [searchParams, router, pathname]);
 
     const handleRunSelection = (runId: string | null) => {
-        setSelectedRunId(runId);
-        const params = new URLSearchParams(searchParams.toString());
-        if (runId) {
-            params.set('selectedRun', runId);
-        } else {
-            params.delete('selectedRun');
-        }
-        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+        updateParams({ selectedRun: runId });
     };
 
-    const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [pageSize, setPageSize] = useState(20);
-    const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-
-    // Sort State
-    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
-
-    // Sidebar State
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-    // Filter State
-    const [filters, setFilters] = useState({
-        status: ['COMPLETE'] as string[], // This maps to top-level run status
-        lifeCycleStatus: [] as string[],
-        orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'] as string[],
-        priority: [] as string[],
-        dateRange: 'all',
-        startDate: '',
-        endDate: '',
-        customerId: 'all',
-        executorId: 'all',
-        reviewerId: 'all',
-        processId: 'all',
-        locationId: 'all',
-    });
-
-    // Update local filter state from URL on initial load
     useEffect(() => {
-        const processParam = searchParams.get('processId');
-        const statusParam = searchParams.get('lifeCycleStatusCode');
+        setIsMounted(true);
+        const savedViewMode = localStorage.getItem('runs-view-mode');
+        if (savedViewMode === 'grid' || savedViewMode === 'table') setViewMode(savedViewMode);
 
-        if (processParam || statusParam) {
-            setFilters(prev => ({
-                ...prev,
-                processId: processParam || prev.processId,
-                lifeCycleStatus: statusParam ? [statusParam] : prev.lifeCycleStatus
-            }));
+        const savedSidebarOpen = localStorage.getItem('runs-sidebar-open');
+        if (savedSidebarOpen !== null) setIsSidebarOpen(savedSidebarOpen === 'true');
+
+        // Apply defaults to URL if missing
+        if (!searchParams.get('limit') || !searchParams.get('status')) {
+            const next = new URLSearchParams(searchParams.toString());
+            let changed = false;
+
+            if (!next.get('limit')) { next.set('limit', '20'); changed = true; }
+            if (!next.get('status')) { next.set('status', 'COMPLETE'); changed = true; }
+
+            const isDigital = hasPermission(Permission.RUNS_TRANSITION_DIGITAL);
+            const isFusing = hasPermission(Permission.RUNS_TRANSITION_FUSING);
+
+            if (isDigital && !next.get('lifeCycleStatus')) {
+                next.set('lifeCycleStatus', 'PRODUCTION');
+                next.set('orderStatus', 'IN_PRODUCTION');
+                changed = true;
+            } else if (isFusing && !next.get('lifeCycleStatus')) {
+                next.set('lifeCycleStatus', 'FUSING,CURING');
+                changed = true;
+            }
+
+            // Location restriction
+            const userLocation = user?.user?.location;
+            if (userLocation && !hasPermission(Permission.LOCATIONS_ALL_VIEW) && !next.get('locationId')) {
+                next.set('locationId', userLocation.id || userLocation.name || '');
+                changed = true;
+            }
+
+            if (changed) router.replace(`${pathname}?${next.toString()}`);
         }
-    }, []);
+    }, [user, hasPermission, searchParams, pathname, router]);
 
-    // Restrict filters for specific roles
-    useEffect(() => {
-        if (!user) return;
-
-        if (hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
-            setFilters(prev => ({
-                ...prev,
-                status: ['COMPLETE'],
-                orderStatus: ['IN_PRODUCTION'],
-                lifeCycleStatus: ['PRODUCTION'],
-            }));
-        } else if (hasPermission(Permission.RUNS_TRANSITION_FUSING)) {
-            setFilters(prev => ({
-                ...prev,
-                status: ['COMPLETE'],
-                lifeCycleStatus: ['FUSING', 'CURING'],
-            }));
-        }
-    }, [user?.roles]);
-
-    // Fetch Filter Data & Load Persistence
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const locs = await getLocations();
                 setProcesses(STATIC_PROCESSES);
-
-                // Load persisted UI configs
-                const savedViewMode = localStorage.getItem('runs-view-mode');
-                if (savedViewMode === 'grid' || savedViewMode === 'table') setViewMode(savedViewMode);
-
-                const savedPageSize = localStorage.getItem('runs-page-size');
-                if (savedPageSize) setPageSize(Number(savedPageSize));
-
-                const savedSidebarOpen = localStorage.getItem('runs-sidebar-open');
-                if (savedSidebarOpen !== null) setIsSidebarOpen(savedSidebarOpen === 'true');
-
-                // If user has a specific location, filter the locations list and set the filter
-                const userLocation = user?.user?.location;
-                const hasGlobalView = hasPermission(Permission.LOCATIONS_ALL_VIEW);
-
-                if (userLocation && !hasGlobalView) {
-                    const filteredLocs = locs.filter((l: any) => l.id === userLocation.id || l.name === userLocation.name);
-                    setLocations(filteredLocs);
-                    if (filteredLocs.length > 0) {
-                        setFilters(prev => ({ ...prev, locationId: filteredLocs[0].id }));
-                    }
-                } else {
-                    setLocations(locs);
-                }
-
-                // Apply Digital/Fusing Role Defaults & Restrictions
-                const isDigital = hasPermission(Permission.RUNS_TRANSITION_DIGITAL);
-                const isFusing = hasPermission(Permission.RUNS_TRANSITION_FUSING);
-                const hasFullUpdate = hasPermission(Permission.RUNS_UPDATE);
-
-                if (!hasFullUpdate) {
-                    if (isDigital) {
-                        setFilters(prev => ({
-                            ...prev,
-                            lifeCycleStatus: ['PRODUCTION']
-                        }));
-                    } else if (isFusing) {
-                        setFilters(prev => ({
-                            ...prev,
-                            lifeCycleStatus: ['FUSING', 'CURING']
-                        }));
-                    }
-                }
+                setLocations(locs);
             } catch (error) {
                 console.error("Failed to fetch filter options", error);
             }
         };
         fetchData();
-    }, [user]);
+    }, []);
 
-    // Fetch Dynamic Statuses
     useEffect(() => {
         const fetchStatuses = async () => {
             if (!filters.processId || filters.processId === 'all') {
-                // If no process is selected, show common statuses that people might want to filter by
-                setLifecycleStatuses(['FUSING', 'COMPLETE', 'PENDING']);
+                setLifecycleStatuses(['FUSING', 'COMPLETE', 'PENDING', 'PRODUCTION', 'QC & COUNTING']);
                 return;
             }
             try {
@@ -259,32 +216,12 @@ function RunsPageContent() {
                     ? dynamicStatuses.map((s: any) => s.code || s.name)
                     : dynamicStatuses;
                 setLifecycleStatuses(normalized);
-
-                // If FUSING is available in the new process, auto-select it if nothing else is selected or if we want to stick with Fusing
-                // Only if not a Digital user who should stay on PRODUCTION
-                if (normalized.includes('FUSING') && (filters.lifeCycleStatus.length === 0 || filters.lifeCycleStatus.includes('FUSING')) && !hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
-                    setFilters(prev => ({ ...prev, lifeCycleStatus: ['FUSING'] }));
-                }
             } catch (error) {
                 console.error("Failed to fetch dynamic statuses", error);
             }
         };
         fetchStatuses();
     }, [filters.processId]);
-
-    // Debounce search input
-    const debouncedSearchUpdate = useCallback(
-        debounce((value: string) => {
-            setDebouncedSearch(value);
-            setRunsData((prev) => ({ ...prev, page: 1 }));
-        }, 500),
-        [],
-    );
-
-    useEffect(() => {
-        debouncedSearchUpdate(search);
-        return () => debouncedSearchUpdate.cancel();
-    }, [search, debouncedSearchUpdate]);
 
     useEffect(() => {
         let cancelled = false;
@@ -300,19 +237,12 @@ function RunsPageContent() {
                     } else {
                         const fromDate = new Date();
                         switch (filters.dateRange) {
-                            case 'today':
-                                fromDate.setHours(0, 0, 0, 0);
-                                createdFrom = fromDate.toISOString().split('T')[0];
-                                break;
-                            case 'week':
-                                fromDate.setDate(fromDate.getDate() - 7);
-                                createdFrom = fromDate.toISOString().split('T')[0];
-                                break;
-                            case 'month':
-                                fromDate.setMonth(fromDate.getMonth() - 1);
-                                createdFrom = fromDate.toISOString().split('T')[0];
-                                break;
+                            case 'today': fromDate.setHours(0, 0, 0, 0); break;
+                            case 'week': fromDate.setDate(fromDate.getDate() - 7); break;
+                            case 'month': fromDate.setMonth(fromDate.getMonth() - 1); break;
+                            case 'quarter': fromDate.setMonth(fromDate.getMonth() - 3); break;
                         }
+                        createdFrom = fromDate.toISOString().split('T')[0];
                     }
                 }
 
@@ -320,28 +250,33 @@ function RunsPageContent() {
 
                 // Determine process restricting for Digital role
                 let processIdParam = filters.processId;
-
                 if (isDigitalUser && (filters.processId === 'all' || !filters.processId)) {
-                    // Include all digital processes + Embellishment (which we'll sub-filter)
                     processIdParam = [...DIGITAL_PROCESS_NAMES, 'Embellishment'] as any;
                 }
 
-                const res = await getRuns({
-                    page: runsData.page,
+                const params: any = {
+                    page,
                     limit: pageSize,
-                    search: debouncedSearch,
-                    status: filters.status,
-                    lifeCycleStatusCode: filters.lifeCycleStatus,
-                    priority: filters.priority,
-                    customerId: filters.customerId,
-                    executorUserId: filters.executorId,
-                    reviewerUserId: filters.reviewerId,
-                    processId: processIdParam,
-                    locationId: filters.locationId,
-                    orderStatus: filters.orderStatus,
+                    search,
+                    status: filters.status.join(','),
+                    lifeCycleStatusCode: filters.lifeCycleStatus.join(','),
+                    priority: filters.priority.join(','),
+                    customerId: filters.customerId !== 'all' ? filters.customerId : undefined,
+                    executorUserId: filters.executorId !== 'all' ? filters.executorId : undefined,
+                    reviewerUserId: filters.reviewerId !== 'all' ? filters.reviewerId : undefined,
+                    processId: processIdParam !== 'all' ? processIdParam : undefined,
+                    locationId: filters.locationId !== 'all' ? filters.locationId : undefined,
+                    orderStatus: filters.orderStatus.join(','),
                     createdFrom,
                     createdTo
-                });
+                };
+
+                if (sortKey) {
+                    params.sortBy = sortKey;
+                    params.sortDir = sortDir.toUpperCase();
+                }
+
+                const res = await getRuns(params);
 
                 if (!cancelled) {
                     let finalRuns = res.runs || [];
@@ -351,113 +286,57 @@ function RunsPageContent() {
                         finalRuns = finalRuns.filter(run => {
                             const processName = run.orderProcess?.name || '';
                             const internalProcessName = run.fields?.['Process Name'] || run.fields?.process_name || '';
-
-                            // If it's one of the primary digital processes, show it
                             if (DIGITAL_PROCESS_NAMES.includes(processName)) return true;
-
-                            // If it's Embellishment, only show if the internal process is digital
                             if (processName === 'Embellishment') {
                                 return DIGITAL_PROCESS_NAMES.includes(internalProcessName);
                             }
-
                             return false;
                         });
                     }
 
-                    setRunsData(prev => ({
-                        ...prev,
+                    setRunsData({
                         runs: finalRuns,
                         total: res.total || 0,
+                        page: res.page || 1,
+                        limit: res.limit || pageSize,
                         totalPages: res.totalPages || 0,
                         totalEstimatedAmount: res.totalEstimatedAmount || 0,
                         totalQuantity: res.totalQuantity || 0
-                    }));
+                    });
                 }
             } catch (error) {
-                console.error(error);
-                if (!cancelled) {
-                    setRunsData(prev => ({ ...prev, runs: [], total: 0 }));
-                }
+                console.error("Failed to fetch runs", error);
+                if (!cancelled) setRunsData(prev => ({ ...prev, runs: [], total: 0 }));
             } finally {
                 if (!cancelled) setLoading(false);
             }
         }
-        fetchRuns();
-        return () => { cancelled = true; };
-    }, [debouncedSearch, runsData.page, pageSize, filters]);
+        const timeoutId = setTimeout(fetchRuns, 300);
+        return () => { cancelled = true; clearTimeout(timeoutId); };
+    }, [pathname, searchParams, filters, page, pageSize, search, sortKey, sortDir]);
 
     const handlePageChange = (newPage: number) => {
-        setRunsData((prev) => ({ ...prev, page: newPage }));
+        updateParams({ page: newPage });
     };
 
     const handlePageSizeChange = (newSize: number) => {
-        setPageSize(newSize);
-        localStorage.setItem('runs-page-size', String(newSize));
-        setRunsData((prev) => ({ ...prev, page: 1, limit: newSize }));
+        updateParams({ limit: newSize, page: 1 });
     };
 
     const handleClearFilters = () => {
-        if (hasPermission(Permission.RUNS_TRANSITION_DIGITAL)) {
-            setFilters({
-                status: ['COMPLETE'],
-                lifeCycleStatus: ['PRODUCTION'],
-                orderStatus: ['IN_PRODUCTION'],
-                priority: [],
-                dateRange: 'all',
-                startDate: '',
-                endDate: '',
-                customerId: 'all',
-                executorId: 'all',
-                reviewerId: 'all',
-                processId: 'all',
-                locationId: 'all'
-            });
-        } else if (hasPermission(Permission.RUNS_TRANSITION_FUSING)) {
-            setFilters({
-                status: ['COMPLETE'],
-                lifeCycleStatus: ['FUSING', 'CURING'],
-                orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'],
-                priority: [],
-                dateRange: 'all',
-                startDate: '',
-                endDate: '',
-                customerId: 'all',
-                executorId: 'all',
-                reviewerId: 'all',
-                processId: 'all',
-                locationId: 'all'
-            });
-        } else {
-            setFilters({
-                status: ['COMPLETE'],
-                lifeCycleStatus: [],
-                orderStatus: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'],
-                priority: [],
-                dateRange: 'all',
-                startDate: '',
-                endDate: '',
-                customerId: 'all',
-                executorId: 'all',
-                reviewerId: 'all',
-                processId: 'all',
-                locationId: 'all'
-            });
-        }
-        setRunsData((prev) => ({ ...prev, page: 1 }));
+        router.push(pathname);
     };
 
     const handleSort = (key: string) => {
-        setSortConfig((current) => {
-            if (current?.key === key) {
-                if (current.direction === 'asc') return { key, direction: 'desc' };
-                return null;
-            }
-            return { key, direction: 'asc' };
-        });
+        if (sortKey === key) {
+            updateParams({ sortDir: sortDir === 'asc' ? 'desc' : 'asc' });
+        } else {
+            updateParams({ sortKey: key, sortDir: 'desc' });
+        }
     };
 
     const sortedRuns = useMemo(() => {
-        if (!sortConfig) return runsData.runs;
+        if (!sortKey) return runsData.runs;
         return [...runsData.runs].sort((a, b) => {
             let aValue: any;
             let bValue: any;
@@ -479,10 +358,10 @@ function RunsPageContent() {
                 return 0;
             };
 
-            switch (sortConfig.key) {
+            switch (sortKey) {
                 case 'orderCode':
-                    aValue = typeof a.orderProcess.order.code === 'object' ? (a.orderProcess.order.code as any).code : a.orderProcess.order.code;
-                    bValue = typeof b.orderProcess.order.code === 'object' ? (b.orderProcess.order.code as any).code : b.orderProcess.order.code;
+                    aValue = a.orderProcess.order.code;
+                    bValue = b.orderProcess.order.code;
                     break;
                 case 'process':
                     aValue = getDisplayName(a);
@@ -525,16 +404,15 @@ function RunsPageContent() {
             if (aValue === bValue) return 0;
             if (typeof aValue === 'string' && typeof bValue === 'string') {
                 const cmp = aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: 'base' });
-                return sortConfig.direction === 'asc' ? cmp : -cmp;
+                return sortDir === 'asc' ? cmp : -cmp;
             }
-            const cmp = aValue > bValue ? 1 : -1;
-            return sortConfig.direction === 'asc' ? cmp : -cmp;
+            const cmp = (aValue || 0) > (bValue || 0) ? 1 : -1;
+            return sortDir === 'asc' ? cmp : -cmp;
         });
-    }, [runsData.runs, sortConfig]);
+    }, [runsData.runs, sortKey, sortDir]);
 
     const handleFilterChange = (key: string, value: any) => {
-        setFilters(prev => ({ ...prev, [key]: value }));
-        setRunsData(prev => ({ ...prev, page: 1 }));
+        updateParams({ [key]: value });
     };
 
     return (
@@ -548,8 +426,7 @@ function RunsPageContent() {
                     <RunsFilter
                         filters={filters}
                         onChange={(newFilters) => {
-                            setFilters(newFilters);
-                            setRunsData(prev => ({ ...prev, page: 1 }));
+                            updateParams(newFilters);
                         }}
                         onClear={handleClearFilters}
                         onClose={() => setIsSidebarOpen(false)}
@@ -601,8 +478,8 @@ function RunsPageContent() {
                                 type="text"
                                 placeholder="Search runs, status, customer..."
                                 className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full sm:w-64 bg-white shadow-sm transition-all"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                defaultValue={search}
+                                onChange={(e) => updateParams({ search: e.target.value })}
                             />
                         </div>
                         <RunsViewToggle
@@ -675,9 +552,7 @@ function RunsPageContent() {
                                 <select
                                     value={filters.processId}
                                     onChange={(e) => {
-                                        const val = e.target.value;
-                                        setFilters(prev => ({ ...prev, processId: val, lifeCycleStatus: [] }));
-                                        setRunsData(prev => ({ ...prev, page: 1 }));
+                                        updateParams({ processId: e.target.value, lifeCycleStatus: [] });
                                     }}
                                     className="w-full appearance-none pl-4 pr-10 py-2 text-xs font-bold bg-white border border-blue-200 text-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer hover:border-blue-400 transition-all shadow-sm"
                                 >
@@ -785,34 +660,34 @@ function RunsPageContent() {
                                         <thead>
                                             <tr className="bg-gray-50/50 border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400 font-bold">
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderCode')}>
-                                                    <div className="flex items-center gap-1">Order Code {sortConfig?.key === 'orderCode' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    <div className="flex items-center gap-1">Order Code {sortKey === 'orderCode' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
                                                 <th className="px-6 py-4">
                                                     Image
                                                 </th>
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('process')}>
-                                                    <div className="flex items-center gap-1">Process {sortConfig?.key === 'process' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    <div className="flex items-center gap-1">Process {sortKey === 'process' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('runNumber')}>
-                                                    <div className="flex items-center gap-1">Run # {sortConfig?.key === 'runNumber' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    <div className="flex items-center gap-1">Run # {sortKey === 'runNumber' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('customer')}>
-                                                    <div className="flex items-center gap-1">Customer {sortConfig?.key === 'customer' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    <div className="flex items-center gap-1">Customer {sortKey === 'customer' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('priority')}>
-                                                    <div className="flex items-center gap-1">Priority {sortConfig?.key === 'priority' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    <div className="flex items-center gap-1">Priority {sortKey === 'priority' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('quantity')}>
-                                                    <div className="flex items-center gap-1">Quantity {sortConfig?.key === 'quantity' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    <div className="flex items-center gap-1">Quantity {sortKey === 'quantity' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('estRate')}>
-                                                    <div className="flex items-center gap-1">Est. Rate {sortConfig?.key === 'estRate' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    <div className="flex items-center gap-1">Est. Rate {sortKey === 'estRate' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('estTotal')}>
-                                                    <div className="flex items-center gap-1">Est. Total {sortConfig?.key === 'estTotal' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    <div className="flex items-center gap-1">Est. Total {sortKey === 'estTotal' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('status')}>
-                                                    <div className="flex items-center gap-1">Status {sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
+                                                    <div className="flex items-center gap-1">Status {sortKey === 'status' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
                                             </tr>
                                         </thead>
@@ -985,7 +860,6 @@ function RunsPageContent() {
                     onClose={() => handleRunSelection(null)}
                     onRunUpdate={() => {
                         setRunsData(prev => ({ ...prev }));
-                        setFilters(prev => ({ ...prev }));
                     }}
                 />
             )}

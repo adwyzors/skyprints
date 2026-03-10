@@ -21,8 +21,8 @@ import {
     Users,
     Zap
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 const PERIODS = [
     { label: '7 Days', value: '7d' },
@@ -33,18 +33,22 @@ const PERIODS = [
     { label: 'Custom', value: 'custom' },
 ];
 
-function DashboardClient() {
+function DashboardClientContent() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const { user, hasPermission: hasAuthPermission } = useAuth();
+
+    // Derive state from URL
+    const period = searchParams.get('period') || '7d';
+    const startDate = searchParams.get('startDate') || '';
+    const endDate = searchParams.get('endDate') || '';
+
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
-    const [period, setPeriod] = useState('7d');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
     const [showSettings, setShowSettings] = useState(false);
-    const { user } = useAuth();
-    const router = useRouter();
 
     const preferences = (user as any)?.preferences || {};
     const visibility = {
@@ -64,16 +68,9 @@ function DashboardClient() {
     const toggleVisibility = async (key: string) => {
         try {
             const currentVal = preferences[key as keyof typeof preferences];
-            // If it was undefined, it was effectively 'true', so we toggle to 'false'
-            // If it was true, we toggle to 'false'
-            // If it was false, we toggle to 'true'
             const newVal = currentVal === undefined ? false : !currentVal;
-
             const newPrefs = { ...preferences, [key]: newVal };
             await updatePreferences(newPrefs);
-
-            // To reflect changes immediately without context refresh, we can reload
-            // In a more complex app, we'd update a global store/context
             window.location.reload();
         } catch (error) {
             console.error('Failed to update dashboard preferences:', error);
@@ -93,13 +90,14 @@ function DashboardClient() {
         }
     };
 
-    useEffect(() => {
-        // Load persisted period
-        const savedPeriod = localStorage.getItem('dashboard-period');
-        if (savedPeriod && PERIODS.some(p => p.value === savedPeriod)) {
-            setPeriod(savedPeriod);
-        }
-    }, []);
+    const updateFilters = (params: Record<string, string>) => {
+        const nextParams = new URLSearchParams(searchParams.toString());
+        Object.entries(params).forEach(([key, val]) => {
+            if (val) nextParams.set(key, val);
+            else nextParams.delete(key);
+        });
+        router.push(`/admin/dashboard?${nextParams.toString()}`);
+    };
 
     useEffect(() => {
         if (period === 'custom') {
@@ -109,8 +107,13 @@ function DashboardClient() {
         } else {
             fetchStats(period);
         }
-        localStorage.setItem('dashboard-period', period);
     }, [period, startDate, endDate]);
+
+    useEffect(() => {
+        if (!searchParams.get('period')) {
+            updateFilters({ period: '7d' });
+        }
+    }, []);
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -143,11 +146,8 @@ function DashboardClient() {
 
     if (loading && !stats) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-                    <p className="text-gray-500 font-medium">Loading analytics intelligence...</p>
-                </div>
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
             </div>
         );
     }
@@ -168,8 +168,6 @@ function DashboardClient() {
         const y = chartHeight - (d.revenue / maxVal) * chartHeight;
         return { x, y, ...d };
     });
-    const { hasPermission } = useAuth();
-
 
     const chartD = points.length > 1
         ? `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`
@@ -190,7 +188,7 @@ function DashboardClient() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {hasPermission(Permission.ANALYTICS_SYNC) && (
+                    {hasAuthPermission(Permission.ANALYTICS_SYNC) && (
                         <button
                             onClick={handleSync}
                             disabled={isSyncing}
@@ -419,14 +417,14 @@ function DashboardClient() {
                                         <input
                                             type="date"
                                             value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
+                                            onChange={(e) => updateFilters({ startDate: e.target.value })}
                                             className="text-[10px] bg-transparent border-none focus:ring-0 p-0 w-24 text-gray-600 font-bold uppercase"
                                         />
                                         <span className="text-gray-300 text-[10px]">→</span>
                                         <input
                                             type="date"
                                             value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
+                                            onChange={(e) => updateFilters({ endDate: e.target.value })}
                                             className="text-[10px] bg-transparent border-none focus:ring-0 p-0 w-24 text-gray-600 font-bold uppercase"
                                         />
                                     </div>
@@ -436,7 +434,7 @@ function DashboardClient() {
                                     {PERIODS.map((p) => (
                                         <button
                                             key={p.value}
-                                            onClick={() => setPeriod(p.value)}
+                                            onClick={() => updateFilters({ period: p.value })}
                                             className={`px-3 py-1 text-[10px] font-bold uppercase tracking-tight rounded-md transition-all ${period === p.value
                                                 ? 'bg-white text-blue-600 shadow-sm border border-gray-100'
                                                 : 'text-gray-400 hover:text-gray-600'
@@ -565,7 +563,7 @@ function DashboardClient() {
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {stats.topUsers.length > 0 ? (
-                                    stats.topUsers.map((user, idx) => (
+                                    stats.topUsers.map((user) => (
                                         <tr key={user.userId} className="hover:bg-gray-50/30 transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
@@ -590,7 +588,7 @@ function DashboardClient() {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">No activity logs found.</td>
+                                        <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">No activity logs found.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -669,8 +667,6 @@ function DashboardClient() {
                     </div>
                 )}
             </div>
-
-            {/* Bottom spacer or alternative section */}
         </div>
     );
 }
@@ -801,4 +797,12 @@ function WorkflowLifecycleMatrix({ matrix }: { matrix: Record<string, Record<str
     );
 }
 
-export default withAuth(DashboardClient, { permission: Permission.ANALYTICS_VIEW });
+const ProtectedDashboardContent = withAuth(DashboardClientContent, { permission: Permission.ANALYTICS_VIEW });
+
+export default function DashboardClient() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
+            <ProtectedDashboardContent />
+        </Suspense>
+    );
+}
