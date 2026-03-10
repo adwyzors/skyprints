@@ -16,3 +16,16 @@ export async function logout(): Promise<void> {
         window.location.href = '/';
     }
 }
+
+export async function updatePreferences(preferences: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/auth/preferences`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(preferences),
+        credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to update preferences');
+    return response.json();
+}

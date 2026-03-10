@@ -153,4 +153,20 @@ export class UserService {
         };
     }
 
+    async getPreferences(userId: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { preferences: true }
+        });
+        return user?.preferences || {};
+    }
+
+    async updatePreferences(userId: string, preferences: any) {
+        const user = await this.prisma.user.update({
+            where: { id: userId },
+            data: { preferences }
+        });
+        return user.preferences;
+    }
+
 }

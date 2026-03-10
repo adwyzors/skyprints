@@ -26,6 +26,7 @@ model User {
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
   role      String
+  preferences Json? @default("{}")
 
   executedProcessRuns ProcessRun[] @relation("ProcessRunExecutor")
   reviewedProcessRuns ProcessRun[] @relation("ProcessRunReviewer")

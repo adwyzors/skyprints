@@ -62,6 +62,7 @@ export interface DashboardStats {
         toBeInvoiced: number;
         pendingRuns: number;
     } | null;
+    lifecycleMatrix: Record<string, Record<string, { count: number, value: number }>>;
 }
 
 export async function getDashboardStats(period: string = '7d', fromDate?: string, toDate?: string): Promise<DashboardStats> {

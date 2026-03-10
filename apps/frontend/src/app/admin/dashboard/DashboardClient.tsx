@@ -4,6 +4,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
 import { DashboardStats, getDashboardStats, syncAnalytics } from '@/services/analytics.service';
+import { updatePreferences } from '@/services/auth.service';
 import {
     Activity,
     CheckCircle2,
@@ -15,10 +16,12 @@ import {
     MapPin,
     Package,
     RefreshCw,
+    Settings,
     TrendingUp,
     Users,
     Zap
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 const PERIODS = [
@@ -39,6 +42,39 @@ function DashboardClient() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+    const [showSettings, setShowSettings] = useState(false);
+    const { user } = useAuth();
+    const router = useRouter();
+
+    const preferences = (user as any)?.preferences || {};
+    const visibility = {
+        revenue: preferences.showRevenue !== false,
+        orders: preferences.showOrders !== false,
+        units: preferences.showUnits !== false,
+        hubs: preferences.showHubs !== false,
+        pulse: preferences.showPulse !== false,
+        chart: preferences.showChart !== false,
+        performance: preferences.showPerformance !== false,
+        processes: preferences.showProcesses !== false,
+        customers: preferences.showCustomers !== false,
+        workload: preferences.showWorkload !== false,
+        matrix: preferences.showMatrix !== false,
+    };
+
+    const toggleVisibility = async (key: string) => {
+        try {
+            const newPrefs = { ...preferences, [key]: !preferences[key as keyof typeof preferences] };
+            if (preferences[key as keyof typeof preferences] === undefined) {
+                newPrefs[key] = false; // Default was true, so toggle to false
+            }
+            await updatePreferences(newPrefs);
+            // We need a way to refresh the user profile in AuthContext
+            // For now, a simple alert or page reload might be needed if AuthContext doesn't auto-refresh
+            window.location.reload();
+        } catch (error) {
+            console.error('Failed to update dashboard preferences:', error);
+        }
+    };
 
     const fetchStats = async (p: string, from?: string, to?: string) => {
         try {
@@ -193,6 +229,12 @@ function DashboardClient() {
                         </button>
                     }
                     <button
+                        onClick={() => setShowSettings(true)}
+                        className="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 transition-all shadow-sm"
+                    >
+                        <Settings className="w-4 h-4" />
+                    </button>
+                    <button
                         onClick={handleRefresh}
                         className={`p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 transition-all shadow-sm ${isRefreshing ? 'animate-spin' : ''}`}
                     >
@@ -201,38 +243,81 @@ function DashboardClient() {
                 </div>
             </div>
 
+            {showSettings && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="font-bold text-gray-900">Dashboard Configuration</h3>
+                            <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Visibility Settings</p>
+                            <div className="grid grid-cols-2 gap-4">
+                                {Object.entries(visibility).map(([key, val]) => (
+                                    <label key={key} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-100">
+                                        <input
+                                            type="checkbox"
+                                            checked={val}
+                                            onChange={() => toggleVisibility(`show${key.charAt(0).toUpperCase() + key.slice(1)}`)}
+                                            className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+                                        />
+                                        <span className="text-sm font-semibold capitalize text-gray-700">{key}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="p-4 bg-blue-50 border-t border-blue-100 flex justify-center">
+                            <button
+                                onClick={() => setShowSettings(false)}
+                                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-md hover:bg-blue-700 transition-all"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                    title="Revenue"
-                    value={`₹${totalRevenue.toLocaleString()}`}
-                    subtitle="Billed in period"
-                    icon={<DollarSign className="w-5 h-5" />}
-                    color="text-emerald-600 bg-emerald-50"
-                />
-                <StatCard
-                    title="Orders"
-                    value={totalOrders.toString()}
-                    subtitle="Finalized & Billed"
-                    icon={<Package className="w-5 h-5" />}
-                    color="text-blue-600 bg-blue-50"
-                />
-                <StatCard
-                    title="Units"
-                    value={totalUnits.toLocaleString()}
-                    subtitle="Production output"
-                    icon={<Layers className="w-5 h-5" />}
-                    color="text-indigo-600 bg-indigo-50"
-                />
-                <StatCard
-                    title="Active Hubs"
-                    value={stats.topLocations.length.toString()}
-                    subtitle="Operating centers"
-                    icon={<MapPin className="w-5 h-5" />}
-                    color="text-amber-600 bg-amber-50"
-                />
+                {visibility.revenue && (
+                    <StatCard
+                        title="Revenue"
+                        value={`₹${totalRevenue.toLocaleString()}`}
+                        subtitle="Billed in period"
+                        icon={<DollarSign className="w-5 h-5" />}
+                        color="text-emerald-600 bg-emerald-50"
+                    />
+                )}
+                {visibility.orders && (
+                    <StatCard
+                        title="Orders"
+                        value={totalOrders.toString()}
+                        subtitle="Finalized & Billed"
+                        icon={<Package className="w-5 h-5" />}
+                        color="text-blue-600 bg-blue-50"
+                    />
+                )}
+                {visibility.units && (
+                    <StatCard
+                        title="Units"
+                        value={totalUnits.toLocaleString()}
+                        subtitle="Production output"
+                        icon={<Layers className="w-5 h-5" />}
+                        color="text-indigo-600 bg-indigo-50"
+                    />
+                )}
+                {visibility.hubs && (
+                    <StatCard
+                        title="Active Hubs"
+                        value={stats.topLocations.length.toString()}
+                        subtitle="Operating centers"
+                        icon={<MapPin className="w-5 h-5" />}
+                        color="text-amber-600 bg-amber-50"
+                    />
+                )}
             </div>
 
-            {stats.productionState && (
+            {stats.productionState && visibility.pulse && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     <PulseCard
                         label="Configuring"
@@ -275,287 +360,305 @@ function DashboardClient() {
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
-                        <div className="flex items-center gap-3">
-                            <TrendingUp className="w-5 h-5 text-blue-600" />
-                            <h3 className="font-bold text-gray-900">Revenue Dynamics</h3>
-                        </div>
-                        {hoveredPoint !== null && (
-                            <div className="flex items-center gap-4 animate-in fade-in duration-300">
-                                <span className="text-xs font-medium text-gray-500">
-                                    {points[hoveredPoint].date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                </span>
-                                <span className="text-sm font-bold text-blue-600">
-                                    ₹{points[hoveredPoint].revenue.toLocaleString()}
-                                </span>
+                {visibility.chart && (
+                    <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+                            <div className="flex items-center gap-3">
+                                <TrendingUp className="w-5 h-5 text-blue-600" />
+                                <h3 className="font-bold text-gray-900">Revenue Dynamics</h3>
                             </div>
-                        )}
-                    </div>
-
-                    <div className="p-6 pb-12 flex-1 flex flex-col min-h-[300px] relative">
-                        {points.length > 0 ? (
-                            <div className="flex-1 w-full relative">
-                                <svg className="w-full h-full overflow-visible" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
-                                    <defs>
-                                        <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.1" />
-                                            <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
-                                        </linearGradient>
-                                    </defs>
-
-                                    {[0, 0.25, 0.5, 0.75, 1].map(v => (
-                                        <line key={v} x1="0" y1={v * chartHeight} x2={chartWidth} y2={v * chartHeight} stroke="#f1f5f9" strokeWidth="1" />
-                                    ))}
-
-                                    {areaD && <path d={areaD} fill="url(#chartFill)" />}
-                                    {chartD && <path d={chartD} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
-
-                                    {points.map((p, i) => (
-                                        <g key={i}
-                                            onMouseEnter={() => setHoveredPoint(i)}
-                                            onMouseLeave={() => setHoveredPoint(null)}
-                                            className="cursor-pointer"
-                                        >
-                                            <circle cx={p.x} cy={p.y} r={hoveredPoint === i ? 6 : 4} fill={hoveredPoint === i ? '#2563eb' : 'white'} stroke="#2563eb" strokeWidth="2" />
-                                            <rect x={p.x - 20} y="0" width="40" height={chartHeight} fill="transparent" />
-                                        </g>
-                                    ))}
-                                </svg>
-
-                                <div className="mt-4 flex justify-between px-2">
-                                    {points.filter((_, i) => points.length < 8 || i % Math.ceil(points.length / 6) === 0).map((p, i) => (
-                                        <span key={i} className="text-[10px] font-medium text-gray-400 uppercase tracking-tighter">
-                                            {p.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                                        </span>
-                                    ))}
+                            {hoveredPoint !== null && (
+                                <div className="flex items-center gap-4 animate-in fade-in duration-300">
+                                    <span className="text-xs font-medium text-gray-500">
+                                        {points[hoveredPoint].date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                    </span>
+                                    <span className="text-sm font-bold text-blue-600">
+                                        ₹{points[hoveredPoint].revenue.toLocaleString()}
+                                    </span>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-2 border border-dashed border-gray-100 rounded-lg">
-                                <TrendingUp className="w-8 h-8 opacity-20" />
-                                <p className="text-sm italic">Synchronize history to populate chart</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-                        <MapPin className="w-5 h-5 text-amber-600" />
-                        <h3 className="font-bold text-gray-900">Hub Ranking</h3>
-                    </div>
-                    <div className="p-4 space-y-3 flex-1 overflow-y-auto max-h-[380px] scrollbar-hide">
-                        {stats.topLocations.length > 0 ? (
-                            stats.topLocations.map((loc) => {
-                                const share = (parseFloat(loc.totalRevenue) / (totalRevenue || 1)) * 100;
-                                return (
-                                    <div key={loc.locationId} className="p-4 bg-gray-50/50 rounded-lg border border-gray-100 group hover:bg-white transition-all">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className="font-bold text-sm text-gray-700 truncate mr-2">{loc.locationName}</span>
-                                            <span className="text-xs font-bold text-gray-900">₹{parseFloat(loc.totalRevenue).toLocaleString()}</span>
-                                        </div>
-                                        <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
-                                            <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.max(4, share)}%` }}></div>
-                                        </div>
-                                        <div className="mt-2 flex justify-between text-[10px] font-medium text-gray-500 uppercase">
-                                            <span>{loc.totalRuns} Production Runs</span>
-                                            <span className="text-amber-600">{share.toFixed(1)}%</span>
-                                        </div>
-                                    </div>
-                                );
-                            })
-                        ) : (
-                            <div className="py-20 text-center text-gray-400 text-sm italic">No branch data.</div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Users className="w-5 h-5 text-indigo-600" />
-                        <h3 className="font-bold text-gray-900">Staff Utilization</h3>
-                    </div>
-                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded">Ranked by Volume Managed</span>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="bg-gray-50/80 border-b border-gray-100 text-left">
-                            <tr>
-                                <th className="px-6 py-3 font-bold text-gray-600">Manager</th>
-                                <th className="px-6 py-3 font-bold text-gray-600">Role</th>
-                                <th className="px-6 py-3 font-bold text-gray-600 text-center">Executed</th>
-                                <th className="px-6 py-3 font-bold text-gray-600 text-center">Reviewed</th>
-                                <th className="px-6 py-3 font-bold text-gray-600 text-right">Volume Handled</th>
-                                <th className="px-6 py-3 font-bold text-gray-600">Productivity</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {stats.topUsers.length > 0 ? (
-                                stats.topUsers.map((user, idx) => (
-                                    <tr key={user.userId} className="hover:bg-gray-50/30 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
-                                                    {user.userName.charAt(0)}
-                                                </div>
-                                                <span className="font-bold text-gray-900">{user.userName}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-[10px] font-bold uppercase py-0.5 px-2 bg-gray-100 text-gray-500 rounded border border-gray-200">{user.role}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-center font-bold text-gray-700">{user.runsExecuted}</td>
-                                        <td className="px-6 py-4 text-center font-bold text-gray-700">{user.runsReviewed}</td>
-                                        <td className="px-6 py-4 text-right font-bold text-blue-600">₹{parseFloat(user.totalBilledVolume).toLocaleString()}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, ((user.runsReviewed + user.runsExecuted) / ((stats.topUsers[0]?.runsReviewed || 1) + (stats.topUsers[0]?.runsExecuted || 0))) * 100)}%` }}></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">No activity logs found.</td>
-                                </tr>
                             )}
-                        </tbody>
-                    </table>
-                </div>
+                        </div>
+
+                        <div className="p-6 pb-12 flex-1 flex flex-col min-h-[300px] relative">
+                            {points.length > 0 ? (
+                                <div className="flex-1 w-full relative">
+                                    <svg className="w-full h-full overflow-visible" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+                                        <defs>
+                                            <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#2563eb" stopOpacity="0.1" />
+                                                <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
+                                            </linearGradient>
+                                        </defs>
+
+                                        {[0, 0.25, 0.5, 0.75, 1].map(v => (
+                                            <line key={v} x1="0" y1={v * chartHeight} x2={chartWidth} y2={v * chartHeight} stroke="#f1f5f9" strokeWidth="1" />
+                                        ))}
+
+                                        {areaD && <path d={areaD} fill="url(#chartFill)" />}
+                                        {chartD && <path d={chartD} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
+
+                                        {points.map((p, i) => (
+                                            <g key={i}
+                                                onMouseEnter={() => setHoveredPoint(i)}
+                                                onMouseLeave={() => setHoveredPoint(null)}
+                                                className="cursor-pointer"
+                                            >
+                                                <circle cx={p.x} cy={p.y} r={hoveredPoint === i ? 6 : 4} fill={hoveredPoint === i ? '#2563eb' : 'white'} stroke="#2563eb" strokeWidth="2" />
+                                                <rect x={p.x - 20} y="0" width="40" height={chartHeight} fill="transparent" />
+                                            </g>
+                                        ))}
+                                    </svg>
+
+                                    <div className="mt-4 flex justify-between px-2">
+                                        {points.filter((_, i) => points.length < 8 || i % Math.ceil(points.length / 6) === 0).map((p, i) => (
+                                            <span key={i} className="text-[10px] font-medium text-gray-400 uppercase tracking-tighter">
+                                                {p.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-2 border border-dashed border-gray-100 rounded-lg">
+                                    <TrendingUp className="w-8 h-8 opacity-20" />
+                                    <p className="text-sm italic">Synchronize history to populate chart</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {visibility.hubs && (
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                            <MapPin className="w-5 h-5 text-amber-600" />
+                            <h3 className="font-bold text-gray-900">Hub Ranking</h3>
+                        </div>
+                        <div className="p-4 space-y-3 flex-1 overflow-y-auto max-h-[380px] scrollbar-hide">
+                            {stats.topLocations.length > 0 ? (
+                                stats.topLocations.map((loc) => {
+                                    const share = (parseFloat(loc.totalRevenue) / (totalRevenue || 1)) * 100;
+                                    return (
+                                        <div key={loc.locationId} className="p-4 bg-gray-50/50 rounded-lg border border-gray-100 group hover:bg-white transition-all">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <span className="font-bold text-sm text-gray-700 truncate mr-2">{loc.locationName}</span>
+                                                <span className="text-xs font-bold text-gray-900">₹{parseFloat(loc.totalRevenue).toLocaleString()}</span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+                                                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.max(4, share)}%` }}></div>
+                                            </div>
+                                            <div className="mt-2 flex justify-between text-[10px] font-medium text-gray-500 uppercase">
+                                                <span>{loc.totalRuns} Production Runs</span>
+                                                <span className="text-amber-600">{share.toFixed(1)}%</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="py-20 text-center text-gray-400 text-sm italic">No branch data.</div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
+
+            {visibility.performance && (
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Users className="w-5 h-5 text-indigo-600" />
+                            <h3 className="font-bold text-gray-900">Staff Utilization</h3>
+                        </div>
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 px-2 py-1 rounded">Ranked by Volume Managed</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="bg-gray-50/80 border-b border-gray-100 text-left">
+                                <tr>
+                                    <th className="px-6 py-3 font-bold text-gray-600">Manager</th>
+                                    <th className="px-6 py-3 font-bold text-gray-600">Role</th>
+                                    <th className="px-6 py-3 font-bold text-gray-600 text-center">Executed</th>
+                                    <th className="px-6 py-3 font-bold text-gray-600 text-center">Reviewed</th>
+                                    <th className="px-6 py-3 font-bold text-gray-600 text-right">Volume Handled</th>
+                                    <th className="px-6 py-3 font-bold text-gray-600">Productivity</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {stats.topUsers.length > 0 ? (
+                                    stats.topUsers.map((user, idx) => (
+                                        <tr key={user.userId} className="hover:bg-gray-50/30 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
+                                                        {user.userName.charAt(0)}
+                                                    </div>
+                                                    <span className="font-bold text-gray-900">{user.userName}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-[10px] font-bold uppercase py-0.5 px-2 bg-gray-100 text-gray-500 rounded border border-gray-200">{user.role}</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-center font-bold text-gray-700">{user.runsExecuted}</td>
+                                            <td className="px-6 py-4 text-center font-bold text-gray-700">{user.runsReviewed}</td>
+                                            <td className="px-6 py-4 text-right font-bold text-blue-600">₹{parseFloat(user.totalBilledVolume).toLocaleString()}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                                                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, ((user.runsReviewed + user.runsExecuted) / ((stats.topUsers[0]?.runsReviewed || 1) + (stats.topUsers[0]?.runsExecuted || 0))) * 100)}%` }}></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">No activity logs found.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-                        <Zap className="w-5 h-5 text-blue-600" />
-                        <h3 className="font-bold text-gray-900">Process Share</h3>
-                    </div>
-                    <div className="p-4 space-y-4 flex-1 overflow-y-auto max-h-[400px] scrollbar-hide">
-                        {stats.topProcesses.map((proc) => {
-                            const share = (parseFloat(proc.totalRevenue) / (totalRevenue || 1)) * 100;
-                            return (
-                                <div key={proc.processId} className="space-y-2">
-                                    <div className="flex justify-between items-end">
-                                        <span className="font-bold text-xs text-gray-700 uppercase tracking-tight">{proc.processName}</span>
-                                        <span className="text-xs font-bold text-gray-900">₹{parseFloat(proc.totalRevenue).toLocaleString()}</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-blue-600 rounded-full" style={{ width: `${Math.max(5, share)}%` }}></div>
-                                    </div>
-                                    <div className="flex justify-between text-[9px] font-bold text-gray-400">
-                                        <span>{proc.totalRuns} Runs</span>
-                                        <span className="text-blue-600">{share.toFixed(1)}% Revenue</span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-                        <Users className="w-5 h-5 text-emerald-600" />
-                        <h3 className="font-bold text-gray-900">Customer Insights</h3>
-                    </div>
-                    <div className="p-4 space-y-4 flex-1 overflow-y-auto max-h-[400px] scrollbar-hide">
-                        {stats.topCustomers?.length > 0 ? (
-                            stats.topCustomers.map((cust) => {
-                                const share = (parseFloat(cust.totalRevenue) / (totalRevenue || 1)) * 100;
+                {visibility.processes && (
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                            <Zap className="w-5 h-5 text-blue-600" />
+                            <h3 className="font-bold text-gray-900">Process Share</h3>
+                        </div>
+                        <div className="p-4 space-y-4 flex-1 overflow-y-auto max-h-[400px] scrollbar-hide">
+                            {stats.topProcesses.map((proc) => {
+                                const share = (parseFloat(proc.totalRevenue) / (totalRevenue || 1)) * 100;
                                 return (
-                                    <div key={cust.customerId} className="space-y-2 group">
+                                    <div key={proc.processId} className="space-y-2">
                                         <div className="flex justify-between items-end">
-                                            <span className="font-bold text-xs text-gray-700 uppercase tracking-tight truncate max-w-[180px] group-hover:text-blue-600 transition-colors">
-                                                {cust.customerName}
-                                            </span>
-                                            <span className="text-xs font-bold text-gray-900">₹{parseFloat(cust.totalRevenue).toLocaleString()}</span>
+                                            <span className="font-bold text-xs text-gray-700 uppercase tracking-tight">{proc.processName}</span>
+                                            <span className="text-xs font-bold text-gray-900">₹{parseFloat(proc.totalRevenue).toLocaleString()}</span>
                                         </div>
-                                        <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-50">
-                                            <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${Math.max(5, share)}%` }}></div>
+                                        <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-blue-600 rounded-full" style={{ width: `${Math.max(5, share)}%` }}></div>
                                         </div>
-                                        <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                                            <div className="flex gap-3">
-                                                <span>{cust.totalOrders} Orders</span>
-                                                <span>{cust.totalUnits.toLocaleString()} Pcs</span>
-                                            </div>
-                                            <span className="text-emerald-600">Contribution: {share.toFixed(1)}%</span>
+                                        <div className="flex justify-between text-[9px] font-bold text-gray-400">
+                                            <span>{proc.totalRuns} Runs</span>
+                                            <span className="text-blue-600">{share.toFixed(1)}% Revenue</span>
                                         </div>
                                     </div>
                                 );
-                            })
-                        ) : (
-                            <div className="py-20 text-center text-gray-400 text-sm italic border border-dashed border-gray-100 rounded-xl">
-                                No customer transaction data found.
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {visibility.customers && (
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                            <Users className="w-5 h-5 text-emerald-600" />
+                            <h3 className="font-bold text-gray-900">Customer Insights</h3>
+                        </div>
+                        <div className="p-4 space-y-4 flex-1 overflow-y-auto max-h-[400px] scrollbar-hide">
+                            {stats.topCustomers?.length > 0 ? (
+                                stats.topCustomers.map((cust) => {
+                                    const share = (parseFloat(cust.totalRevenue) / (totalRevenue || 1)) * 100;
+                                    return (
+                                        <div key={cust.customerId} className="space-y-2 group">
+                                            <div className="flex justify-between items-end">
+                                                <span className="font-bold text-xs text-gray-700 uppercase tracking-tight truncate max-w-[180px] group-hover:text-blue-600 transition-colors">
+                                                    {cust.customerName}
+                                                </span>
+                                                <span className="text-xs font-bold text-gray-900">₹{parseFloat(cust.totalRevenue).toLocaleString()}</span>
+                                            </div>
+                                            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-50">
+                                                <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${Math.max(5, share)}%` }}></div>
+                                            </div>
+                                            <div className="flex justify-between text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                                                <div className="flex gap-3">
+                                                    <span>{cust.totalOrders} Orders</span>
+                                                    <span>{cust.totalUnits.toLocaleString()} Pcs</span>
+                                                </div>
+                                                <span className="text-emerald-600">Contribution: {share.toFixed(1)}%</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="py-20 text-center text-gray-400 text-sm italic border border-dashed border-gray-100 rounded-xl">
+                                    No customer transaction data found.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {visibility.workload && (
+                <div className="pt-6 border-t border-gray-200">
+                    <div className="mb-6">
+                        <h2 className="text-xl font-bold text-gray-900">Live System State</h2>
+                        <p className="text-sm text-gray-500">Unbilled workload currently being processed in the system</p>
+                    </div>
+
+                    {visibility.matrix && stats.lifecycleMatrix && (
+                        <div className="mb-8">
+                            <WorkflowLifecycleMatrix matrix={stats.lifecycleMatrix} />
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
+                                <MapPin className="w-5 h-5 text-amber-600" />
+                                <h3 className="font-bold text-gray-900">Active Workload by Hub</h3>
                             </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <div className="pt-6 border-t border-gray-200">
-                <div className="mb-6">
-                    <h2 className="text-xl font-bold text-gray-900">Live System State</h2>
-                    <p className="text-sm text-gray-500">Unbilled workload currently being processed in the system</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                            <MapPin className="w-5 h-5 text-amber-600" />
-                            <h3 className="font-bold text-gray-900">Active Workload by Hub</h3>
+                            <div className="p-4">
+                                {stats.currentWorkload?.byLocation.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {stats.currentWorkload.byLocation.map((loc) => (
+                                            <div key={loc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-2 h-10 bg-amber-400 rounded-full" />
+                                                    <span className="font-bold text-gray-700">{loc.name}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-xl font-black text-gray-900">{loc.count}</span>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Active Runs</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="py-12 text-center text-gray-400 text-sm italic">All hubs are currently idle.</div>
+                                )}
+                            </div>
                         </div>
-                        <div className="p-4">
-                            {stats.currentWorkload?.byLocation.length > 0 ? (
-                                <div className="grid grid-cols-1 gap-3">
-                                    {stats.currentWorkload.byLocation.map((loc) => (
-                                        <div key={loc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-2 h-10 bg-amber-400 rounded-full" />
-                                                <span className="font-bold text-gray-700">{loc.name}</span>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className="text-xl font-black text-gray-900">{loc.count}</span>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase">Active Runs</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="py-12 text-center text-gray-400 text-sm italic">All hubs are currently idle.</div>
-                            )}
-                        </div>
-                    </div>
 
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                            <Users className="w-5 h-5 text-indigo-600" />
-                            <h3 className="font-bold text-gray-900">Active Workload by Manager</h3>
-                        </div>
-                        <div className="p-4">
-                            {stats.currentWorkload?.byManager.length > 0 ? (
-                                <div className="grid grid-cols-1 gap-3">
-                                    {stats.currentWorkload.byManager.map((mgr) => (
-                                        <div key={mgr.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-2 h-10 bg-indigo-500 rounded-full" />
-                                                <span className="font-bold text-gray-700">{mgr.name}</span>
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
+                                <Users className="w-5 h-5 text-indigo-600" />
+                                <h3 className="font-bold text-gray-900">Active Workload by Manager</h3>
+                            </div>
+                            <div className="p-4">
+                                {stats.currentWorkload?.byManager.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {stats.currentWorkload.byManager.map((mgr) => (
+                                            <div key={mgr.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-2 h-10 bg-indigo-500 rounded-full" />
+                                                    <span className="font-bold text-gray-700">{mgr.name}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-xl font-black text-gray-900">{mgr.count}</span>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Assigned Runs</p>
+                                                </div>
                                             </div>
-                                            <div className="text-right">
-                                                <span className="text-xl font-black text-gray-900">{mgr.count}</span>
-                                                <p className="text-[10px] font-bold text-gray-400 uppercase">Assigned Runs</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="py-12 text-center text-gray-400 text-sm italic">No managers have active assignments.</div>
-                            )}
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="py-12 text-center text-gray-400 text-sm italic">No managers have active assignments.</div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }
@@ -603,6 +706,70 @@ function PulseCard({ label, value, icon, color, dark = false }: PulseCardProps) 
                 <span className={`text-2xl font-black ${dark ? 'text-white' : 'text-gray-900'}`}>{value}</span>
             </div>
             <span className={`text-[9px] font-black uppercase tracking-widest ${dark ? 'text-gray-400' : 'text-gray-400'}`}>{label}</span>
+        </div>
+    );
+}
+
+function WorkflowLifecycleMatrix({ matrix }: { matrix: Record<string, Record<string, { count: number, value: number }>> }) {
+    const router = useRouter();
+    const statuses = ['Pending Selection', 'In Queue', 'Digital Pending', 'Digital Done', 'Production Pending', 'Production Done', 'Billed'];
+    const processes = Object.keys(matrix);
+
+    const handleCellClick = (process: string, status: string) => {
+        const queryParams = new URLSearchParams({
+            process: process,
+            status: status
+        });
+        router.push(`/admin/runs?${queryParams.toString()}`);
+    };
+
+    return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
+                <Layers className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-gray-900">Workflow Lifecycle Matrix</h3>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                    <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                            <th className="px-4 py-3 font-bold text-gray-600 border-r border-gray-100">Process / Stage</th>
+                            {statuses.map(status => (
+                                <th key={status} className="px-4 py-3 font-bold text-gray-600 text-center border-r border-gray-100 last:border-r-0">
+                                    {status}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {processes.map(process => (
+                            <tr key={process} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="px-4 py-3 font-bold text-gray-900 border-r border-gray-100 bg-gray-50/20">{process}</td>
+                                {statuses.map(status => {
+                                    const data = matrix[process]?.[status];
+                                    const hasData = data && data.count > 0;
+                                    return (
+                                        <td
+                                            key={status}
+                                            onClick={() => hasData && handleCellClick(process, status)}
+                                            className={`px-4 py-3 border-r border-gray-100 last:border-r-0 text-center transition-all ${hasData ? 'cursor-pointer hover:bg-blue-50/50 group' : 'bg-gray-50/10'}`}
+                                        >
+                                            {hasData ? (
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-sm font-black text-gray-900 group-hover:text-blue-600">{data.count}</span>
+                                                    <span className="text-[9px] font-bold text-blue-600 opacity-60 group-hover:opacity-100">₹{data.value.toLocaleString()}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-200 text-lg">-</span>
+                                            )}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }

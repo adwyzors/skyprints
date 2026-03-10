@@ -59,6 +59,7 @@ export class AuthService {
                 isActive: true,
                 createdAt: true,
                 updatedAt: true,
+                preferences: true,
                 location: {
                     select: {
                         id: true,
@@ -82,6 +83,14 @@ export class AuthService {
             roles: authUser.permissions ?? [],
             user,
         };
+    }
+
+    async updatePreferences(userId: string, preferences: any) {
+        const user = await this.prisma.user.update({
+            where: { id: userId },
+            data: { preferences }
+        });
+        return user.preferences;
     }
 
 }
