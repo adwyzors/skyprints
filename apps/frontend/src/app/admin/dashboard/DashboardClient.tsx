@@ -63,13 +63,17 @@ function DashboardClient() {
 
     const toggleVisibility = async (key: string) => {
         try {
-            const newPrefs = { ...preferences, [key]: !preferences[key as keyof typeof preferences] };
-            if (preferences[key as keyof typeof preferences] === undefined) {
-                newPrefs[key] = false; // Default was true, so toggle to false
-            }
+            const currentVal = preferences[key as keyof typeof preferences];
+            // If it was undefined, it was effectively 'true', so we toggle to 'false'
+            // If it was true, we toggle to 'false'
+            // If it was false, we toggle to 'true'
+            const newVal = currentVal === undefined ? false : !currentVal;
+
+            const newPrefs = { ...preferences, [key]: newVal };
             await updatePreferences(newPrefs);
-            // We need a way to refresh the user profile in AuthContext
-            // For now, a simple alert or page reload might be needed if AuthContext doesn't auto-refresh
+
+            // To reflect changes immediately without context refresh, we can reload
+            // In a more complex app, we'd update a global store/context
             window.location.reload();
         } catch (error) {
             console.error('Failed to update dashboard preferences:', error);
@@ -185,40 +189,8 @@ function DashboardClient() {
                     <p className="text-sm text-gray-500">Analyze performance and resource utilization</p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                    {period === 'custom' && (
-                        <div className="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-gray-200 shadow-sm animate-in fade-in slide-in-from-right-2 duration-300">
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="text-xs border-none focus:ring-0 p-0 w-28 text-gray-600 font-medium"
-                            />
-                            <span className="text-gray-300 text-xs">→</span>
-                            <input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="text-xs border-none focus:ring-0 p-0 w-28 text-gray-600 font-medium"
-                            />
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-                        {PERIODS.map((p) => (
-                            <button
-                                key={p.value}
-                                onClick={() => setPeriod(p.value)}
-                                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${period === p.value
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-gray-500 hover:bg-gray-50'
-                                    }`}
-                            >
-                                {p.label}
-                            </button>
-                        ))}
-                    </div>
-                    {hasPermission(Permission.ANALYTICS_SYNC) &&
+                <div className="flex items-center gap-2">
+                    {hasPermission(Permission.ANALYTICS_SYNC) && (
                         <button
                             onClick={handleSync}
                             disabled={isSyncing}
@@ -227,16 +199,18 @@ function DashboardClient() {
                             {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4 text-gray-400" />}
                             Sync
                         </button>
-                    }
+                    )}
                     <button
                         onClick={() => setShowSettings(true)}
                         className="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 transition-all shadow-sm"
+                        title="Dashboard Preferences"
                     >
                         <Settings className="w-4 h-4" />
                     </button>
                     <button
                         onClick={handleRefresh}
                         className={`p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 transition-all shadow-sm ${isRefreshing ? 'animate-spin' : ''}`}
+                        title="Refresh Data"
                     >
                         <RefreshCw className="w-4 h-4" />
                     </button>
@@ -433,21 +407,57 @@ function DashboardClient() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {visibility.chart && (
                     <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+                        <div className="px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
                             <div className="flex items-center gap-3">
                                 <TrendingUp className="w-5 h-5 text-blue-600" />
                                 <h3 className="font-bold text-gray-900">Revenue Dynamics</h3>
                             </div>
-                            {hoveredPoint !== null && (
-                                <div className="flex items-center gap-4 animate-in fade-in duration-300">
-                                    <span className="text-xs font-medium text-gray-500">
-                                        {points[hoveredPoint].date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                    </span>
-                                    <span className="text-sm font-bold text-blue-600">
-                                        ₹{points[hoveredPoint].revenue.toLocaleString()}
-                                    </span>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                {period === 'custom' && (
+                                    <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-md border border-gray-200 animate-in fade-in slide-in-from-right-2 duration-300">
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="text-[10px] bg-transparent border-none focus:ring-0 p-0 w-24 text-gray-600 font-bold uppercase"
+                                        />
+                                        <span className="text-gray-300 text-[10px]">→</span>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="text-[10px] bg-transparent border-none focus:ring-0 p-0 w-24 text-gray-600 font-bold uppercase"
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
+                                    {PERIODS.map((p) => (
+                                        <button
+                                            key={p.value}
+                                            onClick={() => setPeriod(p.value)}
+                                            className={`px-3 py-1 text-[10px] font-bold uppercase tracking-tight rounded-md transition-all ${period === p.value
+                                                ? 'bg-white text-blue-600 shadow-sm border border-gray-100'
+                                                : 'text-gray-400 hover:text-gray-600'
+                                                }`}
+                                        >
+                                            {p.label}
+                                        </button>
+                                    ))}
                                 </div>
-                            )}
+
+                                {hoveredPoint !== null && (
+                                    <div className="flex items-center gap-4 animate-in fade-in duration-300 ml-2 border-l border-gray-100 pl-4">
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                            {points[hoveredPoint].date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                        </span>
+                                        <span className="text-sm font-black text-blue-600">
+                                            ₹{points[hoveredPoint].revenue.toLocaleString()}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="p-6 pb-12 flex-1 flex flex-col min-h-[300px] relative">

@@ -232,7 +232,18 @@ export class AdminProcessService {
             ...(executorUserId && { executorId: executorUserId }),
             ...(reviewerUserId && { reviewerId: reviewerUserId }),
             ...(lifeCycleStatusCode ? {
-                lifeCycleStatusCode: { in: lifeCycleStatusCode.split(',') }
+                lifeCycleStatusCode: {
+                    in: (() => {
+                        const list = lifeCycleStatusCode.split(',');
+                        if (list.some(s => s.toUpperCase() === 'QC & COUNTING' || s.toUpperCase() === 'QC&COUNTING')) {
+                            const expanded = [...list];
+                            if (!expanded.some(s => s.toUpperCase() === 'QC & COUNTING')) expanded.push('QC & COUNTING');
+                            if (!expanded.some(s => s.toUpperCase() === 'QC&COUNTING')) expanded.push('QC&COUNTING');
+                            return expanded;
+                        }
+                        return list;
+                    })()
+                }
             } : (
                 !status ? {
                     lifeCycleStatusCode: { notIn: ['COMPLETE', 'BILLED'] }
