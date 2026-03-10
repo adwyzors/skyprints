@@ -739,11 +739,12 @@ function WorkflowLifecycleMatrix({ matrix }: { matrix: Record<string, Record<str
     const processes = Object.keys(matrix);
 
     const handleCellClick = (process: string, status: string) => {
-        const queryParams = new URLSearchParams({
-            processId: process,
-            lifeCycleStatusCode: status
-        });
-        router.push(`/admin/runs?${queryParams.toString()}`);
+        const params = new URLSearchParams();
+        params.set('processId', process);
+        params.set('lifeCycleStatus', status);
+        // Explicitly set page/limit for clarity if needed, or leave clean
+        params.set('limit', '20');
+        router.push(`/admin/runs?${params.toString()}`);
     };
 
     return (

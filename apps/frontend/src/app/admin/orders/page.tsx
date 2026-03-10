@@ -34,7 +34,11 @@ function AdminOrdersContent() {
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('limit') || '12');
     const searchQuery = searchParams.get('search') || '';
-    const statusCodes = useMemo(() => searchParams.get('status')?.split(',') || ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'], [searchParams.toString()]);
+    const statusCodes = useMemo(() => {
+        const val = searchParams.get('status');
+        if (!val) return ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'];
+        return Array.from(new Set(val.split(',').map(s => s.trim()).filter(Boolean)));
+    }, [searchParams.toString()]);
 
     const filters = useMemo(() => ({
         status: statusCodes,
@@ -121,10 +125,12 @@ function AdminOrdersContent() {
     const updateParams = useCallback((newParams: Record<string, string | string[] | number | null>) => {
         const next = new URLSearchParams(searchParams.toString());
         Object.entries(newParams).forEach(([key, val]) => {
-            if (val === null || val === 'all' || val === undefined) {
+            if (val === null || val === 'all' || val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) {
                 next.delete(key);
             } else if (Array.isArray(val)) {
-                next.set(key, val.join(','));
+                const unique = Array.from(new Set(val.map(s => String(s).trim()).filter(Boolean)));
+                if (unique.length > 0) next.set(key, unique.join(','));
+                else next.delete(key);
             } else {
                 next.set(key, String(val));
             }

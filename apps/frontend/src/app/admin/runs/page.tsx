@@ -90,20 +90,35 @@ function RunsPageContent() {
     const sortDir = (searchParams.get('sortDir') as 'asc' | 'desc') || 'desc';
 
     // Derived filters from URL - Memoized with stringified searchParams for stability
-    const filters = useMemo(() => ({
-        status: searchParams.get('status')?.split(',') || ['COMPLETE'],
-        lifeCycleStatus: searchParams.get('lifeCycleStatus')?.split(',') || [],
-        orderStatus: searchParams.get('orderStatus')?.split(',') || ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'],
-        priority: searchParams.get('priority')?.split(',') || [],
-        dateRange: searchParams.get('dateRange') || 'all',
-        startDate: searchParams.get('startDate') || '',
-        endDate: searchParams.get('endDate') || '',
-        customerId: searchParams.get('customerId') || 'all',
-        executorId: searchParams.get('executorId') || 'all',
-        reviewerId: searchParams.get('reviewerId') || 'all',
-        processId: searchParams.get('processId') || 'all',
-        locationId: searchParams.get('locationId') || 'all',
-    }), [searchParams.toString()]);
+    const filters = useMemo(() => {
+        const hasSpecificFilter = searchParams.has('processId') || searchParams.has('lifeCycleStatus') || searchParams.has('search');
+
+        const getParamArray = (key: string) => {
+            const val = searchParams.get(key);
+            if (!val) return null;
+            return Array.from(new Set(val.split(',').map(s => s.trim()).filter(Boolean)));
+        };
+
+        const status = getParamArray('status');
+        const lifeCycleStatus = getParamArray('lifeCycleStatus');
+        const orderStatus = getParamArray('orderStatus');
+        const priority = getParamArray('priority');
+
+        return {
+            status: status || (hasSpecificFilter && !searchParams.has('status') ? [] : ['COMPLETE']),
+            lifeCycleStatus: lifeCycleStatus || [],
+            orderStatus: orderStatus || ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'],
+            priority: priority || [],
+            dateRange: searchParams.get('dateRange') || 'all',
+            startDate: searchParams.get('startDate') || '',
+            endDate: searchParams.get('endDate') || '',
+            customerId: searchParams.get('customerId') || 'all',
+            executorId: searchParams.get('executorId') || 'all',
+            reviewerId: searchParams.get('reviewerId') || 'all',
+            processId: searchParams.get('processId') || 'all',
+            locationId: searchParams.get('locationId') || 'all',
+        };
+    }, [searchParams.toString()]);
 
     const [runsData, setRunsData] = useState<{
         runs: Run[];
@@ -137,10 +152,12 @@ function RunsPageContent() {
     const updateParams = useCallback((newParams: Record<string, string | string[] | number | null>) => {
         const next = new URLSearchParams(searchParams.toString());
         Object.entries(newParams).forEach(([key, val]) => {
-            if (val === null || val === 'all' || val === undefined || (Array.isArray(val) && val.length === 0)) {
+            if (val === null || val === 'all' || val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) {
                 next.delete(key);
             } else if (Array.isArray(val)) {
-                next.set(key, val.join(','));
+                const unique = Array.from(new Set(val.map(s => String(s).trim()).filter(Boolean)));
+                if (unique.length > 0) next.set(key, unique.join(','));
+                else next.delete(key);
             } else {
                 next.set(key, String(val));
             }
@@ -161,13 +178,15 @@ function RunsPageContent() {
         const savedSidebarOpen = localStorage.getItem('runs-sidebar-open');
         if (savedSidebarOpen !== null) setIsSidebarOpen(savedSidebarOpen === 'true');
 
-        // Apply defaults to URL if missing
-        if (!searchParams.get('limit') || !searchParams.get('status')) {
+        // Apply defaults to URL if essential params are missing and no specific filters are set
+        const hasSpecificFilter = searchParams.has('processId') || searchParams.has('lifeCycleStatus') || searchParams.has('search');
+
+        if (!searchParams.get('limit') || (!searchParams.get('status') && !hasSpecificFilter)) {
             const next = new URLSearchParams(searchParams.toString());
             let changed = false;
 
             if (!next.get('limit')) { next.set('limit', '20'); changed = true; }
-            if (!next.get('status')) { next.set('status', 'COMPLETE'); changed = true; }
+            if (!next.get('status') && !hasSpecificFilter) { next.set('status', 'COMPLETE'); changed = true; }
 
             const isDigital = hasPermission(Permission.RUNS_TRANSITION_DIGITAL);
             const isFusing = hasPermission(Permission.RUNS_TRANSITION_FUSING);
