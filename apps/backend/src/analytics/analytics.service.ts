@@ -271,7 +271,6 @@ export class AnalyticsService {
             'Allover Sublimation',
             'Laser',
             'Spangle',
-            'Embellishment',
             'Diamond',
             'Positive'
         ];
@@ -308,7 +307,9 @@ export class AnalyticsService {
                     }
                 },
                 select: {
+                    id: true,
                     lifeCycleStatusCode: true,
+                    fields: true, // Need fields for "Process Name" override and "Estimated Amount"
                     orderProcess: {
                         select: {
                             process: { select: { name: true } },
@@ -335,7 +336,7 @@ export class AnalyticsService {
             });
 
             // To make it more accurate, let's fetch approximate values for these orders
-            // We'll look for the latest snapshot (DRAFT or FINAL) that includes these orders
+            // We'll also try to use "Estimated Amount" from the run fields itself
             const orderIds = [...new Set(activeRuns.map(r => r.orderProcess.order.id))];
             const snapshots = await this.prisma.billingSnapshot.findMany({
                 where: {
@@ -367,8 +368,19 @@ export class AnalyticsService {
             });
 
             activeRuns.forEach(run => {
-                const pName = run.orderProcess.process.name;
+                let pName = run.orderProcess.process.name?.trim();
                 const dbStatus = run.lifeCycleStatusCode;
+                const fields = (run.fields as Record<string, any>) || {};
+
+                // Override name for Embellishment if "Process Name" field exists
+                if (pName === 'Embellishment' && fields['Process Name']) {
+                    const override = String(fields['Process Name']).trim();
+                    // Check if this override exists in our processes list (case-insensitive)
+                    const matchedProcess = processes.find(p => p.toLowerCase() === override.toLowerCase());
+                    if (matchedProcess) {
+                        pName = matchedProcess;
+                    }
+                }
 
                 // Find matching status label case-insensitively
                 const matchedStatus = statuses.find(s => s.toUpperCase() === dbStatus?.toUpperCase());
@@ -376,11 +388,28 @@ export class AnalyticsService {
                 if (matrix[pName] && matchedStatus) {
                     matrix[pName][matchedStatus].count += 1;
 
-                    const orderVal = orderValueMap.get(run.orderProcess.order.id) || 0;
-                    const processCount = run.orderProcess.order.totalProcesses || 1;
-                    const runValue = orderVal / processCount;
+                    // Calculate value similarly to Run Activity Page
+                    // 1. Try "Estimated Amount" field first
+                    let runValue = 0;
+                    const estAmt = fields['Estimated Amount'];
+                    if (estAmt !== undefined && estAmt !== null) {
+                        const cleanAmt = String(estAmt).replace(/[^\d.-]/g, '');
+                        const parsed = parseFloat(cleanAmt);
+                        if (!isNaN(parsed)) {
+                            runValue = parsed;
+                        }
+                    }
 
-                    matrix[pName][matchedStatus].value += runValue;
+                    // 2. Fallback to Billing Context distribution if field is empty or zero
+                    if (runValue <= 0) {
+                        const orderVal = orderValueMap.get(run.orderProcess.order.id) || 0;
+                        const processCount = run.orderProcess.order.totalProcesses || 1;
+                        runValue = orderVal / processCount;
+                    }
+
+                    if (runValue > 0) {
+                        matrix[pName][matchedStatus].value += runValue;
+                    }
                 }
             });
 
