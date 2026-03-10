@@ -89,8 +89,8 @@ function RunsPageContent() {
     const sortKey = searchParams.get('sortKey') || null;
     const sortDir = (searchParams.get('sortDir') as 'asc' | 'desc') || 'desc';
 
-    // Derived filters from URL
-    const filters = {
+    // Derived filters from URL - Memoized with stringified searchParams for stability
+    const filters = useMemo(() => ({
         status: searchParams.get('status')?.split(',') || ['COMPLETE'],
         lifeCycleStatus: searchParams.get('lifeCycleStatus')?.split(',') || [],
         orderStatus: searchParams.get('orderStatus')?.split(',') || ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION', 'COMPLETE'],
@@ -103,7 +103,7 @@ function RunsPageContent() {
         reviewerId: searchParams.get('reviewerId') || 'all',
         processId: searchParams.get('processId') || 'all',
         locationId: searchParams.get('locationId') || 'all',
-    };
+    }), [searchParams.toString()]);
 
     const [runsData, setRunsData] = useState<{
         runs: Run[];
@@ -128,6 +128,7 @@ function RunsPageContent() {
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const [processes, setProcesses] = useState<any[]>([]);
     const [locations, setLocations] = useState<any[]>([]);
@@ -146,7 +147,7 @@ function RunsPageContent() {
         });
         if (!newParams.page && !newParams.selectedRun) next.set('page', '1');
         router.push(`${pathname}?${next.toString()}`, { scroll: false });
-    }, [searchParams, router, pathname]);
+    }, [searchParams.toString(), router, pathname]);
 
     const handleRunSelection = (runId: string | null) => {
         updateParams({ selectedRun: runId });
@@ -189,7 +190,7 @@ function RunsPageContent() {
 
             if (changed) router.replace(`${pathname}?${next.toString()}`);
         }
-    }, [user, hasPermission, searchParams, pathname, router]);
+    }, [user, hasPermission, searchParams.toString(), pathname, router]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -313,7 +314,7 @@ function RunsPageContent() {
         }
         const timeoutId = setTimeout(fetchRuns, 300);
         return () => { cancelled = true; clearTimeout(timeoutId); };
-    }, [pathname, searchParams, filters, page, pageSize, search, sortKey, sortDir]);
+    }, [filters, page, pageSize, search, sortKey, sortDir, hasPermission, refreshTrigger]);
 
     const handlePageChange = (newPage: number) => {
         updateParams({ page: newPage });

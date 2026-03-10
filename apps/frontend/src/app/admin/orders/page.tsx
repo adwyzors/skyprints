@@ -17,7 +17,7 @@ import { OrderCardData } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrderCards } from '@/services/orders.service';
 import { Box, ChevronLeft, Filter, Loader2, Plus, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 /* =================================================
    COMPONENT
@@ -34,21 +34,16 @@ function AdminOrdersContent() {
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('limit') || '12');
     const searchQuery = searchParams.get('search') || '';
-    const statusCodes = searchParams.get('status')?.split(',') || ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'];
-    const dateRange = searchParams.get('dateRange') || 'all';
-    const customerId = searchParams.get('customerId') || 'all';
-    const locationId = searchParams.get('locationId') || 'all';
-    const startDate = searchParams.get('startDate') || '';
-    const endDate = searchParams.get('endDate') || '';
+    const statusCodes = useMemo(() => searchParams.get('status')?.split(',') || ['CONFIGURE', 'IN_PRODUCTION', 'PRODUCTION_READY'], [searchParams.toString()]);
 
-    const filters = {
+    const filters = useMemo(() => ({
         status: statusCodes,
-        dateRange,
-        customerId,
-        locationId,
-        startDate,
-        endDate
-    };
+        dateRange: searchParams.get('dateRange') || 'all',
+        customerId: searchParams.get('customerId') || 'all',
+        locationId: searchParams.get('locationId') || 'all',
+        startDate: searchParams.get('startDate') || '',
+        endDate: searchParams.get('endDate') || ''
+    }), [statusCodes, searchParams.toString()]);
 
     const [ordersData, setOrdersData] = useState<{
         orders: OrderCardData[];
@@ -114,7 +109,7 @@ function AdminOrdersContent() {
         if (changed) {
             router.replace(`/admin/orders?${next.toString()}`);
         }
-    }, [user, hasPermission]);
+    }, [user, hasPermission, searchParams.toString(), router]);
 
     // Persist sidebar state
     useEffect(() => {
@@ -138,7 +133,7 @@ function AdminOrdersContent() {
         if (!newParams.page) next.set('page', '1');
 
         router.push(`/admin/orders?${next.toString()}`);
-    }, [searchParams, router]);
+    }, [searchParams.toString(), router]);
 
     // Search logic moved to URL
     const onSearchChange = (val: string) => {
