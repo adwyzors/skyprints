@@ -262,6 +262,7 @@ export class AnalyticsService {
      * Calculates the matrix of processes and their lifecycle stages.
      */
     async getWorkflowLifecycleMatrix() {
+        // Rows
         const processes = [
             'Screen Printing',
             'Sublimation',
@@ -275,19 +276,24 @@ export class AnalyticsService {
             'Positive'
         ];
 
+        // Columns
         const statuses = [
-            'design',
-            'size/color',
-            'tracings',
-            'exposing',
-            'sample',
-            'range',
-            'production',
-            'waiting',
-            'curing',
-            'fusing',
-            'qc and counting',
-            'mark complete'
+            'DESIGN',
+            'QC & COUNTING',
+            'CONFIGURE',
+            'FUSING',
+            'EXPOSING',
+            'COMPLETE',
+            'RANGE',
+            'TRACING',
+            'SIZE/COLOR',
+            'CUTTING/WEEDING',
+            'PRODUCTION',
+            'QC&COUNTING',
+            'Var Kata and Kg',
+            'SAMPLE',
+            'WAITING',
+            'CURING'
         ];
 
         try {
@@ -318,14 +324,6 @@ export class AnalyticsService {
                 }
             });
 
-            // We also need the BILLING context to get some value estimates
-            // For pending work, we can't easily get the "final" billing result,
-            // so we'll approximate based on the order's historical billed value or a flat estimate.
-            // Requirement from user: "total order's run value"
-            // Let's use a simplified approach: we'll join with the latest draft snapshots if available
-            // OR just use a default rate if we want to be simple.
-            // A better way is to check the latest DRAFT/FINAL results for the order's billing context.
-
             const matrix: Record<string, Record<string, { count: number, value: number }>> = {};
 
             // Initialize matrix
@@ -335,10 +333,6 @@ export class AnalyticsService {
                     matrix[p][s] = { count: 0, value: 0 };
                 });
             });
-
-            // Populate matrix
-            // Note: Value calculation for pending work is always an estimate.
-            // We'll use a placeholder logic for value (e.g. 500 per run) or try to fetch from snapshots.
 
             // To make it more accurate, let's fetch approximate values for these orders
             const orderIds = [...new Set(activeRuns.map(r => r.orderProcess.order.id))];
@@ -361,7 +355,7 @@ export class AnalyticsService {
 
             const orderValueMap = new Map<string, number>();
             snapshots.forEach(s => {
-                const valuePerOrder = Number(s.result) / s.billingContext.orders.length;
+                const valuePerOrder = Number(s.result) / (s.billingContext.orders.length || 1);
                 s.billingContext.orders.forEach(co => {
                     orderValueMap.set(co.orderId, valuePerOrder);
                 });
@@ -369,16 +363,19 @@ export class AnalyticsService {
 
             activeRuns.forEach(run => {
                 const pName = run.orderProcess.process.name;
-                const status = run.lifeCycleStatusCode?.toLowerCase();
+                const dbStatus = run.lifeCycleStatusCode;
 
-                if (matrix[pName] && matrix[pName][status]) {
-                    matrix[pName][status].count += 1;
+                // Find matching status label case-insensitively
+                const matchedStatus = statuses.find(s => s.toUpperCase() === dbStatus?.toUpperCase());
+
+                if (matrix[pName] && matchedStatus) {
+                    matrix[pName][matchedStatus].count += 1;
 
                     const orderVal = orderValueMap.get(run.orderProcess.order.id) || 0;
                     const processCount = run.orderProcess.order.totalProcesses || 1;
-                    const runValue = orderVal / processCount; // Simplified: divide order value among processes
+                    const runValue = orderVal / processCount;
 
-                    matrix[pName][status].value += runValue;
+                    matrix[pName][matchedStatus].value += runValue;
                 }
             });
 

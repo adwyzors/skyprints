@@ -712,7 +712,24 @@ function PulseCard({ label, value, icon, color, dark = false }: PulseCardProps) 
 
 function WorkflowLifecycleMatrix({ matrix }: { matrix: Record<string, Record<string, { count: number, value: number }>> }) {
     const router = useRouter();
-    const statuses = ['Pending Selection', 'In Queue', 'Digital Pending', 'Digital Done', 'Production Pending', 'Production Done', 'Billed'];
+    const statuses = [
+        'DESIGN',
+        'QC & COUNTING',
+        'CONFIGURE',
+        'FUSING',
+        'EXPOSING',
+        'COMPLETE',
+        'RANGE',
+        'TRACING',
+        'SIZE/COLOR',
+        'CUTTING/WEEDING',
+        'PRODUCTION',
+        'QC&COUNTING',
+        'Var Kata and Kg',
+        'SAMPLE',
+        'WAITING',
+        'CURING'
+    ];
     const processes = Object.keys(matrix);
 
     const handleCellClick = (process: string, status: string) => {
