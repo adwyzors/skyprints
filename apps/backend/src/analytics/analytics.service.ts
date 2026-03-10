@@ -335,11 +335,16 @@ export class AnalyticsService {
             });
 
             // To make it more accurate, let's fetch approximate values for these orders
+            // We'll look for the latest snapshot (DRAFT or FINAL) that includes these orders
             const orderIds = [...new Set(activeRuns.map(r => r.orderProcess.order.id))];
             const snapshots = await this.prisma.billingSnapshot.findMany({
                 where: {
                     billingContext: {
-                        orders: { some: { orderId: { in: orderIds } } }
+                        orders: {
+                            some: {
+                                orderId: { in: orderIds }
+                            }
+                        }
                     },
                     isLatest: true
                 },

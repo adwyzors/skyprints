@@ -734,8 +734,8 @@ function WorkflowLifecycleMatrix({ matrix }: { matrix: Record<string, Record<str
 
     const handleCellClick = (process: string, status: string) => {
         const queryParams = new URLSearchParams({
-            process: process,
-            status: status
+            processId: process,
+            lifeCycleStatusCode: status
         });
         router.push(`/admin/runs?${queryParams.toString()}`);
     };

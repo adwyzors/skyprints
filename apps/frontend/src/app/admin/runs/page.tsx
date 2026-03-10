@@ -155,6 +155,20 @@ function RunsPageContent() {
         locationId: 'all',
     });
 
+    // Update local filter state from URL on initial load
+    useEffect(() => {
+        const processParam = searchParams.get('processId');
+        const statusParam = searchParams.get('lifeCycleStatusCode');
+
+        if (processParam || statusParam) {
+            setFilters(prev => ({
+                ...prev,
+                processId: processParam || prev.processId,
+                lifeCycleStatus: statusParam ? [statusParam] : prev.lifeCycleStatus
+            }));
+        }
+    }, []);
+
     // Restrict filters for specific roles
     useEffect(() => {
         if (!user) return;
