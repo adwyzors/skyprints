@@ -279,7 +279,6 @@ export class AnalyticsService {
         const statuses = [
             'DESIGN',
             'QC & COUNTING',
-            'CONFIGURE',
             'FUSING',
             'EXPOSING',
             'COMPLETE',
@@ -288,7 +287,6 @@ export class AnalyticsService {
             'SIZE/COLOR',
             'CUTTING/WEEDING',
             'PRODUCTION',
-            'QC&COUNTING',
             'Var Kata and Kg',
             'SAMPLE',
             'WAITING',
@@ -383,7 +381,11 @@ export class AnalyticsService {
                 }
 
                 // Find matching status label case-insensitively
-                const matchedStatus = statuses.find(s => s.toUpperCase() === dbStatus?.toUpperCase());
+                // Normalize Variations (e.g. QC&COUNTING -> QC & COUNTING)
+                let normalizedStatus = dbStatus?.toUpperCase();
+                if (normalizedStatus === 'QC&COUNTING') normalizedStatus = 'QC & COUNTING';
+
+                const matchedStatus = statuses.find(s => s.toUpperCase() === normalizedStatus);
 
                 if (matrix[pName] && matchedStatus) {
                     matrix[pName][matchedStatus].count += 1;

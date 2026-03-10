@@ -278,6 +278,77 @@ function DashboardClient() {
                 </div>
             )}
 
+            {visibility.workload && (
+                <div className="pb-8 mb-6 border-b border-gray-200">
+                    <div className="mb-6">
+                        <h2 className="text-xl font-bold text-gray-900">Live System State</h2>
+                        <p className="text-sm text-gray-500">Unbilled workload currently being processed in the system</p>
+                    </div>
+
+                    {visibility.matrix && stats.lifecycleMatrix && (
+                        <div className="mb-8">
+                            <WorkflowLifecycleMatrix matrix={stats.lifecycleMatrix} />
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
+                                <MapPin className="w-5 h-5 text-amber-600" />
+                                <h3 className="font-bold text-gray-900">Active Workload by Hub</h3>
+                            </div>
+                            <div className="p-4">
+                                {stats.currentWorkload?.byLocation.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {stats.currentWorkload.byLocation.map((loc) => (
+                                            <div key={loc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-2 h-10 bg-amber-400 rounded-full" />
+                                                    <span className="font-bold text-gray-700">{loc.name}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-xl font-black text-gray-900">{loc.count}</span>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Active Runs</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="py-12 text-center text-gray-400 text-sm italic">All hubs are currently idle.</div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
+                                <Users className="w-5 h-5 text-indigo-600" />
+                                <h3 className="font-bold text-gray-900">Active Workload by Manager</h3>
+                            </div>
+                            <div className="p-4">
+                                {stats.currentWorkload?.byManager.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {stats.currentWorkload.byManager.map((mgr) => (
+                                            <div key={mgr.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-2 h-10 bg-indigo-500 rounded-full" />
+                                                    <span className="font-bold text-gray-700">{mgr.name}</span>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-xl font-black text-gray-900">{mgr.count}</span>
+                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Assigned Runs</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="py-12 text-center text-gray-400 text-sm italic">No managers have active assignments.</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {visibility.revenue && (
                     <StatCard
@@ -589,76 +660,7 @@ function DashboardClient() {
                 )}
             </div>
 
-            {visibility.workload && (
-                <div className="pt-6 border-t border-gray-200">
-                    <div className="mb-6">
-                        <h2 className="text-xl font-bold text-gray-900">Live System State</h2>
-                        <p className="text-sm text-gray-500">Unbilled workload currently being processed in the system</p>
-                    </div>
-
-                    {visibility.matrix && stats.lifecycleMatrix && (
-                        <div className="mb-8">
-                            <WorkflowLifecycleMatrix matrix={stats.lifecycleMatrix} />
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                                <MapPin className="w-5 h-5 text-amber-600" />
-                                <h3 className="font-bold text-gray-900">Active Workload by Hub</h3>
-                            </div>
-                            <div className="p-4">
-                                {stats.currentWorkload?.byLocation.length > 0 ? (
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {stats.currentWorkload.byLocation.map((loc) => (
-                                            <div key={loc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-2 h-10 bg-amber-400 rounded-full" />
-                                                    <span className="font-bold text-gray-700">{loc.name}</span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="text-xl font-black text-gray-900">{loc.count}</span>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Active Runs</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="py-12 text-center text-gray-400 text-sm italic">All hubs are currently idle.</div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                                <Users className="w-5 h-5 text-indigo-600" />
-                                <h3 className="font-bold text-gray-900">Active Workload by Manager</h3>
-                            </div>
-                            <div className="p-4">
-                                {stats.currentWorkload?.byManager.length > 0 ? (
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {stats.currentWorkload.byManager.map((mgr) => (
-                                            <div key={mgr.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-2 h-10 bg-indigo-500 rounded-full" />
-                                                    <span className="font-bold text-gray-700">{mgr.name}</span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="text-xl font-black text-gray-900">{mgr.count}</span>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Assigned Runs</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="py-12 text-center text-gray-400 text-sm italic">No managers have active assignments.</div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Bottom spacer or alternative section */}
         </div>
     );
 }
@@ -715,7 +717,6 @@ function WorkflowLifecycleMatrix({ matrix }: { matrix: Record<string, Record<str
     const statuses = [
         'DESIGN',
         'QC & COUNTING',
-        'CONFIGURE',
         'FUSING',
         'EXPOSING',
         'COMPLETE',
@@ -724,7 +725,6 @@ function WorkflowLifecycleMatrix({ matrix }: { matrix: Record<string, Record<str
         'SIZE/COLOR',
         'CUTTING/WEEDING',
         'PRODUCTION',
-        'QC&COUNTING',
         'Var Kata and Kg',
         'SAMPLE',
         'WAITING',
