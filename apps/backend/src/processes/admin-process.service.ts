@@ -260,14 +260,22 @@ export class AdminProcessService {
                 : {}),
 
             ...(processId && {
-                OR: [
-                    { orderProcess: { process: { name: processId } } },
-                    { orderProcess: { processId: processId } },
-                    {
-                        orderProcess: { process: { name: { in: ['Embellish', 'Embellishment'] } } },
-                        fields: { path: ['Process Name'], equals: processId }
+                OR: (() => {
+                    const pidList = [processId];
+                    if (processId === 'DTF' || processId === 'Direct to Film (DTF)') {
+                        if (!pidList.includes('DTF')) pidList.push('DTF');
+                        if (!pidList.includes('Direct to Film (DTF)')) pidList.push('Direct to Film (DTF)');
                     }
-                ]
+                    return [
+                        { orderProcess: { process: { name: { in: pidList } } } },
+                        { orderProcess: { processId: { in: pidList } } },
+                        // For Embellishment runs that override the process name in a field
+                        ...pidList.map(p => ({
+                            orderProcess: { process: { name: { in: ['Embellish', 'Embellishment'] } } },
+                            fields: { path: ['Process Name'], equals: p }
+                        }))
+                    ];
+                })()
             }),
 
             ...(search && {

@@ -300,7 +300,7 @@ function DashboardClientContent() {
                     )}
 
                     {visibility.matrix && stats.lifecycleMatrix && (
-                        <div className="mb-8">
+                        <div className="mt-10 mb-8">
                             <WorkflowLifecycleMatrix matrix={stats.lifecycleMatrix} />
                         </div>
                     )}

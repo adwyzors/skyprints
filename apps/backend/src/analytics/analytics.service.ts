@@ -380,6 +380,9 @@ export class AnalyticsService {
                     }
                 }
 
+                // Normalize DTF variants
+                if (pName === 'Direct to Film (DTF)') pName = 'DTF';
+
                 // Find matching status label case-insensitively
                 // Normalize Variations (e.g. QC&COUNTING -> QC & COUNTING)
                 let normalizedStatus = dbStatus?.toUpperCase();
