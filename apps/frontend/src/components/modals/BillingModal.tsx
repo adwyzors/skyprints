@@ -172,6 +172,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
             'Positive',
             'Diamond',
             'DTF',
+            'Direct to Film (DTF)',
             'Spangle',
             'Laser'
         ].includes(processName);
