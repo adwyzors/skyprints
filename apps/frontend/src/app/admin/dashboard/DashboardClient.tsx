@@ -257,6 +257,48 @@ function DashboardClientContent() {
                         <p className="text-sm text-gray-500">Unbilled workload currently being processed in the system</p>
                     </div>
 
+                    {stats.productionState && visibility.pulse && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                            <PulseCard
+                                label="Configuring"
+                                value={stats.productionState.inConfig}
+                                icon={<Layers className="w-4 h-4 text-orange-500" />}
+                                color="border-orange-200 bg-orange-50/30"
+                            />
+                            <PulseCard
+                                label="Ready"
+                                value={stats.productionState.ready}
+                                icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />}
+                                color="border-blue-200 bg-blue-50/30"
+                            />
+                            <PulseCard
+                                label="In Production"
+                                value={stats.productionState.active}
+                                icon={<Activity className="w-4 h-4 text-amber-500" />}
+                                color="border-amber-200 bg-amber-50/30"
+                            />
+                            <PulseCard
+                                label="To Be Billed"
+                                value={stats.productionState.toBeBilled}
+                                icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
+                                color="border-emerald-200 bg-emerald-50/30"
+                            />
+                            <PulseCard
+                                label="To Be Invoice"
+                                value={stats.productionState.toBeInvoiced}
+                                icon={<FileText className="w-4 h-4 text-blue-600" />}
+                                color="border-blue-200 bg-blue-50/30"
+                            />
+                            <PulseCard
+                                label="Live Workload"
+                                value={stats.productionState.pendingRuns}
+                                icon={<Zap className="w-4 h-4 text-gray-700" />}
+                                color="border-gray-200 bg-gray-100 shadow-sm"
+                                dark
+                            />
+                        </div>
+                    )}
+
                     {visibility.matrix && stats.lifecycleMatrix && (
                         <div className="mb-8">
                             <WorkflowLifecycleMatrix matrix={stats.lifecycleMatrix} />
@@ -359,48 +401,6 @@ function DashboardClientContent() {
                     />
                 )}
             </div>
-
-            {stats.productionState && visibility.pulse && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    <PulseCard
-                        label="Configuring"
-                        value={stats.productionState.inConfig}
-                        icon={<Layers className="w-4 h-4 text-orange-500" />}
-                        color="border-orange-200 bg-orange-50/30"
-                    />
-                    <PulseCard
-                        label="Ready"
-                        value={stats.productionState.ready}
-                        icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />}
-                        color="border-blue-200 bg-blue-50/30"
-                    />
-                    <PulseCard
-                        label="In Production"
-                        value={stats.productionState.active}
-                        icon={<Activity className="w-4 h-4 text-amber-500" />}
-                        color="border-amber-200 bg-amber-50/30"
-                    />
-                    <PulseCard
-                        label="To Be Billed"
-                        value={stats.productionState.toBeBilled}
-                        icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
-                        color="border-emerald-200 bg-emerald-50/30"
-                    />
-                    <PulseCard
-                        label="To Be Invoice"
-                        value={stats.productionState.toBeInvoiced}
-                        icon={<FileText className="w-4 h-4 text-blue-600" />}
-                        color="border-blue-200 bg-blue-50/30"
-                    />
-                    <PulseCard
-                        label="Live Workload"
-                        value={stats.productionState.pendingRuns}
-                        icon={<Zap className="w-4 h-4 text-gray-700" />}
-                        color="border-gray-200 bg-gray-100 shadow-sm"
-                        dark
-                    />
-                </div>
-            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {visibility.chart && (
