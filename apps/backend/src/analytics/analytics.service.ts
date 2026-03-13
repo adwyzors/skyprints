@@ -278,19 +278,19 @@ export class AnalyticsService {
         // Columns
         const statuses = [
             'DESIGN',
-            'QC & COUNTING',
-            'FUSING',
-            'EXPOSING',
-            'COMPLETE',
-            'RANGE',
-            'TRACING',
             'SIZE/COLOR',
-            'CUTTING/WEEDING',
-            'PRODUCTION',
-            'Var Kata and Kg',
+            'TRACING',
+            'EXPOSING',
             'SAMPLE',
+            'RANGE',
+            'PRODUCTION',
             'WAITING',
-            'CURING'
+            'CUTTING/WEEDING',
+            'CURING',
+            'FUSING',
+            'QC & COUNTING',
+            'Var Kata and Kg',
+            'COMPLETE'
         ];
 
         try {
