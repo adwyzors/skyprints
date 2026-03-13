@@ -6,8 +6,13 @@ export class AnalyticsController {
     constructor(private readonly analyticsService: AnalyticsService) { }
 
     @Get('dashboard')
-    getDashboardStats(@Query('period') period: string = '7d') {
-        return this.analyticsService.getDashboardStats(period);
+    getDashboardStats(
+        @Query('period') period: string = '7d',
+        @Query('locationId') locationId?: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string
+    ) {
+        return this.analyticsService.getDashboardStats(period, locationId, startDate, endDate);
     }
 
     @Post('sync')

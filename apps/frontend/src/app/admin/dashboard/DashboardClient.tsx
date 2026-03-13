@@ -3,8 +3,10 @@
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
+import { Location } from '@/domain/model/location.model';
 import { DashboardStats, getDashboardStats, syncAnalytics } from '@/services/analytics.service';
 import { updatePreferences } from '@/services/auth.service';
+import { getLocations } from '@/services/location.service';
 import {
     Activity,
     CheckCircle2,
@@ -42,6 +44,7 @@ function DashboardClientContent() {
     const period = searchParams.get('period') || '7d';
     const startDate = searchParams.get('startDate') || '';
     const endDate = searchParams.get('endDate') || '';
+    const locationId = searchParams.get('locationId') || '';
 
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -49,6 +52,7 @@ function DashboardClientContent() {
     const [isSyncing, setIsSyncing] = useState(false);
     const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
     const [showSettings, setShowSettings] = useState(false);
+    const [locations, setLocations] = useState<Location[]>([]);
 
     const preferences = (user as any)?.preferences || {};
     const visibility = {
@@ -77,10 +81,10 @@ function DashboardClientContent() {
         }
     };
 
-    const fetchStats = async (p: string, from?: string, to?: string) => {
+    const fetchStats = async (p: string, from?: string, to?: string, locId?: string) => {
         try {
             setLoading(true);
-            const data = await getDashboardStats(p, from, to);
+            const data = await getDashboardStats(p, from, to, locId);
             setStats(data);
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
@@ -100,14 +104,26 @@ function DashboardClientContent() {
     };
 
     useEffect(() => {
+        const loadLocations = async () => {
+            try {
+                const locs = await getLocations();
+                setLocations(locs);
+            } catch (error) {
+                console.error('Failed to load locations:', error);
+            }
+        };
+        loadLocations();
+    }, []);
+
+    useEffect(() => {
         if (period === 'custom') {
             if (startDate && endDate) {
-                fetchStats(period, startDate, endDate);
+                fetchStats(period, startDate, endDate, locationId);
             }
         } else {
-            fetchStats(period);
+            fetchStats(period, undefined, undefined, locationId);
         }
-    }, [period, startDate, endDate]);
+    }, [period, startDate, endDate, locationId]);
 
     useEffect(() => {
         if (!searchParams.get('period')) {
@@ -117,7 +133,7 @@ function DashboardClientContent() {
 
     const handleRefresh = () => {
         setIsRefreshing(true);
-        fetchStats(period, startDate, endDate);
+        fetchStats(period, startDate, endDate, locationId);
     };
 
     const handleSync = async () => {
@@ -301,7 +317,11 @@ function DashboardClientContent() {
 
                     {visibility.matrix && stats.lifecycleMatrix && (
                         <div className="mt-10 mb-8">
-                            <WorkflowLifecycleMatrix matrix={stats.lifecycleMatrix} />
+                            <WorkflowLifecycleMatrix
+                                matrix={stats.lifecycleMatrix}
+                                locationId={locationId}
+                                locations={locations}
+                            />
                         </div>
                     )}
 
@@ -412,6 +432,20 @@ function DashboardClientContent() {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
+                                    <MapPin className="w-3 h-3 text-gray-400 ml-1.5" />
+                                    <select
+                                        value={locationId}
+                                        onChange={(e) => updateFilters({ locationId: e.target.value })}
+                                        className="text-[10px] font-bold uppercase tracking-tight bg-transparent border-none focus:ring-0 text-gray-600 cursor-pointer min-w-[100px]"
+                                    >
+                                        <option value="">All Studios</option>
+                                        {locations.map(loc => (
+                                            <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
                                 {period === 'custom' && (
                                     <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-md border border-gray-200 animate-in fade-in slide-in-from-right-2 duration-300">
                                         <input
@@ -718,7 +752,11 @@ function PulseCard({ label, value, icon, color, dark = false }: PulseCardProps) 
     );
 }
 
-function WorkflowLifecycleMatrix({ matrix }: { matrix: Record<string, Record<string, { count: number, value: number }>> }) {
+function WorkflowLifecycleMatrix({ matrix, locationId, locations }: {
+    matrix: Record<string, Record<string, { count: number, value: number }>>,
+    locationId?: string,
+    locations: Location[]
+}) {
     const router = useRouter();
     const statuses = [
         'DESIGN',
@@ -742,16 +780,28 @@ function WorkflowLifecycleMatrix({ matrix }: { matrix: Record<string, Record<str
         const params = new URLSearchParams();
         params.set('processId', process);
         params.set('lifeCycleStatus', status);
+        if (locationId) params.set('locationId', locationId);
         // Explicitly set page/limit for clarity if needed, or leave clean
         params.set('limit', '20');
         router.push(`/admin/runs?${params.toString()}`);
     };
 
+    const selectedLocation = locations.find(l => l.id === locationId);
+
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
-                <Layers className="w-5 h-5 text-indigo-600" />
-                <h3 className="font-bold text-gray-900">Workflow Lifecycle Matrix</h3>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div className="flex items-center gap-3">
+                    <Layers className="w-5 h-5 text-indigo-600" />
+                    <h3 className="font-bold text-gray-900">
+                        Workflow Lifecycle Matrix
+                        {selectedLocation && (
+                            <span className="ml-2 text-xs font-normal text-gray-500">
+                                — for {selectedLocation.name}
+                            </span>
+                        )}
+                    </h3>
+                </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left border-collapse">

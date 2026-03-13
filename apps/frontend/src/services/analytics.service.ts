@@ -65,10 +65,11 @@ export interface DashboardStats {
     lifecycleMatrix: Record<string, Record<string, { count: number, value: number }>>;
 }
 
-export async function getDashboardStats(period: string = '7d', fromDate?: string, toDate?: string): Promise<DashboardStats> {
+export async function getDashboardStats(period: string = '7d', fromDate?: string, toDate?: string, locationId?: string): Promise<DashboardStats> {
     let url = `/analytics/dashboard?period=${period}`;
-    if (fromDate) url += `&fromDate=${fromDate}`;
-    if (toDate) url += `&toDate=${toDate}`;
+    if (fromDate) url += `&startDate=${fromDate}`;
+    if (toDate) url += `&endDate=${toDate}`;
+    if (locationId) url += `&locationId=${locationId}`;
     return apiRequest<DashboardStats>(url);
 }
 

@@ -173,33 +173,45 @@ export class AnalyticsService {
     /**
      * Dashboard Data Query methods
      */
-    async getDashboardStats(period: string = '7d') {
+    async getDashboardStats(period: string = '7d', locationId?: string, customStart?: string, customEnd?: string) {
         const now = new Date();
         let startDate = new Date();
 
-        switch (period) {
-            case '7d':
-                startDate.setDate(now.getDate() - 7);
-                break;
-            case '30d':
-                startDate.setDate(now.getDate() - 30);
-                break;
-            case '6m':
-                startDate.setMonth(now.getMonth() - 6);
-                break;
-            case '1y':
-                startDate.setFullYear(now.getFullYear() - 1);
-                break;
-            case 'all':
-                startDate = new Date(0); // Beginning of time
-                break;
-            default:
-                startDate.setDate(now.getDate() - 7);
+        if (customStart) {
+            startDate = new Date(customStart);
+        } else {
+            switch (period) {
+                case '7d':
+                    startDate.setDate(now.getDate() - 7);
+                    break;
+                case '30d':
+                    startDate.setDate(now.getDate() - 30);
+                    break;
+                case '6m':
+                    startDate.setMonth(now.getMonth() - 6);
+                    break;
+                case '1y':
+                    startDate.setFullYear(now.getFullYear() - 1);
+                    break;
+                case 'all':
+                    startDate = new Date(0); // Beginning of time
+                    break;
+                default:
+                    startDate.setDate(now.getDate() - 7);
+            }
         }
+
+        // Handle custom end date if provided
+        const endDateCriteria = customEnd ? { lte: new Date(customEnd) } : {};
 
         const [daily, topProcesses, topUsers, topLocations, currentWorkload, productionState, lifecycleMatrix] = await Promise.all([
             this.prisma.dailyAnalytics.findMany({
-                where: { date: { gte: startDate } },
+                where: {
+                    date: {
+                        gte: startDate,
+                        ...(customEnd && { lte: new Date(customEnd) })
+                    }
+                },
                 orderBy: { date: 'asc' }, // Changed to ASC for charts
             }),
             this.prisma.processAnalytics.findMany({
@@ -216,14 +228,17 @@ export class AnalyticsService {
             }),
             this.getActiveWorkload(),
             this.getLiveProductionState(),
-            this.getWorkflowLifecycleMatrix()
+            this.getWorkflowLifecycleMatrix(locationId)
         ]);
 
         const topCustomers = await this.prisma.orderAnalytics.groupBy({
             by: ['customerId', 'customerName'],
             where: {
                 status: 'BILLED',
-                billedAt: { gte: startDate }
+                billedAt: {
+                    gte: startDate,
+                    ...(customEnd && { lte: new Date(customEnd) })
+                }
             },
             _sum: {
                 totalAmount: true,
@@ -261,14 +276,14 @@ export class AnalyticsService {
     /**
      * Calculates the matrix of processes and their lifecycle stages.
      */
-    async getWorkflowLifecycleMatrix() {
+    async getWorkflowLifecycleMatrix(locationId?: string) {
         // Rows
         const processes = [
             'Screen Printing',
             'Sublimation',
+            'Allover Sublimation',
             'Plotter',
             'DTF',
-            'Allover Sublimation',
             'Laser',
             'Spangle',
             'Diamond',
@@ -302,7 +317,8 @@ export class AnalyticsService {
                             deletedAt: null,
                             statusCode: { notIn: ['BILLED', 'GROUP_BILLED'] }
                         }
-                    }
+                    },
+                    ...(locationId && { locationId })
                 },
                 select: {
                     id: true,
