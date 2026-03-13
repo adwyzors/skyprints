@@ -529,13 +529,13 @@ function RunsPageContent() {
                                         <button
                                             key={opt.value}
                                             onClick={() => {
-                                                const current = filters.orderStatus;
+                                                const current = filters.status;
                                                 const next = current.includes(opt.value)
                                                     ? current.filter(s => s !== opt.value)
                                                     : [...current, opt.value];
-                                                handleFilterChange('orderStatus', next);
+                                                handleFilterChange('status', next);
                                             }}
-                                            className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition-all ${filters.orderStatus.includes(opt.value)
+                                            className={`px-4 py-1.5 text-xs font-bold rounded-lg border transition-all ${filters.status.includes(opt.value)
                                                 ? 'bg-blue-600 border-blue-600 text-white shadow-md'
                                                 : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
                                                 }`}
