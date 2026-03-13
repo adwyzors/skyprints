@@ -85,7 +85,7 @@ function DashboardClientContent() {
             if (val) nextParams.set(key, val);
             else nextParams.delete(key);
         });
-        router.push(`/admin/dashboard?${nextParams.toString()}`);
+        router.push(`/admin/dashboard?${nextParams.toString()}`, { scroll: false });
     };
 
     useEffect(() => {
@@ -265,6 +265,7 @@ function DashboardClientContent() {
                                 locationId={locationId}
                                 locations={locations}
                                 onLocationChange={(locId) => updateFilters({ locationId: locId })}
+                                visibility={visibility}
                             />
                         </div>
                     )}
@@ -410,13 +411,15 @@ function DashboardClientContent() {
                                 </div>
 
                                 {hoveredPoint !== null && (
-                                    <div className="flex items-center gap-4 animate-in fade-in duration-300 ml-2 border-l border-gray-100 pl-4">
-                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                    <div className="flex items-center gap-4 animate-in fade-in duration-300 ml-2 border-l border-gray-100 pl-4 w-[180px] justify-between">
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
                                             {points[hoveredPoint].date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                         </span>
-                                        <span className="text-sm font-black text-blue-600">
-                                            ₹{points[hoveredPoint].revenue.toLocaleString()}
-                                        </span>
+                                        {visibility.revenue && (
+                                            <span className="text-sm font-black text-blue-600 whitespace-nowrap">
+                                                ₹{points[hoveredPoint].revenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                            </span>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -484,7 +487,9 @@ function DashboardClientContent() {
                                         <div key={loc.locationId} className="p-4 bg-gray-50/50 rounded-lg border border-gray-100 group hover:bg-white transition-all">
                                             <div className="flex justify-between items-start mb-2">
                                                 <span className="font-bold text-sm text-gray-700 truncate mr-2">{loc.locationName}</span>
-                                                <span className="text-xs font-bold text-gray-900">₹{parseFloat(loc.totalRevenue).toLocaleString()}</span>
+                                                {visibility.revenue && (
+                                                    <span className="text-xs font-bold text-gray-900">₹{parseFloat(loc.totalRevenue).toLocaleString()}</span>
+                                                )}
                                             </div>
                                             <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
                                                 <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.max(4, share)}%` }}></div>
@@ -542,7 +547,7 @@ function DashboardClientContent() {
                                             </td>
                                             <td className="px-6 py-4 text-center font-bold text-gray-700">{user.runsExecuted}</td>
                                             <td className="px-6 py-4 text-center font-bold text-gray-700">{user.runsReviewed}</td>
-                                            <td className="px-6 py-4 text-right font-bold text-blue-600">₹{parseFloat(user.totalBilledVolume).toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right font-bold text-blue-600">{visibility.revenue ? `₹${parseFloat(user.totalBilledVolume).toLocaleString()}` : '—'}</td>
                                             <td className="px-6 py-4">
                                                 <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
                                                     <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, ((user.runsReviewed + user.runsExecuted) / ((stats.topUsers[0]?.runsReviewed || 1) + (stats.topUsers[0]?.runsExecuted || 0))) * 100)}%` }}></div>
@@ -575,7 +580,9 @@ function DashboardClientContent() {
                                     <div key={proc.processId} className="space-y-2">
                                         <div className="flex justify-between items-end">
                                             <span className="font-bold text-xs text-gray-700 uppercase tracking-tight">{proc.processName}</span>
-                                            <span className="text-xs font-bold text-gray-900">₹{parseFloat(proc.totalRevenue).toLocaleString()}</span>
+                                            {visibility.revenue && (
+                                                <span className="text-xs font-bold text-gray-900">₹{parseFloat(proc.totalRevenue).toLocaleString()}</span>
+                                            )}
                                         </div>
                                         <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                             <div className="h-full bg-blue-600 rounded-full" style={{ width: `${Math.max(5, share)}%` }}></div>
@@ -607,7 +614,9 @@ function DashboardClientContent() {
                                                 <span className="font-bold text-xs text-gray-700 uppercase tracking-tight truncate max-w-[180px] group-hover:text-blue-600 transition-colors">
                                                     {cust.customerName}
                                                 </span>
-                                                <span className="text-xs font-bold text-gray-900">₹{parseFloat(cust.totalRevenue).toLocaleString()}</span>
+                                                {visibility.revenue && (
+                                                    <span className="text-xs font-bold text-gray-900">₹{parseFloat(cust.totalRevenue).toLocaleString()}</span>
+                                                )}
                                             </div>
                                             <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-50">
                                                 <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${Math.max(5, share)}%` }}></div>
@@ -682,11 +691,12 @@ function PulseCard({ label, value, icon, color, dark = false }: PulseCardProps) 
     );
 }
 
-function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChange }: {
+function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChange, visibility }: {
     matrix: Record<string, Record<string, { count: number, value: number }>>,
     locationId?: string,
     locations: Location[],
-    onLocationChange: (id: string) => void
+    onLocationChange: (id: string) => void,
+    visibility: any
 }) {
     const router = useRouter();
     const statuses = [
@@ -769,7 +779,9 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                                             {hasData ? (
                                                 <div className="flex flex-col items-center">
                                                     <span className="text-sm font-black text-gray-900 group-hover:text-blue-600">{data.count}</span>
-                                                    <span className="text-[9px] font-bold text-blue-600 opacity-60 group-hover:opacity-100">₹{data.value.toLocaleString()}</span>
+                                                    {visibility.revenue && (
+                                                        <span className="text-[9px] font-bold text-blue-600 opacity-60 group-hover:opacity-100">₹{data.value.toLocaleString()}</span>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <span className="text-gray-200 text-lg">-</span>
