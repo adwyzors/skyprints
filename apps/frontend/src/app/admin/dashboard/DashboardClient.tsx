@@ -411,15 +411,10 @@ function DashboardClientContent() {
                                 </div>
 
                                 {hoveredPoint !== null && (
-                                    <div className="flex items-center gap-4 animate-in fade-in duration-300 ml-2 border-l border-gray-100 pl-4 w-[180px] justify-between">
+                                    <div className="flex items-center gap-4 animate-in fade-in duration-300 ml-2 border-l border-gray-100 pl-4">
                                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
                                             {points[hoveredPoint].date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                         </span>
-                                        {visibility.revenue && (
-                                            <span className="text-sm font-black text-blue-600 whitespace-nowrap">
-                                                ₹{points[hoveredPoint].revenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                                            </span>
-                                        )}
                                     </div>
                                 )}
                             </div>
@@ -428,7 +423,7 @@ function DashboardClientContent() {
                         <div className="p-6 pb-12 flex-1 flex flex-col min-h-[300px] relative">
                             {points.length > 0 ? (
                                 <div className="flex-1 w-full relative">
-                                    <svg className="w-full h-full overflow-visible" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
+                                    <svg className="w-full h-full overflow-visible" viewBox={`-60 0 ${chartWidth + 60} ${chartHeight}`} preserveAspectRatio="none">
                                         <defs>
                                             <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="0%" stopColor="#2563eb" stopOpacity="0.1" />
@@ -437,7 +432,14 @@ function DashboardClientContent() {
                                         </defs>
 
                                         {[0, 0.25, 0.5, 0.75, 1].map(v => (
-                                            <line key={v} x1="0" y1={v * chartHeight} x2={chartWidth} y2={v * chartHeight} stroke="#f1f5f9" strokeWidth="1" />
+                                            <g key={v}>
+                                                <line x1="0" y1={v * chartHeight} x2={chartWidth} y2={v * chartHeight} stroke="#f1f5f9" strokeWidth="1" />
+                                                {visibility.revenue && (
+                                                    <text x="-10" y={v * chartHeight} dy="4" textAnchor="end" className="text-[9px] font-bold fill-gray-400">
+                                                        ₹{((1 - v) * maxVal > 999 ? ((1 - v) * maxVal / 1000).toFixed(0) + 'k' : ((1 - v) * maxVal).toFixed(0))}
+                                                    </text>
+                                                )}
+                                            </g>
                                         ))}
 
                                         {areaD && <path d={areaD} fill="url(#chartFill)" />}
@@ -453,9 +455,33 @@ function DashboardClientContent() {
                                                 <rect x={p.x - 20} y="0" width="40" height={chartHeight} fill="transparent" />
                                             </g>
                                         ))}
+
+                                        {hoveredPoint !== null && visibility.revenue && (
+                                            <g className="pointer-events-none">
+                                                <rect
+                                                    x={points[hoveredPoint].x - 35}
+                                                    y={points[hoveredPoint].y - 35}
+                                                    width="70"
+                                                    height="22"
+                                                    rx="11"
+                                                    fill="white"
+                                                    stroke="#2563eb"
+                                                    strokeWidth="1"
+                                                    style={{ filter: 'drop-shadow(0 4px 6px -1px rgb(0 0 0 / 0.1))' }}
+                                                />
+                                                <text
+                                                    x={points[hoveredPoint].x}
+                                                    y={points[hoveredPoint].y - 20}
+                                                    textAnchor="middle"
+                                                    className="text-[10px] font-black fill-blue-600"
+                                                >
+                                                    ₹{points[hoveredPoint].revenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                                </text>
+                                            </g>
+                                        )}
                                     </svg>
 
-                                    <div className="mt-4 flex justify-between px-2">
+                                    <div className="mt-4 flex justify-between pl-[60px]">
                                         {points.filter((_, i) => points.length < 8 || i % Math.ceil(points.length / 6) === 0).map((p, i) => (
                                             <span key={i} className="text-[10px] font-medium text-gray-400 uppercase tracking-tighter">
                                                 {p.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
