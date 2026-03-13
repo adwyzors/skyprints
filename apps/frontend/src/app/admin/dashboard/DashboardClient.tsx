@@ -373,7 +373,10 @@ function DashboardClientContent() {
                         <div className="px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
                             <div className="flex items-center gap-3">
                                 <TrendingUp className="w-5 h-5 text-blue-600" />
-                                <h3 className="font-bold text-gray-900">Revenue Dynamics</h3>
+                                <div>
+                                    <h3 className="font-bold text-gray-900 leading-none">Revenue Dynamics</h3>
+                                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">₹ {totalRevenue.toLocaleString()}</p>
+                                </div>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
@@ -789,6 +792,9 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                                     {status}
                                 </th>
                             ))}
+                            <th className="px-4 py-3 font-bold text-white text-center bg-gray-900 sticky right-0 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">
+                                Total
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -817,6 +823,21 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                                         </td>
                                     );
                                 })}
+                                {/* Row Totals */}
+                                <td className="px-4 py-3 text-center bg-gray-900 text-white font-bold sticky right-0 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">
+                                    {(() => {
+                                        const totalCount = Object.values(matrix[process] || {}).reduce((sum, d) => sum + d.count, 0);
+                                        const totalValue = Object.values(matrix[process] || {}).reduce((sum, d) => sum + d.value, 0);
+                                        return (
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-sm">{totalCount}</span>
+                                                {visibility.revenue && (
+                                                    <span className="text-[9px] text-gray-400">₹{Math.round(totalValue).toLocaleString()}</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
+                                </td>
                             </tr>
                         ))}
                     </tbody>

@@ -26,9 +26,10 @@ interface RunsFilterProps {
         customerId: string;
         executorId: string;
         reviewerId: string;
-        processId?: string; // Add processId to filters
+        processId?: string;
         locationId?: string;
         orderStatus: string[];
+        lifeCycleStatus: string[];
     };
     onChange: (newFilters: any) => void;
     onClear: () => void;
@@ -112,11 +113,19 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
     }, [filters.processId]);
 
     const handleProcessChange = (processId: string) => {
-        onChange({ ...filters, processId, status: [] }); // Clear status on process change
+        onChange({ ...filters, processId, lifeCycleStatus: [] }); // Clear lifecycleStatus on process change
     };
 
-    const handleStatusChange = (status: string) => {
-        const current = filters.status;
+    const handleLifeCycleStatusChange = (status: string) => {
+        const current = filters.lifeCycleStatus || [];
+        const next = current.includes(status)
+            ? current.filter(s => s !== status)
+            : [...current, status];
+        onChange({ ...filters, lifeCycleStatus: next });
+    };
+
+    const handleRunStatusChange = (status: string) => {
+        const current = filters.status || [];
         const next = current.includes(status)
             ? current.filter(s => s !== status)
             : [...current, status];
@@ -207,19 +216,19 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                     />
                 </div>
 
-                {/* Status - Only show if process is selected and user is not restricted */}
-                {filters.processId && filters.processId !== 'all' && !hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING) && (
+                {/* Lifecycle Status - Only show if process is selected */}
+                {filters.processId && filters.processId !== 'all' && (
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-                            Status
+                            Process Stage
                             {loadingStatuses && <span className="ml-2 text-blue-500 text-[10px] lowercase font-normal">loading...</span>}
                         </label>
                         <div className="flex flex-wrap gap-2">
                             {statuses.map(status => (
                                 <button
                                     key={status}
-                                    onClick={() => handleStatusChange(status)}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filters.status.includes(status)
+                                    onClick={() => handleLifeCycleStatusChange(status)}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filters.lifeCycleStatus?.includes(status)
                                         ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
                                         : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
                                         }`}
@@ -228,11 +237,35 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
                                 </button>
                             ))}
                             {statuses.length === 0 && !loadingStatuses && (
-                                <span className="text-xs text-gray-400 italic">No statuses available</span>
+                                <span className="text-xs text-gray-400 italic">No stages available for this process</span>
                             )}
-                            {loadingStatuses && statuses.length === 0 && (
-                                <span className="text-xs text-gray-400 italic">Fetching statuses...</span>
-                            )}
+                        </div>
+                    </div>
+                )}
+
+
+                {/* Run Status */}
+                {!hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING) && (
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Run Status</label>
+                        <div className="flex flex-wrap gap-2">
+                            {[
+                                { value: 'CONFIGURE', label: 'To Configure' },
+                                { value: 'PRODUCTION_READY', label: 'Ready' },
+                                { value: 'IN_PRODUCTION', label: 'In Production' },
+                                { value: 'COMPLETE', label: 'Complete' }
+                            ].map(opt => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => handleRunStatusChange(opt.value)}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${filters.status.includes(opt.value)
+                                        ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                                        }`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 )}

@@ -140,12 +140,13 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
         runsArray = res;
     }
 
-    const total = parseInt(headers.get('x-total-count') || String(runsArray.length), 10);
-    const page = parseInt(headers.get('x-page') || String(requestedPage), 10);
-    const limit = parseInt(headers.get('x-limit') || String(requestedLimit), 10);
-    const totalPages = parseInt(headers.get('x-total-pages') || '1', 10);
-    const totalEstimatedAmount = parseFloat(headers.get('x-total-estimated-amount') || '0');
-    const totalQuantity = parseInt(headers.get('x-total-quantity') || '0', 10);
+    const meta = res.meta || {};
+    const total = parseInt(meta.total || headers.get('x-total-count') || String(runsArray.length), 10);
+    const page = parseInt(meta.page || headers.get('x-page') || String(requestedPage), 10);
+    const limit = parseInt(meta.limit || headers.get('x-limit') || String(requestedLimit), 10);
+    const totalPages = parseInt(meta.totalPages || headers.get('x-total-pages') || '1', 10);
+    const totalEstimatedAmount = parseFloat(meta.totalEstimatedAmount || headers.get('x-total-estimated-amount') || '0');
+    const totalQuantity = parseInt(meta.totalQuantity || headers.get('x-total-quantity') || '0', 10);
 
     return {
         runs: runsArray,
