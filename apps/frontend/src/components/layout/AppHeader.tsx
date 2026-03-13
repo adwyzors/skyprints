@@ -2,11 +2,13 @@
 import { logout } from '@/auth/authClient';
 // apps\frontend\src\components\layout\AppHeader.tsx
 import { ChevronDown, LogOut, Menu, Settings, User, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 export default function AppHeader() {
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const router = useRouter();
     const [isMounted, setIsMounted] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -205,7 +207,13 @@ export default function AppHeader() {
                                             <User className="w-4 h-4" />
                                             <span>View Profile</span>
                                         </button>
-                                        <button className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors">
+                                        <button
+                                            onClick={() => {
+                                                router.push('/admin/settings');
+                                                setShowProfileMenu(false);
+                                            }}
+                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                                        >
                                             <Settings className="w-4 h-4" />
                                             <span>Account Settings</span>
                                         </button>

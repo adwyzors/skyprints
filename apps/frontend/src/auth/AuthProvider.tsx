@@ -74,7 +74,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loadUser();
     }, [pathname, requiresAuth, router]);
 
-    const hasPermission = useMemo(() => (permission: string) => !!user?.roles?.includes(permission), [user]);
+    const hasPermission = useMemo(() => (permission: string) => {
+        if (user?.user?.role === 'ADMIN') return true;
+        return !!user?.roles?.includes(permission);
+    }, [user]);
 
     const hasAnyPermission = useMemo(() => (permissions: string[]) =>
         permissions.some((p) => user?.roles?.includes(p)), [user]);
@@ -117,6 +120,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             router.replace('/403');
         }
     }, [loading, isAuthenticated, isAuthorized, pathname, router]);
+
+    // Apply user preferences (e.g., font size)
+    useEffect(() => {
+        const prefs = (user?.user as any)?.preferences;
+        if (typeof window !== 'undefined' && prefs?.fontSize) {
+            document.documentElement.className = `font-${prefs.fontSize}`;
+        }
+    }, [user]);
 
     const value = useMemo(() => ({
         user,

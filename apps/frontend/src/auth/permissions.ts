@@ -47,4 +47,6 @@ export enum Permission {
     LOCATIONS_UPDATE = "locations:update",
     LOCATIONS_DELETE = "locations:delete",
     LOCATIONS_ALL_VIEW = "locations:all:view",
+
+    SETTINGS_VIEW = "settings:view",
 }

@@ -5,7 +5,6 @@ import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
 import { Location } from '@/domain/model/location.model';
 import { DashboardStats, getDashboardStats, syncAnalytics } from '@/services/analytics.service';
-import { updatePreferences } from '@/services/auth.service';
 import { getLocations } from '@/services/location.service';
 import {
     Activity,
@@ -18,7 +17,6 @@ import {
     MapPin,
     Package,
     RefreshCw,
-    Settings,
     TrendingUp,
     Users,
     Zap
@@ -51,7 +49,6 @@ function DashboardClientContent() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
-    const [showSettings, setShowSettings] = useState(false);
     const [locations, setLocations] = useState<Location[]>([]);
 
     const preferences = (user as any)?.preferences || {};
@@ -67,18 +64,6 @@ function DashboardClientContent() {
         customers: preferences.showCustomers !== false,
         workload: preferences.showWorkload !== false,
         matrix: preferences.showMatrix !== false,
-    };
-
-    const toggleVisibility = async (key: string) => {
-        try {
-            const currentVal = preferences[key as keyof typeof preferences];
-            const newVal = currentVal === undefined ? false : !currentVal;
-            const newPrefs = { ...preferences, [key]: newVal };
-            await updatePreferences(newPrefs);
-            window.location.reload();
-        } catch (error) {
-            console.error('Failed to update dashboard preferences:', error);
-        }
     };
 
     const fetchStats = async (p: string, from?: string, to?: string, locId?: string) => {
@@ -215,13 +200,6 @@ function DashboardClientContent() {
                         </button>
                     )}
                     <button
-                        onClick={() => setShowSettings(true)}
-                        className="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 transition-all shadow-sm"
-                        title="Dashboard Preferences"
-                    >
-                        <Settings className="w-4 h-4" />
-                    </button>
-                    <button
                         onClick={handleRefresh}
                         className={`p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 transition-all shadow-sm ${isRefreshing ? 'animate-spin' : ''}`}
                         title="Refresh Data"
@@ -230,41 +208,6 @@ function DashboardClientContent() {
                     </button>
                 </div>
             </div>
-
-            {showSettings && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                            <h3 className="font-bold text-gray-900">Dashboard Configuration</h3>
-                            <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Visibility Settings</p>
-                            <div className="grid grid-cols-2 gap-4">
-                                {Object.entries(visibility).map(([key, val]) => (
-                                    <label key={key} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-100">
-                                        <input
-                                            type="checkbox"
-                                            checked={val}
-                                            onChange={() => toggleVisibility(`show${key.charAt(0).toUpperCase() + key.slice(1)}`)}
-                                            className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
-                                        />
-                                        <span className="text-sm font-semibold capitalize text-gray-700">{key}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="p-4 bg-blue-50 border-t border-blue-100 flex justify-center">
-                            <button
-                                onClick={() => setShowSettings(false)}
-                                className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-md hover:bg-blue-700 transition-all"
-                            >
-                                Done
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {visibility.workload && (
                 <div className="pb-8 mb-6 border-b border-gray-200">

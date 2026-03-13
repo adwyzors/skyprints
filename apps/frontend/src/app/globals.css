@@ -11,6 +11,10 @@ html {
   font-size: 90%;
 }
 
+html.font-sm { font-size: 80% !important; }
+html.font-base { font-size: 90% !important; }
+html.font-lg { font-size: 100% !important; }
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

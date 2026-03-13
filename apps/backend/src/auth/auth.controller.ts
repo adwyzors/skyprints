@@ -142,4 +142,13 @@ export class AuthController {
 
         return this.auth.getMe(authUser);
     }
+
+    @Post('preferences')
+    async updatePreferences(@Req() req: any) {
+        const authUser = req.user;
+        if (!authUser?.id) {
+            throw new UnauthorizedException('Unauthenticated');
+        }
+        return this.auth.updatePreferences(authUser.id, req.body);
+    }
 }
