@@ -224,32 +224,90 @@ export class AdminProcessService {
         /* ==========================
          * PROCESS RUN WHERE
          * ========================== */
-        const where: Prisma.ProcessRunWhereInput = {
-            ...(status && {
-                statusCode: { in: status.split(',') as ProcessRunStatus[] },
-            }),
+        const combinedAnd: Prisma.ProcessRunWhereInput[] = [];
 
+        // 1. Process Filter
+        if (processId) {
+            const pidList = Array.isArray(processId) ? processId : [processId];
+            const dtfNames = ['DTF', 'Direct to Film (DTF)'];
+            if (pidList.some(p => dtfNames.includes(p))) {
+                dtfNames.forEach(n => { if (!pidList.includes(n)) pidList.push(n); });
+            }
+            combinedAnd.push({
+                OR: [
+                    { orderProcess: { process: { name: { in: pidList } } } },
+                    { orderProcess: { processId: { in: pidList } } },
+                    ...pidList.map(p => ({
+                        orderProcess: { process: { name: { in: ['Embellish', 'Embellishment'] } } },
+                        fields: { path: ['Process Name'], equals: p }
+                    }))
+                ]
+            });
+        }
+
+        // 2. Lifecycle Status Filter
+        if (lifeCycleStatusCode) {
+            const list = lifeCycleStatusCode.split(',').map(s => s.trim()).filter(Boolean);
+            if (list.length > 0) {
+                const expanded = [...list];
+                // Handle casing variations (DB might be Title Case, URL might be UPPERCASE)
+                list.forEach(s => {
+                    const upper = s.toUpperCase();
+                    const lower = s.toLowerCase();
+                    const title = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+                    if (!expanded.includes(upper)) expanded.push(upper);
+                    if (!expanded.includes(lower)) expanded.push(lower);
+                    if (!expanded.includes(title)) expanded.push(title);
+                });
+
+                if (expanded.some(s => s.toUpperCase() === 'QC & COUNTING' || s.toUpperCase() === 'QC&COUNTING')) {
+                    const qccVariants = ['QC & Counting', 'QC & COUNTING', 'QC&Counting', 'QC&COUNTING'];
+                    qccVariants.forEach(v => { if (!expanded.includes(v)) expanded.push(v); });
+                }
+                combinedAnd.push({ lifeCycleStatusCode: { in: expanded } });
+            }
+        } else if (!status) {
+            combinedAnd.push({ lifeCycleStatusCode: { notIn: ['COMPLETE', 'BILLED'] } });
+        }
+
+        // 3. Search Filter
+        if (search) {
+            combinedAnd.push({
+                OR: [
+                    { orderProcess: { order: { code: { contains: search, mode: 'insensitive' } } } },
+                    { orderProcess: { order: { customer: { name: { contains: search, mode: 'insensitive' } } } } },
+                    { runTemplate: { name: { contains: search, mode: 'insensitive' } } },
+                    { lifeCycleStatusCode: { contains: search, mode: 'insensitive' } },
+                    { location: { name: { contains: search, mode: 'insensitive' } } },
+                    ...Object.values(ProcessRunStatus)
+                        .filter(s => s.toLowerCase().includes(search.toLowerCase()))
+                        .map(status_val => ({ statusCode: status_val })),
+                    ...Object.values(OrderStatus)
+                        .filter(s => s.toLowerCase().includes(search.toLowerCase()))
+                        .map(order_status => ({ orderProcess: { order: { statusCode: order_status } } })),
+                ]
+            });
+        }
+
+        // 4. Run Status Filter
+        if (status) {
+            combinedAnd.push({ statusCode: { in: status.split(',') as ProcessRunStatus[] } });
+        }
+
+        // 5. Assigned User Filter
+        if (query.assignedUserId) {
+            combinedAnd.push({
+                OR: [
+                    { executorId: query.assignedUserId },
+                    { reviewerId: query.assignedUserId },
+                ]
+            });
+        }
+
+        const where: Prisma.ProcessRunWhereInput = {
+            AND: combinedAnd,
             ...(executorUserId && { executorId: executorUserId }),
             ...(reviewerUserId && { reviewerId: reviewerUserId }),
-            ...(lifeCycleStatusCode ? {
-                lifeCycleStatusCode: {
-                    in: (() => {
-                        const list = lifeCycleStatusCode.split(',');
-                        if (list.some(s => s.toUpperCase() === 'QC & COUNTING' || s.toUpperCase() === 'QC&COUNTING')) {
-                            const expanded = [...list];
-                            if (!expanded.some(s => s.toUpperCase() === 'QC & COUNTING')) expanded.push('QC & COUNTING');
-                            if (!expanded.some(s => s.toUpperCase() === 'QC&COUNTING')) expanded.push('QC&COUNTING');
-                            return expanded;
-                        }
-                        return list;
-                    })()
-                }
-            } : (
-                !status ? {
-                    lifeCycleStatusCode: { notIn: ['COMPLETE', 'BILLED'] }
-                } : {}
-            )),
-
             ...(createdFrom || createdTo
                 ? {
                     createdAt: {
@@ -258,91 +316,9 @@ export class AdminProcessService {
                     },
                 }
                 : {}),
-
-            ...(processId && {
-                OR: (() => {
-                    const pidList = [processId];
-                    if (processId === 'DTF' || processId === 'Direct to Film (DTF)') {
-                        if (!pidList.includes('DTF')) pidList.push('DTF');
-                        if (!pidList.includes('Direct to Film (DTF)')) pidList.push('Direct to Film (DTF)');
-                    }
-                    return [
-                        { orderProcess: { process: { name: { in: pidList } } } },
-                        { orderProcess: { processId: { in: pidList } } },
-                        // For Embellishment runs that override the process name in a field
-                        ...pidList.map(p => ({
-                            orderProcess: { process: { name: { in: ['Embellish', 'Embellishment'] } } },
-                            fields: { path: ['Process Name'], equals: p }
-                        }))
-                    ];
-                })()
-            }),
-
-            ...(search && {
-                OR: [
-                    {
-                        orderProcess: {
-                            order: {
-                                is: {
-                                    code: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
-                                }
-                            },
-                        },
-                    },
-                    {
-                        orderProcess: {
-                            order: {
-                                is: {
-                                    customer: {
-                                        name: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
-                                    },
-                                }
-                            },
-                        },
-                    },
-                    {
-                        runTemplate: {
-                            name: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
-                        },
-                    },
-                    // Search by lifecycle status (string)
-                    {
-                        lifeCycleStatusCode: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
-                    },
-                    // Search by run status (enum)
-                    ...Object.values(ProcessRunStatus)
-                        .filter(s => s.toLowerCase().includes(search.toLowerCase()))
-                        .map(status => ({ statusCode: status })),
-                    // Search by order status (enum)
-                    ...Object.values(OrderStatus)
-                        .filter(s => s.toLowerCase().includes(search.toLowerCase()))
-                        .map(status => ({
-                            orderProcess: {
-                                order: {
-                                    statusCode: status,
-                                },
-                            },
-                        })),
-                    {
-                        location: {
-                            name: { contains: search, mode: 'insensitive' as Prisma.QueryMode },
-                        },
-                    },
-                ],
-            }),
-
-            // Filter by assigned user (executor OR reviewer)
-            ...(query.assignedUserId && {
-                OR: [
-                    { executorId: query.assignedUserId },
-                    { reviewerId: query.assignedUserId },
-                ],
-            }),
-
             ...(Object.keys(orderProcessWhere).length > 0 && {
                 orderProcess: orderProcessWhere,
             }),
-
             ...(query.locationId && {
                 locationId: query.locationId,
             }),
@@ -362,11 +338,33 @@ export class AdminProcessService {
                 id: true,
                 statusCode: true,
                 createdAt: true,
-                fields: true, // Fetch fields for aggregation
+                fields: true,
                 orderProcess: {
                     select: {
                         lifecycleCompletedRuns: true,
                         totalRuns: true,
+                        order: {
+                            select: {
+                                id: true,
+                                quantity: true,
+                                totalProcesses: true,
+                                billingContexts: {
+                                    take: 1,
+                                    orderBy: { createdAt: 'desc' },
+                                    select: {
+                                        billingContext: {
+                                            select: {
+                                                snapshots: {
+                                                    where: { isLatest: true },
+                                                    take: 1,
+                                                    select: { result: true }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     },
                 },
             },
@@ -462,8 +460,8 @@ export class AdminProcessService {
             });
 
             // Re-sort to match the slicedCandidates order
-            const runMap = new Map(unsortedRuns.map(r => [r.id, r]));
-            runs = slicedIds.map(id => runMap.get(id)).filter(Boolean);
+            const runMap = new Map<string, any>(unsortedRuns.map(r => [String(r.id), r]));
+            runs = slicedIds.map(id => runMap.get(String(id))).filter(Boolean);
         }
 
         /* ==========================
@@ -528,15 +526,33 @@ export class AdminProcessService {
                 total,
                 totalPages: Math.ceil(total / limit),
                 totalEstimatedAmount: allCandidates.reduce((sum, run) => {
-                    const amt = (run.fields as any)?.['Estimated Amount'];
-                    if (amt === undefined || amt === null) return sum;
-                    const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
-                    const val = parseFloat(cleanAmt);
-                    return sum + (isNaN(val) ? 0 : val);
+                    const fields = (run.fields as any) || {};
+                    let runValue = 0;
+
+                    // 1. Try "Estimated Amount" field
+                    const amt = fields['Estimated Amount'];
+                    if (amt !== undefined && amt !== null) {
+                        const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
+                        const val = parseFloat(cleanAmt);
+                        if (!isNaN(val)) runValue = val;
+                    }
+
+                    // 2. Fallback to Billing Context
+                    if (runValue <= 0) {
+                        const order = run.orderProcess.order;
+                        const billingResult = order.billingContexts?.[0]?.billingContext?.snapshots?.[0]?.result;
+                        if (billingResult) {
+                            const orderVal = Number(billingResult);
+                            const processCount = order.totalProcesses || 1;
+                            runValue = orderVal / processCount;
+                        }
+                    }
+
+                    return sum + runValue;
                 }, 0),
                 totalQuantity: allCandidates.reduce((sum, run) => {
-                    const qty = (run.fields as any)?.['Quantity'] || (run.orderProcess as any)?.order?.quantity;
-                    if (qty === undefined || qty === null) return sum;
+                    const fields = (run.fields as any) || {};
+                    const qty = fields['Quantity'] || run.orderProcess.order.quantity;
                     return sum + (Number(qty) || 0);
                 }, 0),
             },

@@ -792,9 +792,6 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                                     {status}
                                 </th>
                             ))}
-                            <th className="px-4 py-3 font-bold text-white text-center bg-gray-900 sticky right-0 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">
-                                Total
-                            </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -804,6 +801,7 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                                 {statuses.map(status => {
                                     const data = matrix[process]?.[status];
                                     const hasData = data && data.count > 0;
+                                    const hasValue = data && data.value > 0;
                                     return (
                                         <td
                                             key={status}
@@ -813,8 +811,8 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                                             {hasData ? (
                                                 <div className="flex flex-col items-center">
                                                     <span className="text-sm font-black text-gray-900 group-hover:text-blue-600">{data.count}</span>
-                                                    {visibility.revenue && (
-                                                        <span className="text-[9px] font-bold text-blue-600 opacity-60 group-hover:opacity-100">₹{data.value.toLocaleString()}</span>
+                                                    {hasValue && (
+                                                        <span className="text-[9px] font-bold text-blue-600 opacity-60 group-hover:opacity-100">₹{Math.round(data.value).toLocaleString()}</span>
                                                     )}
                                                 </div>
                                             ) : (
@@ -823,21 +821,6 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                                         </td>
                                     );
                                 })}
-                                {/* Row Totals */}
-                                <td className="px-4 py-3 text-center bg-gray-900 text-white font-bold sticky right-0 z-10 shadow-[-4px_0_10px_rgba(0,0,0,0.05)]">
-                                    {(() => {
-                                        const totalCount = Object.values(matrix[process] || {}).reduce((sum, d) => sum + d.count, 0);
-                                        const totalValue = Object.values(matrix[process] || {}).reduce((sum, d) => sum + d.value, 0);
-                                        return (
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-sm">{totalCount}</span>
-                                                {visibility.revenue && (
-                                                    <span className="text-[9px] text-gray-400">₹{Math.round(totalValue).toLocaleString()}</span>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
-                                </td>
                             </tr>
                         ))}
                     </tbody>
