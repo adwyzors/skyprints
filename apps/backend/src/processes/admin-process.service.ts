@@ -217,7 +217,7 @@ export class AdminProcessService {
         const orderProcessWhere: Prisma.OrderProcessWhereInput = {
             ...(priority && this.priorityWhere(priority)),
             ...(Object.keys(orderWhere).length > 0 && {
-                order: { is: orderWhere },
+                order: orderWhere,
             }),
         };
 
@@ -250,19 +250,12 @@ export class AdminProcessService {
             const list = lifeCycleStatusCode.split(',').map(s => s.trim()).filter(Boolean);
             if (list.length > 0) {
                 const expanded = [...list];
-                // Handle casing variations (DB might be Title Case, URL might be UPPERCASE)
                 list.forEach(s => {
-                    const upper = s.toUpperCase();
-                    const lower = s.toLowerCase();
-                    const title = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-                    if (!expanded.includes(upper)) expanded.push(upper);
-                    if (!expanded.includes(lower)) expanded.push(lower);
-                    if (!expanded.includes(title)) expanded.push(title);
+                    const variants = [s, s.toUpperCase(), s.toLowerCase(), s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()];
+                    variants.forEach(v => { if (!expanded.includes(v)) expanded.push(v); });
                 });
-
-                if (expanded.some(s => s.toUpperCase() === 'QC & COUNTING' || s.toUpperCase() === 'QC&COUNTING')) {
-                    const qccVariants = ['QC & Counting', 'QC & COUNTING', 'QC&Counting', 'QC&COUNTING'];
-                    qccVariants.forEach(v => { if (!expanded.includes(v)) expanded.push(v); });
+                if (expanded.some(e => e.toUpperCase() === 'QC & COUNTING' || e.toUpperCase() === 'QC&COUNTING')) {
+                    ['QC & Counting', 'QC & COUNTING', 'QC&Counting', 'QC&COUNTING'].forEach(v => { if (!expanded.includes(v)) expanded.push(v); });
                 }
                 combinedAnd.push({ lifeCycleStatusCode: { in: expanded } });
             }
@@ -281,10 +274,10 @@ export class AdminProcessService {
                     { location: { name: { contains: search, mode: 'insensitive' } } },
                     ...Object.values(ProcessRunStatus)
                         .filter(s => s.toLowerCase().includes(search.toLowerCase()))
-                        .map(status_val => ({ statusCode: status_val })),
+                        .map(s => ({ statusCode: s })),
                     ...Object.values(OrderStatus)
                         .filter(s => s.toLowerCase().includes(search.toLowerCase()))
-                        .map(order_status => ({ orderProcess: { order: { statusCode: order_status } } })),
+                        .map(s => ({ orderProcess: { order: { statusCode: s } } })),
                 ]
             });
         }
@@ -304,23 +297,20 @@ export class AdminProcessService {
             });
         }
 
+        // Top-level property logic (these usually don't clash as they are unique fields)
         const where: Prisma.ProcessRunWhereInput = {
             AND: combinedAnd,
             ...(executorUserId && { executorId: executorUserId }),
             ...(reviewerUserId && { reviewerId: reviewerUserId }),
-            ...(createdFrom || createdTo
-                ? {
-                    createdAt: {
-                        ...(createdFrom && { gte: new Date(createdFrom) }),
-                        ...(createdTo && { lte: new Date(createdTo) }),
-                    },
+            ...(query.locationId && { locationId: query.locationId }),
+            ...(createdFrom || createdTo ? {
+                createdAt: {
+                    ...(createdFrom && { gte: new Date(createdFrom) }),
+                    ...(createdTo && { lte: new Date(createdTo) }),
                 }
-                : {}),
+            } : {}),
             ...(Object.keys(orderProcessWhere).length > 0 && {
                 orderProcess: orderProcessWhere,
-            }),
-            ...(query.locationId && {
-                locationId: query.locationId,
             }),
         };
 

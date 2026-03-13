@@ -134,13 +134,19 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
 
     // Extract runs array from response
     let runsArray: any[] = [];
-    if (res.data && Array.isArray(res.data)) {
+    let meta: any = {};
+
+    if (res && res.data && Array.isArray(res.data)) {
         runsArray = res.data;
-    } else if (Array.isArray(res)) {
+        meta = res.meta || {};
+    } else if (res && Array.isArray(res)) {
         runsArray = res;
+    } else if (res && typeof res === 'object') {
+        // Fallback for cases where it might be wrapped differently
+        runsArray = res.runs || res.items || [];
+        meta = res.meta || {};
     }
 
-    const meta = res.meta || {};
     const total = parseInt(meta.total || headers.get('x-total-count') || String(runsArray.length), 10);
     const page = parseInt(meta.page || headers.get('x-page') || String(requestedPage), 10);
     const limit = parseInt(meta.limit || headers.get('x-limit') || String(requestedLimit), 10);
