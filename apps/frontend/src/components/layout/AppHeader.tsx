@@ -69,7 +69,7 @@ export default function AppHeader() {
     };
 
     const changeFontSize = (delta: number) => {
-        const newSize = Math.min(Math.max(fontSize + delta, 70), 130);
+        const newSize = Math.min(Math.max(fontSize + delta, 70), 150);
         setFontSize(newSize);
         localStorage.setItem('local-font-size', newSize.toString());
         document.documentElement.style.fontSize = `${newSize}%`;
@@ -189,7 +189,7 @@ export default function AppHeader() {
                         {/* LOCAL FONT SIZE CONTROLS */}
                         <div className="hidden sm:flex items-center bg-gray-50 border border-gray-200 rounded-lg p-0.5 mr-1 shadow-xs">
                             <button
-                                onClick={() => changeFontSize(5)}
+                                onClick={() => changeFontSize(10)}
                                 className="flex items-center gap-0.5 px-2 py-1 hover:bg-white hover:text-blue-600 rounded-md transition-all text-xs font-bold text-gray-500 group"
                                 title="Increase Font Size"
                             >
@@ -198,7 +198,7 @@ export default function AppHeader() {
                             </button>
                             <div className="w-px h-3 bg-gray-200 mx-0.5" />
                             <button
-                                onClick={() => changeFontSize(-5)}
+                                onClick={() => changeFontSize(-10)}
                                 className="flex items-center gap-0.5 px-2 py-1 hover:bg-white hover:text-blue-600 rounded-md transition-all text-xs font-bold text-gray-500 group"
                                 title="Decrease Font Size"
                             >
