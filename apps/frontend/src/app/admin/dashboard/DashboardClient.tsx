@@ -51,7 +51,7 @@ function DashboardClientContent() {
     const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
     const [locations, setLocations] = useState<Location[]>([]);
 
-    const preferences = (user as any)?.preferences || {};
+    const preferences = (user as any)?.user?.preferences || {};
     const visibility = {
         revenue: preferences.showRevenue !== false,
         orders: preferences.showOrders !== false,
@@ -264,6 +264,7 @@ function DashboardClientContent() {
                                 matrix={stats.lifecycleMatrix}
                                 locationId={locationId}
                                 locations={locations}
+                                onLocationChange={(locId) => updateFilters({ locationId: locId })}
                             />
                         </div>
                     )}
@@ -375,20 +376,6 @@ function DashboardClientContent() {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
-                                <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
-                                    <MapPin className="w-3 h-3 text-gray-400 ml-1.5" />
-                                    <select
-                                        value={locationId}
-                                        onChange={(e) => updateFilters({ locationId: e.target.value })}
-                                        className="text-[10px] font-bold uppercase tracking-tight bg-transparent border-none focus:ring-0 text-gray-600 cursor-pointer min-w-[100px]"
-                                    >
-                                        <option value="">All Studios</option>
-                                        {locations.map(loc => (
-                                            <option key={loc.id} value={loc.id}>{loc.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
                                 {period === 'custom' && (
                                     <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-md border border-gray-200 animate-in fade-in slide-in-from-right-2 duration-300">
                                         <input
@@ -695,10 +682,11 @@ function PulseCard({ label, value, icon, color, dark = false }: PulseCardProps) 
     );
 }
 
-function WorkflowLifecycleMatrix({ matrix, locationId, locations }: {
+function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChange }: {
     matrix: Record<string, Record<string, { count: number, value: number }>>,
     locationId?: string,
-    locations: Location[]
+    locations: Location[],
+    onLocationChange: (id: string) => void
 }) {
     const router = useRouter();
     const statuses = [
@@ -729,8 +717,6 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations }: {
         router.push(`/admin/runs?${params.toString()}`);
     };
 
-    const selectedLocation = locations.find(l => l.id === locationId);
-
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
@@ -738,12 +724,21 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations }: {
                     <Layers className="w-5 h-5 text-indigo-600" />
                     <h3 className="font-bold text-gray-900">
                         Workflow Lifecycle Matrix
-                        {selectedLocation && (
-                            <span className="ml-2 text-xs font-normal text-gray-500">
-                                — for {selectedLocation.name}
-                            </span>
-                        )}
                     </h3>
+                </div>
+
+                <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-gray-200 shadow-sm">
+                    <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                    <select
+                        value={locationId}
+                        onChange={(e) => onLocationChange(e.target.value)}
+                        className="text-xs font-bold text-gray-600 bg-transparent border-none focus:ring-0 cursor-pointer min-w-[140px]"
+                    >
+                        <option value="">All Studios</option>
+                        {locations.map(loc => (
+                            <option key={loc.id} value={loc.id}>{loc.name}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
             <div className="overflow-x-auto">
