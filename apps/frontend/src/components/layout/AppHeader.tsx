@@ -1,7 +1,7 @@
 'use client';
 import { logout } from '@/auth/authClient';
 // apps\frontend\src\components\layout\AppHeader.tsx
-import { ChevronDown, LogOut, Menu, Settings, User, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, LogOut, Menu, Settings, User, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
@@ -14,9 +14,19 @@ export default function AppHeader() {
 
     const [user, setUser] = useState<{ name: string; role: string; email: string } | null>(null);
 
+    const [fontSize, setFontSize] = useState(90);
+
     // Set mounted state after hydration and fetch user
     useEffect(() => {
         setIsMounted(true);
+
+        // Load font size from localStorage
+        const savedFontSize = localStorage.getItem('local-font-size');
+        if (savedFontSize) {
+            const size = parseInt(savedFontSize);
+            setFontSize(size);
+            document.documentElement.style.fontSize = `${size}%`;
+        }
 
         // Import fetchMe dynamically or use the imported one if available
         import('@/auth/authClient').then(async ({ fetchMe }) => {
@@ -56,6 +66,13 @@ export default function AppHeader() {
         // Add view profile logic here
         console.log('Viewing profile...');
         setShowProfileMenu(false);
+    };
+
+    const changeFontSize = (delta: number) => {
+        const newSize = Math.min(Math.max(fontSize + delta, 70), 130);
+        setFontSize(newSize);
+        localStorage.setItem('local-font-size', newSize.toString());
+        document.documentElement.style.fontSize = `${newSize}%`;
     };
 
     const getInitials = (name: string) => {
@@ -169,6 +186,27 @@ export default function AppHeader() {
 
                     {/* RIGHT SECTION - ICONS & PROFILE */}
                     <div className="flex items-center gap-3">
+                        {/* LOCAL FONT SIZE CONTROLS */}
+                        <div className="hidden sm:flex items-center bg-gray-50 border border-gray-200 rounded-lg p-0.5 mr-1 shadow-xs">
+                            <button
+                                onClick={() => changeFontSize(5)}
+                                className="flex items-center gap-0.5 px-2 py-1 hover:bg-white hover:text-blue-600 rounded-md transition-all text-xs font-bold text-gray-500 group"
+                                title="Increase Font Size"
+                            >
+                                <span className="text-[10px]">A</span>
+                                <ChevronUp className="w-3 h-3 group-hover:translate-y-[-1px] transition-transform" />
+                            </button>
+                            <div className="w-px h-3 bg-gray-200 mx-0.5" />
+                            <button
+                                onClick={() => changeFontSize(-5)}
+                                className="flex items-center gap-0.5 px-2 py-1 hover:bg-white hover:text-blue-600 rounded-md transition-all text-xs font-bold text-gray-500 group"
+                                title="Decrease Font Size"
+                            >
+                                <span className="text-[10px]">A</span>
+                                <ChevronDown className="w-3 h-3 group-hover:translate-y-[1px] transition-transform" />
+                            </button>
+                        </div>
+
                         {/* PROFILE DROPDOWN */}
                         <div className="relative" ref={profileMenuRef}>
                             <button
