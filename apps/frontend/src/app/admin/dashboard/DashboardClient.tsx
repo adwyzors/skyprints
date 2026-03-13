@@ -368,7 +368,7 @@ function DashboardClientContent() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {visibility.chart && (
+                {visibility.chart && visibility.revenue && (
                     <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
                         <div className="px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
                             <div className="flex items-center gap-3">
@@ -410,13 +410,7 @@ function DashboardClientContent() {
                                     ))}
                                 </div>
 
-                                {hoveredPoint !== null && (
-                                    <div className="flex items-center gap-4 animate-in fade-in duration-300 ml-2 border-l border-gray-100 pl-4">
-                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
-                                            {points[hoveredPoint].date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                        </span>
-                                    </div>
-                                )}
+
                             </div>
                         </div>
 
@@ -459,21 +453,29 @@ function DashboardClientContent() {
                                         {hoveredPoint !== null && visibility.revenue && (
                                             <g className="pointer-events-none">
                                                 <rect
-                                                    x={points[hoveredPoint].x - 35}
-                                                    y={points[hoveredPoint].y - 35}
-                                                    width="70"
-                                                    height="22"
-                                                    rx="11"
+                                                    x={points[hoveredPoint].x - 45}
+                                                    y={points[hoveredPoint].y - 52}
+                                                    width="90"
+                                                    height="38"
+                                                    rx="8"
                                                     fill="white"
                                                     stroke="#2563eb"
-                                                    strokeWidth="1"
-                                                    style={{ filter: 'drop-shadow(0 4px 6px -1px rgb(0 0 0 / 0.1))' }}
+                                                    strokeWidth="1.5"
+                                                    style={{ filter: 'drop-shadow(0 10px 15px -3px rgb(0 0 0 / 0.1))' }}
                                                 />
                                                 <text
                                                     x={points[hoveredPoint].x}
-                                                    y={points[hoveredPoint].y - 20}
+                                                    y={points[hoveredPoint].y - 38}
                                                     textAnchor="middle"
-                                                    className="text-[10px] font-black fill-blue-600"
+                                                    className="text-[8px] font-black fill-gray-400 uppercase tracking-tighter"
+                                                >
+                                                    {points[hoveredPoint].date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }).toUpperCase()}
+                                                </text>
+                                                <text
+                                                    x={points[hoveredPoint].x}
+                                                    y={points[hoveredPoint].y - 22}
+                                                    textAnchor="middle"
+                                                    className="text-[12px] font-black fill-blue-600"
                                                 >
                                                     ₹{points[hoveredPoint].revenue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                                                 </text>
@@ -500,7 +502,7 @@ function DashboardClientContent() {
                 )}
 
                 {visibility.hubs && (
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
+                    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col ${(visibility.chart && visibility.revenue) ? '' : 'lg:col-span-3'}`}>
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
                             <MapPin className="w-5 h-5 text-amber-600" />
                             <h3 className="font-bold text-gray-900">Hub Ranking</h3>
