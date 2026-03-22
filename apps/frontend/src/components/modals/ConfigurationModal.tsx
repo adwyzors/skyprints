@@ -169,15 +169,17 @@ export default function ConfigurationModal({
     const columnHeaders = run.values?.columnHeaders ? parseColumnHeaders(run.values.columnHeaders) : [];
     const totals = run.values?.totals ? parseTotals(run.values.totals) : [];
 
+    const normalizedProcess = (processName || '').toLowerCase();
+    const isDiamond = normalizedProcess.includes('diamond');
+    const isLaser = normalizedProcess.includes('laser');
+
     // Fields to exclude from regular grid as they're handled specifically or by tableRendering
-    const isDiamond = processName === 'Diamond';
-    const tableFields = new Set(['items', 'columnHeaders', 'totals', 'totalQuantity', 'totalAmount', 'avgRate', 'totalMeters', 'Estimated Amount', 'images']);
-    if (isDiamond) {
-        tableFields.add('particulars');
-        tableFields.add('End Rate');
-        tableFields.add('Total Quantity');
-        tableFields.add('Total Amount');
-    }
+    const tableFields = new Set([
+        'items', 'columnHeaders', 'totals', 'totalQuantity', 'totalAmount',
+        'avgRate', 'totalMeters', 'Estimated Amount', 'images', 'particulars',
+        'End Rate', 'Average Rate', 'Total Quantity', 'Total Amount',
+        'Total Laser Time', 'Total Mtr', 'rate_per_meter', 'panna', 'printer'
+    ]);
 
     // Map a specific set of keys to the grid in the order shown in the screenshot
     const preferredGridKeys = [
@@ -228,32 +230,44 @@ export default function ConfigurationModal({
 
     // Render table for Sublimation/Allover/Plotter/Positive/Diamond
     const renderItemsTable = () => {
-        if (!hasTableData) return null;
-
-        if (isDiamond) {
-            const diamondItems = items as any[];
+        // Shared header for Location and Particulars (Universal for all processes)
+        const renderSharedHeader = () => {
+            if (!run.location && !run.values?.particulars) return null;
             return (
-                <div className="mb-6">
-                    <div className="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        {run.location && (
-                            <div className="mb-3">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Production Location</span>
-                                <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                                    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    {run.location.name} ({run.location.code})
-                                </div>
+                <div className="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    {run.location && (
+                        <div className="mb-3">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Production Location</span>
+                            <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                                <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                {run.location.name} ({run.location.code})
                             </div>
-                        )}
+                        </div>
+                    )}
+                    {run.values?.particulars && (
                         <div>
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Particulars</span>
                             <div className="text-sm text-gray-700 leading-relaxed font-medium">
-                                {run.values?.particulars || '-'}
+                                {run.values.particulars}
                             </div>
                         </div>
-                    </div>
+                    )}
+                </div>
+            );
+        };
+
+        if (!hasTableData) {
+            return renderSharedHeader();
+        }
+
+        if (isDiamond || isLaser) {
+            const tableItems = items as any[];
+            return (
+                <div className="mb-6 text-black">
+                    {renderSharedHeader()}
 
                     <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                         <table className="w-full text-xs">
@@ -261,23 +275,23 @@ export default function ConfigurationModal({
                                 <tr className="bg-gray-100 border-b text-gray-600 uppercase text-[10px] font-bold tracking-wider">
                                     <th className="p-3 text-center w-12 border-r border-gray-200">#</th>
                                     <th className="p-3 text-left border-r border-gray-200">Design Sizes</th>
-                                    <th className="p-3 text-center border-r border-gray-200">Qty</th>
+                                    <th className="p-3 text-center border-r border-gray-200">Quantity</th>
                                     <th className="p-3 text-center border-r border-gray-200">F. Size</th>
-                                    <th className="p-3 text-left border-r border-gray-200">Diamond</th>
-                                    <th className="p-3 text-center border-r border-gray-200">Time</th>
+                                    <th className="p-3 text-center border-r border-gray-200">{isLaser ? 'Laser Time' : 'Time'}</th>
+                                    {isDiamond && <th className="p-3 text-left border-r border-gray-200">Diamond</th>}
                                     <th className="p-3 text-right bg-blue-50/50 border-r border-gray-200">Rate</th>
                                     <th className="p-3 text-right bg-blue-50 text-blue-800">Amount</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white">
-                                {diamondItems.map((item, idx) => (
+                                {tableItems.map((item, idx) => (
                                     <tr key={idx} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
                                         <td className="p-3 text-center text-gray-400 font-mono border-r border-gray-200">{idx + 1}</td>
                                         <td className="p-3 border-r border-gray-200 font-medium text-gray-800">{item.designSizes || '-'}</td>
                                         <td className="p-3 text-center border-r border-gray-200 font-bold text-gray-900">{item.quantity || 0}</td>
-                                        <td className="p-3 text-center border-r border-gray-200 text-gray-500 uppercase">{item.fSize || 'all'}</td>
-                                        <td className="p-3 border-r border-gray-200 text-gray-700">{item.diamond || '-'}</td>
-                                        <td className="p-3 text-center border-r border-gray-200">{item.time || 0}</td>
+                                        <td className="p-3 text-center border-r border-gray-200 text-gray-500 uppercase">{item.fSize || item.fSizes || 'all'}</td>
+                                        <td className="p-3 text-center border-r border-gray-200">{isLaser ? (item.laserTime || 0) : (item.time || 0)}</td>
+                                        {isDiamond && <td className="p-3 border-r border-gray-200 text-gray-700">{item.diamond || '-'}</td>}
                                         <td className="p-3 text-right border-r border-gray-200 text-blue-600 font-medium">{Number(item.rate || 0).toFixed(2)}</td>
                                         <td className="p-3 text-right bg-blue-50/20 font-bold text-blue-700">{Number(item.amount || 0).toFixed(2)}</td>
                                     </tr>
@@ -286,14 +300,16 @@ export default function ConfigurationModal({
                             <tfoot className="bg-gray-50 font-bold text-gray-800 border-t-2 border-gray-200">
                                 <tr>
                                     <td colSpan={2} className="p-3 text-right uppercase text-[10px] tracking-widest text-gray-500">Totals:</td>
-                                    <td className="p-3 text-center text-lg">{run.values?.['Total Quantity'] || diamondItems.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)}</td>
-                                    <td colSpan={3} className="border-r border-gray-200"></td>
+                                    <td className="p-3 text-center text-lg">{run.values?.['Total Quantity'] || tableItems.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)}</td>
+                                    <td className="border-r border-gray-200"></td>
+                                    <td className="p-3 text-center">{isLaser ? (run.values?.['Total Laser Time'] || tableItems.reduce((sum, i) => sum + (Number(i.laserTime) || 0), 0)) : ''}</td>
+                                    {isDiamond && <td className="border-r border-gray-200"></td>}
                                     <td className="p-3 text-right border-r border-gray-200">
-                                        <span className="text-[10px] text-gray-400 uppercase block mb-0.5">End Rate</span>
-                                        {Number(run.values?.['End Rate'] || 0).toFixed(2)}
+                                        <span className="text-[10px] text-gray-400 uppercase block mb-0.5">{isLaser ? 'Avg Rate' : 'End Rate'}</span>
+                                        {Number(run.values?.['Average Rate'] || run.values?.['End Rate'] || 0).toFixed(2)}
                                     </td>
                                     <td className="p-3 text-right text-base text-blue-900">
-                                        {Number(run.values?.['Total Amount'] || 0).toFixed(2)}
+                                        {isLaser && '₹'}{Number(run.values?.['Total Amount'] || 0).toFixed(2)}
                                     </td>
                                 </tr>
                             </tfoot>
@@ -305,7 +321,7 @@ export default function ConfigurationModal({
 
         // Detect which fields are present in the first item
         const firstItem = items[0] || {};
-        const hasDesign = 'design' in firstItem;
+        const hasDesign = 'design' in firstItem || 'designSizes' in firstItem;
         const hasSize = 'size' in firstItem;
         const hasDescription = 'description' in firstItem;
         const hasWidth = 'width' in firstItem;
@@ -318,14 +334,15 @@ export default function ConfigurationModal({
         const hasAmount = ('amount' in firstItem || 'total' in firstItem) && !hasRowTotal; // Positive uses 'amount' instead of 'rowTotal'
 
         return (
-            <div className="mb-6">
+            <div className="mb-6 text-black">
+                {renderSharedHeader()}
                 <h4 className="font-bold text-gray-800 mb-3">Items</h4>
-                <div className="border rounded overflow-x-auto">
+                <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                     <table className="w-full text-xs">
                         <thead>
-                            <tr className="bg-gray-50 border-b text-gray-500 uppercase text-[10px] tracking-wider">
-                                <th className="p-3 text-center w-12 border-r">#</th>
-                                {hasDesign && <th className="p-3 text-left border-r">Design</th>}
+                            <tr className="bg-gray-100 border-b text-gray-600 uppercase text-[10px] font-bold tracking-wider">
+                                <th className="p-3 text-center w-12 border-r border-gray-200">#</th>
+                                {hasDesign && <th className="p-3 text-left border-r border-gray-200">Design</th>}
                                 {hasSize && <th className="p-3 text-left border-r">Size</th>}
                                 {hasDescription && <th className="p-3 text-left border-r">Description</th>}
                                 {hasWidth && <th className="p-3 text-center border-r">W</th>}
@@ -342,22 +359,22 @@ export default function ConfigurationModal({
                                     ))
                                 ) : null}
 
-                                {hasQuantity && <th className="p-3 text-center border-r">Quantity</th>}
-                                {hasSum && <th className="p-3 text-center bg-gray-50 font-semibold border-r">Sum</th>}
-                                {hasRowRate && <th className="p-3 text-right bg-blue-50/50 border-r">Rate</th>}
-                                {hasAmount && <th className="p-3 text-right bg-blue-50 font-bold text-gray-700">Amount</th>}
-                                {hasRowTotal && <th className="p-3 text-right bg-blue-50 font-bold text-gray-700">Amount</th>}
+                                {hasQuantity && <th className="p-3 text-center border-r border-gray-200">Quantity</th>}
+                                {hasSum && <th className="p-3 text-center bg-gray-50/50 font-bold border-r border-gray-200">Sum</th>}
+                                {hasRowRate && <th className="p-3 text-right bg-blue-50/50 border-r border-gray-200">Rate</th>}
+                                {hasAmount && <th className="p-3 text-right bg-blue-50 text-blue-800 font-bold">Amount</th>}
+                                {hasRowTotal && <th className="p-3 text-right bg-blue-50 text-blue-800 font-bold">Amount</th>}
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-white">
                             {items.map((item, idx) => (
                                 <tr key={idx} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
-                                    <td className="p-3 text-center text-gray-400 font-mono border-r">{idx + 1}</td>
-                                    {hasDesign && <td className="p-3 border-r font-medium">{item.design || '-'}</td>}
-                                    {hasSize && <td className="p-3 border-r">{item.size || '-'}</td>}
-                                    {hasDescription && <td className="p-3 border-r">{item.description || '-'}</td>}
-                                    {hasWidth && <td className="p-3 text-center border-r font-medium text-gray-700">{item.width}</td>}
-                                    {hasHeight && <td className="p-3 text-center border-r font-medium text-gray-700">{item.height || item.H}</td>}
+                                    <td className="p-3 text-center text-gray-400 font-mono border-r border-gray-200">{idx + 1}</td>
+                                    {hasDesign && <td className="p-3 border-r border-gray-200 font-medium">{item.design || item.designSizes || '-'}</td>}
+                                    {hasSize && <td className="p-3 border-r border-gray-200">{item.size || '-'}</td>}
+                                    {hasDescription && <td className="p-3 border-r border-gray-200">{item.description || '-'}</td>}
+                                    {hasWidth && <td className="p-3 text-center border-r border-gray-200 font-medium">{item.width}</td>}
+                                    {hasHeight && <td className="p-3 text-center border-r border-gray-200 font-medium">{item.height || item.H}</td>}
 
                                     {/* Dynamic quantities for Sublimation/Allover */}
                                     {hasQuantities && item.quantities && Array.isArray(item.quantities) ? (
@@ -368,10 +385,10 @@ export default function ConfigurationModal({
                                         <td className="p-3 text-center border-r font-medium text-gray-700">{item.quantity}</td>
                                     ) : null}
 
-                                    {hasSum && <td className="p-3 text-center font-bold text-gray-900 bg-gray-50 border-r">{item.sum}</td>}
-                                    {hasRowRate && <td className="p-3 text-right font-medium text-blue-600 bg-blue-50/30 border-r">{Number(item.rowRate || item.rate).toFixed(2)}</td>}
-                                    {hasAmount && <td className="p-3 text-right font-bold text-blue-700 bg-blue-50/50">{Number(item.amount || item.total).toFixed(2)}</td>}
-                                    {hasRowTotal && <td className="p-3 text-right font-bold text-blue-700 bg-blue-50/50">{Number(item.rowTotal || item.rowAmount).toFixed(2)}</td>}
+                                    {hasSum && <td className="p-3 text-center font-bold text-gray-900 bg-gray-50/50 border-r border-gray-200">{item.sum}</td>}
+                                    {hasRowRate && <td className="p-3 text-right font-medium text-blue-600 border-r border-gray-200">{Number(item.rowRate || item.rate).toFixed(2)}</td>}
+                                    {hasAmount && <td className="p-3 text-right font-bold text-blue-700 bg-blue-50/20">{Number(item.amount || item.total).toFixed(2)}</td>}
+                                    {hasRowTotal && <td className="p-3 text-right font-bold text-blue-700 bg-blue-50/20">{Number(item.rowTotal || item.rowAmount).toFixed(2)}</td>}
                                 </tr>
                             ))}
                         </tbody>
