@@ -205,20 +205,22 @@ function BillingContextDetailPage() {
                     const metrics = getRunBillingMetrics(r, p.name, order.quantity);
                     const snapshotInput = order.billing?.inputs?.[r.id];
 
-                    // The bug was that snapshotInput?.new_rate might be a "raw" rate (e.g. 3 for Plotter)
-                    // while the backend result was calculated using the effective rate (13.40).
-                    // We should use metrics.ratePerPc which is derived from backend's intended amount,
-                    // unless a draft edit exists.
+                    // The baseRate is the effective rate per piece (Total Amount / Qty)
                     const baseRate = metrics.ratePerPc;
 
-                    // If we have a saved new_rate that is DIFFERENT from the original raw rate in run values,
-                    // it might be a user-saved override from a previous session.
-                    // But for simplicity and to match the backend result display, we prioritize metrics.ratePerPc
-                    // as the starting point for the dashboard view.
-                    const effectiveRate = draftInputs[order.id]?.[r.id]?.new_rate ?? snapshotInput?.new_rate ?? baseRate;
-                    const qty = snapshotInput?.quantity ?? metrics.quantity;
+                    // Logic to determine if we should use the snapshot's new_rate:
+                    // Only use it if it seems to be an intentional override, 
+                    // or if it matches the baseRate closely.
+                    // Actually, preferring baseRate for drafts ensures we match backend results.
+                    const currentInputRate = snapshotInput?.new_rate;
 
-                    displayTotalAmount += effectiveRate * qty;
+                    // If the draft input exists, use it.
+                    // Otherwise, use snapshotInput if it's FINALized or if it's different from run's raw rate.
+                    // But to keep it simple and fix the UI discrepancy:
+                    const rate = draftInputs[order.id]?.[r.id]?.new_rate ?? currentInputRate ?? baseRate;
+
+                    const qty = snapshotInput?.quantity ?? metrics.quantity;
+                    displayTotalAmount += rate * qty;
                 });
             });
         });
@@ -343,14 +345,16 @@ function BillingContextDetailPage() {
                                     const metrics = getRunBillingMetrics(r, p.name, order.quantity);
                                     const input = orderSnapshot?.inputs?.[r.id];
                                     const baseRate = metrics.ratePerPc;
+
+                                    // Match the logic used in displayRate below
                                     const rate = draftInputs[order.id]?.[r.id]?.new_rate ?? input?.new_rate ?? baseRate;
                                     const qty = input?.quantity ?? metrics.quantity;
-                                    orderCurrentTotal += rate * qty;
+                                    orderCurrentTotal += Number((rate * qty).toFixed(2));
                                 });
                             });
 
-                            // If no manual edits for this order, prefer the stored billing result
-                            if (!orderHasEdits && orderSnapshot?.result) {
+                            // If no manual edits for this order, prefer the stored billing result if it's positive
+                            if (!orderHasEdits && orderSnapshot && Number(orderSnapshot.result) > 0) {
                                 orderCurrentTotal = Number(orderSnapshot.result);
                             }
 
@@ -415,16 +419,16 @@ function BillingContextDetailPage() {
                                                                 const input = orderSnapshot?.inputs?.[run.id] || {};
 
                                                                 const baseRate = metrics.ratePerPc;
-                                                                // Always prefer the effective rate per piece (baseRate) for display
-                                                                // to ensure mathematical consistency (Rate * Qty = Amount).
-                                                                const currentRate = baseRate;
+                                                                // Use snapshot rate if it exists, otherwise use calculated baseRate
+                                                                const currentRate = input.new_rate ?? baseRate;
+
                                                                 // If input doesn't have quantity, we fallback to metrics.quantity
                                                                 const qty = input.quantity ?? input.total_quantity ?? input['total_quantity'] ?? input['quantity'] ?? metrics.quantity;
 
                                                                 const draftVal = draftInputs[order.id]?.[run.id]?.new_rate;
                                                                 const displayRate =
                                                                     draftVal !== undefined ? draftVal : currentRate;
-                                                                const displayTotal = displayRate * qty;
+                                                                const displayTotal = Number((displayRate * qty).toFixed(2));
                                                                 const isEdited =
                                                                     draftVal !== undefined && (Math.abs(draftVal - currentRate) > 0.01);
 

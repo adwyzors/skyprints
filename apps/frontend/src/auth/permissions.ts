@@ -4,6 +4,7 @@ export enum Permission {
     ORDERS_UPDATE = "orders:update",
     ORDERS_DELETE = "orders:delete",
     ORDERS_REORDER = "orders:reorder",
+    ORDERS_START_PRODUCTION = "orders:start-production",
 
     PROCESS_VIEW = "process:view",
     PROCESS_CREATE = "process:create",

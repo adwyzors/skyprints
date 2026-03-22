@@ -609,7 +609,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                     {/* PRODUCTION READY - START PRODUCTION */}
                     {order.status === 'PRODUCTION_READY' && (
                         <div className="flex flex-col items-center justify-center h-full">
-                            {hasPermission(Permission.ORDERS_UPDATE) ? (
+                            {hasPermission(Permission.ORDERS_START_PRODUCTION) ? (
                                 <>
                                     <div className="text-center text-gray-500 mb-6">
                                         <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
