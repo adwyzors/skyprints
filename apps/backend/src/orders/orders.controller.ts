@@ -60,6 +60,14 @@ export class OrdersController {
         return this.service.addProcessToOrder(orderId, dto);
     }
 
+    @Delete(':orderId/processes/:processId')
+    deleteProcessFromOrder(
+        @Param('orderId') orderId: string,
+        @Param('processId') processId: string,
+    ) {
+        return this.service.deleteProcessFromOrder(orderId, processId);
+    }
+
     @Post(':orderId/processes/:processId/runs')
     addRunToProcess(
         @Param('orderId') orderId: string,

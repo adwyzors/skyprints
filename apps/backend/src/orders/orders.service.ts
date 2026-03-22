@@ -1471,4 +1471,53 @@ export class OrdersService {
             return { success: true };
         });
     }
+
+    async deleteProcessFromOrder(
+        orderId: string,
+        processId: string,
+    ) {
+        return this.prisma.transaction(async tx => {
+            const orderProcess = await tx.orderProcess.findFirst({
+                where: {
+                    id: processId,
+                    orderId,
+                },
+                include: {
+                    runs: true
+                }
+            });
+
+            if (!orderProcess) {
+                throw new NotFoundException('Order process not found');
+            }
+
+            // Cleanup images for all runs in this process if they were any
+            for (const run of orderProcess.runs) {
+                const values = run.fields as Record<string, any>;
+                if (values?.images && Array.isArray(values.images) && values.images.length > 0) {
+                    try {
+                        await this.cloudflare.deleteFiles(values.images);
+                    } catch (error) {
+                        this.logger.error(`Failed to delete images for run ${run.id}`, error);
+                    }
+                }
+            }
+
+            await tx.orderProcess.delete({
+                where: { id: orderProcess.id },
+            });
+
+            const wasCompleted = orderProcess.statusCode === OrderProcessStatus.COMPLETE;
+
+            await tx.order.update({
+                where: { id: orderId },
+                data: {
+                    totalProcesses: { decrement: 1 },
+                    ...(wasCompleted && { completedProcesses: { decrement: 1 } }),
+                },
+            });
+
+            return { success: true };
+        });
+    }
 }

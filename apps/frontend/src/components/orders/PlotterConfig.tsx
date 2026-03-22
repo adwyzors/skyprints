@@ -17,7 +17,7 @@ import { Permission } from '@/auth/permissions';
 import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { PlotterItem, PlotterRunValues, ProcessRun } from '@/domain/model/run.model';
-import { addRunToProcess, deleteRunFromProcess } from '@/services/orders.service';
+import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
 
@@ -218,12 +218,28 @@ export default function PlotterConfig({
         setIsDeletingRun(runId);
         setError(null);
         try {
-            await deleteRunFromProcess(order.id, processId, runId);
+            await deleteRunFromProcess(localOrder.id, processId, runId);
             if (onRefresh) await onRefresh();
         } catch (err: any) {
             setError(err.message || 'Failed to delete run');
         } finally {
             setIsDeletingRun(null);
+        }
+    };
+
+    const handleDeleteProcess = async (processId: string) => {
+        if (!confirm('Are you sure you want to delete this entire process? This action cannot be undone.')) {
+            return;
+        }
+        setError(null);
+        try {
+            await deleteProcessFromOrder(localOrder.id, processId);
+            if (onRefresh) {
+                await onRefresh();
+            }
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || 'Failed to delete process');
         }
     };
 
@@ -794,15 +810,27 @@ export default function PlotterConfig({
                             )}
                         </div>
                     ))}
-                    {hasPermission(Permission.RUNS_CREATE) && (
-                        <button
-                            onClick={() => handleAddRun(process.id)}
-                            disabled={isAddingRun}
-                            className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 text-sm font-medium flex items-center justify-center gap-2"
-                        >
-                            {isAddingRun ? 'Adding...' : <><Plus className="w-4 h-4" /> Add configuration run</>}
-                        </button>
-                    )}
+                    <div className="flex gap-2">
+                        {hasPermission(Permission.RUNS_CREATE) && (
+                            <button
+                                onClick={() => handleAddRun(process.id)}
+                                disabled={isAddingRun}
+                                className="flex-1 py-2 border-2 border-dashed border-gray-300 rounded text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                                {isAddingRun ? 'Adding...' : <><Plus className="w-4 h-4" /> Add configuration run</>}
+                            </button>
+                        )}
+
+                        {process.runs.length === 0 && (
+                            <button
+                                onClick={() => handleDeleteProcess(process.id)}
+                                className="flex-1 py-2 border-2 border-dashed border-red-300 rounded-lg text-red-500 hover:border-red-500 hover:text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Delete Process
+                            </button>
+                        )}
+                    </div>
                 </div>
             ))}
         </div>

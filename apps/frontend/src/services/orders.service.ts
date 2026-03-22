@@ -281,6 +281,15 @@ export async function addProcessToOrder(
     });
 }
 
+export async function deleteProcessFromOrder(
+    orderId: string,
+    processId: string
+): Promise<any> {
+    return apiRequest(`/orders/${orderId}/processes/${processId}`, {
+        method: 'DELETE',
+    });
+}
+
 export async function deleteOrders(orderIds: string[]): Promise<any> {
     return apiRequest('/orders/bulk-delete', {
         method: 'POST',
