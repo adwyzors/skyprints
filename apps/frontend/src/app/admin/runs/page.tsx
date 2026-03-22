@@ -30,6 +30,7 @@ import {
     Search,
     User
 } from 'lucide-react';
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -727,9 +728,14 @@ function RunsPageContent() {
                                                     >
                                                         <td className="px-6 py-4 font-medium text-gray-900">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-[10px]">
+                                                                <Link
+                                                                    href={`/admin/orders/${run.orderProcess.order.id}`}
+                                                                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                                                    className="w-10 h-8 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center justify-center font-bold text-[10px] transition-colors"
+                                                                    title="View Order Details"
+                                                                >
                                                                     #{typeof run.orderProcess.order.code === 'object' ? (run.orderProcess.order.code as any).code.split("/")[0].replace("ORD", "") : run.orderProcess.order.code.split("/")[0].replace("ORD", "")}
-                                                                </span>
+                                                                </Link>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4">

@@ -344,7 +344,12 @@ function OrderGroupItem({
                         </button>
                     )}
                     <div>
-                        <div className="font-semibold text-gray-800">{order.code}</div>
+                        <Link
+                            href={`/admin/orders/${order.id}`}
+                            className="font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                        >
+                            {order.code}
+                        </Link>
                         <div className="text-xs text-gray-500">{order.customer?.name}</div>
                     </div>
                 </div>

@@ -6,17 +6,8 @@ import { Order } from '@/domain/model/order.model';
 import { apiRequest } from '@/services/api.service';
 import { getRunBillingMetrics } from '@/services/billing-calculator';
 import { getOrderById } from '@/services/orders.service';
-import {
-    Calculator,
-    ChevronDown,
-    Edit2,
-    FileText,
-    Image as ImageIcon,
-    IndianRupee,
-    Loader2,
-    Package,
-    X
-} from 'lucide-react';
+import { Calculator, ChevronDown, Edit2, FileText, Image as ImageIcon, IndianRupee, Loader2, Package, X } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import EditOrderModal from './EditOrderModal';
 import ImagePreviewModal from './ImagePreviewModal';
@@ -228,7 +219,13 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                     <div className="flex-1 overflow-y-auto">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-800 mb-1">{order.code}</h2>
+                                <Link
+                                    href={`/admin/orders/${order.id}`}
+                                    target="_blank"
+                                    className="hover:underline text-blue-600 hover:text-blue-800 transition-colors"
+                                >
+                                    <h2 className="text-2xl font-bold mb-1">{order.code}</h2>
+                                </Link>
                                 <p className="text-gray-600">Billing Generation</p>
                             </div>
                             <div className="flex items-center gap-2">

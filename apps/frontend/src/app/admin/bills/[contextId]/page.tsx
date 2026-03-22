@@ -375,7 +375,13 @@ function BillingContextDetailPage() {
                                             </div>
                                             <div>
                                                 <div className="flex items-center gap-2">
-                                                    <h4 className="font-bold text-gray-900 text-lg">{order.code}</h4>
+                                                    <Link
+                                                        href={`/admin/orders/${order.id}`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="hover:underline text-blue-600 transition-colors"
+                                                    >
+                                                        <h4 className="font-bold text-lg">{order.code}</h4>
+                                                    </Link>
                                                     <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full border border-gray-200">
                                                         {order.quantity} units
                                                     </span>
