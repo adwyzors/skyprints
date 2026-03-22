@@ -41,14 +41,20 @@ function AdminOrdersContent() {
         return Array.from(new Set(val.split(',').map(s => s.trim()).filter(Boolean)));
     }, [searchParams.toString()]);
 
-    const filters = useMemo(() => ({
-        status: statusCodes,
-        dateRange: searchParams.get('dateRange') || 'all',
-        customerId: searchParams.get('customerId') || 'all',
-        locationId: searchParams.get('locationId') || 'all',
-        startDate: searchParams.get('startDate') || '',
-        endDate: searchParams.get('endDate') || ''
-    }), [statusCodes, searchParams.toString()]);
+    const filters = useMemo(() => {
+        const userLocation = (user as any)?.user?.location;
+        const hasGlobalView = hasPermission(Permission.LOCATIONS_ALL_VIEW);
+        const lockedLocationId = (userLocation && !hasGlobalView) ? userLocation.id : null;
+
+        return {
+            status: statusCodes,
+            dateRange: searchParams.get('dateRange') || 'all',
+            customerId: searchParams.get('customerId') || 'all',
+            locationId: lockedLocationId || searchParams.get('locationId') || 'all',
+            startDate: searchParams.get('startDate') || '',
+            endDate: searchParams.get('endDate') || ''
+        };
+    }, [statusCodes, searchParams.toString(), user, hasPermission]);
 
     const [ordersData, setOrdersData] = useState<{
         orders: OrderCardData[];
@@ -106,10 +112,10 @@ function AdminOrdersContent() {
         }
 
         // Apply location restriction if applicable
-        const userLocation = user?.user?.location;
+        const userLocation = (user as any)?.user?.location;
         const hasGlobalView = hasPermission(Permission.LOCATIONS_ALL_VIEW);
-        if (userLocation && !hasGlobalView && !searchParams.get('locationId')) {
-            next.set('locationId', userLocation.id || userLocation.name);
+        if (userLocation && !hasGlobalView && searchParams.get('locationId') !== userLocation.id) {
+            next.set('locationId', userLocation.id);
             changed = true;
         }
 

@@ -1,3 +1,5 @@
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import { Location } from '@/domain/model/location.model';
 import { useEffect, useState } from 'react';
 
@@ -21,15 +23,28 @@ export default function SearchableLocationSelect({
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
+  const { user, hasPermission } = useAuth();
+  const userLocation = (user as any)?.user?.location;
+  const isLocked = !!(userLocation && !hasPermission(Permission.LOCATIONS_ALL_VIEW));
+
+  // Auto-set the selected location if locked and not already matched
+  useEffect(() => {
+    if (isLocked && valueId !== userLocation?.id) {
+       onChange(userLocation.id);
+    }
+  }, [isLocked, userLocation?.id, valueId]);
+
   // Initialize search with current selected location name if any
   useEffect(() => {
-    if (valueId) {
+    if (isLocked) {
+      setSearch(userLocation.name);
+    } else if (valueId) {
       const l = locations.find((l) => l.id === valueId);
       if (l) setSearch(l.name);
     } else {
       setSearch('');
     }
-  }, [valueId, locations]);
+  }, [valueId, locations, isLocked, userLocation?.name]);
 
   const filtered = locations.filter((l) =>
     l.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -42,8 +57,10 @@ export default function SearchableLocationSelect({
       <input
         type="text"
         value={search}
-        onFocus={() => setIsOpen(true)}
+        disabled={isLocked}
+        onFocus={() => { if (!isLocked) setIsOpen(true); }}
         onChange={(e) => {
+          if (isLocked) return;
           setSearch(e.target.value);
           setIsOpen(true);
           // If clear, clear selection
@@ -54,7 +71,7 @@ export default function SearchableLocationSelect({
           setTimeout(() => setIsOpen(false), 200);
         }}
         placeholder={placeholder || `Search ${label}...`}
-        className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+        className={`w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200' : 'bg-white'}`}
       />
       {isOpen && filtered.length > 0 && (
         <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded shadow-lg max-h-40 overflow-y-auto">

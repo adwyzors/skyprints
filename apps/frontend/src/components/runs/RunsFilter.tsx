@@ -36,7 +36,7 @@ interface RunsFilterProps {
 }
 
 export default function RunsFilter({ filters, onChange, onClear, onClose }: RunsFilterProps) {
-    const { hasPermission } = useAuth();
+    const { user, hasPermission } = useAuth();
     const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
     const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
     const [processes, setProcesses] = useState<ProcessSummary[]>(STATIC_PROCESSES);
@@ -346,15 +346,17 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
 
 
                 {/* Location */}
-                <div>
-                    <SearchableLocationSelect
-                        label="Location"
-                        valueId={filters.locationId}
-                        onChange={(id: string) => onChange({ ...filters, locationId: id })}
-                        locations={locations}
-                        placeholder="Search locations..."
-                    />
-                </div>
+                {(!((user as any)?.user?.location) || hasPermission(Permission.LOCATIONS_ALL_VIEW)) && (
+                    <div>
+                        <SearchableLocationSelect
+                            label="Location"
+                            valueId={filters.locationId}
+                            onChange={(id: string) => onChange({ ...filters, locationId: id })}
+                            locations={locations}
+                            placeholder="Search locations..."
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );
