@@ -160,7 +160,7 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
             currency: 'INR',
-            maximumFractionDigits: 0,
+            maximumFractionDigits: 2,
         }).format(Number(amount));
     };
 

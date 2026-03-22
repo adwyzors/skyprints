@@ -200,24 +200,34 @@ function BillingContextDetailPage() {
     let displayTotalAmount = 0;
     if (details) {
         details.orders.forEach((order) => {
-            // ... existing total calculation logic reused or simplified if needed
-            // For brevity, using simplified summation of effective amounts
             order.processes.forEach((p) => {
                 p.runs.forEach((r) => {
                     const metrics = getRunBillingMetrics(r, p.name, order.quantity);
                     const snapshotInput = order.billing?.inputs?.[r.id];
-                    const baseRate = snapshotInput?.new_rate ?? metrics.ratePerPc;
-                    const effectiveRate = draftInputs[order.id]?.[r.id]?.new_rate ?? baseRate;
 
-                    // Quantity also from snapshot or metrics
-                    // Note: Snapshot might store quantity too if it was fixed at generation time
-                    // But we fallback to metrics.quantity
+                    // The bug was that snapshotInput?.new_rate might be a "raw" rate (e.g. 3 for Plotter)
+                    // while the backend result was calculated using the effective rate (13.40).
+                    // We should use metrics.ratePerPc which is derived from backend's intended amount,
+                    // unless a draft edit exists.
+                    const baseRate = metrics.ratePerPc;
+
+                    // If we have a saved new_rate that is DIFFERENT from the original raw rate in run values,
+                    // it might be a user-saved override from a previous session.
+                    // But for simplicity and to match the backend result display, we prioritize metrics.ratePerPc
+                    // as the starting point for the dashboard view.
+                    const effectiveRate = draftInputs[order.id]?.[r.id]?.new_rate ?? snapshotInput?.new_rate ?? baseRate;
                     const qty = snapshotInput?.quantity ?? metrics.quantity;
 
                     displayTotalAmount += effectiveRate * qty;
                 });
             });
         });
+
+        // Final safety check: If no edits in draftInputs, and we have a snapshot result, use it!
+        // This ensures the "Total Amount" header always matches the "result" from backend if not modified.
+        if (Object.keys(draftInputs).length === 0 && details.latestSnapshot?.result) {
+            displayTotalAmount = Number(details.latestSnapshot.result);
+        }
     }
 
     return (
@@ -326,15 +336,23 @@ function BillingContextDetailPage() {
 
                             // Calculate order total
                             let orderCurrentTotal = 0;
+                            const orderHasEdits = !!draftInputs[order.id];
+
                             order.processes.forEach(p => {
                                 p.runs.forEach(r => {
                                     const metrics = getRunBillingMetrics(r, p.name, order.quantity);
                                     const input = orderSnapshot?.inputs?.[r.id];
-                                    const rate = draftInputs[order.id]?.[r.id]?.new_rate ?? input?.new_rate ?? metrics.ratePerPc;
+                                    const baseRate = metrics.ratePerPc;
+                                    const rate = draftInputs[order.id]?.[r.id]?.new_rate ?? input?.new_rate ?? baseRate;
                                     const qty = input?.quantity ?? metrics.quantity;
                                     orderCurrentTotal += rate * qty;
                                 });
                             });
+
+                            // If no manual edits for this order, prefer the stored billing result
+                            if (!orderHasEdits && orderSnapshot?.result) {
+                                orderCurrentTotal = Number(orderSnapshot.result);
+                            }
 
                             return (
                                 <div
@@ -396,7 +414,10 @@ function BillingContextDetailPage() {
                                                                 const metrics = getRunBillingMetrics(run, process.name, order.quantity);
                                                                 const input = orderSnapshot?.inputs?.[run.id] || {};
 
-                                                                const currentRate = input.new_rate ?? input['new_rate'] ?? metrics.ratePerPc;
+                                                                const baseRate = metrics.ratePerPc;
+                                                                // Always prefer the effective rate per piece (baseRate) for display
+                                                                // to ensure mathematical consistency (Rate * Qty = Amount).
+                                                                const currentRate = baseRate;
                                                                 // If input doesn't have quantity, we fallback to metrics.quantity
                                                                 const qty = input.quantity ?? input.total_quantity ?? input['total_quantity'] ?? input['quantity'] ?? metrics.quantity;
 

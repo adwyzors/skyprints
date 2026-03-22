@@ -312,21 +312,21 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                             <div className="space-y-3">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-600">Original Estimate:</span>
-                                    <span className="font-medium">₹{originalTotal.toLocaleString()}</span>
+                                    <span className="font-medium">₹{originalTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-600">Billing Adjustments:</span>
                                     <span
                                         className={`font-medium ${totalAmount > originalTotal ? 'text-green-600' : totalAmount < originalTotal ? 'text-red-600' : 'text-gray-600'}`}
                                     >
-                                        ₹{(totalAmount - originalTotal).toLocaleString()}
+                                        ₹{(totalAmount - originalTotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                 </div>
                                 <div className="pt-3 border-t border-blue-200">
                                     <div className="flex justify-between">
                                         <span className="font-bold text-gray-800">Final Amount:</span>
                                         <span className="text-2xl font-bold text-gray-800">
-                                            ₹{totalAmount.toLocaleString()}
+                                            ₹{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                     </div>
                                 </div>
@@ -721,7 +721,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                 <IndianRupee className="w-5 h-5" />
                                                 <div className="text-left">
                                                     <div className="font-bold">Finalize Billing</div>
-                                                    <div className="text-xs opacity-90">₹{totalAmount.toLocaleString()}</div>
+                                                    <div className="text-xs opacity-90">₹{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                                 </div>
                                             </>
                                         )}
