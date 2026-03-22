@@ -168,30 +168,55 @@ export default function ConfigurationModal({
     const columnHeaders = run.values?.columnHeaders ? parseColumnHeaders(run.values.columnHeaders) : [];
     const totals = run.values?.totals ? parseTotals(run.values.totals) : [];
 
-    // Fields to exclude from regular display if they're part of table rendering
-    const tableFields = new Set(['items', 'columnHeaders', 'totals', 'totalQuantity', 'totalAmount', 'avgRate', 'totalMeters', 'Estimated Amount']);
+    // Fields to exclude from regular grid as they're handled specifically or by tableRendering
+    const tableFields = new Set(['items', 'columnHeaders', 'totals', 'totalQuantity', 'totalAmount', 'avgRate', 'totalMeters', 'Estimated Amount', 'images']);
 
-    const requiredFields = (Array.isArray(run.fields) ? run.fields : [])
-        .filter((f) => f.required && !tableFields.has(f.key));
+    // Map a specific set of keys to the grid in the order shown in the screenshot
+    const preferredGridKeys = [
+        'particulars', 'Total Mtr',
+        'Total Quantity', 'rate_per_meter',
+        'Total Amount', 'panna',
+        'printer'
+    ];
 
-    // Create a 2-column grid layout for the table like in the image
-    const createGridData = () => {
-        const data = [];
-        const fields = requiredFields;
+    const getGridEntries = () => {
+        const entries: { label: string; value: any }[] = [];
 
-        // Group fields in pairs for 2-column layout
-        for (let i = 0; i < fields.length; i += 2) {
-            const row = {
-                leftField: fields[i],
-                rightField: fields[i + 1]
-            };
-            data.push(row);
-        }
+        // 1. Add specific grid keys if they exist in values
+        preferredGridKeys.forEach(key => {
+            const val = run.values?.[key];
+            if (val !== undefined && val !== null) {
+                entries.push({ label: key, value: val });
+            }
+        });
 
-        return data;
+        // 2. Add other required fields from template that aren't already included
+        (Array.isArray(run.fields) ? run.fields : []).forEach(f => {
+            if (f.required && !tableFields.has(f.key) && !preferredGridKeys.includes(f.key)) {
+                const val = run.values?.[f.key];
+                if (val !== undefined && val !== null) {
+                    entries.push({ label: f.key, value: val });
+                }
+            }
+        });
+
+        return entries;
     };
 
-    const gridData = createGridData();
+    const gridEntries = getGridEntries();
+
+    const createGridRows = () => {
+        const rows = [];
+        for (let i = 0; i < gridEntries.length; i += 2) {
+            rows.push({
+                left: gridEntries[i],
+                right: gridEntries[i + 1]
+            });
+        }
+        return rows;
+    };
+
+    const gridRows = createGridRows();
 
     // Render table for Sublimation/Allover/Plotter/Positive
     const renderItemsTable = () => {
@@ -199,16 +224,17 @@ export default function ConfigurationModal({
 
         // Detect which fields are present in the first item
         const firstItem = items[0] || {};
+        const hasDesign = 'design' in firstItem;
         const hasSize = 'size' in firstItem;
         const hasDescription = 'description' in firstItem;
         const hasWidth = 'width' in firstItem;
-        const hasHeight = 'height' in firstItem;
+        const hasHeight = 'height' in firstItem || 'H' in firstItem;
         const hasQuantities = 'quantities' in firstItem && Array.isArray(firstItem.quantities);
         const hasQuantity = 'quantity' in firstItem && !hasQuantities;
         const hasSum = 'sum' in firstItem;
-        const hasRowRate = 'rowRate' in firstItem;
-        const hasRowTotal = 'rowTotal' in firstItem;
-        const hasAmount = 'amount' in firstItem && !hasRowTotal; // Positive uses 'amount' instead of 'rowTotal'
+        const hasRowRate = 'rowRate' in firstItem || 'rate' in firstItem;
+        const hasRowTotal = 'rowTotal' in firstItem || 'rowAmount' in firstItem;
+        const hasAmount = ('amount' in firstItem || 'total' in firstItem) && !hasRowTotal; // Positive uses 'amount' instead of 'rowTotal'
 
         return (
             <div className="mb-6">
@@ -216,53 +242,55 @@ export default function ConfigurationModal({
                 <div className="border rounded overflow-x-auto">
                     <table className="w-full text-xs">
                         <thead>
-                            <tr className="bg-gray-50 border-b text-gray-600">
-                                <th className="p-2 text-center w-8">#</th>
-                                {hasSize && <th className="p-2 text-left">Size</th>}
-                                {hasDescription && <th className="p-2 text-left">Description</th>}
-                                {hasWidth && <th className="p-2 text-center">W</th>}
-                                {hasHeight && <th className="p-2 text-center">H</th>}
+                            <tr className="bg-gray-50 border-b text-gray-500 uppercase text-[10px] tracking-wider">
+                                <th className="p-3 text-center w-12 border-r">#</th>
+                                {hasDesign && <th className="p-3 text-left border-r">Design</th>}
+                                {hasSize && <th className="p-3 text-left border-r">Size</th>}
+                                {hasDescription && <th className="p-3 text-left border-r">Description</th>}
+                                {hasWidth && <th className="p-3 text-center border-r">W</th>}
+                                {hasHeight && <th className="p-3 text-center border-r">H</th>}
 
                                 {/* Dynamic column headers for Sublimation/Allover */}
                                 {hasQuantities && columnHeaders.length > 0 ? (
                                     columnHeaders.map((header, idx) => (
-                                        <th key={idx} className="p-2 text-center">{header}</th>
+                                        <th key={idx} className="p-3 text-center border-r">{header}</th>
                                     ))
                                 ) : hasQuantities && firstItem.quantities ? (
                                     firstItem.quantities.map((_: any, idx: number) => (
-                                        <th key={idx} className="p-2 text-center">Col {idx + 1}</th>
+                                        <th key={idx} className="p-3 text-center border-r">Col {idx + 1}</th>
                                     ))
                                 ) : null}
 
-                                {hasQuantity && <th className="p-2 text-center">Quantity</th>}
-                                {hasSum && <th className="p-2 text-center bg-gray-50 font-semibold">Sum</th>}
-                                {hasRowRate && <th className="p-2 text-right bg-blue-50">Rate</th>}
-                                {hasRowTotal && <th className="p-2 text-right bg-blue-50">Total</th>}
-                                {hasAmount && <th className="p-2 text-right bg-blue-50">Amount</th>}
+                                {hasQuantity && <th className="p-3 text-center border-r">Quantity</th>}
+                                {hasSum && <th className="p-3 text-center bg-gray-50 font-semibold border-r">Sum</th>}
+                                {hasRowRate && <th className="p-3 text-right bg-blue-50/50 border-r">Rate</th>}
+                                {hasAmount && <th className="p-3 text-right bg-blue-50 font-bold text-gray-700">Amount</th>}
+                                {hasRowTotal && <th className="p-3 text-right bg-blue-50 font-bold text-gray-700">Amount</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {items.map((item, idx) => (
-                                <tr key={idx} className="border-b last:border-0 hover:bg-gray-50">
-                                    <td className="p-2 text-center text-gray-500 font-mono">{idx + 1}</td>
-                                    {hasSize && <td className="p-2">{item.size || '-'}</td>}
-                                    {hasDescription && <td className="p-2">{item.description || '-'}</td>}
-                                    {hasWidth && <td className="p-2 text-center">{item.width}</td>}
-                                    {hasHeight && <td className="p-2 text-center">{item.height}</td>}
+                                <tr key={idx} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
+                                    <td className="p-3 text-center text-gray-400 font-mono border-r">{idx + 1}</td>
+                                    {hasDesign && <td className="p-3 border-r font-medium">{item.design || '-'}</td>}
+                                    {hasSize && <td className="p-3 border-r">{item.size || '-'}</td>}
+                                    {hasDescription && <td className="p-3 border-r">{item.description || '-'}</td>}
+                                    {hasWidth && <td className="p-3 text-center border-r font-medium text-gray-700">{item.width}</td>}
+                                    {hasHeight && <td className="p-3 text-center border-r font-medium text-gray-700">{item.height || item.H}</td>}
 
                                     {/* Dynamic quantities for Sublimation/Allover */}
                                     {hasQuantities && item.quantities && Array.isArray(item.quantities) ? (
                                         item.quantities.map((qty: any, cIdx: number) => (
-                                            <td key={cIdx} className="p-2 text-center">{qty || 0}</td>
+                                            <td key={cIdx} className="p-3 text-center border-r">{qty || 0}</td>
                                         ))
                                     ) : hasQuantity ? (
-                                        <td className="p-2 text-center">{item.quantity}</td>
+                                        <td className="p-3 text-center border-r font-medium text-gray-700">{item.quantity}</td>
                                     ) : null}
 
-                                    {hasSum && <td className="p-2 text-center font-bold text-gray-700 bg-gray-50">{item.sum}</td>}
-                                    {hasRowRate && <td className="p-2 text-right font-medium text-blue-600 bg-blue-50">{Number(item.rowRate).toFixed(2)}</td>}
-                                    {hasRowTotal && <td className="p-2 text-right font-bold text-blue-800 bg-blue-50">{Number(item.rowTotal).toFixed(2)}</td>}
-                                    {hasAmount && <td className="p-2 text-right font-bold text-blue-800 bg-blue-50">{Number(item.amount).toFixed(2)}</td>}
+                                    {hasSum && <td className="p-3 text-center font-bold text-gray-900 bg-gray-50 border-r">{item.sum}</td>}
+                                    {hasRowRate && <td className="p-3 text-right font-medium text-blue-600 bg-blue-50/30 border-r">{Number(item.rowRate || item.rate).toFixed(2)}</td>}
+                                    {hasAmount && <td className="p-3 text-right font-bold text-blue-700 bg-blue-50/50">{Number(item.amount || item.total).toFixed(2)}</td>}
+                                    {hasRowTotal && <td className="p-3 text-right font-bold text-blue-700 bg-blue-50/50">{Number(item.rowTotal || item.rowAmount).toFixed(2)}</td>}
                                 </tr>
                             ))}
                         </tbody>
@@ -288,23 +316,6 @@ export default function ConfigurationModal({
                     </table>
                 </div>
 
-                {/* Summary Cards - Total MTR and Total Amount */}
-                {(run.values?.totalMeters !== undefined || run.values?.totalAmount !== undefined) && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded border mt-4">
-                        {run.values?.totalMeters !== undefined && (
-                            <div className="text-left">
-                                <label className="text-[10px] uppercase text-gray-500 block font-semibold">Total MTR</label>
-                                <div className="text-sm font-medium text-gray-800">{Number(run.values.totalMeters).toFixed(2)}</div>
-                            </div>
-                        )}
-                        {run.values?.totalAmount !== undefined && (
-                            <div className="text-left">
-                                <label className="text-[10px] uppercase text-gray-500 block font-semibold">Total Amount</label>
-                                <div className="text-xl font-bold text-green-700">₹{Number(run.values.totalAmount).toLocaleString()}</div>
-                            </div>
-                        )}
-                    </div>
-                )}
             </div>
         );
     };
@@ -347,41 +358,45 @@ export default function ConfigurationModal({
                     {/* Render items table if available */}
                     {renderItemsTable()}
 
-                    {/* Regular fields table */}
-                    {gridData.length > 0 && (
-                        <table className="w-full border-collapse border border-gray-800 mb-6">
-                            <tbody>
-                                {gridData.map((row, rowIndex) => (
-                                    <tr key={`row-${rowIndex}`} className="border-b border-gray-800">
-                                        {/* Left column */}
-                                        <td className="border-r border-gray-800 p-0 w-1/2">
-                                            <div className="flex">
-                                                <div className="w-2/5 bg-gray-100 p-3 font-semibold border-r border-gray-800">
-                                                    {row.leftField?.key || ''}
-                                                </div>
-                                                <div className="w-3/5 p-3">
-                                                    {row.leftField ? (run.values?.[row.leftField.key] ?? '-') : ''}
-                                                </div>
-                                            </div>
-                                        </td>
-
-                                        {/* Right column - only if exists */}
-                                        {row.rightField && (
-                                            <td className="p-0 w-1/2">
-                                                <div className="flex">
-                                                    <div className="w-2/5 bg-gray-100 p-3 font-semibold border-r border-gray-800">
-                                                        {row.rightField.key}
+                    {/* Regular fields table in 2-column tabular format */}
+                    {gridRows.length > 0 && (
+                        <div className="border border-gray-300 rounded overflow-hidden mb-6">
+                            <table className="w-full border-collapse text-sm">
+                                <tbody>
+                                    {gridRows.map((row, rowIndex) => (
+                                        <tr key={`row-${rowIndex}`} className="border-b last:border-0 border-gray-300">
+                                            {/* Left item */}
+                                            <td className="w-1/2 p-0 border-r border-gray-300">
+                                                <div className="flex h-full">
+                                                    <div className="w-[140px] bg-gray-50 p-3 font-semibold text-gray-600 border-r border-gray-300 whitespace-nowrap">
+                                                        {row.left.label}
                                                     </div>
-                                                    <div className="w-3/5 p-3">
-                                                        {run.values?.[row.rightField.key] ?? '-'}
+                                                    <div className="flex-1 p-3 text-gray-800 bg-white min-h-[44px] flex items-center">
+                                                        {row.left.value ?? '-'}
                                                     </div>
                                                 </div>
                                             </td>
-                                        )}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+
+                                            {/* Right item */}
+                                            <td className="w-1/2 p-0">
+                                                {row.right ? (
+                                                    <div className="flex h-full">
+                                                        <div className="w-[140px] bg-gray-50 p-3 font-semibold text-gray-600 border-r border-gray-300 whitespace-nowrap">
+                                                            {row.right.label}
+                                                        </div>
+                                                        <div className="flex-1 p-3 text-gray-800 bg-white min-h-[44px] flex items-center">
+                                                            {row.right.value ?? '-'}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex h-full bg-white"></div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
 
                     {/* IMAGES SECTION */}
@@ -403,7 +418,7 @@ export default function ConfigurationModal({
                         </div>
                     )}
 
-                    {!hasTableData && requiredFields.length === 0 && (!run.values?.images || run.values.images.length === 0) && (
+                    {!hasTableData && gridEntries.length === 0 && (!run.values?.images || run.values.images.length === 0) && (
                         <div className="text-center py-8 text-gray-500">
                             No configuration data available for this run.
                         </div>
