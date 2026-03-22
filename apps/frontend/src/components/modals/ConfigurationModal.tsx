@@ -7,6 +7,7 @@ interface ConfigurationModalProps {
         runNumber: number;
         fields?: Array<{ key: string; required: boolean }>;
         values?: Record<string, any>;
+        location?: { name: string; code: string };
     };
     processName: string;
     orderCode: string;
@@ -169,7 +170,14 @@ export default function ConfigurationModal({
     const totals = run.values?.totals ? parseTotals(run.values.totals) : [];
 
     // Fields to exclude from regular grid as they're handled specifically or by tableRendering
+    const isDiamond = processName === 'Diamond';
     const tableFields = new Set(['items', 'columnHeaders', 'totals', 'totalQuantity', 'totalAmount', 'avgRate', 'totalMeters', 'Estimated Amount', 'images']);
+    if (isDiamond) {
+        tableFields.add('particulars');
+        tableFields.add('End Rate');
+        tableFields.add('Total Quantity');
+        tableFields.add('Total Amount');
+    }
 
     // Map a specific set of keys to the grid in the order shown in the screenshot
     const preferredGridKeys = [
@@ -218,9 +226,82 @@ export default function ConfigurationModal({
 
     const gridRows = createGridRows();
 
-    // Render table for Sublimation/Allover/Plotter/Positive
+    // Render table for Sublimation/Allover/Plotter/Positive/Diamond
     const renderItemsTable = () => {
         if (!hasTableData) return null;
+
+        if (isDiamond) {
+            const diamondItems = items as any[];
+            return (
+                <div className="mb-6">
+                    <div className="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        {run.location && (
+                            <div className="mb-3">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Production Location</span>
+                                <div className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                                    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    {run.location.name} ({run.location.code})
+                                </div>
+                            </div>
+                        )}
+                        <div>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Particulars</span>
+                            <div className="text-sm text-gray-700 leading-relaxed font-medium">
+                                {run.values?.particulars || '-'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-gray-100 border-b text-gray-600 uppercase text-[10px] font-bold tracking-wider">
+                                    <th className="p-3 text-center w-12 border-r border-gray-200">#</th>
+                                    <th className="p-3 text-left border-r border-gray-200">Design Sizes</th>
+                                    <th className="p-3 text-center border-r border-gray-200">Qty</th>
+                                    <th className="p-3 text-center border-r border-gray-200">F. Size</th>
+                                    <th className="p-3 text-left border-r border-gray-200">Diamond</th>
+                                    <th className="p-3 text-center border-r border-gray-200">Time</th>
+                                    <th className="p-3 text-right bg-blue-50/50 border-r border-gray-200">Rate</th>
+                                    <th className="p-3 text-right bg-blue-50 text-blue-800">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white">
+                                {diamondItems.map((item, idx) => (
+                                    <tr key={idx} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
+                                        <td className="p-3 text-center text-gray-400 font-mono border-r border-gray-200">{idx + 1}</td>
+                                        <td className="p-3 border-r border-gray-200 font-medium text-gray-800">{item.designSizes || '-'}</td>
+                                        <td className="p-3 text-center border-r border-gray-200 font-bold text-gray-900">{item.quantity || 0}</td>
+                                        <td className="p-3 text-center border-r border-gray-200 text-gray-500 uppercase">{item.fSize || 'all'}</td>
+                                        <td className="p-3 border-r border-gray-200 text-gray-700">{item.diamond || '-'}</td>
+                                        <td className="p-3 text-center border-r border-gray-200">{item.time || 0}</td>
+                                        <td className="p-3 text-right border-r border-gray-200 text-blue-600 font-medium">{Number(item.rate || 0).toFixed(2)}</td>
+                                        <td className="p-3 text-right bg-blue-50/20 font-bold text-blue-700">{Number(item.amount || 0).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-gray-50 font-bold text-gray-800 border-t-2 border-gray-200">
+                                <tr>
+                                    <td colSpan={2} className="p-3 text-right uppercase text-[10px] tracking-widest text-gray-500">Totals:</td>
+                                    <td className="p-3 text-center text-lg">{run.values?.['Total Quantity'] || diamondItems.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)}</td>
+                                    <td colSpan={3} className="border-r border-gray-200"></td>
+                                    <td className="p-3 text-right border-r border-gray-200">
+                                        <span className="text-[10px] text-gray-400 uppercase block mb-0.5">End Rate</span>
+                                        {Number(run.values?.['End Rate'] || 0).toFixed(2)}
+                                    </td>
+                                    <td className="p-3 text-right text-base text-blue-900">
+                                        {Number(run.values?.['Total Amount'] || 0).toFixed(2)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
 
         // Detect which fields are present in the first item
         const firstItem = items[0] || {};
