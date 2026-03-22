@@ -172,13 +172,20 @@ export default function ConfigurationModal({
     const normalizedProcess = (processName || '').toLowerCase();
     const isDiamond = normalizedProcess.includes('diamond');
     const isLaser = normalizedProcess.includes('laser');
+    const isDTF = normalizedProcess.includes('dtf') || normalizedProcess.includes('direct to film');
+    const isPlotter = normalizedProcess.includes('plotter');
+    const isSublimation = normalizedProcess.includes('sublimation');
 
     // Fields to exclude from regular grid as they're handled specifically or by tableRendering
     const tableFields = new Set([
         'items', 'columnHeaders', 'totals', 'totalQuantity', 'totalAmount',
         'avgRate', 'totalMeters', 'Estimated Amount', 'images', 'particulars',
         'End Rate', 'Average Rate', 'Total Quantity', 'Total Amount',
-        'Total Laser Time', 'Total Mtr', 'rate_per_meter', 'panna', 'printer'
+        'Total Laser Time', 'Total Mtr', 'rate_per_meter', 'panna', 'printer',
+        'Total Layouts', 'Total Area', 'Layout Amount', 'Actual Meter Cost',
+        'Efficiency %', 'Fusing Cost', 'Actual Total', 'Per PC Cost', 'pcs', 'rate',
+        'isFusing', 'isJobDifference', 'customPcs', 'sheetsToCut', 'Total Sheet Req',
+        'Total Sheet Req (Meters)'
     ]);
 
     // Map a specific set of keys to the grid in the order shown in the screenshot
@@ -319,9 +326,201 @@ export default function ConfigurationModal({
             );
         }
 
+        if (isDTF) {
+            const dtfItems = items as any[];
+            return (
+                <div className="mb-6 text-black">
+                    {renderSharedHeader()}
+                    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-gray-100 border-b text-gray-600 uppercase text-[10px] font-bold tracking-wider">
+                                    <th className="p-2 text-center w-10 border-r border-gray-200">#</th>
+                                    <th className="p-2 text-left border-r border-gray-200">Particulars</th>
+                                    <th className="p-2 text-center border-r border-gray-200">H</th>
+                                    <th className="p-2 text-center border-r border-gray-200">Pcs/L</th>
+                                    <th className="p-2 text-center border-r border-gray-200">Qty Act</th>
+                                    <th className="p-2 text-center border-r border-gray-200">Req</th>
+                                    <th className="p-2 text-center border-r border-gray-200">Layouts</th>
+                                    <th className="p-2 text-center border-r border-gray-200">Area</th>
+                                    <th className="p-2 text-right bg-blue-50/50 border-r border-gray-200">Price/L</th>
+                                    <th className="p-2 text-right bg-blue-50 text-blue-800">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white">
+                                {dtfItems.map((item, idx) => (
+                                    <tr key={idx} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
+                                        <td className="p-2 text-center text-gray-400 font-mono border-r border-gray-200">{idx + 1}</td>
+                                        <td className="p-2 border-r border-gray-200 font-medium text-gray-800">{item.particulars || '-'}</td>
+                                        <td className="p-2 text-center border-r border-gray-200">{item.height || 0}</td>
+                                        <td className="p-2 text-center border-r border-gray-200">{item.pcsPerLayout || 0}</td>
+                                        <td className="p-2 text-center border-r border-gray-200">{item.quantityActual || 0}</td>
+                                        <td className="p-2 text-center border-r border-gray-200 font-bold">{item.quantityRequired || 0}</td>
+                                        <td className="p-2 text-center border-r border-gray-200 font-bold text-blue-600">{item.numberOfLayouts || 0}</td>
+                                        <td className="p-2 text-center border-r border-gray-200">{Number(item.area || 0).toFixed(2)}</td>
+                                        <td className="p-2 text-right border-r border-gray-200 text-blue-600 font-medium font-mono">₹{Number(item.pricePerLayout || 0).toFixed(2)}</td>
+                                        <td className="p-2 text-right bg-blue-50/20 font-bold text-blue-700 font-mono">₹{Number(item.rowTotal || 0).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-gray-50 font-bold text-gray-800 border-t-2 border-gray-200">
+                                <tr>
+                                    <td colSpan={2} className="p-2 text-right uppercase text-[10px] tracking-widest text-gray-500">Totals:</td>
+                                    <td colSpan={4}></td>
+                                    <td className="p-2 text-center bg-gray-100/50 text-blue-700">{run.values?.['Total Layouts'] || dtfItems.reduce((sum, i) => sum + (Number(i.numberOfLayouts) || 0), 0)}</td>
+                                    <td className="p-2 text-center bg-gray-100/50">{Number(run.values?.['Total Area'] || 0).toFixed(2)}</td>
+                                    <td className="p-2 text-right border-r border-gray-200">
+                                        <span className="text-[10px] text-gray-400 uppercase block mb-0.5">Rate</span>
+                                        {Number(run.values?.rate || 0).toFixed(2)}
+                                    </td>
+                                    <td className="p-2 text-right text-base text-blue-900 bg-blue-50/30 font-mono">
+                                        ₹{Number(run.values?.['Layout Amount'] || 0).toFixed(2)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        if (isPlotter) {
+            const pItems = items as any[];
+            return (
+                <div className="mb-6 text-black">
+                    {renderSharedHeader()}
+                    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-gray-100 border-b text-gray-600 uppercase text-[10px] font-bold tracking-wider">
+                                    <th className="p-2 text-center w-10 border-r border-gray-200">#</th>
+                                    <th className="p-2 text-left border-r border-gray-200">Files/Sizes</th>
+                                    <th className="p-2 text-center border-r border-gray-200">Qty</th>
+                                    <th className="p-2 text-center border-r border-gray-200">W x H</th>
+                                    <th className="p-2 text-center border-r border-gray-200">Layout (H/Pc)</th>
+                                    <th className="p-2 text-center border-r border-gray-200 bg-blue-50/50">Sheet Req</th>
+                                    <th className="p-2 text-right border-r border-gray-200 bg-blue-50/50">Rate</th>
+                                    <th className="p-2 text-right bg-blue-50 text-blue-800">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white">
+                                {pItems.map((item, idx) => (
+                                    <tr key={idx} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
+                                        <td className="p-2 text-center text-gray-400 font-mono border-r border-gray-200">{idx + 1}</td>
+                                        <td className="p-2 border-r border-gray-200 font-medium text-gray-800">{item.fileSizes || '-'}</td>
+                                        <td className="p-2 text-center border-r border-gray-200">{item.quantity || 0}</td>
+                                        <td className="p-2 text-center border-r border-gray-200">{item.sizeW || 0} x {item.sizeH || 0}</td>
+                                        <td className="p-2 text-center border-r border-gray-200">{item.layoutHeight || 0} / {item.layoutPcs || 0}</td>
+                                        <td className="p-2 text-center border-r border-gray-200 bg-blue-50/20 font-medium">{Number(item.sheetReq || 0).toFixed(2)}</td>
+                                        <td className="p-2 text-right border-r border-gray-200 bg-blue-50/20 text-gray-600">₹{Number(item.rate || 0).toFixed(2)}</td>
+                                        <td className="p-2 text-right bg-blue-50/30 font-bold text-blue-700 font-mono">₹{Number(item.total || 0).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-gray-50 font-bold text-gray-800 border-t-2 border-gray-200">
+                                <tr>
+                                    <td colSpan={2} className="p-2 text-right uppercase text-[10px] tracking-widest text-gray-500 font-bold">Totals:</td>
+                                    <td className="p-2 text-center text-gray-900">{run.values?.['Total Quantity'] || pItems.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)}</td>
+                                    <td colSpan={2}></td>
+                                    <td className="p-2 text-center bg-gray-100/50 text-blue-700">{Number(run.values?.['Total Sheet Req'] || 0).toFixed(2)}</td>
+                                    <td></td>
+                                    <td className="p-2 text-right text-base text-blue-900 bg-blue-50/30 font-mono">
+                                        ₹{Number(run.values?.['Total Amount'] || 0).toFixed(2)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        if (isSublimation) {
+            const sItems = items as any[];
+            const isAllover = sItems.some((i: any) => 'height' in i && !('quantities' in i));
+
+            return (
+                <div className="mb-6 text-black">
+                    {renderSharedHeader()}
+                    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-gray-100 border-b text-gray-600 uppercase text-[10px] font-bold tracking-wider">
+                                    <th className="p-2 text-center w-10 border-r border-gray-200">#</th>
+                                    <th className="p-2 text-left border-r border-gray-200">{isAllover ? 'Design' : 'Size'}</th>
+                                    {isAllover ? (
+                                        <>
+                                            <th className="p-2 text-center border-r border-gray-200">Height</th>
+                                            <th className="p-2 text-center border-r border-gray-200 bg-blue-50/50">Rate</th>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <th className="p-2 text-center border-r border-gray-200">W</th>
+                                            <th className="p-2 text-center border-r border-gray-200">H</th>
+                                            {columnHeaders.map((h, i) => (
+                                                <th key={i} className="p-2 text-center border-r border-gray-200">{h}</th>
+                                            ))}
+                                            <th className="p-2 text-center border-r border-gray-200 bg-gray-50">Sum</th>
+                                        </>
+                                    )}
+                                    <th className="p-2 text-right border-r border-gray-200 font-bold bg-blue-50/50">Qty</th>
+                                    <th className="p-2 text-right bg-blue-50 text-blue-800 font-bold">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white">
+                                {sItems.map((item, idx) => (
+                                    <tr key={idx} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
+                                        <td className="p-2 text-center text-gray-400 font-mono border-r border-gray-200">{idx + 1}</td>
+                                        <td className="p-2 border-r border-gray-200 font-medium text-gray-800">{isAllover ? (item.design || '-') : (item.size || '-')}</td>
+                                        {isAllover ? (
+                                            <>
+                                                <td className="p-2 text-center border-r border-gray-200">{item.height || 0}</td>
+                                                <td className="p-2 text-center border-r border-gray-200 bg-blue-50/20 text-blue-600 font-medium">₹{Number(item.rate || 0).toFixed(2)}</td>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <td className="p-2 text-center border-r border-gray-200">{item.width || 0}</td>
+                                                <td className="p-2 text-center border-r border-gray-200">{item.height || 0}</td>
+                                                {(item.quantities || [0, 0, 0, 0]).map((q: any, i: number) => (
+                                                    <td key={i} className="p-2 text-center border-r border-gray-200 text-gray-500">{q}</td>
+                                                ))}
+                                                <td className="p-2 text-center border-r border-gray-200 font-bold text-gray-700 bg-gray-50/50">{item.sum || 0}</td>
+                                            </>
+                                        )}
+                                        <td className="p-2 text-right border-r border-gray-200 font-bold text-gray-900 bg-blue-50/20">{item.quantity || item.sum || 0}</td>
+                                        <td className="p-2 text-right bg-blue-50/30 font-bold text-blue-700 font-mono">₹{Number(item.amount || item.rowTotal || 0).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-gray-50 font-bold text-gray-800 border-t-2 border-gray-200">
+                                <tr>
+                                    <td colSpan={2} className="p-2 text-right uppercase text-[10px] tracking-widest text-gray-500 font-bold">Totals:</td>
+                                    {isAllover ? (
+                                        <td colSpan={2}></td>
+                                    ) : (
+                                        <>
+                                            <td colSpan={2}></td>
+                                            {totals.map((t, i) => (
+                                                <td key={i} className="p-2 text-center">{t}</td>
+                                            ))}
+                                            <td></td>
+                                        </>
+                                    )}
+                                    <td className="p-2 text-right font-bold text-blue-700 text-lg">{run.values?.['Total Quantity'] || run.values?.totalQuantity || 0}</td>
+                                    <td className="p-2 text-right text-base text-blue-900 bg-blue-50/30 font-mono">
+                                        ₹{Number(run.values?.['Total Amount'] || run.values?.totalAmount || 0).toFixed(2)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
         // Detect which fields are present in the first item
         const firstItem = items[0] || {};
-        const hasDesign = 'design' in firstItem || 'designSizes' in firstItem;
+        const hasDesign = 'design' in firstItem || 'designSizes' in firstItem || 'particulars' in firstItem;
         const hasSize = 'size' in firstItem;
         const hasDescription = 'description' in firstItem;
         const hasWidth = 'width' in firstItem;
@@ -343,19 +542,19 @@ export default function ConfigurationModal({
                             <tr className="bg-gray-100 border-b text-gray-600 uppercase text-[10px] font-bold tracking-wider">
                                 <th className="p-3 text-center w-12 border-r border-gray-200">#</th>
                                 {hasDesign && <th className="p-3 text-left border-r border-gray-200">Design</th>}
-                                {hasSize && <th className="p-3 text-left border-r">Size</th>}
-                                {hasDescription && <th className="p-3 text-left border-r">Description</th>}
-                                {hasWidth && <th className="p-3 text-center border-r">W</th>}
-                                {hasHeight && <th className="p-3 text-center border-r">H</th>}
+                                {hasSize && <th className="p-3 text-left border-r border-gray-200">Size</th>}
+                                {hasDescription && <th className="p-3 text-left border-r border-gray-200">Description</th>}
+                                {hasWidth && <th className="p-3 text-center border-r border-gray-200">W</th>}
+                                {hasHeight && <th className="p-3 text-center border-r border-gray-200">H</th>}
 
                                 {/* Dynamic column headers for Sublimation/Allover */}
                                 {hasQuantities && columnHeaders.length > 0 ? (
                                     columnHeaders.map((header, idx) => (
-                                        <th key={idx} className="p-3 text-center border-r">{header}</th>
+                                        <th key={idx} className="p-3 text-center border-r border-gray-200">{header}</th>
                                     ))
                                 ) : hasQuantities && firstItem.quantities ? (
                                     firstItem.quantities.map((_: any, idx: number) => (
-                                        <th key={idx} className="p-3 text-center border-r">Col {idx + 1}</th>
+                                        <th key={idx} className="p-3 text-center border-r border-gray-200">Col {idx + 1}</th>
                                     ))
                                 ) : null}
 
@@ -370,7 +569,7 @@ export default function ConfigurationModal({
                             {items.map((item, idx) => (
                                 <tr key={idx} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
                                     <td className="p-3 text-center text-gray-400 font-mono border-r border-gray-200">{idx + 1}</td>
-                                    {hasDesign && <td className="p-3 border-r border-gray-200 font-medium">{item.design || item.designSizes || '-'}</td>}
+                                    {hasDesign && <td className="p-3 border-r border-gray-200 font-medium">{item.design || item.designSizes || item.particulars || '-'}</td>}
                                     {hasSize && <td className="p-3 border-r border-gray-200">{item.size || '-'}</td>}
                                     {hasDescription && <td className="p-3 border-r border-gray-200">{item.description || '-'}</td>}
                                     {hasWidth && <td className="p-3 text-center border-r border-gray-200 font-medium">{item.width}</td>}
@@ -379,10 +578,10 @@ export default function ConfigurationModal({
                                     {/* Dynamic quantities for Sublimation/Allover */}
                                     {hasQuantities && item.quantities && Array.isArray(item.quantities) ? (
                                         item.quantities.map((qty: any, cIdx: number) => (
-                                            <td key={cIdx} className="p-3 text-center border-r">{qty || 0}</td>
+                                            <td key={cIdx} className="p-3 text-center border-r border-gray-200">{qty || 0}</td>
                                         ))
                                     ) : hasQuantity ? (
-                                        <td className="p-3 text-center border-r font-medium text-gray-700">{item.quantity}</td>
+                                        <td className="p-3 text-center border-r border-gray-200 font-medium">{item.quantity}</td>
                                     ) : null}
 
                                     {hasSum && <td className="p-3 text-center font-bold text-gray-900 bg-gray-50/50 border-r border-gray-200">{item.sum}</td>}
@@ -397,23 +596,83 @@ export default function ConfigurationModal({
                                 <tr>
                                     <td colSpan={
                                         1 +
+                                        (hasDesign ? 1 : 0) +
                                         (hasSize ? 1 : 0) +
                                         (hasDescription ? 1 : 0) +
                                         (hasWidth ? 1 : 0) +
                                         (hasHeight ? 1 : 0)
                                     } className="p-2 text-right uppercase text-[10px] tracking-wider text-gray-500">Totals</td>
                                     {totals.map((tot, idx) => (
-                                        <td key={idx} className="p-2 text-center">{tot}</td>
+                                        <td key={idx} className="p-2 text-center border-r border-gray-200">{tot}</td>
                                     ))}
-                                    {run.values?.totalQuantity !== undefined && <td className="p-2 text-center font-bold text-black">{run.values.totalQuantity}</td>}
-                                    {run.values?.avgRate !== undefined && <td className="p-2 text-right text-gray-600">{Number(run.values.avgRate).toFixed(4)}</td>}
-                                    {run.values?.totalAmount !== undefined && <td className="p-2 text-right font-bold text-black">{Number(run.values.totalAmount).toFixed(2)}</td>}
+                                    {run.values?.totalQuantity !== undefined && <td className="p-2 text-center font-bold text-black border-r border-gray-200">{run.values.totalQuantity}</td>}
+                                    {run.values?.avgRate !== undefined && <td className="p-2 text-right text-gray-600 border-r border-gray-200">{Number(run.values.avgRate).toFixed(4)}</td>}
+                                    {run.values?.totalAmount !== undefined && <td className="p-2 text-right font-bold text-black">₹{Number(run.values.totalAmount).toFixed(2)}</td>}
                                 </tr>
                             </tfoot>
                         )}
                     </table>
                 </div>
 
+            </div>
+        );
+    };
+
+    const renderRunSummary = () => {
+        const summaryFields = [
+            { label: 'Total PCS', key: 'pcs' },
+            { label: 'Fusing', key: 'isFusing', type: 'boolean' },
+            { label: 'Job Diff', key: 'isJobDifference', type: 'boolean' },
+            { label: 'Custom PCS', key: 'customPcs' },
+            { label: 'Fusing Cost', key: 'Fusing Cost', prefix: '₹' },
+            { label: 'Efficiency', key: 'Efficiency %', suffix: '%' },
+            { label: 'Meter Cost', key: 'Actual Meter Cost', prefix: '₹' },
+            { label: 'Per PC Cost', key: 'Per PC Cost', prefix: '₹' },
+            { label: 'Actual Total', key: 'Actual Total', prefix: '₹', highlight: true },
+            // Plotter
+            { label: 'Sheets to Cut', key: 'sheetsToCut' },
+            { label: 'Sheet Req', key: 'Total Sheet Req', suffix: ' in' },
+            { label: 'Sheet Req (M)', key: 'Total Sheet Req (Meters)', suffix: ' m' },
+            { label: 'Total Qty', key: 'Total Quantity' },
+            { label: 'Total Amount', key: 'Total Amount', prefix: '₹', highlight: true },
+            // Sublimation
+            { label: 'Panna', key: 'panna' },
+            { label: 'Printer', key: 'printer' },
+            { label: 'Rate/Mtr', key: 'rate_per_meter', prefix: '₹' },
+            { label: 'Total Mtr', key: 'Total Mtr', suffix: ' m' },
+            { label: 'Avg Rate', key: 'avgRate', prefix: '₹' },
+            { label: 'Total Mtrs', key: 'totalMeters', suffix: ' m' },
+            { label: 'Total Qty', key: 'totalQuantity' },
+            { label: 'Total Amount', key: 'totalAmount', prefix: '₹', highlight: true },
+        ];
+
+        const activeFields = summaryFields.filter(f => run.values?.[f.key] !== undefined && run.values?.[f.key] !== null);
+        if (activeFields.length === 0) return null;
+
+        return (
+            <div className="mt-6 bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 font-bold text-[10px] uppercase tracking-wider text-gray-500">
+                    Execution Summary
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-0">
+                    {activeFields.map((field, idx) => {
+                        let val = run.values?.[field.key];
+                        if (field.type === 'boolean') val = val ? 'Yes' : 'No';
+                        else if (typeof val === 'number') {
+                            if (field.key === 'pcs' || field.key === 'customPcs') val = val.toString();
+                            else val = val.toFixed(2);
+                        }
+
+                        return (
+                            <div key={idx} className={`p-4 border-r border-b border-gray-100 ${field.highlight ? 'bg-blue-50/50' : ''}`}>
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">{field.label}</span>
+                                <div className={`text-sm font-bold ${field.highlight ? 'text-blue-900' : 'text-gray-800'}`}>
+                                    {field.prefix}{val}{field.suffix}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         );
     };
@@ -455,6 +714,9 @@ export default function ConfigurationModal({
                 <div className="p-6 overflow-y-auto flex-1" ref={printRef}>
                     {/* Render items table if available */}
                     {renderItemsTable()}
+
+                    {/* Run Summary Grid */}
+                    {renderRunSummary()}
 
                     {/* Regular fields table in 2-column tabular format */}
                     {gridRows.length > 0 && (
