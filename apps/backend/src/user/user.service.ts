@@ -158,14 +158,41 @@ export class UserService {
             where: { id: userId },
             select: { preferences: true }
         });
-        return user?.preferences || {};
+        
+        if (user?.preferences && typeof user.preferences === 'object') {
+            const filteredPreferences: Record<string, any> = {};
+            for (const [key, value] of Object.entries(user.preferences as object)) {
+                if (value === true) {
+                    filteredPreferences[key] = true;
+                }
+            }
+            return filteredPreferences;
+        }
+
+        return {};
     }
 
     async updatePreferences(userId: string, preferences: any) {
+        // Merge with existing preferences
+        const currentUser = await this.prisma.user.findUnique({ where: { id: userId }, select: { preferences: true } });
+        const existingPrefs = (currentUser?.preferences as Record<string, any>) || {};
+        const newPrefs = { ...existingPrefs, ...preferences };
+
         const user = await this.prisma.user.update({
             where: { id: userId },
-            data: { preferences }
+            data: { preferences: newPrefs }
         });
+
+        if (user.preferences && typeof user.preferences === 'object') {
+            const filteredPreferences: Record<string, any> = {};
+            for (const [key, value] of Object.entries(user.preferences as object)) {
+                if (value === true) {
+                    filteredPreferences[key] = true;
+                }
+            }
+            return filteredPreferences;
+        }
+        
         return user.preferences;
     }
 

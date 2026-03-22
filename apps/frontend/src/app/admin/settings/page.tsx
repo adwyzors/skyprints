@@ -25,19 +25,19 @@ function SettingsPage() {
     const initialPrefs = (user as any)?.user?.preferences || {};
 
     const [prefs, setPrefs] = useState({
-        showRevenue: true,
-        showOrders: true,
-        showUnits: true,
-        showHubs: true,
-        showPulse: true,
-        showChart: true,
-        showPerformance: true,
-        showProcesses: true,
-        showCustomers: true,
-        showWorkload: true,
-        showMatrix: true,
-        fontSize: 'base',
-        ...initialPrefs
+        showRevenue: false,
+        showOrders: false,
+        showUnits: false,
+        showHubs: false,
+        showPulse: false,
+        showChart: false,
+        showPerformance: false,
+        showProcesses: false,
+        showCustomers: false,
+        showWorkload: false,
+        showMatrix: false,
+        ...initialPrefs,
+        fontSize: initialPrefs.fontSize || 'base'
     });
 
     useEffect(() => {

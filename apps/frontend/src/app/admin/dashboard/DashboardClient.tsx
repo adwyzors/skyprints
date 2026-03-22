@@ -53,17 +53,17 @@ function DashboardClientContent() {
 
     const preferences = (user as any)?.user?.preferences || {};
     const visibility = {
-        revenue: preferences.showRevenue !== false,
-        orders: preferences.showOrders !== false,
-        units: preferences.showUnits !== false,
-        hubs: preferences.showHubs !== false,
-        pulse: preferences.showPulse !== false,
-        chart: preferences.showChart !== false,
-        performance: preferences.showPerformance !== false,
-        processes: preferences.showProcesses !== false,
-        customers: preferences.showCustomers !== false,
-        workload: preferences.showWorkload !== false,
-        matrix: preferences.showMatrix !== false,
+        revenue: preferences.showRevenue === true,
+        orders: preferences.showOrders === true,
+        units: preferences.showUnits === true,
+        hubs: preferences.showHubs === true,
+        pulse: preferences.showPulse === true,
+        chart: preferences.showChart === true,
+        performance: preferences.showPerformance === true,
+        processes: preferences.showProcesses === true,
+        customers: preferences.showCustomers === true,
+        workload: preferences.showWorkload === true,
+        matrix: preferences.showMatrix === true,
     };
 
     const fetchStats = async (p: string, from?: string, to?: string, locId?: string) => {
