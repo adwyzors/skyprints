@@ -209,7 +209,7 @@ function DashboardClientContent() {
                 </div>
             </div>
 
-            {visibility.workload && (
+            {(visibility.workload || visibility.pulse || visibility.matrix) && (
                 <div className="pb-8 mb-6 border-b border-gray-200">
                     <div className="mb-6">
                         <h2 className="text-xl font-bold text-gray-900">Live System State</h2>
@@ -270,61 +270,63 @@ function DashboardClientContent() {
                         </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                                <MapPin className="w-5 h-5 text-amber-600" />
-                                <h3 className="font-bold text-gray-900">Active Workload by Hub</h3>
-                            </div>
-                            <div className="p-4">
-                                {stats.currentWorkload?.byLocation.length > 0 ? (
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {stats.currentWorkload.byLocation.map((loc) => (
-                                            <div key={loc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-2 h-10 bg-amber-400 rounded-full" />
-                                                    <span className="font-bold text-gray-700">{loc.name}</span>
+                    {visibility.workload && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
+                                    <MapPin className="w-5 h-5 text-amber-600" />
+                                    <h3 className="font-bold text-gray-900">Active Workload by Hub</h3>
+                                </div>
+                                <div className="p-4">
+                                    {stats.currentWorkload?.byLocation.length > 0 ? (
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {stats.currentWorkload.byLocation.map((loc) => (
+                                                <div key={loc.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-2 h-10 bg-amber-400 rounded-full" />
+                                                        <span className="font-bold text-gray-700">{loc.name}</span>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="text-xl font-black text-gray-900">{loc.count}</span>
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase">Active Runs</p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <span className="text-xl font-black text-gray-900">{loc.count}</span>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Active Runs</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="py-12 text-center text-gray-400 text-sm italic">All hubs are currently idle.</div>
-                                )}
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="py-12 text-center text-gray-400 text-sm italic">All hubs are currently idle.</div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                                <Users className="w-5 h-5 text-indigo-600" />
-                                <h3 className="font-bold text-gray-900">Active Workload by Manager</h3>
-                            </div>
-                            <div className="p-4">
-                                {stats.currentWorkload?.byManager.length > 0 ? (
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {stats.currentWorkload.byManager.map((mgr) => (
-                                            <div key={mgr.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-2 h-10 bg-indigo-500 rounded-full" />
-                                                    <span className="font-bold text-gray-700">{mgr.name}</span>
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
+                                    <Users className="w-5 h-5 text-indigo-600" />
+                                    <h3 className="font-bold text-gray-900">Active Workload by Manager</h3>
+                                </div>
+                                <div className="p-4">
+                                    {stats.currentWorkload?.byManager.length > 0 ? (
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {stats.currentWorkload.byManager.map((mgr) => (
+                                                <div key={mgr.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-2 h-10 bg-indigo-500 rounded-full" />
+                                                        <span className="font-bold text-gray-700">{mgr.name}</span>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span className="text-xl font-black text-gray-900">{mgr.count}</span>
+                                                        <p className="text-[10px] font-bold text-gray-400 uppercase">Assigned Runs</p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <span className="text-xl font-black text-gray-900">{mgr.count}</span>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase">Assigned Runs</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="py-12 text-center text-gray-400 text-sm italic">No managers have active assignments.</div>
-                                )}
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="py-12 text-center text-gray-400 text-sm italic">No managers have active assignments.</div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 
@@ -368,7 +370,7 @@ function DashboardClientContent() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {visibility.chart && visibility.revenue && (
+                {visibility.chart && (
                     <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
                         <div className="px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white">
                             <div className="flex items-center gap-3">
@@ -505,7 +507,7 @@ function DashboardClientContent() {
                 )}
 
                 {visibility.hubs && (
-                    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col ${(visibility.chart && visibility.revenue) ? '' : 'lg:col-span-3'}`}>
+                    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col ${visibility.chart ? '' : 'lg:col-span-3'}`}>
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
                             <MapPin className="w-5 h-5 text-amber-600" />
                             <h3 className="font-bold text-gray-900">Hub Ranking</h3>
@@ -795,34 +797,50 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {processes.map(process => (
-                            <tr key={process} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="px-4 py-3 font-bold text-gray-900 border-r border-gray-100 bg-gray-50/20">{process}</td>
-                                {statuses.map(status => {
-                                    const data = matrix[process]?.[status];
-                                    const hasData = data && data.count > 0;
-                                    const hasValue = data && data.value > 0;
-                                    return (
-                                        <td
-                                            key={status}
-                                            onClick={() => hasData && handleCellClick(process, status)}
-                                            className={`px-4 py-3 border-r border-gray-100 last:border-r-0 text-center transition-all ${hasData ? 'cursor-pointer hover:bg-blue-50/50 group' : 'bg-gray-50/10'}`}
-                                        >
-                                            {hasData ? (
-                                                <div className="flex flex-col items-center">
-                                                    <span className="text-sm font-black text-gray-900 group-hover:text-blue-600">{data.count}</span>
-                                                    {hasValue && (
-                                                        <span className="text-[9px] font-bold text-blue-600 opacity-60 group-hover:opacity-100">₹{Math.round(data.value).toLocaleString()}</span>
-                                                    )}
+                        {processes.map(process => {
+                            const rowData = matrix[process];
+                            const totalCount = Object.values(rowData).reduce((sum, d) => sum + (d.count || 0), 0);
+                            const totalValue = Object.values(rowData).reduce((sum, d) => sum + (d.value || 0), 0);
+
+                            return (
+                                <tr key={process} className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="px-4 py-3 font-bold text-gray-900 border-r border-gray-100 bg-gray-50/20">
+                                        <div className="flex flex-col">
+                                            <span className="text-gray-900">{process}</span>
+                                            {totalCount > 0 && (
+                                                <div className="mt-1 flex flex-col">
+                                                    <span className="text-[11px] font-black text-blue-700">{totalCount.toLocaleString()}</span>
+                                                    <span className="text-[10px] font-bold text-emerald-600">₹{Math.round(totalValue).toLocaleString()}</span>
                                                 </div>
-                                            ) : (
-                                                <span className="text-gray-200 text-lg">-</span>
                                             )}
-                                        </td>
-                                    );
-                                })}
-                            </tr>
-                        ))}
+                                        </div>
+                                    </td>
+                                    {statuses.map(status => {
+                                        const data = matrix[process]?.[status];
+                                        const hasData = data && data.count > 0;
+                                        const hasValue = data && data.value > 0;
+                                        return (
+                                            <td
+                                                key={status}
+                                                onClick={() => hasData && handleCellClick(process, status)}
+                                                className={`px-4 py-3 border-r border-gray-100 last:border-r-0 text-center transition-all ${hasData ? 'cursor-pointer hover:bg-blue-50/50 group' : 'bg-gray-50/10'}`}
+                                            >
+                                                {hasData ? (
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-sm font-black text-gray-900 group-hover:text-blue-600">{data.count}</span>
+                                                        {hasValue && (
+                                                            <span className="text-[9px] font-bold text-blue-600 opacity-60 group-hover:opacity-100">₹{Math.round(data.value).toLocaleString()}</span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-200 text-lg">-</span>
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
