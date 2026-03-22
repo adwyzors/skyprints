@@ -16,7 +16,7 @@ import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import { OrderCardData } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrderCards } from '@/services/orders.service';
 import { Box, ChevronLeft, Filter, Loader2, Plus, Search } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 /* =================================================
@@ -25,6 +25,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 
 function AdminOrdersContent() {
     const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const selectedOrderId = searchParams.get('selectedOrder');
     const { user, hasPermission } = useAuth();
@@ -90,11 +91,13 @@ function AdminOrdersContent() {
         let changed = false;
 
         if (!searchParams.get('status')) {
-            next.set('status', filters.status.join(','));
+            const savedStatus = localStorage.getItem('orders-status-filter');
+            next.set('status', savedStatus || 'CONFIGURE,IN_PRODUCTION,PRODUCTION_READY');
             changed = true;
         }
         if (!searchParams.get('limit')) {
-            next.set('limit', '12');
+            const savedLimit = localStorage.getItem('orders-page-size');
+            next.set('limit', savedLimit || '12');
             changed = true;
         }
         if (!searchParams.get('page')) {
@@ -135,10 +138,16 @@ function AdminOrdersContent() {
                 next.set(key, String(val));
             }
         });
-        // Always reset page to 1 when filters change, unless page itself is being changed
-        if (!newParams.page) next.set('page', '1');
+        // Persist specific settings to localStorage
+        if (newParams.limit) {
+            localStorage.setItem('orders-page-size', String(newParams.limit));
+        }
+        if (newParams.status) {
+            const s = Array.isArray(newParams.status) ? newParams.status.join(',') : String(newParams.status);
+            localStorage.setItem('orders-status-filter', s);
+        }
 
-        router.push(`/admin/orders?${next.toString()}`);
+        router.push(`${pathname}?${next.toString()}`);
     }, [searchParams.toString(), router]);
 
     // Search logic moved to URL
@@ -466,7 +475,11 @@ function AdminOrdersContent() {
                 selectedOrderId && (
                     <ViewOrderModal
                         orderId={selectedOrderId}
-                        onClose={() => router.push('/admin/orders')}
+                        onClose={() => {
+                            const next = new URLSearchParams(searchParams.toString());
+                            next.delete('selectedOrder');
+                            router.push(`${pathname}?${next.toString()}`);
+                        }}
                         onOrderUpdate={() => {
                             clearCache();
                             setRefreshTrigger((prev) => prev + 1);

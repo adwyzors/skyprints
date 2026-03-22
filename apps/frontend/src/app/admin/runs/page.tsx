@@ -163,6 +163,13 @@ function RunsPageContent() {
                 next.set(key, String(val));
             }
         });
+        // Persist to localStorage
+        if (newParams.limit) localStorage.setItem('runs-page-size', String(newParams.limit));
+        if (newParams.status) {
+            const s = Array.isArray(newParams.status) ? newParams.status.join(',') : String(newParams.status);
+            localStorage.setItem('runs-status-filter', s);
+        }
+
         if (!newParams.page && !newParams.selectedRun) next.set('page', '1');
         router.push(`${pathname}?${next.toString()}`, { scroll: false });
     }, [searchParams.toString(), router, pathname]);
@@ -186,8 +193,16 @@ function RunsPageContent() {
             const next = new URLSearchParams(searchParams.toString());
             let changed = false;
 
-            if (!next.get('limit')) { next.set('limit', '20'); changed = true; }
-            if (!next.get('status') && !hasSpecificFilter) { next.set('status', 'COMPLETE'); changed = true; }
+            if (!next.get('limit')) {
+                const savedLimit = localStorage.getItem('runs-page-size');
+                next.set('limit', savedLimit || '20');
+                changed = true;
+            }
+            if (!next.get('status') && !hasSpecificFilter) {
+                const savedStatus = localStorage.getItem('runs-status-filter');
+                next.set('status', savedStatus || 'COMPLETE');
+                changed = true;
+            }
 
             const isDigital = hasPermission(Permission.RUNS_TRANSITION_DIGITAL);
             const isFusing = hasPermission(Permission.RUNS_TRANSITION_FUSING);

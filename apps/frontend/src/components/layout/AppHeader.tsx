@@ -1,11 +1,14 @@
 'use client';
-import { logout } from '@/auth/authClient';
 // apps\frontend\src\components\layout\AppHeader.tsx
+import { useAuth } from '@/auth/AuthProvider';
+import { logout } from '@/auth/authClient';
+import { Permission } from '@/auth/permissions';
 import { ChevronDown, ChevronUp, LogOut, Menu, Settings, User, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 export default function AppHeader() {
+    const { hasPermission: hasAuthPermission } = useAuth();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const router = useRouter();
@@ -160,10 +163,12 @@ export default function AppHeader() {
                     {isMobileMenuOpen && (
                         <div className="absolute top-14 left-0 right-0 bg-white border-t border-gray-200 shadow-lg lg:hidden">
                             <div className="px-4 py-3 space-y-2">
-                                <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                                    <Settings className="w-5 h-5" />
-                                    <span>Settings</span>
-                                </button>
+                                {hasAuthPermission(Permission.SETTINGS_VIEW) && (
+                                    <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
+                                        <Settings className="w-5 h-5" />
+                                        <span>Settings</span>
+                                    </button>
+                                )}
                                 <div className="border-t pt-3">
                                     <button
                                         onClick={handleViewProfile}
@@ -245,16 +250,18 @@ export default function AppHeader() {
                                             <User className="w-4 h-4" />
                                             <span>View Profile</span>
                                         </button>
-                                        <button
-                                            onClick={() => {
-                                                router.push('/admin/settings');
-                                                setShowProfileMenu(false);
-                                            }}
-                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                                        >
-                                            <Settings className="w-4 h-4" />
-                                            <span>Account Settings</span>
-                                        </button>
+                                        {hasAuthPermission(Permission.SETTINGS_VIEW) && (
+                                            <button
+                                                onClick={() => {
+                                                    router.push('/admin/settings');
+                                                    setShowProfileMenu(false);
+                                                }}
+                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                                            >
+                                                <Settings className="w-4 h-4" />
+                                                <span>Account Settings</span>
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div className="border-t border-gray-100 pt-2">
