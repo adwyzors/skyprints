@@ -117,9 +117,11 @@ function RunsPageContent() {
             executorId: searchParams.get('executorId') || 'all',
             reviewerId: searchParams.get('reviewerId') || 'all',
             processId: searchParams.get('processId') || 'all',
-            locationId: searchParams.get('locationId') || 'all',
+            locationId: ((user as any)?.user?.location && !hasPermission(Permission.LOCATIONS_ALL_VIEW)) 
+                ? (user as any).user.location.id 
+                : (searchParams.get('locationId') || 'all'),
         };
-    }, [searchParams.toString()]);
+    }, [searchParams.toString(), user, hasPermission]);
 
     const [runsData, setRunsData] = useState<{
         runs: Run[];
@@ -564,7 +566,7 @@ function RunsPageContent() {
                         )}
 
                         {/* Location Pills - Only show if user has more than 1 location option (e.g. Admin) */}
-                        {locations.length > 1 && (
+                        {locations.length > 1 && (!((user as any)?.user?.location) || hasPermission(Permission.LOCATIONS_ALL_VIEW)) && (
                             <div className="flex items-center gap-2">
                                 {locations.map(loc => (
                                     <button

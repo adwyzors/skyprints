@@ -37,12 +37,13 @@ function DashboardClientContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { user, hasPermission: hasAuthPermission } = useAuth();
-
-    // Derive state from URL
     const period = searchParams.get('period') || '7d';
     const startDate = searchParams.get('startDate') || '';
     const endDate = searchParams.get('endDate') || '';
-    const locationId = searchParams.get('locationId') || '';
+    const userLocation = (user as any)?.user?.location;
+    const hasAllView = hasAuthPermission(Permission.LOCATIONS_ALL_VIEW);
+    const lockedLocationId = (userLocation && !hasAllView) ? userLocation.id : null;
+    const locationId = lockedLocationId || searchParams.get('locationId') || '';
 
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -760,6 +761,10 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
         router.push(`/admin/runs?${params.toString()}`);
     };
 
+    const userLocation = (useAuth().user as any)?.user?.location;
+    const hasAllView = useAuth().hasPermission(Permission.LOCATIONS_ALL_VIEW);
+    const isLocked = userLocation && !hasAllView;
+
     return (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
@@ -773,12 +778,13 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                 <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-gray-200 shadow-sm">
                     <MapPin className="w-3.5 h-3.5 text-gray-400" />
                     <select
-                        value={locationId}
+                        value={isLocked ? userLocation.id : locationId}
                         onChange={(e) => onLocationChange(e.target.value)}
-                        className="text-xs font-bold text-gray-600 bg-transparent border-none focus:ring-0 cursor-pointer min-w-[140px]"
+                        disabled={!!isLocked}
+                        className="text-xs font-bold text-gray-600 bg-transparent border-none focus:ring-0 cursor-pointer min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <option value="">All Studios</option>
-                        {locations.map(loc => (
+                        {!isLocked && <option value="">All Studios</option>}
+                        {locations.filter(loc => isLocked ? loc.id === userLocation.id : true).map(loc => (
                             <option key={loc.id} value={loc.id}>{loc.name}</option>
                         ))}
                     </select>
