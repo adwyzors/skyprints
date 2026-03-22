@@ -336,6 +336,10 @@ export default function AlloverSublimationConfig({
         return items.reduce((sum, item) => sum + ((item.height * item.quantity) / 39.38), 0);
     };
 
+    const calculateTotalQuantity = (items: AlloverSublimationItem[]) => {
+        return items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    };
+
     // --- Form Handlers ---
     const updateHeaderField = (field: keyof typeof initialFormState, value: any) => {
         setEditForm(prev => {
@@ -411,6 +415,7 @@ export default function AlloverSublimationConfig({
         // Prepare API values
         const totalAmount = calculateTotalAmount(editForm.items);
         const totalMtr = calculateTotalMtr(editForm.items);
+        const totalQuantity = calculateTotalQuantity(editForm.items);
 
         const apiValues = {
             particulars: editForm.particulars,
@@ -422,6 +427,7 @@ export default function AlloverSublimationConfig({
             // Standard fields for billing/consistency
             'Total Amount': totalAmount,
             'Total Mtr': totalMtr,
+            'Total Quantity': totalQuantity,
             // Estimated Amount is often used by system
             'Estimated Amount': totalAmount
         };
@@ -582,6 +588,7 @@ export default function AlloverSublimationConfig({
             const items = parseItems(values.items) || [];
             const totalAmt = values['Total Amount'] || 0;
             const totalMtr = values['Total Mtr'] || 0;
+            const totalQty = values['Total Quantity'] || 0;
             const savedImages = (values.images as string[]) || [];
 
             return (
@@ -658,6 +665,10 @@ export default function AlloverSublimationConfig({
                                 </tbody>
                                 <tfoot className="bg-blue-50 font-bold">
                                     <tr>
+                                        <td colSpan={4} className="border p-2 text-right">Total Quantity</td>
+                                        <td className="border p-2 text-right">{totalQty}</td>
+                                    </tr>
+                                    <tr>
                                         <td colSpan={4} className="border p-2 text-right">Total Amount</td>
                                         <td className="border p-2 text-right">₹{Number(totalAmt).toFixed(2)}</td>
                                     </tr>
@@ -707,6 +718,7 @@ export default function AlloverSublimationConfig({
 
         const totalAmount = calculateTotalAmount(currentEdit.items);
         const totalMtr = calculateTotalMtr(currentEdit.items);
+        const totalQuantity = calculateTotalQuantity(currentEdit.items);
         const currentPreviews = imagePreviews[run.id] || [];
 
         return (
@@ -920,6 +932,10 @@ export default function AlloverSublimationConfig({
 
                         {/* Totals */}
                         <div className="flex justify-end gap-6 text-sm">
+                            <div className="text-right">
+                                <div className="text-gray-500">Total Quantity</div>
+                                <div className="font-bold text-lg">{totalQuantity}</div>
+                            </div>
                             <div className="text-right">
                                 <div className="text-gray-500">Total Amount</div>
                                 <div className="font-bold text-lg">₹{totalAmount.toFixed(2)}</div>
