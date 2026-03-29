@@ -100,8 +100,6 @@ export interface DTFRunValues {
     particulars: string | null;
     isFusing: boolean;
     isJobDifference: boolean;
-    fusingFactor1?: number;
-    fusingFactor2?: number;
     pcs: number;
     customPcs?: number;
     rate: number;
