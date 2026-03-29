@@ -718,12 +718,12 @@ export default function DTFConfig({
                                 </label>
                             )}
                         </div>
-                        
+
                         {data.isFusing && (
                             <div className="flex gap-4 lg:col-span-4 mt-2">
                                 <div className="border border-blue-100 bg-blue-50/30 rounded p-3 flex gap-4 w-full md:w-auto items-center">
                                     <span className="text-xs font-semibold text-blue-800 shrink-0">FUSING CALC</span>
-                                    
+
                                     <div>
                                         <label className="text-[10px] font-semibold text-blue-700 block mb-1">Factor 1</label>
                                         {mode === 'edit' ? (
@@ -999,7 +999,7 @@ export default function DTFConfig({
                                     {totals.actualFusingCost.toFixed(2)}
                                 </div>
                                 <div className="text-[10px] text-blue-400">
-                                    {data.isJobDifference ? '5 x 2 x Custom PCS' : '5 x 2 x PCS'}
+                                    {data.isJobDifference ? `${data.fusingFactor1} x ${data.fusingFactor2} x Custom PCS` : `${data.fusingFactor1} x ${data.fusingFactor2} x PCS`}
                                 </div>
                             </div>
                         )}
