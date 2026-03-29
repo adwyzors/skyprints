@@ -451,7 +451,7 @@ function BillingContextDetailPage() {
                                                                                 </p>
                                                                                 <div className="flex items-center gap-2 mt-1">
                                                                                     <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded-md border border-gray-200 uppercase font-bold">
-                                                                                        Qty: {qty}
+                                                                                        {process.name === 'Allover Sublimation' ? `Total Mtr: ${qty.toFixed(2)}` : `Qty: ${qty}`}
                                                                                     </span>
                                                                                     {isDTF && values['Total Area'] && (
                                                                                         <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md border border-blue-100 uppercase font-bold">

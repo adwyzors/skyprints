@@ -71,7 +71,10 @@ export const getRunBillingMetrics = (
 
         switch (processName) {
             case 'Allover Sublimation':
-                quantity = items.reduce((sum: number, i: any) => sum + (Number(i.quantity || i.pcs || i.qty) || 0), 0) || orderQuantity;
+                // Use Total Mtr (meters) as billing quantity instead of piece count
+                quantity = Number(values['Total Mtr']) || Number(values['total_mtr']) || Number(values['totalMtr']) ||
+                    items.reduce((sum: number, i: any) => sum + ((Number(i.height) || 0) * (Number(i.quantity || i.pcs || i.qty) || 0)) / 39.38, 0) ||
+                    orderQuantity;
                 amount = Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['totalAmount']) || Number(values['estimated_amount']) || 0;
                 break;
             case 'Sublimation':

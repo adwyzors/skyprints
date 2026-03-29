@@ -394,6 +394,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                 const isExpanded = expandedRuns.has(run.id);
                                                 const values = run.values || {};
                                                 const items = parseJsonItems(values.items);
+                                                const isAlloverSublimation = process.name === 'Allover Sublimation';
 
                                                 // Use our helper to get consistent metrics
                                                 const metrics = getRunBillingMetrics(run, process.name, order.quantity);
@@ -425,9 +426,9 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                             Run {run.runNumber} - {run.displayName}
                                                                         </div>
                                                                         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                                                                            <span className="text-blue-600 font-medium">Rate: ₹{estimatedRate.toFixed(2)}/pc</span>
+                                                                            <span className="text-blue-600 font-medium">Rate: ₹{estimatedRate.toFixed(2)}/{isAlloverSublimation ? 'mtr' : 'pc'}</span>
                                                                             <span>•</span>
-                                                                            <span>Qty: {quantity}</span>
+                                                                            <span>{isAlloverSublimation ? `Total Mtr: ${quantity.toFixed(2)}` : `Qty: ${quantity}`}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -446,7 +447,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                                 className={`text-xs font-medium ${rateDifference > 0 ? 'text-green-600' : 'text-red-600'}`}
                                                                             >
                                                                                 {rateDifference > 0 ? '+' : ''}
-                                                                                {rateDifference.toFixed(2)}/pc
+                                                                                {rateDifference.toFixed(2)}/{isAlloverSublimation ? 'mtr' : 'pc'}
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -499,7 +500,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                                 </div>
                                                                                 <div className="flex justify-between text-xs text-amber-600">
                                                                                     <span>Calculation:</span>
-                                                                                    <span>{quantity} units × ₹{billingRate.toFixed(2)}</span>
+                                                                                    <span>{isAlloverSublimation ? quantity.toFixed(2) : quantity} {isAlloverSublimation ? 'mtr' : 'units'} × ₹{billingRate.toFixed(2)}</span>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -515,12 +516,12 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                             <div className="space-y-2">
                                                                                 <div className="flex justify-between text-xs">
                                                                                     <span className="text-gray-500">Original Rate:</span>
-                                                                                    <span className="font-medium">₹{estimatedRate.toFixed(2)}/pc</span>
+                                                                                    <span className="font-medium">₹{estimatedRate.toFixed(2)}/{isAlloverSublimation ? 'mtr' : 'pc'}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between text-xs">
                                                                                     <span className="text-gray-500">New Rate:</span>
                                                                                     <span className="font-bold text-blue-700">
-                                                                                        ₹{billingRate.toFixed(2)}/pc
+                                                                                        ₹{billingRate.toFixed(2)}/{isAlloverSublimation ? 'mtr' : 'pc'}
                                                                                     </span>
                                                                                 </div>
                                                                                 <div className="pt-2 border-t border-gray-200 flex justify-between text-sm">
@@ -528,7 +529,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                                     <span
                                                                                         className={`font-bold ${rateDifference > 0 ? 'text-green-600' : rateDifference < 0 ? 'text-red-600' : 'text-gray-500'}`}
                                                                                     >
-                                                                                        {rateDifference > 0 ? '+' : ''}₹{rateDifference.toFixed(2)}/pc
+                                                                                        {rateDifference > 0 ? '+' : ''}₹{rateDifference.toFixed(2)}/{isAlloverSublimation ? 'mtr' : 'pc'}
                                                                                     </span>
                                                                                 </div>
                                                                             </div>
