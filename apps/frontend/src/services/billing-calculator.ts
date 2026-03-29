@@ -48,6 +48,14 @@ export const getRunBillingMetrics = (
             quantity = Number(val) || 0;
         }
 
+        // Override: For Allover Sublimation, always use Total Mtr as the billing quantity
+        if (processName === 'Allover Sublimation') {
+            const totalMtr = Number(values['Total Mtr']) || Number(values['total_mtr']) || Number(values['totalMtr']) || 0;
+            if (totalMtr > 0) {
+                quantity = totalMtr;
+            }
+        }
+
         // Attempt to find total amount from typical keys
         amount = Number(values['estimated_amount']) ||
             Number(values['total_amount']) ||

@@ -219,7 +219,10 @@ function BillingContextDetailPage() {
                     // But to keep it simple and fix the UI discrepancy:
                     const rate = draftInputs[order.id]?.[r.id]?.new_rate ?? currentInputRate ?? baseRate;
 
-                    const qty = snapshotInput?.quantity ?? metrics.quantity;
+                    // For Allover Sublimation, use total_mtr; for others, use quantity
+                    const qty = p.name === 'Allover Sublimation'
+                        ? (snapshotInput?.total_mtr ?? metrics.quantity)
+                        : (snapshotInput?.quantity ?? metrics.quantity);
                     displayTotalAmount += rate * qty;
                 });
             });
@@ -348,7 +351,9 @@ function BillingContextDetailPage() {
 
                                     // Match the logic used in displayRate below
                                     const rate = draftInputs[order.id]?.[r.id]?.new_rate ?? input?.new_rate ?? baseRate;
-                                    const qty = input?.quantity ?? metrics.quantity;
+                                    const qty = p.name === 'Allover Sublimation'
+                                        ? (input?.total_mtr ?? metrics.quantity)
+                                        : (input?.quantity ?? metrics.quantity);
                                     orderCurrentTotal += Number((rate * qty).toFixed(2));
                                 });
                             });
@@ -429,7 +434,10 @@ function BillingContextDetailPage() {
                                                                 const currentRate = input.new_rate ?? baseRate;
 
                                                                 // If input doesn't have quantity, we fallback to metrics.quantity
-                                                                const qty = input.quantity ?? input.total_quantity ?? input['total_quantity'] ?? input['quantity'] ?? metrics.quantity;
+                                                                // For Allover Sublimation, prefer total_mtr over total_quantity
+                                                                const qty = process.name === 'Allover Sublimation'
+                                                                    ? (input.total_mtr ?? input['total_mtr'] ?? metrics.quantity)
+                                                                    : (input.quantity ?? input.total_quantity ?? input['total_quantity'] ?? input['quantity'] ?? metrics.quantity);
 
                                                                 const draftVal = draftInputs[order.id]?.[run.id]?.new_rate;
                                                                 const displayRate =
