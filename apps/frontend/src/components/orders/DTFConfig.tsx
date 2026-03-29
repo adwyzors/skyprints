@@ -160,6 +160,8 @@ export default function DTFConfig({
         particulars: '',
         isFusing: false,
         isJobDifference: false,
+        fusingFactor1: 5,
+        fusingFactor2: 2,
         pcs: 0,
         customPcs: 0,
         rate: 0,
@@ -261,6 +263,8 @@ export default function DTFConfig({
                     particulars: values.particulars || '',
                     isFusing: values.isFusing || false,
                     isJobDifference: values.isJobDifference || false,
+                    fusingFactor1: values.fusingFactor1 ?? 5,
+                    fusingFactor2: values.fusingFactor2 ?? 2,
                     pcs: values.pcs || 0,
                     customPcs: values.customPcs || 0,
                     rate: values.rate || 0,
@@ -334,13 +338,15 @@ export default function DTFConfig({
                 : 0;
 
         // "Fusing Cost"
-        // If (Fusing == Yes AND Job Diff == Yes): 5 * 2 * Custom PCS
-        // If (Fusing == Yes AND Job Diff == No): 5 * 2 * PCS
+        // If (Fusing == Yes AND Job Diff == Yes): Factor1 * Factor2 * Custom PCS
+        // If (Fusing == Yes AND Job Diff == No): Factor1 * Factor2 * PCS
         // If (Fusing == No): 0
         let actualFusingCost = 0;
         if (form.isFusing) {
             const fusingPcs = form.isJobDifference ? form.customPcs || 0 : form.pcs || 0;
-            actualFusingCost = 5 * 2 * fusingPcs;
+            const factor1 = form.fusingFactor1 ?? 5;
+            const factor2 = form.fusingFactor2 ?? 2;
+            actualFusingCost = factor1 * factor2 * fusingPcs;
         }
 
         // "Actual Total"
@@ -712,19 +718,61 @@ export default function DTFConfig({
                                 </label>
                             )}
                         </div>
-                        {data.isFusing && data.isJobDifference && (
-                            <div>
-                                <label className="text-xs font-semibold text-blue-700 block mb-1">Custom PCS</label>
-                                {mode === 'edit' ? (
-                                    <input
-                                        type="number"
-                                        className="w-full border border-blue-300 bg-blue-50 p-1 rounded text-sm"
-                                        value={data.customPcs}
-                                        onChange={(e) => updateField('customPcs', parseFloat(e.target.value) || 0)}
-                                    />
-                                ) : (
-                                    <div className="text-sm font-medium text-blue-700">{data.customPcs}</div>
-                                )}
+                        
+                        {data.isFusing && (
+                            <div className="flex gap-4 lg:col-span-4 mt-2">
+                                <div className="border border-blue-100 bg-blue-50/30 rounded p-3 flex gap-4 w-full md:w-auto items-center">
+                                    <span className="text-xs font-semibold text-blue-800 shrink-0">FUSING CALC</span>
+                                    
+                                    <div>
+                                        <label className="text-[10px] font-semibold text-blue-700 block mb-1">Factor 1</label>
+                                        {mode === 'edit' ? (
+                                            <input
+                                                type="number"
+                                                className="w-16 border border-blue-200 bg-white p-1 rounded text-sm text-center"
+                                                value={data.fusingFactor1 ?? 5}
+                                                onChange={(e) => updateField('fusingFactor1', parseFloat(e.target.value) || 0)}
+                                            />
+                                        ) : (
+                                            <div className="text-sm font-medium text-blue-800 text-center">{data.fusingFactor1 ?? 5}</div>
+                                        )}
+                                    </div>
+
+                                    <span className="text-gray-400 font-bold self-end mb-1">×</span>
+
+                                    <div>
+                                        <label className="text-[10px] font-semibold text-blue-700 block mb-1">Factor 2</label>
+                                        {mode === 'edit' ? (
+                                            <input
+                                                type="number"
+                                                className="w-16 border border-blue-200 bg-white p-1 rounded text-sm text-center"
+                                                value={data.fusingFactor2 ?? 2}
+                                                onChange={(e) => updateField('fusingFactor2', parseFloat(e.target.value) || 0)}
+                                            />
+                                        ) : (
+                                            <div className="text-sm font-medium text-blue-800 text-center">{data.fusingFactor2 ?? 2}</div>
+                                        )}
+                                    </div>
+
+                                    {data.isJobDifference && (
+                                        <>
+                                            <span className="text-gray-400 font-bold self-end mb-1">×</span>
+                                            <div>
+                                                <label className="text-[10px] font-semibold text-blue-700 block mb-1">Custom PCS</label>
+                                                {mode === 'edit' ? (
+                                                    <input
+                                                        type="number"
+                                                        className="w-20 border border-blue-200 bg-white p-1 rounded text-sm"
+                                                        value={data.customPcs}
+                                                        onChange={(e) => updateField('customPcs', parseFloat(e.target.value) || 0)}
+                                                    />
+                                                ) : (
+                                                    <div className="text-sm font-medium text-blue-800">{data.customPcs}</div>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
