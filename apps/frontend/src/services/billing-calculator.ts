@@ -56,6 +56,14 @@ export const getRunBillingMetrics = (
             }
         }
 
+        // Override: For DTF, always use pcs as the billing quantity so rate aligns with Per PC Cost
+        if (processName === 'DTF' || processName === 'Direct to Film (DTF)') {
+            const pcs = Number(values['pcs']) || 0;
+            if (pcs > 0) {
+                quantity = pcs;
+            }
+        }
+
         // Attempt to find total amount from typical keys
         amount = Number(values['estimated_amount']) ||
             Number(values['total_amount']) ||
@@ -113,7 +121,7 @@ export const getRunBillingMetrics = (
                 break;
             case 'DTF':
             case 'Direct to Film (DTF)':
-                quantity = Number(values['Total Layouts']) || Number(values['total_layouts']) || Number(values['pcs']) || orderQuantity || 0;
+                quantity = Number(values['pcs']) || Number(values['Total Layouts']) || Number(values['total_layouts']) || orderQuantity || 0;
                 amount = Number(values['Actual Total']) || Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['estimated_amount']) || 0;
                 break;
             case 'Diamond':
