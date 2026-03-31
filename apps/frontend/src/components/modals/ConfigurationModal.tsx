@@ -68,15 +68,17 @@ export default function ConfigurationModal({
                 th { background-color: #f3f4f6; font-weight: bold; color: #1f2937; }
                 td { color: #1f2937; }
                 
-                /* Images layout */
-                .grid-cols-2 { 
-                    display: flex !important; 
-                    gap: 12px; 
-                    justify-content: center;
-                }
-                .grid-cols-2 > div { 
-                    flex: 1;
-                    min-width: 0;
+                /* Responsive Grid Utilities (missing from Tailwind print window) */
+                .grid { display: grid !important; }
+                .gap-0 { gap: 0 !important; }
+                .gap-4 { gap: 16px !important; }
+                
+                /* Summary Grid */
+                .grid.gap-0 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+                
+                /* Images Grid */
+                .grid.gap-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+                .grid.gap-4 > div { 
                     border: 1px solid #e5e7eb;
                     padding: 8px;
                     display: flex;
@@ -90,14 +92,15 @@ export default function ConfigurationModal({
                     object-fit: contain; 
                 }
                 
-                /* Icon and layout utilities (missing from Tailwind in print window) */
+                /* Icon and layout utilities */
                 svg { width: 14px; height: 14px; display: inline-block; vertical-align: middle; }
                 .flex { display: flex !important; }
                 .items-center { align-items: center !important; }
                 .gap-2 { gap: 8px !important; }
+                .w-\\[140px\\] { width: 140px !important; flex-shrink: 0 !important; }
                 
-                /* Neutralize flex-1 from react layout */
-                .flex-1 { flex: none !important; }
+                /* Adjust neutralizers */
+                .flex-1 { flex: 1 1 0% !important; }
                 .overflow-y-auto { overflow: visible !important; }
               </style>
             </head>
