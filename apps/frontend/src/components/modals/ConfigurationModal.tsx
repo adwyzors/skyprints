@@ -90,6 +90,12 @@ export default function ConfigurationModal({
                     object-fit: contain; 
                 }
                 
+                /* Icon and layout utilities (missing from Tailwind in print window) */
+                svg { width: 14px; height: 14px; display: inline-block; vertical-align: middle; }
+                .flex { display: flex !important; }
+                .items-center { align-items: center !important; }
+                .gap-2 { gap: 8px !important; }
+                
                 /* Neutralize flex-1 from react layout */
                 .flex-1 { flex: none !important; }
                 .overflow-y-auto { overflow: visible !important; }
