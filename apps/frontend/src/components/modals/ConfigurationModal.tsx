@@ -36,78 +36,121 @@ export default function ConfigurationModal({
             <head>
               <title>Run ${run.runNumber} - ${processName}</title>
               <style>
-                @page { size: landscape; margin: 0.5cm; }
-                body { font-family: Arial, sans-serif; padding: 20px; width: 100%; box-sizing: border-box; }
-                h1 { font-size: 18px; margin-bottom: 5px; color: #1f2937; }
-                h2 { font-size: 14px; margin-bottom: 15px; color: #6b7280; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 15px; page-break-inside: avoid; }
-                th, td { padding: 8px 12px; text-align: left; border: 1px solid #000; font-size: 12px; }
-                th { background-color: #f0f0f0; font-weight: 600; color: #000; }
-                td { background-color: #fff; color: #000; }
-                
-                /* Print optimizations */
-                .print-container { 
-                    width: 100%;
-                    page-break-inside: avoid;
-                    break-inside: avoid;
+                @page { size: A4 portrait; margin: 10mm; }
+                body { 
+                  font-family: Arial, sans-serif; 
+                  margin: 0; 
+                  padding: 0; 
+                  box-sizing: border-box; 
+                  width: 100%;
                 }
                 
+                .print-wrapper {
+                    width: 100%;
+                    transform-origin: top left;
+                }
+
+                h1 { font-size: 20px; margin-bottom: 4px; color: #111827; }
+                h2 { font-size: 14px; margin-bottom: 16px; color: #4b5563; }
+                
+                * { box-sizing: border-box; }
+                
+                /* Override Tailwind paddings/margins to be compact for A4 */
+                .mb-6 { margin-bottom: 12px !important; }
+                .mb-4 { margin-bottom: 8px !important; }
+                .p-4 { padding: 8px !important; }
+                .p-6 { padding: 12px !important; }
+                .mt-6 { margin-top: 12px !important; }
+                .pt-6 { padding-top: 12px !important; }
+                
+                table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+                th, td { padding: 6px 8px; text-align: left; border: 1px solid #d1d5db; font-size: 11px; }
+                th { background-color: #f3f4f6; font-weight: bold; color: #1f2937; }
+                td { color: #1f2937; }
+                
+                /* Images layout */
+                .grid-cols-2 { 
+                    display: flex !important; 
+                    gap: 12px; 
+                    justify-content: center;
+                }
+                .grid-cols-2 > div { 
+                    flex: 1;
+                    min-width: 0;
+                    border: 1px solid #e5e7eb;
+                    padding: 8px;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                }
                 img { 
                     max-width: 100%; 
-                    max-height: 220px; 
+                    max-height: 280px; 
                     height: auto; 
-                    display: block; 
-                    margin: 0 auto;
                     object-fit: contain; 
                 }
                 
-                /* Grid for images in print */
-                .grid-cols-2 { 
-                    display: flex; 
-                    flex-wrap: wrap; 
-                    gap: 12px; 
-                    page-break-inside: avoid;
-                    margin-top: 15px;
-                }
-                .grid-cols-2 > div { 
-                    width: 48%; 
-                    page-break-inside: avoid;
-                    border: 1px solid #ddd;
-                }
+                /* Neutralize flex-1 from react layout */
+                .flex-1 { flex: none !important; }
+                .overflow-y-auto { overflow: visible !important; }
               </style>
             </head>
             <body>
-              <div class="print-container">
+              <div class="print-wrapper" id="print-wrapper">
                   <h1>Run ${run.runNumber} - ${processName}</h1>
                   <h2>${orderCode} • ${customerName}</h2>
                   ${printContent.innerHTML}
               </div>
               <script>
-                // Wait for all images to load before printing
                 window.onload = function() {
                     const images = document.getElementsByTagName('img');
                     let loadedCount = 0;
                     
-                    function checkAllLoaded() {
-                        loadedCount++;
-                        if (loadedCount >= images.length) {
+                    function adjustAndPrint() {
+                        const wrapper = document.getElementById('print-wrapper');
+                        
+                        // Max A4 height at 96PPI is ~1123px. With 10mm margins (~38px top/bottom),
+                        // max safe height is ~1040px.
+                        const maxPageHeight = 1040; 
+                        
+                        setTimeout(() => {
+                            const contentHeight = wrapper.scrollHeight;
+                            if (contentHeight > maxPageHeight) {
+                                const scale = maxPageHeight / contentHeight;
+                                // Use zoom if supported, otherwise fallback to transform
+                                if ('zoom' in document.body.style) {
+                                    document.body.style.zoom = scale;
+                                } else {
+                                    wrapper.style.transform = 'scale(' + scale + ')';
+                                    wrapper.style.width = (100 / scale) + '%';
+                                    document.body.style.height = maxPageHeight + 'px';
+                                    document.body.style.overflow = 'hidden';
+                                }
+                            }
+                            
                             setTimeout(() => {
                                 window.print();
                                 window.close();
-                            }, 500); // Small delay to ensure rendering
-                        }
+                            }, 250);
+                        }, 100);
                     }
 
                     if (images.length === 0) {
-                        window.print();
-                        window.close();
+                        adjustAndPrint();
                     } else {
                         for (let i = 0; i < images.length; i++) {
                             if (images[i].complete) {
-                                checkAllLoaded();
+                                loadedCount++;
+                                if (loadedCount === images.length) adjustAndPrint();
                             } else {
-                                images[i].onload = checkAllLoaded();
-                                images[i].onerror = checkAllLoaded;
+                                images[i].onload = function() {
+                                    loadedCount++;
+                                    if (loadedCount === images.length) adjustAndPrint();
+                                };
+                                images[i].onerror = function() {
+                                    loadedCount++;
+                                    if (loadedCount === images.length) adjustAndPrint();
+                                };
                             }
                         }
                     }
