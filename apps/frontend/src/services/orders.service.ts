@@ -190,6 +190,7 @@ export async function createOrder(
         jobCode: payload.jobCode,
         images: imageUrls, // Send URLs instead of files
         useOrderImageForRuns: payload.useOrderImageForRuns,
+        isTest: payload.isTest,
     };
 
     return apiRequest('/orders', {

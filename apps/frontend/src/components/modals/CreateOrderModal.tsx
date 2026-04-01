@@ -9,6 +9,8 @@ import { getProcesses } from '@/services/process.service';
 import { NewOrderPayload } from '@/types/planning';
 import { useEffect, useMemo, useState } from 'react';
 import CustomerSelector from '../orders/CustomerSelector';
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 
 /* ================= TYPES ================= */
 
@@ -43,6 +45,10 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [useOrderImageForRuns, setUseOrderImageForRuns] = useState(false);
 
+    const { hasPermission } = useAuth();
+    const canCreateTest = hasPermission(Permission.ORDERS_CREATE_TEST);
+    const [isTest, setIsTest] = useState(false);
+
     /* ================= RESET FORM ================= */
     const resetForm = () => {
         setSelectedCustomerId(null);
@@ -53,6 +59,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
         setSelectedImages([]);
         setImagePreviews([]);
         setUseOrderImageForRuns(false);
+        setIsTest(false);
     };
 
     /* ================= FETCH DATA ================= */
@@ -235,6 +242,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                 ...(jobCode.trim() ? { jobCode: jobCode.trim() } : {}),
                 images: selectedImages,
                 useOrderImageForRuns,
+                isTest: canCreateTest ? isTest : undefined,
             };
 
             const createdOrder = await createOrder(payload);
@@ -391,6 +399,28 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
                                             />
                                         </div>
+
+                                        {/* TEST ORDER SETTING */}
+                                        {canCreateTest && (
+                                            <div className="space-y-2 col-span-1 md:col-span-2 mt-2 bg-yellow-50 border border-yellow-200 p-3 rounded-lg flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id="isTestOrder"
+                                                    checked={isTest}
+                                                    onChange={(e) => setIsTest(e.target.checked)}
+                                                    disabled={loading}
+                                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
+                                                />
+                                                <div className="flex flex-col">
+                                                    <label htmlFor="isTestOrder" className="text-sm font-semibold text-gray-800 cursor-pointer">
+                                                        Create as Test Order
+                                                    </label>
+                                                    <p className="text-xs text-gray-600 mt-0.5">
+                                                        Will generate under TESTORD sequence and can be filtered out of regular reporting.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* IMAGE UPLOAD */}

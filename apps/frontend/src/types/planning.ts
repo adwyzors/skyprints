@@ -29,4 +29,5 @@ export interface NewOrderPayload {
     jobCode?: string;
     images?: File[];
     useOrderImageForRuns?: boolean;
+    isTest?: boolean;
 }
