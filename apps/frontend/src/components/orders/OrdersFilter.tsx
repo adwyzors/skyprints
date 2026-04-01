@@ -12,6 +12,7 @@ interface OrdersFilterProps {
         dateRange: string;
         customerId: string;
         locationId: string;
+        isTest?: string;
         startDate?: string;
         endDate?: string;
     };
@@ -144,6 +145,19 @@ export default function OrdersFilter({ filters, onChange, onClear, onClose }: Or
                         allowClear={false}
                         inputClassName="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
                     />
+                </div>
+
+                {/* Order Type */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Order Type</label>
+                    <select
+                        value={filters.isTest || 'false'}
+                        onChange={(e) => onChange({ ...filters, isTest: e.target.value })}
+                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
+                    >
+                        <option value="false">Standard Orders</option>
+                        <option value="true">Test Orders</option>
+                    </select>
                 </div>
             </div>
         </div>

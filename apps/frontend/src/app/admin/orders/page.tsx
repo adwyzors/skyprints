@@ -52,7 +52,8 @@ function AdminOrdersContent() {
             customerId: searchParams.get('customerId') || 'all',
             locationId: lockedLocationId || searchParams.get('locationId') || 'all',
             startDate: searchParams.get('startDate') || '',
-            endDate: searchParams.get('endDate') || ''
+            endDate: searchParams.get('endDate') || '',
+            isTest: searchParams.get('isTest') || 'false'
         };
     }, [statusCodes, searchParams.toString(), user, hasPermission]);
 
@@ -183,6 +184,8 @@ function AdminOrdersContent() {
                 if (searchQuery) params.search = searchQuery;
                 if (filters.customerId !== 'all') params.customerId = filters.customerId;
                 if (filters.locationId && filters.locationId !== 'all') params.locationId = filters.locationId;
+                if (filters.isTest === 'true') params.isTest = true;
+                else params.isTest = false;
 
                 if (filters.dateRange !== 'all') {
                     if (filters.dateRange === 'custom') {

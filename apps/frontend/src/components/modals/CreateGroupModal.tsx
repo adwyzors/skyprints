@@ -58,11 +58,14 @@ export default function CreateGroupModal({
     setError(null);
 
     try {
+      const hasTestOrder = selectedOrders.some((o) => o?.code?.startsWith('TESTORD'));
+
       const result = await createBillingContext({
         type: 'GROUP',
         name: name.trim(),
         description: description.trim() || undefined,
         orderIds: selectedOrders.map((o) => o.id),
+        isTest: hasTestOrder,
       });
 
       onSuccess(result);
@@ -81,6 +84,8 @@ export default function CreateGroupModal({
     }
   };
 
+  const hasTestOrder = selectedOrders.some((o) => o?.code?.startsWith('TESTORD'));
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
@@ -89,16 +94,28 @@ export default function CreateGroupModal({
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="bg-indigo-600 p-6 text-white text-center">
+        <div className={`p-6 text-white text-center ${hasTestOrder ? 'bg-orange-600' : 'bg-indigo-600'}`}>
           <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
             <Users className="w-6 h-6 text-white" />
           </div>
-          <h2 className="text-2xl font-bold">Create Invoice</h2>
-          <p className="text-indigo-100 text-sm mt-1">Invoicing {selectedOrders.length} orders</p>
+          <h2 className="text-2xl font-bold">{hasTestOrder ? 'Create Test Invoice' : 'Create Invoice'}</h2>
+          <p className={`${hasTestOrder ? 'text-orange-100' : 'text-indigo-100'} text-sm mt-1`}>
+            Invoicing {selectedOrders.length} orders
+          </p>
         </div>
 
         {/* Body */}
         <div className="p-6 space-y-5">
+          {hasTestOrder && (
+            <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl flex flex-col items-center text-center">
+              <span className="font-bold text-orange-800 text-sm">⚠️ Contains Test Orders</span>
+              <p className="text-xs text-orange-700 mt-1">
+                One or more selected orders are test orders. This will generate a <strong>Test Invoice</strong> (TESTR sequence).
+                No real invoice can be prepared with a test order.
+              </p>
+            </div>
+          )}
+          
           {/* Auto-generated Info Card */}
           <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
             <div className="flex justify-between items-center">
@@ -160,7 +177,11 @@ export default function CreateGroupModal({
           <button
             onClick={() => handleSubmit()}
             disabled={isSubmitting}
-            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className={`w-full py-3.5 font-bold rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+              hasTestOrder 
+                ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-orange-200' 
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+            }`}
           >
             {isSubmitting ? (
               <>
@@ -168,7 +189,7 @@ export default function CreateGroupModal({
                 Saving...
               </>
             ) : (
-              'Create Invoice'
+              hasTestOrder ? 'Create Test Invoice' : 'Create Invoice'
             )}
           </button>
 

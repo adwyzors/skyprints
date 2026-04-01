@@ -83,6 +83,7 @@ export class OrdersService {
          * ========================== */
         const where: Prisma.OrderWhereInput = {
             deletedAt: null,
+            isTest: query.isTest !== undefined ? Boolean(query.isTest) : false,
 
             ...(statusCodes?.length && {
                 statusCode: { in: statusCodes },
@@ -305,6 +306,7 @@ export class OrdersService {
          * ========================== */
         const where: Prisma.OrderWhereInput = {
             deletedAt: null,
+            isTest: query.isTest !== undefined ? Boolean(query.isTest) : false,
 
             ...(statusCodes?.length && {
                 statusCode: { in: statusCodes },

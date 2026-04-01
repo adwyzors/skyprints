@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import {
     IsInt,
     IsOptional,
@@ -46,4 +46,8 @@ export class OrdersQueryDto {
     @IsOptional()
     @IsString()
     locationId?: string;
+
+    @IsOptional()
+    @Transform(({ value }) => value === 'true' || value === true)
+    isTest?: boolean;
 }

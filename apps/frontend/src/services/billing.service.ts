@@ -46,6 +46,7 @@ export interface CreateBillingContextPayload {
     name: string;
     description?: string;
     orderIds: string[];
+    isTest?: boolean;
 }
 
 export const createBillingContext = async (
