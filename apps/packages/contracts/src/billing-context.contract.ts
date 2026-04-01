@@ -8,6 +8,7 @@ export const CreateBillingContextSchema = z.object({
 
     description: z.string().optional(),
     metadata: z.any().optional(),
+    isTest: z.boolean().optional(),
 
     orderIds: z.array(z.string().uuid()).optional()
 }).superRefine((data, ctx) => {

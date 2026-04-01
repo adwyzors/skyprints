@@ -12,6 +12,7 @@ export const CreateOrderSchema = z.object({
     images: z.array(z.string().url()).optional(),
     useOrderImageForRuns: z.boolean().optional(),
     processes: z.array(CreateOrderProcessSchema).min(1),
+    isTest: z.boolean().optional(),
 });
 
 export type CreateOrderDto =

@@ -42,12 +42,13 @@ export class BillingContextService {
             let name = contextData.name;
 
             if (dto.type === "GROUP") {
-                name = await generateFiscalCode(tx, "R");
+                name = await generateFiscalCode(tx, dto.isTest ? "TESTR" : "R");
             }
 
             const context = await tx.billingContext.create({
                 data: {
                     ...contextData,
+                    isTest: dto.isTest ?? false,
                     name: name!, // guaranteed by logic above
                     orders: orderIds.length
                         ? {

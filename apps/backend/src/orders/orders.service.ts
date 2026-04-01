@@ -592,7 +592,7 @@ export class OrdersService {
                     );
                 }
 
-                const code = await generateFiscalCode(tx, 'ORD');
+                const code = await generateFiscalCode(tx, dto.isTest ? 'TESTORD' : 'ORD');
 
                 /* =====================================================
                  * CREATE ORDER
@@ -604,6 +604,7 @@ export class OrdersService {
                         customerId: dto.customerId,
                         quantity: dto.quantity,
                         statusCode: OrderStatus.CONFIGURE,
+                        isTest: dto.isTest ?? false,
                         createdById: ctxuser.id,
                         totalProcesses: dto.processes.length,
                         completedProcesses: 0,
@@ -746,7 +747,7 @@ export class OrdersService {
             /* =====================================================
              * 2️⃣ Generate NEW order code
              * ===================================================== */
-            const newCode = await generateFiscalCode(tx, 'ORD');
+            const newCode = await generateFiscalCode(tx, sourceOrder.isTest ? 'TESTORD' : 'ORD');
 
             /* =====================================================
              * 3️⃣ Create new order (RESET FIELDS)
@@ -758,6 +759,7 @@ export class OrdersService {
                     customerId: sourceOrder.customerId,
                     quantity: sourceOrder.quantity,
                     statusCode: OrderStatus.CONFIGURE,
+                    isTest: sourceOrder.isTest,
                     createdById: ctxuser.id,
                     totalProcesses: sourceOrder.totalProcesses,
                     completedProcesses: 0,

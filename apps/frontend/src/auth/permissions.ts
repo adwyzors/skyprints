@@ -1,6 +1,7 @@
 export enum Permission {
     ORDERS_VIEW = "orders:view",
     ORDERS_CREATE = "orders:create",
+    ORDERS_CREATE_TEST = "orders:create-test",
     ORDERS_UPDATE = "orders:update",
     ORDERS_DELETE = "orders:delete",
     ORDERS_REORDER = "orders:reorder",
@@ -27,6 +28,7 @@ export enum Permission {
 
     BILLINGS_VIEW = "billings:view",
     BILLINGS_CREATE = "billings:create",
+    BILLINGS_CREATE_TEST = "billings:create-test",
     BILLINGS_UPDATE = "billings:update",
     BILLINGS_DELETE = "billings:delete",
 

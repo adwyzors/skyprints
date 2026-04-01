@@ -12,21 +12,21 @@ datasource db {
 ///////////////////////////////
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  name          String
-  isActive      Boolean  @default(true)
+  id       String  @id @default(uuid())
+  email    String  @unique
+  name     String
+  isActive Boolean @default(true)
 
   createdOrders Order[]
 
-  locationId String?   
+  locationId String?
   location   Location? @relation(fields: [locationId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-  role      String
-  preferences Json? @default("{}")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  role        String
+  preferences Json?     @default("{}")
 
   executedProcessRuns ProcessRun[] @relation("ProcessRunExecutor")
   reviewedProcessRuns ProcessRun[] @relation("ProcessRunReviewer")
@@ -37,30 +37,29 @@ model User {
   @@index([name, isActive, deletedAt])
 }
 
-
 ///////////////////////////////
 // CUSTOMERS
 ///////////////////////////////
 
 model Customer {
-  id        String  @id @default(uuid())
-  code      String  @unique
-  name      String
-  email     String?
-  phone     String?
-  address   String?
-  isActive  Boolean @default(true)
+  id       String  @id @default(uuid())
+  code     String  @unique
+  name     String
+  email    String?
+  phone    String?
+  address  String?
+  isActive Boolean @default(true)
 
-  orders    Order[]
+  orders Order[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   gstno String?
   tdsno Int?
-  tds Boolean @default(false)
-  tax Boolean @default(false)
+  tds   Boolean @default(false)
+  tax   Boolean @default(false)
 
   @@index([isActive])
   @@index([deletedAt])
@@ -73,26 +72,24 @@ model Customer {
 ///////////////////////////////
 
 model FiscalSequence {
-  id         String   @id @default(uuid())
-  prefix     String   // ORD | R
-  fiscalYear String   // 25-26
+  id         String @id @default(uuid())
+  prefix     String // ORD | R
+  fiscalYear String // 25-26
 
-  nextValue  Int
-  updatedAt  DateTime @updatedAt
+  nextValue Int
+  updatedAt DateTime @updatedAt
 
   @@unique([prefix, fiscalYear])
   @@index([prefix, fiscalYear])
 }
-
-
 
 ///////////////////////////////
 // WORKFLOW
 ///////////////////////////////
 
 model WorkflowType {
-  id       String @id @default(uuid())
-  code     String @unique
+  id       String  @id @default(uuid())
+  code     String  @unique
   isActive Boolean @default(true)
 
   statuses    WorkflowStatus[]
@@ -107,7 +104,7 @@ model WorkflowType {
 }
 
 model WorkflowStatus {
-  id             String @id @default(uuid())
+  id             String  @id @default(uuid())
   workflowTypeId String
   code           String
   isInitial      Boolean @default(false)
@@ -128,7 +125,7 @@ model WorkflowStatus {
 }
 
 model WorkflowTransition {
-  id             String @id @default(uuid())
+  id             String  @id @default(uuid())
   workflowTypeId String
   fromStatusId   String
   toStatusId     String
@@ -176,11 +173,11 @@ model RunTemplate {
 //////////////////////////////
 
 model Process {
-  id          String @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String
   description String?
 
-  isEnabled   Boolean @default(false)
+  isEnabled Boolean @default(false)
 
   runDefs        ProcessRunDefinition[]
   orderProcesses OrderProcess[]
@@ -209,41 +206,41 @@ model ProcessRunDefinition {
 ///////////////////////////////
 
 enum OrderStatus {
-    CONFIGURE 
-    PRODUCTION_READY
-    IN_PRODUCTION 
-    COMPLETE 
-    BILLED 
-    GROUP_BILLED 
+  CONFIGURE
+  PRODUCTION_READY
+  IN_PRODUCTION
+  COMPLETE
+  BILLED
+  GROUP_BILLED
 }
 
 enum OrderProcessStatus {
-    CONFIGURE 
-    IN_PROGRESS 
-    COMPLETE 
+  CONFIGURE
+  IN_PROGRESS
+  COMPLETE
 }
-
 
 enum ProcessRunStatus {
-    CONFIGURE 
-    IN_PROGRESS 
-    COMPLETE 
+  CONFIGURE
+  IN_PROGRESS
+  COMPLETE
 }
 
-
 model Order {
-  id         String @id @default(uuid())
-  code       String
-  deletedAt  DateTime?
+  id        String    @id @default(uuid())
+  code      String
+  deletedAt DateTime?
+
+  isTest Boolean @default(false)
 
   customerId String
   quantity   Int
 
-  statusCode OrderStatus
-  jobCode    String?
-  images     String[] @default([])
-  useOrderImageForRuns Boolean @default(false)
-  
+  statusCode           OrderStatus
+  jobCode              String?
+  images               String[]    @default([])
+  useOrderImageForRuns Boolean     @default(false)
+
   createdById String
   createdBy   User     @relation(fields: [createdById], references: [id])
   customer    Customer @relation(fields: [customerId], references: [id])
@@ -251,14 +248,13 @@ model Order {
   totalProcesses     Int @default(0)
   completedProcesses Int @default(0)
 
-  processes OrderProcess[]
+  processes       OrderProcess[]
   billingContexts BillingContextOrder[]
 
-  createdAt DateTime @default(now())
+  createdAt          DateTime  @default(now())
   lifecycleStartedAt DateTime?
 
   @@unique([code, deletedAt])
-
   @@index([id, deletedAt])
   @@index([deletedAt, createdAt(sort: Desc)])
   @@index([deletedAt, statusCode])
@@ -276,14 +272,14 @@ model OrderProcess {
   orderId   String
   processId String
 
-  statusCode     OrderProcessStatus
+  statusCode OrderProcessStatus
 
-  totalRuns              Int       @default(0)
-  configCompletedRuns    Int       @default(0)
-  lifecycleCompletedRuns Int       @default(0)
+  totalRuns              Int @default(0)
+  configCompletedRuns    Int @default(0)
+  lifecycleCompletedRuns Int @default(0)
 
-  configCompletedAt      DateTime?
-  lifecycleCompletedAt   DateTime?
+  configCompletedAt    DateTime?
+  lifecycleCompletedAt DateTime?
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   process Process @relation(fields: [processId], references: [id])
@@ -292,12 +288,10 @@ model OrderProcess {
 
   remainingRuns Int @default(0)
 
-
   @@unique([orderId, processId])
   @@index([lifecycleCompletedRuns, totalRuns])
   @@index([remainingRuns])
 }
-
 
 ///////////////////////////////
 // PROCESS RUN
@@ -329,16 +323,14 @@ model ProcessRun {
 
   orderProcess OrderProcess @relation(fields: [orderProcessId], references: [id], onDelete: Cascade)
   runTemplate  RunTemplate  @relation(fields: [runTemplateId], references: [id])
-  createdAt DateTime @default(now())
-  configuredAt   DateTime?
-
+  createdAt    DateTime     @default(now())
+  configuredAt DateTime?
 
   @@unique([orderProcessId, runNumber])
   @@index([orderProcessId, id])
   @@index([orderProcessId, lifeCycleStatusCode])
   @@index([createdAt])
 }
-
 
 ///////////////////////////////
 // LOCATIONS
@@ -361,7 +353,6 @@ model Location {
   @@index([isActive])
 }
 
-
 ///////////////////////////////
 // BILLING
 ///////////////////////////////
@@ -381,16 +372,18 @@ enum CalculationType {
 }
 
 model BillingContext {
-  id            String   @id @default(uuid())
-  type          BillingContextType
-  name          String
-  description   String?
+  id          String             @id @default(uuid())
+  type        BillingContextType
+  name        String
+  description String?
 
-  orders        BillingContextOrder[]
-  snapshots     BillingSnapshot[]
+  isTest Boolean @default(false)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  orders    BillingContextOrder[]
+  snapshots BillingSnapshot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([type])
   @@index([id])
@@ -405,30 +398,29 @@ model BillingContextOrder {
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-
   createdAt DateTime @default(now())
 
   @@unique([billingContextId, orderId])
 }
 
 model BillingSnapshot {
-  id               String   @id @default(uuid())
+  id String @id @default(uuid())
 
   billingContextId String
   version          Int
-  isLatest         Boolean  @default(true)
+  isLatest         Boolean @default(true)
 
-  intent           BillingSnapshotIntent
+  intent BillingSnapshotIntent
 
-  inputs           Json
-  result           Decimal  @db.Decimal(18, 4)
-  currency         String   @default("INR")
+  inputs   Json
+  result   Decimal @db.Decimal(18, 4)
+  currency String  @default("INR")
 
-  calculationType  CalculationType
-  reason           String?
+  calculationType CalculationType
+  reason          String?
 
-  createdBy        String?
-  createdAt        DateTime @default(now())
+  createdBy String?
+  createdAt DateTime @default(now())
 
   billingContext BillingContext @relation(fields: [billingContextId], references: [id])
 
@@ -444,51 +436,51 @@ model BillingSnapshot {
 ///////////////////////////////
 
 model DailyAnalytics {
-  id          String   @id @default(uuid())
-  date        DateTime @unique // Day level truncation
-  
+  id   String   @id @default(uuid())
+  date DateTime @unique // Day level truncation
+
   totalRevenue Decimal @default(0) @db.Decimal(18, 4)
-  totalOrders   Int     @default(0)
-  totalUnits    Int     @default(0)
-  
+  totalOrders  Int     @default(0)
+  totalUnits   Int     @default(0)
+
   billedRevenue Decimal @default(0) @db.Decimal(18, 4)
   billedOrders  Int     @default(0)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([date])
 }
 
 model ProcessAnalytics {
-  id          String   @id @default(uuid())
+  id          String @id @default(uuid())
   processId   String
   processName String
-  
+
   totalRevenue Decimal @default(0) @db.Decimal(18, 4)
-  totalRuns     Int     @default(0)
-  totalUnits    Int     @default(0)
-  
-  avgLeadTime   Float   @default(0) // In hours
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  totalRuns    Int     @default(0)
+  totalUnits   Int     @default(0)
+
+  avgLeadTime Float @default(0) // In hours
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([processId])
   @@index([processId])
 }
 
 model UserPerformance {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  userName    String
-  role        String
-  
-  runsExecuted Int     @default(0)
-  runsReviewed Int     @default(0)
-  
+  id       String @id @default(uuid())
+  userId   String @unique
+  userName String
+  role     String
+
+  runsExecuted Int @default(0)
+  runsReviewed Int @default(0)
+
   totalBilledVolume Decimal @default(0) @db.Decimal(18, 4)
-  
+
   lastActiveAt DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -498,22 +490,22 @@ model UserPerformance {
 }
 
 model OrderAnalytics {
-  id          String   @id @default(uuid())
-  orderId     String   @unique
-  orderCode   String
-  
-  customerId  String
+  id        String @id @default(uuid())
+  orderId   String @unique
+  orderCode String
+
+  customerId   String
   customerName String
-  
-  totalAmount  Decimal @default(0) @db.Decimal(18, 4)
-  totalUnits   Int
-  
+
+  totalAmount Decimal @default(0) @db.Decimal(18, 4)
+  totalUnits  Int
+
   cycleTimeHours Float? // Time from creation to billed
-  
-  status       String
-  billedAt     DateTime?
-  
-  createdAt    DateTime @default(now())
+
+  status   String
+  billedAt DateTime?
+
+  createdAt DateTime @default(now())
 
   @@index([orderId])
   @@index([customerId])
@@ -521,16 +513,16 @@ model OrderAnalytics {
 }
 
 model LocationAnalytics {
-  id            String   @id @default(uuid())
-  locationId    String   @unique
-  locationName  String
-  
-  totalRevenue  Decimal @default(0) @db.Decimal(18, 4)
-  totalRuns      Int     @default(0)
-  totalUnits     Int     @default(0)
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String @id @default(uuid())
+  locationId   String @unique
+  locationName String
+
+  totalRevenue Decimal @default(0) @db.Decimal(18, 4)
+  totalRuns    Int     @default(0)
+  totalUnits   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([locationId])
 }
