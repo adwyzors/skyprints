@@ -9,6 +9,7 @@ export interface Order {
     totalProcesses: number;
     completedProcesses: number;
     createdAt: Date;
+    isTest: boolean;
     images: string[];
 
     customer: {
@@ -35,6 +36,7 @@ export interface OrderCardData {
     status: string;
     jobCode: string;
     createdAt: Date | string;
+    isTest: boolean;
     images: string[];
     customer: {
         id: string;

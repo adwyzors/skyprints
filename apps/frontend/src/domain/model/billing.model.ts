@@ -22,6 +22,7 @@ export interface BillingContext {
     latestSnapshot?: BillingSnapshot;
     customerNames?: string;
     jobCodes?: string;
+    isTest: boolean;
 }
 
 export interface GetBillingContextsResponse {

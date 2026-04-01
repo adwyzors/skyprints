@@ -46,6 +46,7 @@ function BillingContent() {
         customerId: 'all',
         startDate: '',
         endDate: '',
+        isTest: 'false',
     });
 
     const [isMounted, setIsMounted] = useState(false);
@@ -124,6 +125,9 @@ function BillingContent() {
                 if (filters.customerId !== 'all') {
                     params.customerId = filters.customerId;
                 }
+                
+                if (filters.isTest === 'true') params.isTest = true;
+                else params.isTest = false;
 
                 const fetchedData = await getOrders(params);
                 if (!cancelled) {
@@ -166,6 +170,7 @@ function BillingContent() {
             customerId: 'all',
             startDate: '',
             endDate: '',
+            isTest: 'false',
         });
         setOrdersData((prev) => ({ ...prev, page: 1 }));
     };

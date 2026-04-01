@@ -92,7 +92,8 @@ export class BillingContextService {
     async getAllContexts(
         page = 1,
         limit = 12,
-        search = ""
+        search = "",
+        isTest = false
     ) {
         this.logger.log(`Fetching billing contexts page=${page} limit=${limit} search=${search}`);
 
@@ -100,6 +101,7 @@ export class BillingContextService {
 
         const where: any = {
             type: "GROUP",
+            isTest: isTest,
             ...(search && {
                 OR: [
                     { name: { contains: search, mode: 'insensitive' } },

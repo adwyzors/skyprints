@@ -76,6 +76,7 @@ export interface GetRunsParams {
     processId?: string;
     locationId?: string;
     orderStatus?: string | string[];
+    isTest?: boolean;
 }
 
 export interface GetRunsResponse {
@@ -126,6 +127,10 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
 
     if (params.createdFrom) queryParams.append('createdFrom', params.createdFrom);
     if (params.createdTo) queryParams.append('createdTo', params.createdTo);
+
+    if (params.isTest !== undefined) {
+        queryParams.append('isTest', String(params.isTest));
+    }
 
     const queryString = queryParams.toString();
     const url = queryString ? `/process/runs?${queryString}` : '/process/runs';

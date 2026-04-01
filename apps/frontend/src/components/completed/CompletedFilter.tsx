@@ -10,6 +10,7 @@ interface CompletedFilterProps {
         dateRange: string;
         customerId: string;
         sortBy: string;
+        isTest?: string;
     };
     onChange: (newFilters: any) => void;
     onClear: () => void;
@@ -92,7 +93,19 @@ export default function CompletedFilter({ filters, onChange, onClear, onClose }:
                         <option value="recent">Most Recent</option>
                         <option value="amount">Highest Amount</option>
                         <option value="customer">Customer Name</option>
-                        <option value="code">Order Code</option>
+                    </select>
+                </div>
+
+                {/* Order Type */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Order Type</label>
+                    <select
+                        value={filters.isTest || 'false'}
+                        onChange={(e) => onChange({ ...filters, isTest: e.target.value })}
+                        className="w-full text-sm border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50"
+                    >
+                        <option value="false">Standard Orders</option>
+                        <option value="true">Test Orders</option>
                     </select>
                 </div>
             </div>

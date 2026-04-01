@@ -58,7 +58,7 @@ export default function CreateGroupModal({
     setError(null);
 
     try {
-      const hasTestOrder = selectedOrders.some((o) => o?.code?.startsWith('TESTORD'));
+      const hasTestOrder = selectedOrders.some((o) => o.isTest);
 
       const result = await createBillingContext({
         type: 'GROUP',
@@ -84,7 +84,7 @@ export default function CreateGroupModal({
     }
   };
 
-  const hasTestOrder = selectedOrders.some((o) => o?.code?.startsWith('TESTORD'));
+  const hasTestOrder = selectedOrders.some((o) => o.isTest);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

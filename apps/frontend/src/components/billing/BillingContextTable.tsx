@@ -55,8 +55,15 @@ export default function BillingContextTable({ data, startIndex, onRowClick }: Bi
                                         {startIndex + index + 1}
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors">
-                                            {context.name}
+                                        <div className="flex items-center gap-2">
+                                            <div className="font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors">
+                                                {context.name}
+                                            </div>
+                                            {context.isTest && (
+                                                <span className="px-1 py-0.5 text-[9px] font-bold bg-orange-100 text-orange-700 border border-orange-200 rounded tracking-tight uppercase">
+                                                    Test
+                                                </span>
+                                            )}
                                         </div>
                                         {context.description && (
                                             <div className="text-xs text-gray-500 mt-0.5 max-w-xs truncate">

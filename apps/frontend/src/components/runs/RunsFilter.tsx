@@ -29,6 +29,7 @@ interface RunsFilterProps {
         processId?: string; // Add processId to filters
         locationId?: string;
         orderStatus: string[];
+        isTest: string;
     };
     onChange: (newFilters: any) => void;
     onClear: () => void;
@@ -166,6 +167,27 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
             </div>
 
             <div className="space-y-6 flex-1 overflow-y-auto pr-2 scrollbar-hide">
+                {/* Order Type */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Order Type</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {[
+                            { value: 'false', label: 'Standard' },
+                            { value: 'true', label: 'Test' }
+                        ].map(opt => (
+                            <button
+                                key={opt.value}
+                                onClick={() => onChange({ ...filters, isTest: opt.value })}
+                                className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all ${filters.isTest === opt.value
+                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-200'
+                                    }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {/* Order Status */}
                 {!hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING) && (

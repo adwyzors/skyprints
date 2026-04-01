@@ -120,6 +120,7 @@ function RunsPageContent() {
             locationId: ((user as any)?.user?.location && !hasPermission(Permission.LOCATIONS_ALL_VIEW)) 
                 ? (user as any).user.location.id 
                 : (searchParams.get('locationId') || 'all'),
+            isTest: searchParams.get('isTest') || 'false',
         };
     }, [searchParams.toString(), user, hasPermission]);
 
@@ -306,7 +307,8 @@ function RunsPageContent() {
                     locationId: filters.locationId !== 'all' ? filters.locationId : undefined,
                     orderStatus: filters.orderStatus.join(','),
                     createdFrom,
-                    createdTo
+                    createdTo,
+                    isTest: filters.isTest === 'true'
                 };
 
                 if (sortKey) {

@@ -62,11 +62,13 @@ export const getBillingContexts = async (params?: {
     page?: number;
     limit?: number;
     search?: string;
+    isTest?: boolean;
 }): Promise<GetBillingContextsResponse> => {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', params.page.toString());
     if (params?.limit) query.append('limit', params.limit.toString());
     if (params?.search) query.append('search', params.search);
+    if (params?.isTest !== undefined) query.append('isTest', String(params.isTest));
 
     const queryString = query.toString();
     const url = queryString ? `/billing/contexts?${queryString}` : '/billing/contexts';

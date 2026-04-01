@@ -45,7 +45,8 @@ function CompletedContent() {
     const [filters, setFilters] = useState({
         dateRange: "all",
         customerId: "all",
-        sortBy: "recent"
+        sortBy: "recent",
+        isTest: "false"
     });
 
     const [isMounted, setIsMounted] = useState(false);
@@ -119,6 +120,9 @@ function CompletedContent() {
                 if (filters.customerId !== 'all') {
                     params.customerId = filters.customerId;
                 }
+                
+                if (filters.isTest === 'true') params.isTest = true;
+                else params.isTest = false;
 
                 const fetchedData = await getOrders(params);
                 if (!cancelled) {
@@ -166,7 +170,8 @@ function CompletedContent() {
         setFilters({
             dateRange: "all",
             customerId: "all",
-            sortBy: "recent"
+            sortBy: "recent",
+            isTest: "false"
         });
         setOrdersData(prev => ({ ...prev, page: 1 }));
     };

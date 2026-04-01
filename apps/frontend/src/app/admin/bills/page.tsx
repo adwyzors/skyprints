@@ -51,6 +51,7 @@ function BillsPageContent() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [isTest, setIsTest] = useState(false);
 
     // Debounce search input
     const debouncedSearchUpdate = useCallback(
@@ -74,7 +75,8 @@ function BillsPageContent() {
                 const response = await getBillingContexts({
                     page: data.page,
                     limit: pageSize,
-                    search: debouncedSearch
+                    search: debouncedSearch,
+                    isTest: isTest
                 });
                 setData(response);
             } catch (error) {
@@ -84,7 +86,7 @@ function BillsPageContent() {
             }
         };
         fetchContexts();
-    }, [data.page, debouncedSearch, pageSize]);
+    }, [data.page, debouncedSearch, pageSize, isTest]);
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= data.totalPages) {
@@ -119,7 +121,11 @@ function BillsPageContent() {
             `}
             >
                 <div className="w-72 h-full">
-                    <BillsFilter onClose={() => setIsSidebarOpen(false)} />
+                    <BillsFilter 
+                        onClose={() => setIsSidebarOpen(false)} 
+                        isTest={isTest}
+                        onIsTestChange={setIsTest}
+                    />
                 </div>
             </div>
 

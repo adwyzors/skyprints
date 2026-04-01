@@ -207,6 +207,7 @@ export class AdminProcessService {
             deletedAt: null,
             // Filter by order status
             ...(orderStatus && { statusCode: { in: orderStatus.split(',') as any[] } }),
+            isTest: query.isTest ?? false,
         };
 
         /* ==========================

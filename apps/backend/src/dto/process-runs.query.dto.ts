@@ -76,4 +76,8 @@ export class ProcessRunsQueryDto {
     @Transform(({ value }) => Array.isArray(value) ? value.join(',') : value)
     @IsString()
     orderStatus?: string;
+
+    @IsOptional()
+    @Transform(({ value }) => value === 'true' || value === true)
+    isTest?: boolean;
 }

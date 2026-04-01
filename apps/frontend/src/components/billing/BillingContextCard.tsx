@@ -34,9 +34,16 @@ export default function BillingContextCard({ context, onClick }: BillingContextC
             <div className="p-5 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100">
                 <div className="flex items-start justify-between">
                     <div>
-                        <h3 className="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors line-clamp-1">
-                            {context.name}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                                {context.name}
+                            </h3>
+                            {context.isTest && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200 rounded tracking-wider uppercase">
+                                    Test
+                                </span>
+                            )}
+                        </div>
                         {context.description && (
                             <p className="text-sm text-gray-500 mt-1 line-clamp-1">{context.description}</p>
                         )}

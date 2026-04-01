@@ -4,10 +4,11 @@ import { Filter, X } from 'lucide-react';
 
 interface BillsFilterProps {
     onClose: () => void;
-    // Add other filter props here if needed
+    isTest: boolean;
+    onIsTestChange: (isTest: boolean) => void;
 }
 
-export default function BillsFilter({ onClose }: BillsFilterProps) {
+export default function BillsFilter({ onClose, isTest, onIsTestChange }: BillsFilterProps) {
     return (
         <div className="flex flex-col h-full bg-white">
             <div className="flex items-center justify-between p-4 border-b">
@@ -24,7 +25,29 @@ export default function BillsFilter({ onClose }: BillsFilterProps) {
             </div>
 
             <div className="p-4 space-y-6 flex-1 overflow-y-auto scrollbar-hide">
-                {/* Placeholder for future filters */}
+                {/* Order Type */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Order Type</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {[
+                            { value: false, label: 'Standard' },
+                            { value: true, label: 'Test' }
+                        ].map(opt => (
+                            <button
+                                key={String(opt.value)}
+                                onClick={() => onIsTestChange(opt.value)}
+                                className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all ${isTest === opt.value
+                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-200'
+                                    }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Status placeholder */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Status</label>
                     <div className="space-y-2">
