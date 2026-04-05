@@ -43,10 +43,10 @@ function CompletedContent() {
     // Sidebar and Filter State
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [filters, setFilters] = useState({
-        dateRange: "all",
-        customerId: "all",
-        sortBy: "recent",
-        isTest: "false"
+        dateRange: searchParams.get('dateRange') || "all",
+        customerId: searchParams.get('customerId') || "all",
+        sortBy: searchParams.get('sortBy') || "recent",
+        isTest: searchParams.get('isTest') || "false"
     });
 
     const [isMounted, setIsMounted] = useState(false);
@@ -174,6 +174,7 @@ function CompletedContent() {
             isTest: "false"
         });
         setOrdersData(prev => ({ ...prev, page: 1 }));
+        router.push('/admin/completed');
     };
 
     // Selection helpers
@@ -252,6 +253,13 @@ function CompletedContent() {
                         onChange={(newFilters) => {
                             setFilters(newFilters);
                             setOrdersData(prev => ({ ...prev, page: 1 }));
+                            // Sync to URL
+                            const params = new URLSearchParams();
+                            if (newFilters.dateRange !== 'all') params.set('dateRange', newFilters.dateRange);
+                            if (newFilters.customerId !== 'all') params.set('customerId', newFilters.customerId);
+                            if (newFilters.sortBy !== 'recent') params.set('sortBy', newFilters.sortBy);
+                            if (newFilters.isTest !== 'false') params.set('isTest', newFilters.isTest);
+                            router.push(`/admin/completed?${params.toString()}`);
                         }}
                         onClear={handleClearFilters}
                         onClose={() => setIsSidebarOpen(false)}

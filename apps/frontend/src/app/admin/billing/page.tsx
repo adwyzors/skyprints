@@ -42,11 +42,11 @@ function BillingContent() {
     // Sidebar State
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [filters, setFilters] = useState({
-        dateRange: 'all',
-        customerId: 'all',
-        startDate: '',
-        endDate: '',
-        isTest: 'false',
+        dateRange: searchParams.get('dateRange') || 'all',
+        customerId: searchParams.get('customerId') || 'all',
+        startDate: searchParams.get('startDate') || '',
+        endDate: searchParams.get('endDate') || '',
+        isTest: searchParams.get('isTest') || 'false',
     });
 
     const [isMounted, setIsMounted] = useState(false);
@@ -173,6 +173,7 @@ function BillingContent() {
             isTest: 'false',
         });
         setOrdersData((prev) => ({ ...prev, page: 1 }));
+        router.push('/admin/billing');
     };
 
     if (!isMounted) {
@@ -194,6 +195,14 @@ function BillingContent() {
                         onChange={(newFilters) => {
                             setFilters(newFilters);
                             setOrdersData((prev) => ({ ...prev, page: 1 }));
+                            // Sync to URL
+                            const params = new URLSearchParams();
+                            if (newFilters.dateRange !== 'all') params.set('dateRange', newFilters.dateRange);
+                            if (newFilters.customerId !== 'all') params.set('customerId', newFilters.customerId);
+                            if (newFilters.startDate) params.set('startDate', newFilters.startDate);
+                            if (newFilters.endDate) params.set('endDate', newFilters.endDate);
+                            if (newFilters.isTest !== 'false') params.set('isTest', newFilters.isTest);
+                            router.push(`/admin/billing?${params.toString()}`);
                         }}
                         onClear={handleClearFilters}
                         onClose={() => setIsSidebarOpen(false)}

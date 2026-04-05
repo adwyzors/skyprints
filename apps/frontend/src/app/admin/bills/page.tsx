@@ -51,7 +51,7 @@ function BillsPageContent() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [isTest, setIsTest] = useState(false);
+    const [isTest, setIsTest] = useState(searchParams.get('isTest') === 'true');
 
     // Debounce search input
     const debouncedSearchUpdate = useCallback(
@@ -124,7 +124,14 @@ function BillsPageContent() {
                     <BillsFilter 
                         onClose={() => setIsSidebarOpen(false)} 
                         isTest={isTest}
-                        onIsTestChange={setIsTest}
+                        onIsTestChange={(val) => {
+                            setIsTest(val);
+                            const params = new URLSearchParams(searchParams.toString());
+                            if (val) params.set('isTest', 'true');
+                            else params.delete('isTest');
+                            params.set('page', '1');
+                            router.push(`/admin/bills?${params.toString()}`);
+                        }}
                     />
                 </div>
             </div>
