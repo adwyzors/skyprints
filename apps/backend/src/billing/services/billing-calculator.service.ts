@@ -79,10 +79,11 @@ export class BillingCalculatorService {
                     ...dynamicVars
                 };
 
-                snapshotInputs[run.id] = merged;
-
                 const compiled = this.compiler.compile(formula);
                 const value = this.engine.evaluate(compiled, merged);
+
+                merged['__RESULT__'] = value;
+                snapshotInputs[run.id] = merged;
 
                 total = total.plus(new Decimal(value));
             }
@@ -140,7 +141,7 @@ export class BillingCalculatorService {
         );
 
         let total = new Decimal(0);
-        const perOrderInputs: Record<string, any> = {};
+        const perOrderCalculations: Record<string, { result: Decimal; inputs: any }> = {};
 
         for (const o of orders) {
             const calc = await this.calculateForOrder(
@@ -149,12 +150,15 @@ export class BillingCalculatorService {
             );
 
             total = total.plus(calc.result);
-            perOrderInputs[o.orderId] = calc.inputs;
+            perOrderCalculations[o.orderId] = {
+                result: calc.result,
+                inputs: calc.inputs
+            };
         }
 
         return {
             result: total,
-            perOrderInputs
+            perOrderCalculations
         };
     }
 

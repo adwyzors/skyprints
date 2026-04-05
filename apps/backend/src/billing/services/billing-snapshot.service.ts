@@ -251,7 +251,15 @@ export class BillingSnapshotService {
                     version,
                     intent: 'FINAL',
                     isLatest: true,
-                    inputs: calc.perOrderInputs,
+                    inputs: Object.fromEntries(
+                        Object.entries(calc.perOrderCalculations).map(([orderId, orderCalc]) => [
+                            orderId,
+                            {
+                                ...orderCalc.inputs,
+                                '__ORDER_RESULT__': orderCalc.result.toString()
+                            }
+                        ])
+                    ),
                     result: calc.result,
                     currency: 'INR',
                     calculationType: CalculationType.RECALCULATED,

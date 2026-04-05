@@ -4,13 +4,15 @@ import { PrismaService } from "apps/backend/prisma/prisma.service";
 import { ContextLogger } from "../../common/logger/context.logger";
 import { generateFiscalCode } from "../../common/utils/fiscal-year.utils";
 import { BillingSnapshotService } from "./billing-snapshot.service";
+import { BillingCalculatorService } from "./billing-calculator.service";
 
 @Injectable()
 export class BillingContextService {
     private readonly logger = new ContextLogger(BillingContextService.name);
 
     constructor(private readonly prisma: PrismaService,
-        private readonly billingSnapshotService: BillingSnapshotService
+        private readonly billingSnapshotService: BillingSnapshotService,
+        private readonly calculator: BillingCalculatorService
     ) { }
 
     async create(dto: CreateBillingContextDto) {
@@ -296,8 +298,29 @@ export class BillingContextService {
             name: context.name,
             description: context.description,
 
-            orders: context.orders.map(({ order }) => {
+            orders: await Promise.all(context.orders.map(async ({ order }) => {
+                const groupInputs = groupSnapshot?.inputs as any;
                 const orderSnapshot = order.billingContexts[0]?.billingContext?.snapshots[0];
+
+                let snapshotResult = orderSnapshot?.result?.toString() || '0';
+
+                // 🔑 IF Group Context, prioritize the result from the group snapshot
+                if (context.type === 'GROUP' && groupSnapshot && groupInputs?.[order.id]) {
+                    const storedResult = groupInputs[order.id]['__ORDER_RESULT__'];
+                    if (storedResult) {
+                        snapshotResult = storedResult;
+                    } else {
+                        // Fallback: Recalculate using order-specific inputs from the group snapshot
+                        try {
+                            const calc = await this.calculator.calculateForOrder(order.id, groupInputs[order.id]);
+                            if (calc) {
+                                snapshotResult = calc.result.toString();
+                            }
+                        } catch (e) {
+                            this.logger.error(`Recalculation fallback failed for order ${order.id}: ${e.message}`);
+                        }
+                    }
+                }
                 return {
                     id: order.id,
                     code: order.code,
@@ -323,14 +346,14 @@ export class BillingContextService {
                             runTemplate: r.runTemplate
                         }))
                     })),
-                    billing: orderSnapshot ? {
-                        id: orderSnapshot.id,
-                        result: orderSnapshot.result.toString(), // Decimal to string
-                        currency: orderSnapshot.currency,
-                        inputs: orderSnapshot.inputs // Contains the run-wise rates
-                    } : null
+                    billing: {
+                        id: orderSnapshot?.id || 'group-context',
+                        result: snapshotResult,
+                        currency: orderSnapshot?.currency || 'INR',
+                        inputs: groupInputs?.[order.id] || orderSnapshot?.inputs || {} // Prefer group inputs if available
+                    }
                 };
-            }),
+            })),
 
             latestSnapshot: groupSnapshot
                 ? {
