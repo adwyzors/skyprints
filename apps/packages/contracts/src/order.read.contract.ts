@@ -73,6 +73,7 @@ export const OrderSummarySchema = z.object({
     code: z.string(),
     jobCode: z.string().optional().nullable(),
     images: z.array(z.string().url()).default([]),
+    isTest: z.boolean().default(false),
     useOrderImageForRuns: z.boolean().default(false),
 
     totalProcesses: z.number().int(),
@@ -101,6 +102,7 @@ export const OrderCardSchema = z.object({
     createdAt: z.string(),
     images: z.array(z.string().url()).default([]),
     useOrderImageForRuns: z.boolean().default(false),
+    isTest: z.boolean().default(false),
     customer: z.object({
         id: z.string().uuid(),
         name: z.string(),

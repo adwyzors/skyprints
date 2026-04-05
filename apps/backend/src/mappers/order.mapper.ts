@@ -10,6 +10,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         jobCode: order.jobCode,
         images: order.images || [],
         useOrderImageForRuns: order.useOrderImageForRuns || false,
+        isTest: order.isTest || false,
         totalProcesses: order.totalProcesses,
         completedProcesses: order.completedProcesses,
 

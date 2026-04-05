@@ -125,14 +125,21 @@ export default function OrderCard({
     return (
         <div className="relative">
             <div className="absolute top-3 right-3 z-10">
-                <span
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 shadow-md ${statusConfig.color}`}
-                >
-                    {statusConfig.icon}
-                    <span className="truncate">
-                        {statusConfig.label === 'Billed' ? 'Billing Ready' : statusConfig.label}
+                <div className="flex flex-col items-end gap-2">
+                    <span
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 shadow-md ${statusConfig.color}`}
+                    >
+                        {statusConfig.icon}
+                        <span className="truncate">
+                            {statusConfig.label === 'Billed' ? 'Billing Ready' : statusConfig.label}
+                        </span>
                     </span>
-                </span>
+                    {order.isTest && (
+                        <span className="px-3 py-0.5 bg-yellow-400 text-black text-[10px] font-black rounded-full border border-yellow-500 shadow-sm uppercase tracking-tighter">
+                            Test Order
+                        </span>
+                    )}
+                </div>
             </div>
 
             {/* SELECTION CHECKBOX */}
