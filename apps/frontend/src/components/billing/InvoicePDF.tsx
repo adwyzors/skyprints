@@ -151,7 +151,8 @@ interface InvoiceData {
 }
 
 interface InvoicePDFProps {
-    invoiceData: InvoiceData;
+    invoiceData?: InvoiceData;
+    invoiceDataList?: InvoiceData[];
 }
 
 // Function to convert number to words in Indian numbering system
@@ -204,41 +205,45 @@ const numberToWords = (num: number): string => {
     return words.trim();
 };
 
-const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
-    const totalNumber = parseFloat(invoiceData.total);
-    const roundedTotal = Math.round(totalNumber * 100) / 100; // Round to 2 decimal places
+const InvoicePDF = ({ invoiceData, invoiceDataList }: InvoicePDFProps) => {
+    const list = invoiceDataList || (invoiceData ? [invoiceData] : []);
 
     return (
         <Document>
-            <Page size="A4" orientation="landscape" style={styles.page}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <Text style={styles.title}>{invoiceData.heading}</Text>
+            {list.map((data, index) => {
+                const totalNumber = parseFloat(data.total);
+                const roundedTotal = Math.round(totalNumber * 100) / 100;
 
-                    <View style={styles.companyInfo}>
-                        <Text style={styles.companyName}>{invoiceData.companyName}</Text>
-                        <Text style={styles.companyAddress}>{invoiceData.companyAddress}</Text>
-                        <Text style={styles.companyAddress}>{invoiceData.msmeReg}</Text>
-                        <Text style={styles.companyAddress}>GSTIN: 27AEDFS7100N1ZT</Text>
-                    </View>
-                </View>
+                return (
+                <Page key={index} size="A4" orientation="landscape" style={styles.page}>
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <Text style={styles.title}>{data.heading}</Text>
 
-                {/* Bill To and Details */}
-                <View style={styles.billInfoContainer}>
-                    <View style={styles.billTo}>
-                        <Text style={styles.sectionTitle}>Bill to:</Text>
-                        <Text>{invoiceData.billTo}</Text>
-                        <Text>ADDRESS: {invoiceData.address}</Text>
-                        <Text>GST NO: {invoiceData.gstin}</Text>
+                        <View style={styles.companyInfo}>
+                            <Text style={styles.companyName}>{data.companyName}</Text>
+                            <Text style={styles.companyAddress}>{data.companyAddress}</Text>
+                            <Text style={styles.companyAddress}>{data.msmeReg}</Text>
+                            <Text style={styles.companyAddress}>GSTIN: 27AEDFS7100N1ZT</Text>
+                        </View>
                     </View>
 
-                    <View style={styles.billDetails}>
-                        <Text style={styles.sectionTitle}>Bill Details</Text>
-                        <Text>Date: {invoiceData.date}</Text>
-                        <Text>Bill#: {invoiceData.billNumber}</Text>
-                        <Text>HSM/SL: 998822</Text>
+                    {/* Bill To and Details */}
+                    <View style={styles.billInfoContainer}>
+                        <View style={styles.billTo}>
+                            <Text style={styles.sectionTitle}>Bill to:</Text>
+                            <Text>{data.billTo}</Text>
+                            <Text>ADDRESS: {data.address}</Text>
+                            <Text>GST NO: {data.gstin}</Text>
+                        </View>
+
+                        <View style={styles.billDetails}>
+                            <Text style={styles.sectionTitle}>Bill Details</Text>
+                            <Text>Date: {data.date}</Text>
+                            <Text>Bill#: {data.billNumber}</Text>
+                            <Text>HSM/SL: 998822</Text>
+                        </View>
                     </View>
-                </View>
 
                 {/* Table */}
                 <View style={styles.table}>
@@ -253,7 +258,7 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                     </View>
 
                     {/* Table Rows */}
-                    {invoiceData.items.map((item) => (
+                    {data.items.map((item) => (
                         <View key={item.srNo} style={styles.tableRow}>
                             <Text style={styles.colSrNo}>{item.srNo}</Text>
                             <Text style={styles.colOrderCode}>{item.orderCode}</Text>
@@ -269,27 +274,27 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                 <View style={styles.totalsContainer}>
                     <View style={styles.totalRow}>
                         <Text style={styles.totalLabel}>Sub Total:</Text>
-                        <Text style={styles.totalValue}>{parseFloat(invoiceData.subtotal).toFixed(2)}</Text>
+                        <Text style={styles.totalValue}>{parseFloat(data.subtotal).toFixed(2)}</Text>
                     </View>
 
-                    {parseFloat(invoiceData.cgstAmount) > 0 && (
+                    {parseFloat(data.cgstAmount) > 0 && (
                         <View style={styles.totalRow}>
                             <Text style={styles.totalLabel}>CGST (2.5%):</Text>
-                            <Text style={styles.totalValue}>{invoiceData.cgstAmount}</Text>
+                            <Text style={styles.totalValue}>{data.cgstAmount}</Text>
                         </View>
                     )}
 
-                    {parseFloat(invoiceData.sgstAmount) > 0 && (
+                    {parseFloat(data.sgstAmount) > 0 && (
                         <View style={styles.totalRow}>
                             <Text style={styles.totalLabel}>SGST (2.5%):</Text>
-                            <Text style={styles.totalValue}>{invoiceData.sgstAmount}</Text>
+                            <Text style={styles.totalValue}>{data.sgstAmount}</Text>
                         </View>
                     )}
 
-                    {parseFloat(invoiceData.tdsAmount) > 0 && (
+                    {parseFloat(data.tdsAmount) > 0 && (
                         <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>TDS ({invoiceData.tdsRate}%):</Text>
-                            <Text style={styles.totalValue}>{invoiceData.tdsAmount}</Text>
+                            <Text style={styles.totalLabel}>TDS ({data.tdsRate}%):</Text>
+                            <Text style={styles.totalValue}>{data.tdsAmount}</Text>
                         </View>
                     )}
 
@@ -323,6 +328,8 @@ const InvoicePDF = ({ invoiceData }: InvoicePDFProps) => {
                     <Text>Thank You! It was a privilege to do business with you, and it would be our pleasure to continue serving you.</Text>
                 </View>
             </Page>
+            );
+            })}
         </Document>
     );
 };

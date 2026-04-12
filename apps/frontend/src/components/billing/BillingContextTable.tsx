@@ -5,9 +5,12 @@ interface BillingContextTableProps {
     data: BillingContext[];
     startIndex: number;
     onRowClick?: (id: string) => void;
+    selectedIds?: string[];
+    onSelect?: (id: string, checked: boolean) => void;
+    onSelectAll?: (checked: boolean) => void;
 }
 
-export default function BillingContextTable({ data, startIndex, onRowClick }: BillingContextTableProps) {
+export default function BillingContextTable({ data, startIndex, onRowClick, selectedIds = [], onSelect, onSelectAll }: BillingContextTableProps) {
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return 'N/A';
         return new Date(dateStr).toLocaleDateString('en-US', {
@@ -31,6 +34,14 @@ export default function BillingContextTable({ data, startIndex, onRowClick }: Bi
                 <table className="w-full text-sm text-left">
                     <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
+                            <th className="px-6 py-4 font-semibold text-gray-700 w-12 text-center">
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                                    checked={data.length > 0 && selectedIds.length === data.length}
+                                    onChange={(e) => onSelectAll?.(e.target.checked)}
+                                />
+                            </th>
                             <th className="px-6 py-4 font-semibold text-gray-700 w-16">Sr No</th>
                             <th className="px-6 py-4 font-semibold text-gray-700">Bill Name</th>
                             <th className="px-6 py-4 font-semibold text-gray-700">Date</th>
@@ -49,8 +60,16 @@ export default function BillingContextTable({ data, startIndex, onRowClick }: Bi
                                 <tr
                                     key={context.id}
                                     onClick={() => onRowClick?.(context.id)}
-                                    className="hover:bg-gray-50 transition-colors cursor-pointer group"
+                                    className={`transition-colors cursor-pointer group ${selectedIds.includes(context.id) ? 'bg-blue-50/50 hover:bg-blue-50/70' : 'hover:bg-gray-50'}`}
                                 >
+                                    <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                                            checked={selectedIds.includes(context.id)}
+                                            onChange={(e) => onSelect?.(context.id, e.target.checked)}
+                                        />
+                                    </td>
                                     <td className="px-6 py-4 text-gray-500">
                                         {startIndex + index + 1}
                                     </td>

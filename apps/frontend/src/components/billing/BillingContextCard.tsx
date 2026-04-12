@@ -4,9 +4,11 @@ import { Calendar, CreditCard, Package } from 'lucide-react';
 interface BillingContextCardProps {
     context: BillingContext;
     onClick?: () => void;
+    selected?: boolean;
+    onSelect?: (checked: boolean) => void;
 }
 
-export default function BillingContextCard({ context, onClick }: BillingContextCardProps) {
+export default function BillingContextCard({ context, onClick, selected, onSelect }: BillingContextCardProps) {
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return 'N/A';
         return new Date(dateStr).toLocaleDateString('en-US', {
@@ -29,12 +31,24 @@ export default function BillingContextCard({ context, onClick }: BillingContextC
     return (
         <div
             onClick={onClick}
-            className="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl hover:border-indigo-300 transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+            className={`group rounded-2xl border overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer ${
+                selected ? 'border-blue-500 bg-blue-50/20 shadow-sm' : 'bg-white border-gray-200 hover:border-indigo-300'
+            }`}
         >
-            <div className="p-5 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <div className="flex items-center gap-2">
+            <div className={`p-5 border-b border-gray-100 ${selected ? 'bg-blue-50/50' : 'bg-gradient-to-br from-gray-50 to-white'}`}>
+                <div className="flex items-start gap-3">
+                    <div onClick={(e) => e.stopPropagation()} className="pt-0.5">
+                        <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(e) => onSelect?.(e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <div className="flex items-center gap-2">
                             <h3 className="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors line-clamp-1">
                                 {context.name}
                             </h3>
@@ -48,12 +62,14 @@ export default function BillingContextCard({ context, onClick }: BillingContextC
                             <p className="text-sm text-gray-500 mt-1 line-clamp-1">{context.description}</p>
                         )}
                     </div>
-                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${isDraft
-                        ? 'bg-yellow-50 text-yellow-700 border-yellow-100'
-                        : 'bg-green-50 text-green-700 border-green-100'
-                        }`}>
-                        {isDraft ? 'DRAFT' : 'FINAL'}
-                    </span>
+                            <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${isDraft
+                                ? 'bg-yellow-50 text-yellow-700 border-yellow-100'
+                                : 'bg-green-50 text-green-700 border-green-100'
+                                }`}>
+                                {isDraft ? 'DRAFT' : 'FINAL'}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
 

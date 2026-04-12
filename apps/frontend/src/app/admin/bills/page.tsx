@@ -9,9 +9,11 @@ import BillingGroupModal from "@/components/modals/BillingGroupModal";
 import OrdersViewToggle from "@/components/orders/OrdersViewToggle";
 import PageSizeSelector from "@/components/orders/PageSizeSelector";
 import { GetBillingContextsResponse } from '@/domain/model/billing.model';
-import { getBillingContexts } from '@/services/billing.service';
+import InvoicePDF from '@/components/billing/InvoicePDF';
+import { pdf } from '@react-pdf/renderer';
+import { getBillingContextById, getBillingContexts } from '@/services/billing.service';
 import debounce from 'lodash/debounce';
-import { ChevronLeft, FileText, Filter, Loader2, Search, X } from 'lucide-react';
+import { ChevronLeft, Download, FileText, Filter, Loader2, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from 'react';
 
@@ -52,6 +54,8 @@ function BillsPageContent() {
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [isTest, setIsTest] = useState(searchParams.get('isTest') === 'true');
+    const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     // Debounce search input
     const debouncedSearchUpdate = useCallback(
@@ -109,6 +113,91 @@ function BillsPageContent() {
         const params = new URLSearchParams(searchParams.toString());
         params.delete('SelectedGroup');
         router.push(`/admin/bills?${params.toString()}`);
+    };
+
+    const handleSelectRow = (id: string, checked: boolean) => {
+        if (checked) setSelectedGroupIds(prev => [...prev, id]);
+        else setSelectedGroupIds(prev => prev.filter(gid => gid !== id));
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedGroupIds(data.data.map(item => item.id));
+        } else {
+            setSelectedGroupIds([]);
+        }
+    };
+
+    const handleDownloadMergedInvoice = async () => {
+        if (selectedGroupIds.length === 0) return;
+        setIsDownloading(true);
+
+        try {
+            // Fetch all details
+            const contextsDetails = await Promise.all(
+                selectedGroupIds.map(id => getBillingContextById(id))
+            );
+
+            // Construct invoiceDataList
+            const invoiceDataList = contextsDetails.map(details => {
+                const totalAmount = details.orders.reduce((sum, order) => sum + (Number(order.billing?.result) || 0), 0);
+                const cgstAmount = details.orders[0]?.customer?.tax ? (totalAmount * 2.5) / 100 : 0;
+                const sgstAmount = details.orders[0]?.customer?.tax ? (totalAmount * 2.5) / 100 : 0;
+                const tdsRate = 2;
+                const tdsAmount = details.orders[0]?.customer?.tds ? (totalAmount * tdsRate) / 100 : 0;
+                const finalTotal = totalAmount + cgstAmount + sgstAmount - tdsAmount;
+
+                return {
+                    heading: details.orders[0]?.customer?.tax ? 'Tax Invoice' : 'Delivery Challan',
+                    companyName: 'Sky Art Prints LLP',
+                    companyAddress: '13, Bhavani Complex, Bhavani Shankar Road, Dadar West, Mumbai 400053',
+                    msmeReg: 'MSME Reg#: UDYAM-MH-19-0217047',
+                    gstin: details.orders[0]?.customer?.gstno || 'NA',
+                    billTo: details.orders[0]?.customer?.name || 'NA',
+                    address: details.orders[0]?.customer?.address || 'NA',
+                    date: details.latestSnapshot?.createdAt
+                        ? new Date(details.latestSnapshot.createdAt).toLocaleDateString('en-IN', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                        })
+                        : 'NA',
+                    billNumber: details.name,
+                    items: details.orders.map((order, index) => ({
+                        srNo: index + 1,
+                        orderCode: order.code,
+                        jobCode: order.jobCode || '',
+                        quantity: order.quantity,
+                        rate: order.billing?.result && order.quantity > 0
+                                ? (Number(order.billing.result) / order.quantity).toFixed(2) : '0.00',
+                        amount: order.billing?.result || '0',
+                    })),
+                    subtotal: totalAmount.toFixed(2),
+                    cgstAmount: cgstAmount.toFixed(2),
+                    sgstAmount: sgstAmount.toFixed(2),
+                    tdsAmount: tdsAmount.toFixed(2),
+                    tdsRate: tdsRate.toString(),
+                    total: finalTotal.toFixed(2),
+                };
+            });
+
+            // generate merged pdf
+            const blob = await pdf(<InvoicePDF invoiceDataList={invoiceDataList} />).toBlob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `merged_invoices_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            // optional: clear selection after download
+            setSelectedGroupIds([]);
+        } catch (err) {
+            console.error('Merged invoice download failed:', err);
+            alert('Failed to generate merged invoices.');
+        } finally {
+            setIsDownloading(false);
+        }
     };
 
     return (
@@ -230,6 +319,8 @@ function BillsPageContent() {
                                                 key={context.id}
                                                 context={context}
                                                 onClick={() => handleContextClick(context.id)}
+                                                selected={selectedGroupIds.includes(context.id)}
+                                                onSelect={(checked) => handleSelectRow(context.id, checked)}
                                             />
                                         ))}
                                     </div>
@@ -242,6 +333,9 @@ function BillsPageContent() {
                                             data={data.data}
                                             startIndex={(data.page - 1) * pageSize}
                                             onRowClick={handleContextClick}
+                                            selectedIds={selectedGroupIds}
+                                            onSelect={handleSelectRow}
+                                            onSelectAll={handleSelectAll}
                                         />
                                     </div>
                                 )}
@@ -260,6 +354,50 @@ function BillsPageContent() {
                     </div>
                 </div>
             </div>
+
+            {/* BULK ACTIONS BAR */}
+            {selectedGroupIds.length > 0 && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5">
+                    <div className="bg-gray-900 shadow-2xl rounded-2xl px-6 py-4 flex items-center gap-6 border border-gray-800">
+                        <div className="flex items-center gap-3 border-r border-gray-700 pr-6">
+                            <div className="bg-blue-500/20 text-blue-400 p-2 rounded-lg">
+                                <FileText className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="text-white font-medium text-sm">
+                                    {selectedGroupIds.length} group{selectedGroupIds.length > 1 ? 's' : ''} selected
+                                </p>
+                                <button
+                                    onClick={() => setSelectedGroupIds([])}
+                                    className="text-gray-400 text-xs hover:text-white transition-colors"
+                                >
+                                    Clear selection
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center">
+                            <button
+                                onClick={handleDownloadMergedInvoice}
+                                disabled={isDownloading}
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                            >
+                                {isDownloading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Generating PDF...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Download className="w-4 h-4" />
+                                        Download Merged Invoice
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <BillingGroupModal
                 isOpen={!!selectedGroupId}
