@@ -330,6 +330,24 @@ model ProcessRun {
   @@index([orderProcessId, id])
   @@index([orderProcessId, lifeCycleStatusCode])
   @@index([createdAt])
+
+  lifecycleHistories ProcessRunLifecycleHistory[]
+}
+
+model ProcessRunLifecycleHistory {
+  id             String   @id @default(uuid())
+  processRunId   String
+  statusCode     String
+  
+  expectedDate   DateTime?
+  completedAt    DateTime?
+  
+  createdAt      DateTime @default(now())
+  
+  processRun     ProcessRun @relation(fields: [processRunId], references: [id], onDelete: Cascade)
+
+  @@index([processRunId])
+  @@index([statusCode])
 }
 
 ///////////////////////////////

@@ -58,6 +58,15 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
     const [configModalRun, setConfigModalRun] = useState<{ run: any; processName: string } | null>(
         null,
     );
+    const [transitionPrompt, setTransitionPrompt] = useState<{
+        processId: string;
+        runId: string;
+        targetStatusCode?: string;
+        stepName?: string;
+    } | null>(null);
+    const [expectedDate, setExpectedDate] = useState<string>(
+        new Date().toISOString().split('T')[0]
+    );
 
     const router = useRouter();
     const hasFetchedRef = useRef(false);
@@ -279,7 +288,12 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
         }
     };
 
-    const handleTransition = async (processId: string, runId: string, targetStatusCode?: string) => {
+    const handleTransitionRequest = (processId: string, runId: string, targetStatusCode?: string, stepName?: string) => {
+        setExpectedDate(new Date().toISOString().split('T')[0]);
+        setTransitionPrompt({ processId, runId, targetStatusCode, stepName });
+    };
+
+    const handleTransition = async (processId: string, runId: string, targetStatusCode?: string, overrideExpectedDate?: string) => {
         if (!order) return;
 
         // Find the run
@@ -314,6 +328,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
 
             const response = await transitionLifeCycle(order.id, processId, runId, {
                 statusCode: nextStatusCode,
+                expectedDate: overrideExpectedDate,
             });
 
             if (response.success) {
@@ -343,6 +358,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
             alert(err instanceof Error ? err.message : 'Failed to update status');
         } finally {
             setUpdating(false);
+            setTransitionPrompt(null);
         }
     };
 
@@ -814,7 +830,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                             <button
                                                                                                 onClick={() => {
                                                                                                     if (confirm(`Are you sure you want to rollback to ${getStatusDisplayName(step.code)}?`)) {
-                                                                                                        handleTransition(process.id, run.id, step.code);
+                                                                                                        handleTransitionRequest(process.id, run.id, step.code, getStatusDisplayName(step.code));
                                                                                                     }
                                                                                                 }}
                                                                                                 disabled={updating}
@@ -827,7 +843,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                         {!isCurrent && !isCompleted && !isRunComplete && getCanTransition(run, run.lifecycleStatus, step.code) && (
                                                                                             <button
                                                                                                 onClick={() =>
-                                                                                                    handleTransition(process.id, run.id, step.code)
+                                                                                                    handleTransitionRequest(process.id, run.id, step.code, getStatusDisplayName(step.code))
                                                                                                 }
                                                                                                 disabled={updating}
                                                                                                 className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -843,7 +859,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                 {isCurrent && !isCompleted && !isRunComplete && getCanTransition(run, run.lifecycleStatus) && (
                                                                                     <div className="mt-4 pt-4 border-t border-blue-200">
                                                                                         <button
-                                                                                            onClick={() => handleTransition(process.id, run.id)}
+                                                                                            onClick={() => handleTransitionRequest(process.id, run.id)}
                                                                                             disabled={updating}
                                                                                             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
                                                                                         >
@@ -891,6 +907,49 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                     onClose={() => setConfigModalRun(null)}
                 />
             )}
+            
+            {/* TRANSITION EXPECTED DATE MODAL */}
+            {transitionPrompt && (
+                <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-5">
+                            <h3 className="text-lg font-bold text-gray-800 mb-2">
+                                {transitionPrompt.stepName ? `Move to ${transitionPrompt.stepName}` : 'Move to Next Step'}
+                            </h3>
+                            <p className="text-sm text-gray-500 mb-4">
+                                Please confirm or update the expected completion date for this step.
+                            </p>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Expected Date
+                            </label>
+                            <input
+                                type="date"
+                                value={expectedDate}
+                                onChange={(e) => setExpectedDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]} // Optional: prevent past dates
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                        </div>
+                        <div className="px-5 py-3 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">
+                            <button
+                                onClick={() => setTransitionPrompt(null)}
+                                disabled={updating}
+                                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleTransition(transitionPrompt.processId, transitionPrompt.runId, transitionPrompt.targetStatusCode, expectedDate)}
+                                disabled={updating}
+                                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {updating ? 'Updating...' : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {order && (
                 <EditOrderModal
                     open={isEditModalOpen}

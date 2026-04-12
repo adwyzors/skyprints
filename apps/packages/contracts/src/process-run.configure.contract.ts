@@ -19,6 +19,7 @@ export const TransitionProcessRunSchema = z.object({
         .string()
         .trim()
         .min(1, 'statusCode is required'),
+    expectedDate: z.string().optional(),
 });
 
 export type TransitionProcessRunDto =

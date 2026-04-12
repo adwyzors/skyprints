@@ -96,6 +96,7 @@ export class AdminProcessController {
             orderProcessId,
             processRunId,
             dto.statusCode,
+            dto.expectedDate,
         );
     }
 

@@ -1101,7 +1101,35 @@ export default function DTFConfig({
                                             </span>
                                         )}
                                     </div>
-                                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                                    <div className="flex items-center gap-1">
+                                        {run.configStatus === 'COMPLETE' ? (
+                                            <div className="p-1">
+                                                <Eye className="w-4 h-4 text-gray-500" />
+                                            </div>
+                                        ) : (
+                                            <div className="p-1">
+                                                <Edit className="w-4 h-4 text-gray-500" />
+                                            </div>
+                                        )}
+                                        {hasPermission(Permission.RUNS_DELETE) && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteRun(process.id, run.id);
+                                                }}
+                                                disabled={isDeletingRun === run.id}
+                                                className="p-1 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                                                title="Delete Run"
+                                            >
+                                                {isDeletingRun === run.id ? (
+                                                    <div className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                        )}
+                                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                                    </div>
                                 </div>
                             ) : (
                                 renderRun(process, run)

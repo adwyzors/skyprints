@@ -962,6 +962,7 @@ export class AdminProcessService {
         orderProcessId: string,
         processRunId: string,
         targetStatusCode: string,
+        expectedDate?: string,
     ) {
         this.logger.log(
             `[LIFECYCLE][START] orderProcess=${orderProcessId} run=${processRunId} → ${targetStatusCode}`,
@@ -1039,11 +1040,33 @@ export class AdminProcessService {
             }
 
             /* =====================================================
-             * 4️⃣ UPDATE RUN STATUS
+             * 4️⃣ UPDATE RUN STATUS AND HISTORY
              * ===================================================== */
             await tx.processRun.update({
                 where: { id: run.id },
                 data: { lifeCycleStatusCode: target.code },
+            });
+
+            // Mark previous state as completed
+            await tx.processRunLifecycleHistory.updateMany({
+                where: {
+                    processRunId: run.id,
+                    statusCode: current.code,
+                    completedAt: null,
+                },
+                data: {
+                    completedAt: new Date(),
+                }
+            });
+
+            // Create new state history
+            await tx.processRunLifecycleHistory.create({
+                data: {
+                    processRunId: run.id,
+                    statusCode: target.code,
+                    expectedDate: expectedDate ? new Date(expectedDate) : null,
+                    completedAt: target.isTerminal ? new Date() : null,
+                }
             });
 
             /* =====================================================
