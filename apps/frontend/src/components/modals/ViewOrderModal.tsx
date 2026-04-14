@@ -729,6 +729,12 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                     ? `Current: ${getStatusDisplayName(run.lifecycleStatus || 'Pending')}`
                                                                     : 'Configured'}
                                                         </div>
+                                                        {run.comments && (
+                                                            <div className="mt-1 text-xs text-blue-600 italic flex items-center gap-1">
+                                                                <FileText className="w-3 h-3" />
+                                                                <span>Note: {run.comments}</span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">

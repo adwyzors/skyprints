@@ -923,6 +923,12 @@ export class AdminProcessService {
                 run.lifeCycleStatusCode,
                 run.lifecycleHistories,
             ),
+            lifecycleHistory: (run.lifecycleHistories || []).map((h: any) => ({
+                statusCode: h.statusCode,
+                expectedDate: h.expectedDate?.toISOString() || null,
+                completedAt: h.completedAt?.toISOString() || null,
+                createdAt: h.createdAt.toISOString(),
+            })),
             fields: {
                 ...(run.fields as Record<string, any> || {}),
                 images: ((run.fields as any)?.images?.length > 0)

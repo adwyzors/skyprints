@@ -22,6 +22,7 @@ import { DTFItem, DTFRunValues, ProcessRun } from '@/domain/model/run.model';
 import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
+import RunCommentEditor from './RunCommentEditor';
 
 interface DTFConfigProps {
     order: Order;
@@ -666,14 +667,14 @@ export default function DTFConfig({
                         </div>
                     )}
 
-                    {mode === 'view' && run.comments && (
-                        <div className="mb-4 text-xs flex flex-col gap-1 text-gray-600 bg-blue-50/50 p-2 rounded border border-blue-100/50 italic">
-                            <span className="font-semibold flex items-center gap-1">
-                                <FileText className="w-3 h-3" /> Comments:
-                            </span>
-                            <p className="text-gray-700">"{run.comments}"</p>
-                        </div>
-                    )}
+                    {/* Run Comments */}
+                    <RunCommentEditor 
+                        orderId={localOrder.id}
+                        processId={process.id}
+                        run={run}
+                        onRefresh={onRefresh}
+                        canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                    />
 
                     {/* 3. PRIMARY INPUTS */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">

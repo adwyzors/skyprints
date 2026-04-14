@@ -10,6 +10,7 @@ import { ProcessRun, SublimationItem, SublimationRunValues } from '@/domain/mode
 import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
+import RunCommentEditor from './RunCommentEditor';
 
 interface SublimationConfigProps {
     order: Order;
@@ -568,27 +569,14 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                     </div>
 
                     {/* Run Comments */}
-                    {mode === 'edit' ? (
-                        <div className="mb-4">
-                            <label className="text-xs font-medium text-gray-700 block mb-1">
-                                Run Comments
-                            </label>
-                            <textarea
-                                className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"
-                                value={runComments[run.id] || ''}
-                                onChange={(e) => setRunComments(prev => ({ ...prev, [run.id]: e.target.value }))}
-                                placeholder="Add any specific instructions for this run..."
-                            />
-                        </div>
-                    ) : (
-                        run.comments && (
-                            <div className="mb-4 text-xs flex flex-col gap-1 text-gray-600 bg-blue-50/50 p-2 rounded border border-blue-100/50 italic">
-                                <span className="font-semibold flex items-center gap-1">
-                                    <FileText className="w-3 h-3" /> Comments:
-                                </span>
-                                <p className="text-gray-700">"{run.comments}"</p>
-                            </div>
-                        )
+                    {mode === 'view' && (
+                        <RunCommentEditor 
+                            orderId={localOrder.id}
+                            processId={process.id}
+                            run={run}
+                            onRefresh={onRefresh}
+                            canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                        />
                     )}
 
                     {/* 2. TABLE DETAILS */}
@@ -717,6 +705,22 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                                     </a>
                                 ))}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Run Comments (Edit Mode) */}
+                    {mode === 'edit' && (
+                        <div className="mt-3 border border-gray-300 rounded overflow-hidden bg-white p-3">
+                            <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5 mb-2">
+                                <FileText className="w-3.5 h-3.5" />
+                                Run Comments
+                            </label>
+                            <textarea
+                                className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"
+                                value={runComments[run.id] || ''}
+                                onChange={(e) => setRunComments(prev => ({ ...prev, [run.id]: e.target.value }))}
+                                placeholder="Add any specific instructions for this run..."
+                            />
                         </div>
                     )}
 

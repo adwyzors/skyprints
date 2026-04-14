@@ -22,6 +22,7 @@ import { AlloverRunValues, AlloverSublimationItem, ProcessRun } from '@/domain/m
 import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
+import RunCommentEditor from './RunCommentEditor';
 
 interface AlloverSublimationConfigProps {
     order: Order;
@@ -709,14 +710,14 @@ export default function AlloverSublimationConfig({
                                     <span className="text-sm">{run.reviewer?.name || 'Unassigned'}</span>
                                 </div>
                             </div>
-                            {run.comments && (
-                                <div className="mt-2 text-xs flex flex-col gap-1 text-gray-600 bg-blue-50/50 p-2 rounded border border-blue-100/50 italic">
-                                    <span className="font-semibold flex items-center gap-1">
-                                        <FileText className="w-3 h-3" /> Comments:
-                                    </span>
-                                    <p className="text-gray-700">"{run.comments}"</p>
-                                </div>
-                            )}
+                            {/* Run Comments */}
+                            <RunCommentEditor 
+                                orderId={localOrder.id}
+                                processId={process.id}
+                                run={run}
+                                onRefresh={onRefresh}
+                                canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                            />
                         </div>
                     </div>
                 </div>

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import RunCommentEditor from './RunCommentEditor';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -48,6 +49,7 @@ export default function PositiveConfig({
     const [editForm, setEditForm] = useState<PositiveRunValues | null>(null);
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -402,7 +404,8 @@ export default function PositiveConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id
+                runLocations[runId] ?? run?.location?.id,
+                runComments[runId] ?? run?.comments ?? undefined
             );
             if (res.success) {
                 // Clear images state
@@ -516,6 +519,15 @@ export default function PositiveConfig({
                                 valueId={runLocations[run.id] ?? run.location?.id}
                                 onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                             />
+                            <div className="col-span-2">
+                                <label className="text-xs font-medium text-gray-700 block mb-1">Run Comments (Optional)</label>
+                                <textarea
+                                    className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 min-h-[60px]"
+                                    placeholder="Add any specific instructions or notes for this run..."
+                                    value={runComments[run.id] ?? run.comments ?? ''}
+                                    onChange={(e) => setRunComments({ ...runComments, [run.id]: e.target.value })}
+                                />
+                            </div>
                         </div>
                     </div>
                 )}
@@ -592,6 +604,17 @@ export default function PositiveConfig({
                             ))}
                         </div>
                     </div>
+                )}
+
+                {/* Run Comments */}
+                {mode === 'view' && (
+                    <RunCommentEditor 
+                        orderId={localOrder.id}
+                        processId={process.id}
+                        run={run}
+                        onRefresh={onRefresh}
+                        canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                    />
                 )}
 
                 <div className="grid grid-cols-2 gap-4">

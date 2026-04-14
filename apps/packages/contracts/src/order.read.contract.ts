@@ -28,6 +28,7 @@ export const OrderProcessRunSchema = z.object({
 
     values: z.record(z.string(), z.any()),
     fields: z.array(TemplateFieldSchema),
+    comments: z.string().nullable().optional(),
 
     lifecycle: z
         .array(
@@ -36,6 +37,17 @@ export const OrderProcessRunSchema = z.object({
                 completed: z.boolean(),
                 expectedDate: z.string().nullable().optional(),
                 completedAt: z.string().nullable().optional(),
+            }),
+        )
+        .optional(),
+
+    lifecycleHistory: z
+        .array(
+            z.object({
+                statusCode: z.string(),
+                expectedDate: z.string().nullable().optional(),
+                completedAt: z.string().nullable().optional(),
+                createdAt: z.string(),
             }),
         )
         .optional(),

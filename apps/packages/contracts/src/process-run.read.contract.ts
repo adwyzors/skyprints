@@ -72,6 +72,12 @@ export const ProcessRunDetailSchema = ProcessRunListItemSchema.extend({
         expectedDate: z.string().nullable().optional(),
         completedAt: z.string().nullable().optional(),
     })),
+    lifecycleHistory: z.array(z.object({
+        statusCode: z.string(),
+        expectedDate: z.string().nullable().optional(),
+        completedAt: z.string().nullable().optional(),
+        createdAt: z.string(),
+    })).optional(),
 
     // Field definitions for UI rendering (optional, but helpful)
     templateFields: z.array(z.object({

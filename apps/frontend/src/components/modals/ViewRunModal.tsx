@@ -5,8 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
-import { getRunById, transitionLifeCycle } from '@/services/run.service';
-import { ArrowRight, CheckCircle, ChevronRight, FastForward, FileText, Image as ImageIcon, RotateCcw, Settings, User, X } from 'lucide-react';
+import { configureRun, getRunById, transitionLifeCycle } from '@/services/run.service';
+import { ArrowRight, CheckCircle, ChevronRight, Clock, FastForward, FileText, Image as ImageIcon, RotateCcw, Settings, User, X } from 'lucide-react';
 import Link from 'next/link';
 import RunConfigForm from '../runs/RunConfigForm';
 import ConfigurationModal from './ConfigurationModal';
@@ -24,9 +24,17 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
     const [updating, setUpdating] = useState(false);
     const [configModalOpen, setConfigModalOpen] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [editedComments, setEditedComments] = useState('');
+    const [isEditingComments, setIsEditingComments] = useState(false);
+    const [transitionPrompt, setTransitionPrompt] = useState<{
+        targetStatusCode?: string;
+        stepName?: string;
+    } | null>(null);
+    const [expectedDate, setExpectedDate] = useState<string>(
+        new Date().toISOString().split('T')[0]
+    );
+    const [updatingComments, setUpdatingComments] = useState(false);
     const { user, hasPermission } = useAuth();
-
-    const router = useRouter(); // Moved to top
     const hasFetchedRef = useRef(false);
 
     // Removed auto-redirect useEffect
@@ -39,6 +47,8 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
         try {
             const fetched = await getRunById(runId);
             setRun(fetched);
+            setEditedComments(fetched.comments || '');
+
         } catch (error) {
             console.error('Error fetching run:', error);
         } finally {
@@ -108,7 +118,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
     /* =================================================
        ACTIONS
        ================================================= */
-    const handleTransition = async (targetStatusCode?: string) => {
+    const handleTransition = async (targetStatusCode?: string, overrideExpectedDate?: string) => {
         if (!run) return;
 
         const currentStatus = run.lifecycleStatus || run.lifeCycleStatusCode;
@@ -137,7 +147,10 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                 run.orderProcess.order.id,
                 run.orderProcessId,
                 run.id,
-                { statusCode: nextStatusCode }
+                { 
+                    statusCode: nextStatusCode,
+                    expectedDate: overrideExpectedDate
+                }
             );
 
             if (response.success) {
@@ -171,6 +184,41 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
             setUpdating(false);
         }
     };
+
+    const handleTransitionRequest = (targetStatusCode?: string, stepName?: string) => {
+        setExpectedDate(new Date().toISOString().split('T')[0]);
+        setTransitionPrompt({ targetStatusCode, stepName });
+    };
+    
+    const handleUpdateComments = async () => {
+        if (!run) return;
+        setUpdatingComments(true);
+        try {
+            const response = await configureRun(
+                run.orderProcess.order.id,
+                run.orderProcessId,
+                run.id,
+                run.fields || {},
+                run.values?.images || [],
+                run.executor?.id,
+                run.reviewer?.id,
+                run.locationId || undefined,
+                editedComments
+            );
+
+            if (response.success) {
+                setRun((prev: any) => ({ ...prev, comments: editedComments }));
+                setIsEditingComments(false);
+                if (onRunUpdate) onRunUpdate();
+            }
+        } catch (err) {
+            console.error('Failed to update comments:', err);
+            alert('Failed to update comments');
+        } finally {
+            setUpdatingComments(false);
+        }
+    };
+
 
     /* =================================================
        RENDER
@@ -281,19 +329,53 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                         <span className="text-sm text-gray-500">Est. Amount</span>
                                         <span className="text-sm font-bold text-green-600">{formatCurrency(run.fields?.['Estimated Amount'])}</span>
                                     </div>
-                                    {run.comments && (
-                                        <>
-                                            <div className="border-t border-gray-100 my-2 pt-2"></div>
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-sm text-gray-500 flex items-center gap-2">
-                                                    <FileText className="w-3 h-3" /> Comments
-                                                </span>
+                                    <div className="border-t border-gray-100 my-2 pt-2"></div>
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-500 flex items-center gap-2">
+                                                <FileText className="w-3 h-3" /> Comments
+                                            </span>
+                                            {hasPermission(Permission.RUNS_UPDATE) && (
+                                                <button 
+                                                    onClick={() => {
+                                                        if (!isEditingComments) {
+                                                            setEditedComments(run.comments || '');
+                                                        }
+                                                        setIsEditingComments(!isEditingComments);
+                                                    }}
+                                                    className="text-xs text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap"
+                                                >
+                                                    {isEditingComments ? 'Cancel' : (run.comments ? 'Edit' : '+ Add')}
+                                                </button>
+                                            )}
+                                        </div>
+                                        {isEditingComments ? (
+                                            <div className="mt-1 space-y-2">
+                                                <textarea
+                                                    value={editedComments}
+                                                    onChange={(e) => setEditedComments(e.target.value)}
+                                                    className="w-full text-sm p-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none min-h-[80px] bg-white shadow-inner"
+                                                    placeholder="Add run notes or comments..."
+                                                />
+                                                <button
+                                                    onClick={handleUpdateComments}
+                                                    disabled={updatingComments}
+                                                    className="w-full py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                                >
+                                                    {updatingComments ? 'Saving...' : 'Save Comments'}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            run.comments ? (
                                                 <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-100 italic">
                                                     "{run.comments}"
                                                 </p>
-                                            </div>
-                                        </>
-                                    )}
+                                            ) : (
+                                                <p className="text-sm text-gray-400 italic px-2">No comments added</p>
+                                            )
+                                        )}
+                                    </div>
+
                                 </div>
                             </div>
 
@@ -315,6 +397,35 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                     alt={`Run Image ${i + 1}`}
                                                     className="w-full h-full object-cover"
                                                 />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {/* Activity History */}
+                            {run.lifecycleHistory && run.lifecycleHistory.length > 0 && (
+                                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                        <Clock className="w-3 h-3" /> Activity History
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {run.lifecycleHistory.map((h: any, i: number) => (
+                                            <div key={i} className="relative pl-4 border-l-2 border-blue-100 py-1">
+                                                <div className="absolute -left-[5px] top-2 w-2 h-2 rounded-full bg-blue-400" />
+                                                <div className="text-xs font-semibold text-gray-800">
+                                                    {getStatusDisplayName(h.statusCode)}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 mt-1">
+                                                    {new Date(h.createdAt).toLocaleString(undefined, { 
+                                                        day: '2-digit', month: 'short', 
+                                                        hour: '2-digit', minute: '2-digit' 
+                                                    })}
+                                                </div>
+                                                {h.completedAt && (
+                                                    <div className="text-[10px] text-green-600 mt-0.5">
+                                                        Completed: {new Date(h.completedAt).toLocaleDateString()}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -414,23 +525,23 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                             {/* Skip/Rollback Action */}
                                                             {!isCurrent && (
                                                                 <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
-                                                                    {!isCompleted && getCanTransition(currentStepCode, step.code) && (
-                                                                        <button
-                                                                            onClick={() => handleTransition(step.code)}
-                                                                            disabled={updating}
-                                                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                                            title="Skip to this step"
-                                                                        >
-                                                                            <FastForward className="w-4 h-4" />
-                                                                        </button>
-                                                                    )}
-                                                                    {isCompleted && hasPermission(Permission.RUNS_LIFECYCLE_ROLLBACK) && (
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                if (confirm(`Are you sure you want to rollback to ${getStatusDisplayName(step.code)}?`)) {
-                                                                                    handleTransition(step.code);
-                                                                                }
-                                                                            }}
+                                                                            {!isCompleted && getCanTransition(currentStepCode, step.code) && (
+                                                                                <button
+                                                                                    onClick={() => handleTransitionRequest(step.code, getStatusDisplayName(step.code))}
+                                                                                    disabled={updating}
+                                                                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                                                    title="Skip to this step"
+                                                                                >
+                                                                                    <FastForward className="w-4 h-4" />
+                                                                                </button>
+                                                                            )}
+                                                                            {isCompleted && hasPermission(Permission.RUNS_LIFECYCLE_ROLLBACK) && (
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        if (confirm(`Are you sure you want to rollback to ${getStatusDisplayName(step.code)}?`)) {
+                                                                                            handleTransition(step.code);
+                                                                                        }
+                                                                                    }}
                                                                             disabled={updating}
                                                                             className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
                                                                             title="Rollback to this step"
@@ -442,14 +553,46 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                             )}
                                                         </div>
 
-                                                        <p className="text-sm text-gray-500 mb-4">
+                                                        <p className="text-sm text-gray-500 mb-1">
                                                             {isCompleted ? 'Completed' : isCurrent ? 'Current Stage' : 'Pending'}
                                                         </p>
+
+                                                        {/* Date display */}
+                                                        {(step.completedAt || step.expectedDate) && (
+                                                            <div className="flex flex-col gap-1 mt-2 p-2 bg-white/50 rounded-md border border-gray-100/50 text-xs">
+                                                                {step.expectedDate && (
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="text-gray-400 flex items-center gap-1">
+                                                                            <Settings className="w-2.5 h-2.5" />
+                                                                        Expected:
+                                                                        </span>
+                                                                        <span className={`${!step.completedAt && new Date(step.expectedDate) < new Date() ? 'text-red-500 font-medium' : 'text-blue-600'}`}>
+                                                                            {new Date(step.expectedDate).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                                {step.completedAt && (
+                                                                    <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                                                                        <span className="text-gray-400 flex items-center gap-1">
+                                                                            <CheckCircle className="w-2.5 h-2.5 text-green-500" />
+                                                                        Completed:
+                                                                        </span>
+                                                                        <span className="text-green-600 font-medium">
+                                                                            {new Date(step.completedAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        <div className="mb-4"></div>
 
                                                         {/* CURRENT ACTION */}
                                                         {isCurrent && getCanTransition(currentStepCode) && (
                                                             <button
-                                                                onClick={() => handleTransition()}
+                                                                onClick={() => {
+                                                                    const nextStep = lifecycleSteps[index + 1];
+                                                                    handleTransitionRequest(nextStep?.code, nextStep ? getStatusDisplayName(nextStep.code) : undefined);
+                                                                }}
                                                                 disabled={updating}
                                                                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all shadow-sm hover:shadow disabled:opacity-70 disabled:cursor-not-allowed"
                                                             >
@@ -491,6 +634,52 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                 onClose={() => setSelectedImage(null)}
                 title="Run Image"
             />
+
+            {/* TRANSITION EXPECTED DATE MODAL */}
+            {transitionPrompt && (
+                <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-5">
+                            <h3 className="text-lg font-bold text-gray-800 mb-2">
+                                {transitionPrompt.stepName ? (
+                                    <>
+                                        Move to <span className="text-green-600 font-semibold">{transitionPrompt.stepName}</span>
+                                    </>
+                                ) : 'Move to Next Step'}
+                            </h3>
+                            <p className="text-sm text-gray-500 mb-4">
+                                Please confirm or update the expected completion date for <span className="font-medium text-gray-700">{transitionPrompt.stepName || 'this step'}</span>.
+                            </p>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Expected Date
+                            </label>
+                            <input
+                                type="date"
+                                value={expectedDate}
+                                onChange={(e) => setExpectedDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                        </div>
+                        <div className="px-5 py-3 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">
+                            <button
+                                onClick={() => setTransitionPrompt(null)}
+                                disabled={updating}
+                                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleTransition(transitionPrompt.targetStatusCode, expectedDate)}
+                                disabled={updating}
+                                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {updating ? 'Updating...' : 'Confirm'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

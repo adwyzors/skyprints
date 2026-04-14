@@ -33,6 +33,7 @@ import { apiRequest } from '@/services/api.service';
 import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
+import RunCommentEditor from './RunCommentEditor';
 
 interface ScreenPrintingConfigProps {
     order: Order;
@@ -201,6 +202,8 @@ export default function ScreenPrintingConfig({
 
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
+
 
 
 
@@ -531,7 +534,8 @@ export default function ScreenPrintingConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run.locationId ?? undefined
+                runLocations[run.id] ?? run.locationId ?? undefined,
+                runComments[run.id] ?? run.comments ?? undefined
             );
 
             // Check if API returned success
@@ -817,6 +821,16 @@ export default function ScreenPrintingConfig({
                                     </div>
                                 </div>
                             </div>
+                            {/* Run Comments */}
+                            <div className="border-t border-gray-300">
+                                <RunCommentEditor 
+                                    orderId={localOrder.id}
+                                    processId={process.id}
+                                    run={run}
+                                    onRefresh={onRefresh}
+                                    canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                                />
+                            </div>
                         </div>
 
                         {/* DISPLAY IMAGES IF AVAILABLE (READ-ONLY) */}
@@ -918,6 +932,17 @@ export default function ScreenPrintingConfig({
                                 onChange={(id) => setRunLocations((prev) => ({ ...prev, [run.id]: id }))}
                             />
                         </div>
+
+                        <div className="mb-4">
+                            <label className="text-xs font-medium text-gray-700 block mb-1">Run Comments / Notes</label>
+                            <textarea
+                                value={runComments[run.id] ?? run.comments ?? ''}
+                                onChange={(e) => setRunComments(prev => ({ ...prev, [run.id]: e.target.value }))}
+                                className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"
+                                placeholder="Add notes for this run..."
+                            />
+                        </div>
+
 
                         {/* EDITABLE COMPACT FORM TABLE */}
                         <div className="border border-gray-300 rounded overflow-hidden bg-white">

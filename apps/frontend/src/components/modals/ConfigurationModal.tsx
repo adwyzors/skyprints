@@ -830,6 +830,16 @@ export default function ConfigurationModal({
                         </div>
                     )}
 
+                    {/* COMMENTS SECTION */}
+                    {(run as any).comments && (
+                        <div className="mt-6 border-t border-gray-200 pt-6">
+                            <h4 className="font-bold text-gray-800 mb-2">Run Comments</h4>
+                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900 whitespace-pre-wrap leading-relaxed shadow-inner">
+                                {(run as any).comments}
+                            </div>
+                        </div>
+                    )}
+
                     {!hasTableData && gridEntries.length === 0 && (!run.values?.images || run.values.images.length === 0) && (
                         <div className="text-center py-8 text-gray-500">
                             No configuration data available for this run.

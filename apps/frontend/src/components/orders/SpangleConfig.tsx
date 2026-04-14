@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import RunCommentEditor from './RunCommentEditor';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -95,6 +96,7 @@ export default function SpangleConfig({
     );
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -309,7 +311,8 @@ export default function SpangleConfig({
                 imageUrls,
                 managerSelection?.executorId ?? currentExecutorId,
                 managerSelection?.reviewerId ?? currentReviewerId,
-                runLocations[runId] ?? run?.location?.id
+                runLocations[runId] ?? run?.location?.id,
+                runComments[runId] ?? run?.comments ?? undefined
             );
 
             if (res.success) {
@@ -429,6 +432,15 @@ export default function SpangleConfig({
                                 valueId={runLocations[run.id] ?? run.location?.id}
                                 onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                             />
+                            <div className="md:col-span-2">
+                                <label className="text-xs font-medium text-gray-700 block mb-1">Run Comments (Optional)</label>
+                                <textarea
+                                    className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 min-h-[60px]"
+                                    placeholder="Add any specific instructions or notes for this run..."
+                                    value={runComments[run.id] ?? run.comments ?? ''}
+                                    onChange={(e) => setRunComments({ ...runComments, [run.id]: e.target.value })}
+                                />
+                            </div>
                         </div>
                     )}
 
@@ -476,6 +488,15 @@ export default function SpangleConfig({
                             </div>
                         ))}
                     </div>
+
+                    {/* Run Comments */}
+                    <RunCommentEditor 
+                        orderId={localOrder.id}
+                        processId={process.id}
+                        run={run}
+                        onRefresh={onRefresh}
+                        canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                    />
 
                     {/* Image Upload */}
                     {!isViewMode && (

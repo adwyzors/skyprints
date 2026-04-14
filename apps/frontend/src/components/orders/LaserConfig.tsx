@@ -23,6 +23,7 @@ import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import RunCommentEditor from './RunCommentEditor';
 
 interface LaserConfigProps {
     order: Order;
@@ -145,6 +146,7 @@ export default function LaserConfig({
     }, [order]);
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -460,7 +462,8 @@ export default function LaserConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id
+                runLocations[runId] ?? run?.location?.id,
+                runComments[runId] ?? run?.comments ?? undefined
             );
 
             if (response && response.success === true) {
@@ -678,6 +681,15 @@ export default function LaserConfig({
                                     <span className="text-sm">{run.reviewer?.name || 'Unassigned'}</span>
                                 </div>
                             </div>
+
+                            {/* Run Comments */}
+                            <RunCommentEditor 
+                                orderId={localOrder.id}
+                                processId={process.id}
+                                run={run}
+                                onRefresh={onRefresh}
+                                canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                            />
                         </div>
                     </div>
                 </div>
@@ -730,12 +742,21 @@ export default function LaserConfig({
                             valueId={currentManagerSelection.reviewerId}
                             onChange={(id) => handleManagerSelect(run.id, 'reviewerId', id)}
                         />
-                        <SearchableLocationSelect
+                            <SearchableLocationSelect
                             label="Location"
                             locations={locations}
                             valueId={runLocations[run.id] ?? run.location?.id}
                             onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                         />
+                        <div className="col-span-2">
+                            <label className="text-xs font-medium text-gray-700 block mb-1">Run Comments (Optional)</label>
+                            <textarea
+                                className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 min-h-[60px]"
+                                placeholder="Add any specific instructions or notes for this run..."
+                                value={runComments[run.id] ?? run.comments ?? ''}
+                                onChange={(e) => setRunComments({ ...runComments, [run.id]: e.target.value })}
+                            />
+                        </div>
                     </div>
 
                     {/* Edit Form */}

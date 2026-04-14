@@ -19,6 +19,7 @@ import { DiamondItem, DiamondRunValues, ProcessRun } from '@/domain/model/run.mo
 import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
+import RunCommentEditor from './RunCommentEditor';
 
 interface DiamondConfigProps {
     order: Order;
@@ -179,6 +180,7 @@ export default function DiamondConfig({
 
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -401,7 +403,7 @@ export default function DiamondConfig({
             const reviewerId = managerSelection?.reviewerId ?? run?.reviewer?.id;
             const locationId = runLocations[runId] ?? run?.locationId ?? undefined;
 
-            const res = await configureRun(localOrder.id, processId, runId, apiValues, imageUrls, executorId, reviewerId, locationId);
+            const res = await configureRun(localOrder.id, processId, runId, apiValues, imageUrls, executorId, reviewerId, locationId, runComments[runId] ?? run?.comments ?? undefined);
             if (res.success) {
                 // Clear images
                 setRunImages((prev) => {
@@ -590,6 +592,15 @@ export default function DiamondConfig({
                                     onChange={(id: string) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                                 />
                             </div>
+                            <div className="mb-4">
+                                <label className="text-xs font-medium text-gray-700 block mb-1">Run Comments (Optional)</label>
+                                <textarea
+                                    className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 min-h-[60px]"
+                                    placeholder="Add any specific instructions or notes for this run..."
+                                    value={runComments[run.id] ?? run.comments ?? ''}
+                                    onChange={(e) => setRunComments({ ...runComments, [run.id]: e.target.value })}
+                                />
+                            </div>
                         </>
                     )}
 
@@ -753,6 +764,17 @@ export default function DiamondConfig({
                                 ))}
                             </div>
                         </div>
+                    )}
+
+                    {/* Run Comments */}
+                    {mode === 'view' && (
+                        <RunCommentEditor 
+                            orderId={localOrder.id}
+                            processId={process.id}
+                            run={run}
+                            onRefresh={onRefresh}
+                            canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                        />
                     )}
 
                     {/* SAVE BUTTONS */}

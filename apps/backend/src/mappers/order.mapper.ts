@@ -47,6 +47,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
                     id: run.id,
                     runNumber: run.runNumber,
                     displayName: run.displayName,
+                    comments: run.comments,
 
                     configStatus: run.statusCode,
                     lifecycleStatus: run.lifeCycleStatusCode,
@@ -78,6 +79,12 @@ export function toOrderSummary(order: any): OrderSummaryDto {
                         run.lifeCycleStatusCode,
                         run.lifecycleHistories,
                     ),
+                    lifecycleHistory: (run.lifecycleHistories || []).map((h: any) => ({
+                        statusCode: h.statusCode,
+                        expectedDate: h.expectedDate?.toISOString() || null,
+                        completedAt: h.completedAt?.toISOString() || null,
+                        createdAt: h.createdAt.toISOString(),
+                    })),
 
                     values: {
                         ...runFields,
