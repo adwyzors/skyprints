@@ -114,6 +114,7 @@ export class BillingContextService {
                                 order: {
                                     OR: [
                                         { code: { contains: search, mode: 'insensitive' } },
+                                        { jobCode: { contains: search, mode: 'insensitive' } },
                                         { customer: { name: { contains: search, mode: 'insensitive' } } }
                                     ]
                                 }
