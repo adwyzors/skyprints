@@ -201,6 +201,9 @@ export class OrdersService {
                                             },
                                         },
                                     },
+                                    lifecycleHistories: {
+                                        orderBy: { createdAt: 'desc' }
+                                    },
                                     executor: {
                                         select: { id: true, name: true },
                                     },
@@ -497,6 +500,9 @@ export class OrdersService {
                                             },
                                         },
                                     },
+                                },
+                                lifecycleHistories: {
+                                    orderBy: { createdAt: 'desc' }
                                 },
                                 executor: {
                                     select: {

@@ -158,6 +158,8 @@ export interface ProcessRun {
     lifecycle: Array<{
         code: string;
         completed: boolean;
+        expectedDate?: string | null;
+        completedAt?: string | null;
     }>;
     executor?: {
         id: string;

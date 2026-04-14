@@ -76,6 +76,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
                     lifecycle: buildLifecycleProgress(
                         run.runTemplate.lifecycleWorkflowType.statuses,
                         run.lifeCycleStatusCode,
+                        run.lifecycleHistories,
                     ),
 
                     values: {
@@ -103,21 +104,28 @@ type LifecycleStatus = {
 function buildLifecycleProgress(
     statuses: LifecycleStatus[],
     currentCode: string,
+    histories: any[] = [],
 ) {
     let reachedCurrent = false;
 
     return statuses.map(s => {
+        const history = histories.find(h => h.statusCode === s.code);
+        
         if (s.code === currentCode) {
             reachedCurrent = true;
             return {
                 code: s.code,
                 completed: s.isTerminal,
+                expectedDate: history?.expectedDate?.toISOString() || null,
+                completedAt: history?.completedAt?.toISOString() || null,
             };
         }
 
         return {
             code: s.code,
             completed: !reachedCurrent,
+            expectedDate: history?.expectedDate?.toISOString() || null,
+            completedAt: history?.completedAt?.toISOString() || null,
         };
     });
 }

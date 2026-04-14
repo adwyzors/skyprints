@@ -406,6 +406,9 @@ export class AdminProcessService {
                     runTemplate: {
                         select: { name: true },
                     },
+                    lifecycleHistories: {
+                        orderBy: { createdAt: 'desc' },
+                    },
                     executor: {
                         select: { name: true },
                     },
@@ -865,6 +868,9 @@ export class AdminProcessService {
                         },
                     },
                 },
+                lifecycleHistories: {
+                    orderBy: { createdAt: 'desc' },
+                },
                 executor: {
                     select: { id: true, name: true },
                 },
@@ -915,6 +921,7 @@ export class AdminProcessService {
             lifecycle: this.buildLifecycleProgress(
                 run.runTemplate.lifecycleWorkflowType.statuses,
                 run.lifeCycleStatusCode,
+                run.lifecycleHistories,
             ),
             fields: {
                 ...(run.fields as Record<string, any> || {}),
@@ -937,21 +944,28 @@ export class AdminProcessService {
     private buildLifecycleProgress(
         statuses: { code: string; isTerminal: boolean }[],
         currentCode: string,
+        histories: any[] = [],
     ) {
         let reachedCurrent = false;
 
         return statuses.map(s => {
+            const history = histories.find(h => h.statusCode === s.code);
+
             if (s.code === currentCode) {
                 reachedCurrent = true;
                 return {
                     code: s.code,
                     completed: s.isTerminal,
+                    expectedDate: history?.expectedDate?.toISOString() || null,
+                    completedAt: history?.completedAt?.toISOString() || null,
                 };
             }
 
             return {
                 code: s.code,
                 completed: !reachedCurrent,
+                expectedDate: history?.expectedDate?.toISOString() || null,
+                completedAt: history?.completedAt?.toISOString() || null,
             };
         });
     }

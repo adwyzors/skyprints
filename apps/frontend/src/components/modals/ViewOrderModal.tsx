@@ -816,6 +816,23 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                         >
                                                                                             {getStatusDisplayName(step.code)}
                                                                                         </span>
+                                                                                        {/* Date display */}
+                                                                                        {(step.completedAt || step.expectedDate) && (
+                                                                                            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                                                                                                {step.completedAt && (
+                                                                                                    <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                                                                                                        <CheckCircle className="w-2.5 h-2.5 text-green-500" />
+                                                                                                        Completed: {new Date(step.completedAt).toLocaleDateString()}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                                {step.expectedDate && !step.completedAt && (
+                                                                                                    <span className={`${new Date(step.expectedDate) < new Date() ? 'text-red-500' : 'text-blue-500'} text-[10px] flex items-center gap-1`}>
+                                                                                                        <Clock className="w-2.5 h-2.5" />
+                                                                                                        Expected: {new Date(step.expectedDate).toLocaleDateString()}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        )}
                                                                                     </div>
                                                                                     <div className="flex items-center gap-1">
                                                                                         {isCurrent && (
@@ -859,14 +876,17 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                 {isCurrent && !isCompleted && !isRunComplete && getCanTransition(run, run.lifecycleStatus) && (
                                                                                     <div className="mt-4 pt-4 border-t border-blue-200">
                                                                                         <button
-                                                                                            onClick={() => handleTransitionRequest(process.id, run.id)}
+                                                                                            onClick={() => {
+                                                                                                const nextStep = lifecycleSteps[index + 1];
+                                                                                                handleTransitionRequest(process.id, run.id, nextStep?.code, nextStep ? getStatusDisplayName(nextStep.code) : undefined);
+                                                                                            }}
                                                                                             disabled={updating}
                                                                                             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
                                                                                         >
                                                                                             <span>
                                                                                                 {updating
                                                                                                     ? 'Updating...'
-                                                                                                    : 'Mark Completed & Continue'}
+                                                                                                    : `Mark Completed & Move to ${getStatusDisplayName(lifecycleSteps[index + 1]?.code || 'Next')}`}
                                                                                             </span>
                                                                                             {!updating && <ChevronRight className="w-4 h-4" />}
                                                                                         </button>
@@ -914,10 +934,16 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="p-5">
                             <h3 className="text-lg font-bold text-gray-800 mb-2">
-                                {transitionPrompt.stepName ? `Move to ${transitionPrompt.stepName}` : 'Move to Next Step'}
+                                {transitionPrompt.stepName ? (
+                                    <>
+                                        Moving from <span className="text-blue-600 font-semibold">{getStatusDisplayName(
+                                            (order?.processes.find(p => p.id === transitionPrompt.processId)?.runs.find(r => r.id === transitionPrompt.runId)?.lifecycleStatus) || ''
+                                        )}</span> to <span className="text-green-600 font-semibold">{transitionPrompt.stepName}</span>
+                                    </>
+                                ) : 'Move to Next Step'}
                             </h3>
                             <p className="text-sm text-gray-500 mb-4">
-                                Please confirm or update the expected completion date for this step.
+                                Please confirm or update the expected completion date for <span className="font-medium text-gray-700">{transitionPrompt.stepName || 'this step'}</span>.
                             </p>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Expected Date
