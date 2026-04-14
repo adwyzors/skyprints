@@ -34,6 +34,8 @@ export const OrderProcessRunSchema = z.object({
             z.object({
                 code: z.string(),
                 completed: z.boolean(),
+                expectedDate: z.string().nullable().optional(),
+                completedAt: z.string().nullable().optional(),
             }),
         )
         .optional(),
@@ -86,7 +88,6 @@ export const OrderSummarySchema = z.object({
         code: z.string(),
         name: z.string(),
     }),
-
     processes: z.array(OrderProcessSchema),
 });
 
