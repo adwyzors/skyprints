@@ -691,7 +691,18 @@ export class OrdersService {
                 }
 
                 if (runsToCreate.length) {
-                    await tx.processRun.createMany({ data: runsToCreate });
+                    for (const runData of runsToCreate) {
+                        const run = await tx.processRun.create({ data: runData });
+                        if (run.lifeCycleStatusCode) {
+                            await tx.processRunLifecycleHistory.create({
+                                data: {
+                                    processRunId: run.id,
+                                    statusCode: run.lifeCycleStatusCode,
+                                    expectedDate: new Date(),
+                                }
+                            });
+                        }
+                    }
                 }
 
                 return { id: orderId, code };
@@ -828,7 +839,18 @@ export class OrdersService {
             }
 
             if (runsToCreate.length) {
-                await tx.processRun.createMany({ data: runsToCreate });
+                for (const runData of runsToCreate) {
+                    const run = await tx.processRun.create({ data: runData });
+                    if (run.lifeCycleStatusCode) {
+                        await tx.processRunLifecycleHistory.create({
+                            data: {
+                                processRunId: run.id,
+                                statusCode: run.lifeCycleStatusCode,
+                                expectedDate: new Date(),
+                            }
+                        });
+                    }
+                }
             }
 
             this.logger.log(
@@ -1050,9 +1072,18 @@ export class OrdersService {
             }
 
             if (runsToCreate.length) {
-                await tx.processRun.createMany({
-                    data: runsToCreate,
-                });
+                for (const runData of runsToCreate) {
+                    const run = await tx.processRun.create({ data: runData });
+                    if (run.lifeCycleStatusCode) {
+                        await tx.processRunLifecycleHistory.create({
+                            data: {
+                                processRunId: run.id,
+                                statusCode: run.lifeCycleStatusCode,
+                                expectedDate: new Date(),
+                            }
+                        });
+                    }
+                }
             }
 
             /* =====================================================
@@ -1390,9 +1421,18 @@ export class OrdersService {
             }
 
             if (runsToCreate.length) {
-                await tx.processRun.createMany({
-                    data: runsToCreate,
-                });
+                for (const runData of runsToCreate) {
+                    const run = await tx.processRun.create({ data: runData });
+                    if (run.lifeCycleStatusCode) {
+                        await tx.processRunLifecycleHistory.create({
+                            data: {
+                                processRunId: run.id,
+                                statusCode: run.lifeCycleStatusCode,
+                                expectedDate: new Date(),
+                            }
+                        });
+                    }
+                }
             }
 
             // Update stats
