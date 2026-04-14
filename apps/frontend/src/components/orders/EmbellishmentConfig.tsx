@@ -532,6 +532,14 @@ export default function EmbellishmentConfig({
             const executorId = managerSelection?.executorId ?? run.executor?.id;
             const reviewerId = managerSelection?.reviewerId ?? run.reviewer?.id;
 
+            const response = await configureRun(
+                order.id,
+                processId,
+                runId,
+                apiValues,
+                imageUrls,
+                executorId,
+                reviewerId,
                 runLocations[runId] ?? run.locationId ?? undefined,
                 runComments[runId] ?? run.comments ?? undefined
             );
