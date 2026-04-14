@@ -5,6 +5,7 @@ import {
     ChevronUp,
     Edit,
     Eye,
+    FileText,
     MapPin,
     Palette,
     Plus,
@@ -174,6 +175,7 @@ export default function DTFConfig({
 
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -279,6 +281,7 @@ export default function DTFConfig({
                             ],
                     images: values.images || [],
                 });
+                setRunComments((prev) => ({ ...prev, [run.id]: run.comments || '' }));
             }
         } else {
             setEditForm(null);
@@ -465,7 +468,8 @@ export default function DTFConfig({
                 imageUrls,
                 managerSelection?.executorId ?? run?.executor?.id,
                 managerSelection?.reviewerId ?? run?.reviewer?.id,
-                runLocations[runId] ?? run?.locationId ?? undefined
+                runLocations[runId] ?? run?.locationId ?? undefined,
+                runComments[runId] || undefined
             );
 
             if (res.success) {
@@ -639,6 +643,17 @@ export default function DTFConfig({
                                     onChange={(id: string) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                                 />
                             </div>
+                            <div className="mb-4">
+                                <label className="text-xs font-medium text-gray-700 block mb-1">
+                                    Run Comments
+                                </label>
+                                <textarea
+                                    className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"
+                                    value={runComments[run.id] || ''}
+                                    onChange={(e) => setRunComments(prev => ({ ...prev, [run.id]: e.target.value }))}
+                                    placeholder="Add any specific instructions for this run..."
+                                />
+                            </div>
                         </>
 
                     )}
@@ -648,6 +663,15 @@ export default function DTFConfig({
                         <div className="mb-4 text-xs flex items-center gap-1 text-gray-600">
                             <span className="font-semibold">Location: </span>
                             <span className="font-medium text-gray-800">{run.location.name} ({run.location.code})</span>
+                        </div>
+                    )}
+
+                    {mode === 'view' && run.comments && (
+                        <div className="mb-4 text-xs flex flex-col gap-1 text-gray-600 bg-blue-50/50 p-2 rounded border border-blue-100/50 italic">
+                            <span className="font-semibold flex items-center gap-1">
+                                <FileText className="w-3 h-3" /> Comments:
+                            </span>
+                            <p className="text-gray-700">"{run.comments}"</p>
                         </div>
                     )}
 

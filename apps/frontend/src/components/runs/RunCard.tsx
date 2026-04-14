@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, CheckCircle, ChevronRight, Clock, IndianRupee, MapPin, Package, User, Users } from 'lucide-react';
+import { Activity, CheckCircle, ChevronRight, Clock, FileText, IndianRupee, MapPin, Package, User, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -251,6 +251,12 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
                                 <span className="truncate max-w-[100px]">{reviewerName || 'Unassigned'}</span>
                             </div>
                         </div>
+                        {run.comments && (
+                            <div className="pt-1.5 border-t border-gray-100 flex items-start gap-1.5 text-[10.5px] text-gray-500 italic line-clamp-2 leading-snug">
+                                <FileText className="w-2.5 h-2.5 mt-0.5 text-gray-300 flex-shrink-0" />
+                                <span>{run.comments}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

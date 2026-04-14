@@ -319,6 +319,8 @@ model ProcessRun {
   executor User? @relation("ProcessRunExecutor", fields: [executorId], references: [id])
   reviewer User? @relation("ProcessRunReviewer", fields: [reviewerId], references: [id])
 
+  comments String?
+
   location Location? @relation(fields: [locationId], references: [id])
 
   orderProcess OrderProcess @relation(fields: [orderProcessId], references: [id], onDelete: Cascade)

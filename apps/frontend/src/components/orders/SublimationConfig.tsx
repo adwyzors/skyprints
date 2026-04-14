@@ -1,5 +1,5 @@
 import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
-import { AlertCircle, ChevronDown, Edit, Loader2, MapPin, Palette, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, ChevronDown, Edit, FileText, Loader2, MapPin, Palette, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
@@ -60,6 +60,7 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
     );
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -178,6 +179,8 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                         [run.id]: run.location!.id
                     }));
                 }
+                // Init comments
+                setRunComments((prev) => ({ ...prev, [run.id]: run.comments || '' }));
             }
         } else if (!editingRunId) {
             setEditForm(null);
@@ -426,7 +429,8 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                 imageUrls,
                 managerSelection?.executorId ?? currentExecutorId,
                 managerSelection?.reviewerId ?? currentReviewerId,
-                runLocations[runId] ?? run?.location?.id
+                runLocations[runId] ?? run?.location?.id,
+                runComments[runId] || undefined
             );
 
             if (res.success) {
@@ -562,6 +566,30 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                             ) : <div className="text-sm font-bold border-b pb-1">{data.rate}</div>}
                         </div>
                     </div>
+
+                    {/* Run Comments */}
+                    {mode === 'edit' ? (
+                        <div className="mb-4">
+                            <label className="text-xs font-medium text-gray-700 block mb-1">
+                                Run Comments
+                            </label>
+                            <textarea
+                                className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"
+                                value={runComments[run.id] || ''}
+                                onChange={(e) => setRunComments(prev => ({ ...prev, [run.id]: e.target.value }))}
+                                placeholder="Add any specific instructions for this run..."
+                            />
+                        </div>
+                    ) : (
+                        run.comments && (
+                            <div className="mb-4 text-xs flex flex-col gap-1 text-gray-600 bg-blue-50/50 p-2 rounded border border-blue-100/50 italic">
+                                <span className="font-semibold flex items-center gap-1">
+                                    <FileText className="w-3 h-3" /> Comments:
+                                </span>
+                                <p className="text-gray-700">"{run.comments}"</p>
+                            </div>
+                        )
+                    )}
 
                     {/* 2. TABLE DETAILS */}
                     <div className="border rounded overflow-hidden">

@@ -8,11 +8,16 @@ export async function configureRun(
     images?: string[],
     executorId?: string,
     reviewerId?: string,
-    locationId?: string
+    locationId?: string,
+    comments?: string
 ) {
     const payload: any = {
         fields,
     };
+
+    if (comments) {
+        payload.comments = comments;
+    }
 
     if (images && images.length > 0) {
         payload.images = images;

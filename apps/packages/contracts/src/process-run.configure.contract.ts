@@ -7,6 +7,7 @@ export const ConfigureProcessRunSchema = z.object({
     executorId: z.string().uuid().optional(),
     reviewerId: z.string().uuid().optional(),
     images: z.array(z.string()).optional(),
+    comments: z.string().optional(),
 });
 
 export type ConfigureProcessRunDto =

@@ -3,6 +3,7 @@ import {
     ChevronRight,
     Edit,
     Eye,
+    FileText,
     MapPin,
     Palette,
     Plus,
@@ -50,6 +51,7 @@ export default function PlotterConfig({
     const [editForm, setEditForm] = useState<PlotterRunValues | null>(null);
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -272,6 +274,8 @@ export default function PlotterConfig({
                         [run.id]: run.location!.id
                     }));
                 }
+                // Init comments
+                setRunComments((prev) => ({ ...prev, [run.id]: run.comments || '' }));
             }
         } else {
             setEditForm(null);
@@ -423,7 +427,8 @@ export default function PlotterConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id
+                runLocations[runId] ?? run?.location?.id,
+                runComments[runId] || undefined
             );
             if (res.success) {
                 // Clear images state
@@ -524,26 +529,39 @@ export default function PlotterConfig({
                 {/* FIELDS */}
                 <div className="bg-white border border-gray-200 rounded p-4 space-y-4">
                     {mode === 'edit' && (
-                        <div className="grid grid-cols-2 gap-4 mb-2">
-                            <SearchableManagerSelect
-                                label="Executor"
-                                users={managers}
-                                valueId={runManagers[run.id]?.executorId ?? run.executor?.id}
-                                onChange={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
-                            />
-                            <SearchableManagerSelect
-                                label="Reviewer"
-                                users={managers}
-                                valueId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id}
-                                onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
-                            />
-                            <SearchableLocationSelect
-                                label="Location"
-                                locations={locations}
-                                valueId={runLocations[run.id] ?? run.location?.id}
-                                onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
-                            />
-                        </div>
+                        <>
+                            <div className="grid grid-cols-2 gap-4 mb-2">
+                                <SearchableManagerSelect
+                                    label="Executor"
+                                    users={managers}
+                                    valueId={runManagers[run.id]?.executorId ?? run.executor?.id}
+                                    onChange={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
+                                />
+                                <SearchableManagerSelect
+                                    label="Reviewer"
+                                    users={managers}
+                                    valueId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id}
+                                    onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                                />
+                                <SearchableLocationSelect
+                                    label="Location"
+                                    locations={locations}
+                                    valueId={runLocations[run.id] ?? run.location?.id}
+                                    onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                            </div>
+
+                            {/* Run Comments - Edit Mode */}
+                            <div className="mt-2">
+                                <label className="text-xs font-medium text-gray-700 block mb-1">Run Comments</label>
+                                <textarea
+                                    className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"
+                                    value={runComments[run.id] || ''}
+                                    onChange={(e) => setRunComments(prev => ({ ...prev, [run.id]: e.target.value }))}
+                                    placeholder="Add any specific instructions for this run..."
+                                />
+                            </div>
+                        </>
                     )}
 
                     {/* IMAGE UPLOAD SECTION */}
@@ -616,6 +634,16 @@ export default function PlotterConfig({
                                     </a>
                                 ))}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Run Comments - View Mode */}
+                    {mode === 'view' && run.comments && (
+                        <div className="mt-2 text-xs flex flex-col gap-1 text-gray-600 bg-blue-50/50 p-2 rounded border border-blue-100/50 italic">
+                            <span className="font-semibold flex items-center gap-1">
+                                <FileText className="w-3 h-3" /> Comments:
+                            </span>
+                            <p className="text-gray-700">"{run.comments}"</p>
                         </div>
                     )}
 

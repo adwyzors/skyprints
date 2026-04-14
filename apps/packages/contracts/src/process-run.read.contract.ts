@@ -31,8 +31,10 @@ export const ProcessRunListItemSchema = z.object({
         .nullable(),
 
     // ✅ NEW: priority exposed to UI
+    // ✅ NEW: priority exposed to UI
     priority: ProcessRunPrioritySchema,
     fields: z.record(z.string(), z.any()).optional(),
+    comments: z.string().nullable().optional(),
 
     orderProcess: z.object({
         name: z.string().optional(),

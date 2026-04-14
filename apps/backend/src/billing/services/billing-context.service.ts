@@ -107,6 +107,7 @@ export class BillingContextService {
             ...(search && {
                 OR: [
                     { name: { contains: search, mode: 'insensitive' } },
+                    { description: { contains: search, mode: 'insensitive' } },
                     {
                         orders: {
                             some: {

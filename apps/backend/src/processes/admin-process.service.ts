@@ -400,6 +400,7 @@ export class AdminProcessService {
                     runNumber: true,
                     statusCode: true,
                     lifeCycleStatusCode: true,
+                    comments: true,
                     fields: true,
                     createdAt: true,
                     runTemplate: {
@@ -674,6 +675,7 @@ export class AdminProcessService {
                     ...(dto.executorId !== undefined && { executorId: dto.executorId }),
                     ...(dto.reviewerId !== undefined && { reviewerId: dto.reviewerId }),
                     ...(dto.locationId !== undefined && { locationId: dto.locationId }),
+                    ...(dto.comments !== undefined && { comments: dto.comments }),
                     ...(run.configuredAt
                         ? {}
                         : {

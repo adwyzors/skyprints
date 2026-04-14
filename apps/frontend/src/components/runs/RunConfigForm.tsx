@@ -29,6 +29,7 @@ interface RunConfigFormProps {
     orderId: string;
     orderQuantity: number;
     initialValues: Record<string, any>;
+    initialComments?: string;
     fieldDefinitions: Array<{ key: string; required?: boolean; type?: string }>;
     initialExecutor?: { id: string; name: string } | null;
     initialReviewer?: { id: string; name: string } | null;
@@ -146,6 +147,7 @@ export default function RunConfigForm({
     initialReviewer,
     orderImages = [],
     useOrderImageForRuns = false,
+    initialComments = '',
     onSaveSuccess,
     onCancel
 }: RunConfigFormProps) {
@@ -163,6 +165,7 @@ export default function RunConfigForm({
 
     const [executorId, setExecutorId] = useState<string>(initialExecutor?.id || '');
     const [reviewerId, setReviewerId] = useState<string>(initialReviewer?.id || '');
+    const [comments, setComments] = useState<string>(initialComments || '');
 
     // Image state
     const [images, setImages] = useState<File[]>([]);
@@ -344,7 +347,9 @@ export default function RunConfigForm({
                 apiValues,
                 imageUrls,
                 executorId || undefined,
-                reviewerId || undefined
+                reviewerId || undefined,
+                undefined, // locationId
+                comments || undefined
             );
 
             if (response && response.success) {
@@ -539,6 +544,20 @@ export default function RunConfigForm({
                             </label>
                         )}
                     </div>
+                </div>
+
+                {/* Comments */}
+                <div className="mt-6">
+                    <label className="text-sm font-medium text-gray-700 block mb-2 flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-gray-400" />
+                        Run Comments
+                    </label>
+                    <textarea
+                        value={comments}
+                        onChange={(e) => setComments(e.target.value)}
+                        placeholder="Add any specific instructions or notes for this process run..."
+                        className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[80px]"
+                    />
                 </div>
 
                 {/* Actions */}

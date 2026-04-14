@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { getRunById, transitionLifeCycle } from '@/services/run.service';
-import { ArrowRight, CheckCircle, ChevronRight, FastForward, Image as ImageIcon, RotateCcw, Settings, User, X } from 'lucide-react';
+import { ArrowRight, CheckCircle, ChevronRight, FastForward, FileText, Image as ImageIcon, RotateCcw, Settings, User, X } from 'lucide-react';
 import Link from 'next/link';
 import RunConfigForm from '../runs/RunConfigForm';
 import ConfigurationModal from './ConfigurationModal';
@@ -281,6 +281,19 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                         <span className="text-sm text-gray-500">Est. Amount</span>
                                         <span className="text-sm font-bold text-green-600">{formatCurrency(run.fields?.['Estimated Amount'])}</span>
                                     </div>
+                                    {run.comments && (
+                                        <>
+                                            <div className="border-t border-gray-100 my-2 pt-2"></div>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-sm text-gray-500 flex items-center gap-2">
+                                                    <FileText className="w-3 h-3" /> Comments
+                                                </span>
+                                                <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-100 italic">
+                                                    "{run.comments}"
+                                                </p>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
@@ -333,6 +346,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                 orderId={run.orderProcess.order.id}
                                 orderQuantity={run.orderProcess.order.quantity}
                                 initialValues={run.fields || {}}
+                                initialComments={run.comments}
                                 fieldDefinitions={run.templateFields || []}
                                 initialExecutor={run.executor}
                                 initialReviewer={run.reviewer}

@@ -24,6 +24,7 @@ import {
     ChevronDown,
     ChevronLeft,
     Clock,
+    FileText,
     Filter,
     Loader2,
     MapPin,
@@ -56,6 +57,7 @@ interface Run {
     statusCode: string;
     lifeCycleStatusCode: string;
     priority?: string;
+    comments?: string;
     executor?: {
         name: string;
     };
@@ -781,7 +783,7 @@ function RunsPageContent() {
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center gap-2 text-gray-700 font-semibold">
-                                                                <Activity className="w-3.5 h-3.5 text-blue-400" />
+                                                                 <Activity className="w-3.5 h-3.5 text-blue-400" />
                                                                 {displayName}
                                                                 {run.location && (
                                                                     <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
@@ -790,6 +792,12 @@ function RunsPageContent() {
                                                                     </span>
                                                                 )}
                                                             </div>
+                                                            {run.comments && (
+                                                                <div className="flex items-start gap-1 mt-1 text-[10px] text-gray-400 italic line-clamp-1 max-w-[150px]" title={run.comments}>
+                                                                    <FileText className="w-2.5 h-2.5 mt-0.5 flex-shrink-0" />
+                                                                    <span>{run.comments}</span>
+                                                                </div>
+                                                            )}
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-500 font-medium">
                                                             {run.runNumber}
