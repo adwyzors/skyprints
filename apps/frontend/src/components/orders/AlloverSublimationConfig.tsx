@@ -583,9 +583,10 @@ export default function AlloverSublimationConfig({
         const isConfigured = run.configStatus === 'COMPLETE';
         const isEditing = editingRunId === run.id;
         const currentEdit = editForm || initialFormState;
+        const mode = isConfigured && !isEditing ? 'view' : 'edit';
 
         // View Mode
-        if (isConfigured && !isEditing) {
+        if (mode === 'view') {
             const values = run.values as AlloverRunValues;
             const items = parseItems(values.items) || [];
             const totalAmt = values['Total Amount'] || 0;
@@ -706,7 +707,8 @@ export default function AlloverSublimationConfig({
                                     <span className="text-sm">{run.reviewer?.name || 'Unassigned'}</span>
                                 </div>
                             </div>
-                            {/* Run Comments */}
+                        {/* Run Comments */}
+                        {mode === 'view' && (
                             <RunCommentEditor 
                                 orderId={localOrder.id}
                                 processId={process.id}
@@ -714,6 +716,7 @@ export default function AlloverSublimationConfig({
                                 onRefresh={onRefresh}
                                 canEdit={hasPermission(Permission.RUNS_UPDATE)}
                             />
+                        )}
                         </div>
                     </div>
                 </div>

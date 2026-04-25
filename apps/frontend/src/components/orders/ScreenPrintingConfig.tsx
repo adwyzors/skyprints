@@ -689,8 +689,9 @@ export default function ScreenPrintingConfig({
     const renderRunFormOrView = (process: any, run: ProcessRun) => {
         const isConfigured = run.configStatus === 'COMPLETE';
         const isEditing = editingRunId === run.id;
+        const mode = isConfigured && !isEditing ? 'view' : 'edit';
 
-        if (isConfigured && !isEditing) {
+        if (mode === 'view') {
             // Show READ-ONLY view for configured runs
             return (
                 <div className="bg-gray-50 border border-gray-300 rounded p-3">

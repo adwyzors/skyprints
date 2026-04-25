@@ -563,9 +563,10 @@ export default function LaserConfig({
         const isConfigured = run.configStatus === 'COMPLETE';
         const isEditing = editingRunId === run.id;
         const currentEdit = editForm || initialFormState;
+        const mode = isConfigured && !isEditing ? 'view' : 'edit';
 
         // View Mode
-        if (isConfigured && !isEditing) {
+        if (mode === 'view') {
             const values = run.values as LaserRunValues;
             const items = parseItems(values.items);
             const totalAmt = values['Total Amount'] || 0;
