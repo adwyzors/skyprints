@@ -15,6 +15,7 @@ export const mapProcessRunDto = (
     executor: dto.executor ? { id: dto.executor.id, name: dto.executor.name } : null,
     reviewer: dto.reviewer ? { id: dto.reviewer.id, name: dto.reviewer.name } : null,
     location: dto.location ? { id: dto.location.id, code: dto.location.code, name: dto.location.name } : null,
+    comments: dto.comments,
 });
 
 const mapRunField = (field: any): RunField => ({

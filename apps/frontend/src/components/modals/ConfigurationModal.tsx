@@ -8,6 +8,7 @@ interface ConfigurationModalProps {
         fields?: Array<{ key: string; required: boolean }>;
         values?: Record<string, any>;
         location?: { name: string; code: string };
+        comments?: string | null;
     };
     processName: string;
     orderCode: string;
@@ -831,11 +832,11 @@ export default function ConfigurationModal({
                     )}
 
                     {/* COMMENTS SECTION */}
-                    {(run as any).comments && (
+                    {run.comments && (
                         <div className="mt-6 border-t border-gray-200 pt-6">
-                            <h4 className="font-bold text-gray-800 mb-2">Run Comments</h4>
+                            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Run Comments</h3>
                             <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900 whitespace-pre-wrap leading-relaxed shadow-inner">
-                                {(run as any).comments}
+                                {run.comments}
                             </div>
                         </div>
                     )}
