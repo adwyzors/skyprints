@@ -15,7 +15,7 @@ export async function configureRun(
         fields,
     };
 
-    if (comments) {
+    if (comments !== undefined) {
         payload.comments = comments;
     }
 

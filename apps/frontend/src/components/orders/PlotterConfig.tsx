@@ -52,7 +52,6 @@ export default function PlotterConfig({
     const [editForm, setEditForm] = useState<PlotterRunValues | null>(null);
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
-    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -428,8 +427,7 @@ export default function PlotterConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id,
-                runComments[runId] || undefined
+                runLocations[runId] ?? run?.location?.id
             );
             if (res.success) {
                 // Clear images state
@@ -552,16 +550,6 @@ export default function PlotterConfig({
                                 />
                             </div>
 
-                            {/* Run Comments - Edit Mode */}
-                            <div className="mt-2">
-                                <label className="text-xs font-medium text-gray-700 block mb-1">Run Comments</label>
-                                <textarea
-                                    className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"
-                                    value={runComments[run.id] || ''}
-                                    onChange={(e) => setRunComments(prev => ({ ...prev, [run.id]: e.target.value }))}
-                                    placeholder="Add any specific instructions for this run..."
-                                />
-                            </div>
                         </>
                     )}
 
@@ -639,13 +627,15 @@ export default function PlotterConfig({
                     )}
 
                     {/* Run Comments */}
-                    <RunCommentEditor 
-                        orderId={localOrder.id}
-                        processId={process.id}
-                        run={run}
-                        onRefresh={onRefresh}
-                        canEdit={hasPermission(Permission.RUNS_UPDATE)}
-                    />
+                    {mode === 'view' && (
+                        <RunCommentEditor 
+                            orderId={localOrder.id}
+                            processId={process.id}
+                            run={run}
+                            onRefresh={onRefresh}
+                            canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                        />
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>

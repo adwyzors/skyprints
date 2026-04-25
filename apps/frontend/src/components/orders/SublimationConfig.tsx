@@ -61,7 +61,6 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
     );
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
-    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -430,8 +429,7 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                 imageUrls,
                 managerSelection?.executorId ?? currentExecutorId,
                 managerSelection?.reviewerId ?? currentReviewerId,
-                runLocations[runId] ?? run?.location?.id,
-                runComments[runId] || undefined
+                runLocations[runId] ?? run?.location?.id
             );
 
             if (res.success) {
@@ -708,21 +706,6 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                         </div>
                     )}
 
-                    {/* Run Comments (Edit Mode) */}
-                    {mode === 'edit' && (
-                        <div className="mt-3 border border-gray-300 rounded overflow-hidden bg-white p-3">
-                            <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5 mb-2">
-                                <FileText className="w-3.5 h-3.5" />
-                                Run Comments
-                            </label>
-                            <textarea
-                                className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"
-                                value={runComments[run.id] || ''}
-                                onChange={(e) => setRunComments(prev => ({ ...prev, [run.id]: e.target.value }))}
-                                placeholder="Add any specific instructions for this run..."
-                            />
-                        </div>
-                    )}
 
                     {/* SAVE */}
                     {mode === 'edit' && (

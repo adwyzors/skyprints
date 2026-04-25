@@ -146,7 +146,6 @@ export default function LaserConfig({
     }, [order]);
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
-    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -462,8 +461,7 @@ export default function LaserConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id,
-                runComments[runId] ?? run?.comments ?? undefined
+                runLocations[runId] ?? run?.location?.id
             );
 
             if (response && response.success === true) {
@@ -683,13 +681,15 @@ export default function LaserConfig({
                             </div>
 
                             {/* Run Comments */}
-                            <RunCommentEditor 
-                                orderId={localOrder.id}
-                                processId={process.id}
-                                run={run}
-                                onRefresh={onRefresh}
-                                canEdit={hasPermission(Permission.RUNS_UPDATE)}
-                            />
+                            {mode === 'view' && (
+                                <RunCommentEditor 
+                                    orderId={localOrder.id}
+                                    processId={process.id}
+                                    run={run}
+                                    onRefresh={onRefresh}
+                                    canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                                />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -748,15 +748,6 @@ export default function LaserConfig({
                             valueId={runLocations[run.id] ?? run.location?.id}
                             onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                         />
-                        <div className="col-span-2">
-                            <label className="text-xs font-medium text-gray-700 block mb-1">Run Comments (Optional)</label>
-                            <textarea
-                                className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 min-h-[60px]"
-                                placeholder="Add any specific instructions or notes for this run..."
-                                value={runComments[run.id] ?? run.comments ?? ''}
-                                onChange={(e) => setRunComments({ ...runComments, [run.id]: e.target.value })}
-                            />
-                        </div>
                     </div>
 
                     {/* Edit Form */}

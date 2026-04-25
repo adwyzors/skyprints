@@ -202,7 +202,6 @@ export default function ScreenPrintingConfig({
 
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
-    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -534,8 +533,7 @@ export default function ScreenPrintingConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[run.id] ?? run.locationId ?? undefined,
-                runComments[run.id] ?? run.comments ?? undefined
+                runLocations[run.id] ?? run.locationId ?? undefined
             );
 
             // Check if API returned success
@@ -933,15 +931,6 @@ export default function ScreenPrintingConfig({
                             />
                         </div>
 
-                        <div className="mb-4">
-                            <label className="text-xs font-medium text-gray-700 block mb-1">Run Comments / Notes</label>
-                            <textarea
-                                value={runComments[run.id] ?? run.comments ?? ''}
-                                onChange={(e) => setRunComments(prev => ({ ...prev, [run.id]: e.target.value }))}
-                                className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"
-                                placeholder="Add notes for this run..."
-                            />
-                        </div>
 
 
                         {/* EDITABLE COMPACT FORM TABLE */}

@@ -148,7 +148,6 @@ export default function AlloverSublimationConfig({
     }, [order]);
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
-    const [runComments, setRunComments] = useState<Record<string, string>>({}); // runId -> comments
 
 
 
@@ -180,8 +179,6 @@ export default function AlloverSublimationConfig({
                         [run.id]: run.location!.id
                     }));
                 }
-                // Init comments
-                setRunComments((prev) => ({ ...prev, [run.id]: run.comments || '' }));
             }
         } else {
             setEditForm(null);
@@ -483,8 +480,7 @@ export default function AlloverSublimationConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id,
-                runComments[runId] || undefined
+                runLocations[runId] ?? run?.location?.id
             );
 
             if (response && response.success === true) {
@@ -774,17 +770,6 @@ export default function AlloverSublimationConfig({
                             locations={locations}
                             valueId={runLocations[run.id] ?? run.location?.id}
                             onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
-                        />
-                    </div>
-                    <div className="mb-4">
-                        <label className="text-xs font-medium text-gray-700 block mb-1">
-                            Run Comments
-                        </label>
-                        <textarea
-                            className="w-full text-sm border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"
-                            value={runComments[run.id] || ''}
-                            onChange={(e) => setRunComments(prev => ({ ...prev, [run.id]: e.target.value }))}
-                            placeholder="Add any specific instructions for this run..."
                         />
                     </div>
 

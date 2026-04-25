@@ -1,7 +1,7 @@
 'use client';
 
 import { CheckCircle, FileText, Loader2, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { configureRun } from '@/services/run.service';
 import { ProcessRun } from '@/domain/model/run.model';
 
@@ -23,6 +23,11 @@ export default function RunCommentEditor({
     const [isEditing, setIsEditing] = useState(false);
     const [commentText, setCommentText] = useState(run.comments || '');
     const [isSaving, setIsSaving] = useState(false);
+
+    // Sync local state with prop when run changes
+    useEffect(() => {
+        setCommentText(run.comments || '');
+    }, [run.comments]);
 
     const handleSave = async () => {
         setIsSaving(true);
