@@ -1335,13 +1335,19 @@ export class OrdersService {
 
     async addRunToProcess(
         orderId: string,
-        processId: string, // This is actually the orderProcessId
-        count: number = 1,
+        orderProcessId: string,
+        countParam: any = 1,
     ) {
+        const count = parseInt(countParam?.toString() || '1', 10);
+
+        if (isNaN(count) || count <= 0) {
+            throw new BadRequestException('Run count must be a positive number');
+        }
+
         return this.prisma.transaction(async tx => {
             const orderProcess = await tx.orderProcess.findFirst({
                 where: {
-                    id: processId,
+                    id: orderProcessId,
                     orderId,
                 },
             });
@@ -1373,7 +1379,11 @@ export class OrdersService {
             });
 
             if (!process) {
-                throw new NotFoundException('Process definition not found');
+                throw new NotFoundException('Process template not found');
+            }
+
+            if (!process.runDefs || process.runDefs.length === 0) {
+                throw new BadRequestException(`Process '${process.name}' has no run templates defined. Cannot add runs.`);
             }
 
             // Find current max runNumber
@@ -1384,21 +1394,9 @@ export class OrdersService {
 
             let nextRunNumber = (maxRun?.runNumber ?? 0) + 1;
 
-            const runsToCreate: Prisma.ProcessRunCreateManyInput[] = [];
+            const runsToCreateData: any[] = [];
 
             for (let i = 0; i < count; i++) {
-                // Determine batch number (approximate, based on runs / defs length)
-                // If existing runs = 5, defs = 1.
-                // maxRun = 5.
-                // batch = 6.
-
-                // However, runNumber is strictly sequential.
-                // We can try to infer the "batch index" if we want nice display names like "Print (3)"
-
-                // Let's count how many runs of *each template* exist to issue the next number for that template?
-                // Or simplified: Just increment runNumber.
-                // displayName usually implies "Batch X". 
-                // Let's calculate batch index based on existing runs count / runDefs.length.
                 const currentTotalRuns = orderProcess.totalRuns + (i * process.runDefs.length);
                 const batchIndex = Math.floor(currentTotalRuns / process.runDefs.length) + 1;
 
@@ -1406,9 +1404,9 @@ export class OrdersService {
                     const statuses = def.runTemplate.lifecycleWorkflowType.statuses;
                     const initialStatus = statuses.length > 0 ? statuses[0].code : '';
 
-                    runsToCreate.push({
+                    runsToCreateData.push({
                         orderProcessId: orderProcess.id,
-                        runTemplateId: def.runTemplate.id,
+                        runTemplateId: def.runTemplateId,
                         runNumber: nextRunNumber++,
                         displayName: `${def.displayName} (${batchIndex})`,
                         configWorkflowTypeId: def.runTemplate.configWorkflowTypeId,
@@ -1420,9 +1418,12 @@ export class OrdersService {
                 }
             }
 
-            if (runsToCreate.length) {
-                for (const runData of runsToCreate) {
+            let totalNewRuns = 0;
+            if (runsToCreateData.length > 0) {
+                for (const runData of runsToCreateData) {
                     const run = await tx.processRun.create({ data: runData });
+                    totalNewRuns++;
+
                     if (run.lifeCycleStatusCode) {
                         await tx.processRunLifecycleHistory.create({
                             data: {
@@ -1436,26 +1437,21 @@ export class OrdersService {
             }
 
             // Update stats
-            const totalNewRuns = runsToCreate.length;
             await tx.orderProcess.update({
                 where: { id: orderProcess.id },
                 data: {
                     totalRuns: { increment: totalNewRuns },
                     remainingRuns: { increment: totalNewRuns },
-                    // If we add runs, we might need to reset order/process status from COMPLETE back to IN_PROGRESS/CONFIGURE?
-                    // User didn't specify, but usually if you add work, it's not complete anymore.
-                    // For now, let's just update counts. If the order was complete, it might need to go back.
-                    // Let's explicitly set status to CONFIGURE if we add runs.
                     statusCode: OrderProcessStatus.CONFIGURE,
                 },
             });
 
-            // Also update Order status to CONFIGURE if it was something else?
+            // Also update Order status to CONFIGURE
             await tx.order.update({
                 where: { id: orderId },
                 data: {
                     statusCode: OrderStatus.CONFIGURE,
-                    completedProcesses: 0 // Invalidate completion
+                    completedProcesses: 0 // Reset completion count
                 }
             });
 
