@@ -179,8 +179,6 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                         [run.id]: run.location!.id
                     }));
                 }
-                // Init comments
-                setRunComments((prev) => ({ ...prev, [run.id]: run.comments || '' }));
             }
         } else if (!editingRunId) {
             setEditForm(null);

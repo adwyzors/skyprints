@@ -274,8 +274,6 @@ export default function PlotterConfig({
                         [run.id]: run.location!.id
                     }));
                 }
-                // Init comments
-                setRunComments((prev) => ({ ...prev, [run.id]: run.comments || '' }));
             }
         } else {
             setEditForm(null);
