@@ -1179,7 +1179,6 @@ export default function ScreenPrintingConfig({
                                 </button>
                             </div>
                         </div>
-                    </div>
                 </div>
             );
         }
