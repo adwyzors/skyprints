@@ -21,6 +21,7 @@ import { PositiveItem, PositiveRunValues, ProcessRun } from '@/domain/model/run.
 import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
+import SearchableManagerSelect from '../common/SearchableManagerSelect';
 
 interface PositiveConfigProps {
     order: Order;
@@ -49,6 +50,8 @@ export default function PositiveConfig({
     const [editForm, setEditForm] = useState<PositiveRunValues | null>(null);
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
+    const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
 
 
 
@@ -276,6 +279,18 @@ export default function PositiveConfig({
                         [run.id]: run.location!.id
                     }));
                 }
+                if (run.preProductionLocation?.id) {
+                    setPreProdLocations(prev => ({
+                        ...prev,
+                        [run.id]: run.preProductionLocation!.id
+                    }));
+                }
+                if (run.postProductionLocation?.id) {
+                    setPostProdLocations(prev => ({
+                        ...prev,
+                        [run.id]: run.postProductionLocation!.id
+                    }));
+                }
             }
         } else {
             setEditForm(null);
@@ -403,7 +418,10 @@ export default function PositiveConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id
+                runLocations[runId] ?? run?.location?.id,
+                undefined, // comments
+                preProdLocations[runId] ?? run?.preProductionLocation?.id,
+                postProdLocations[runId] ?? run?.postProductionLocation?.id
             );
             if (res.success) {
                 // Clear images state
@@ -432,23 +450,6 @@ export default function PositiveConfig({
         }
     };
 
-    const SearchableManagerSelect = ({ label, valueId, onChange, users }: any) => {
-        return (
-            <div>
-                <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-                <select
-                    className="w-full text-sm border border-gray-300 rounded px-2 py-1"
-                    value={valueId || ''}
-                    onChange={(e) => onChange(e.target.value)}
-                >
-                    <option value="">Select {label}...</option>
-                    {users.map((u: any) => (
-                        <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                </select>
-            </div>
-        )
-    };
 
     const renderRun = (process: any, run: ProcessRun) => {
         const isConfigured = run.configStatus === 'COMPLETE';
@@ -471,9 +472,21 @@ export default function PositiveConfig({
                             {mode === 'edit' ? `Configure Run ${run.runNumber}` : `Run ${run.runNumber} Config`}
                         </h3>
                         {mode === 'view' && run.location && (
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
                                 <MapPin className="w-3 h-3" />
                                 {run.location.code}
+                            </span>
+                        )}
+                        {mode === 'view' && run.preProductionLocation && (
+                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                <MapPin className="w-3 h-3" />
+                                PRE: {run.preProductionLocation.code}
+                            </span>
+                        )}
+                        {mode === 'view' && run.postProductionLocation && (
+                            <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                <MapPin className="w-3 h-3" />
+                                POST: {run.postProductionLocation.code}
                             </span>
                         )}
                     </div>
@@ -502,20 +515,32 @@ export default function PositiveConfig({
                             <SearchableManagerSelect
                                 label="Executor"
                                 users={managers}
-                                valueId={runManagers[run.id]?.executorId ?? run.executor?.id}
-                                onChange={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
+                                selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
+                                onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
                             />
                             <SearchableManagerSelect
                                 label="Reviewer"
                                 users={managers}
-                                valueId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id}
-                                onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                                selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
+                                onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                             />
                             <SearchableLocationSelect
-                                label="Location"
+                                label="Default Location"
                                 locations={locations}
                                 valueId={runLocations[run.id] ?? run.location?.id}
                                 onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
+                            />
+                            <SearchableLocationSelect
+                                label="Pre-Prod Location"
+                                locations={locations}
+                                valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
+                                onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                            />
+                            <SearchableLocationSelect
+                                label="Post-Prod Location"
+                                locations={locations}
+                                valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
+                                onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
                             />
                         </div>
                     </div>
@@ -597,7 +622,7 @@ export default function PositiveConfig({
 
                 {/* Run Comments */}
                 {mode === 'view' && (
-                    <RunCommentEditor 
+                    <RunCommentEditor
                         orderId={localOrder.id}
                         processId={process.id}
                         run={run}
@@ -729,9 +754,21 @@ export default function PositiveConfig({
                                         <div className={`w-2 h-2 rounded-full ${run.configStatus === 'COMPLETE' ? 'bg-green-500' : 'bg-yellow-500'}`} />
                                         <span className="font-medium text-sm">Run {run.runNumber}</span>
                                         {run.location && (
-                                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
                                                 <MapPin className="w-3 h-3" />
                                                 {run.location.code}
+                                            </span>
+                                        )}
+                                        {run.preProductionLocation && (
+                                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                                <MapPin className="w-3 h-3" />
+                                                PRE: {run.preProductionLocation.code}
+                                            </span>
+                                        )}
+                                        {run.postProductionLocation && (
+                                            <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                                <MapPin className="w-3 h-3" />
+                                                POST: {run.postProductionLocation.code}
                                             </span>
                                         )}
                                         {run.configStatus === 'COMPLETE' && (

@@ -21,6 +21,8 @@ import {
     X,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import SearchableManagerSelect from '../common/SearchableManagerSelect';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -146,6 +148,29 @@ export default function EmbellishmentConfig({
         });
     }, [order]);
 
+    // Initialize locations when opening a run
+    useEffect(() => {
+        if (openRunId) {
+            let run: ProcessRun | undefined;
+            for (const p of localOrder.processes) {
+                run = p.runs.find(r => r.id === openRunId);
+                if (run) break;
+            }
+
+            if (run) {
+                if (run.location?.id) {
+                    setRunLocations(prev => ({ ...prev, [run!.id]: run!.location!.id }));
+                }
+                if (run.preProductionLocation?.id) {
+                    setPreProdLocations(prev => ({ ...prev, [run!.id]: run!.preProductionLocation!.id }));
+                }
+                if (run.postProductionLocation?.id) {
+                    setPostProdLocations(prev => ({ ...prev, [run!.id]: run!.postProductionLocation!.id }));
+                }
+            }
+        }
+    }, [openRunId, localOrder]);
+
     // State to store selected images for each run
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
     const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
@@ -203,6 +228,8 @@ export default function EmbellishmentConfig({
 
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
+    const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
 
 
 
@@ -539,7 +566,10 @@ export default function EmbellishmentConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run.locationId ?? undefined
+                runLocations[runId] ?? run.locationId ?? undefined,
+                undefined, // comments
+                preProdLocations[runId] ?? run.preProductionLocation?.id,
+                postProdLocations[runId] ?? run.postProductionLocation?.id
             );
 
 
@@ -572,6 +602,22 @@ export default function EmbellishmentConfig({
                     return newState;
                 });
                 setImagePreviews((prev) => {
+                    const newState = { ...prev };
+                    delete newState[runId];
+                    return newState;
+                });
+                // Clear locations temp state
+                setRunLocations((prev) => {
+                    const newState = { ...prev };
+                    delete newState[runId];
+                    return newState;
+                });
+                setPreProdLocations((prev) => {
+                    const newState = { ...prev };
+                    delete newState[runId];
+                    return newState;
+                });
+                setPostProdLocations((prev) => {
                     const newState = { ...prev };
                     delete newState[runId];
                     return newState;
@@ -616,141 +662,6 @@ export default function EmbellishmentConfig({
         return pairs;
     };
 
-    const SearchableLocationSelect = ({
-        label,
-        valueId,
-        onChange,
-        locations,
-    }: {
-        label: string;
-        valueId?: string;
-        onChange: (id: string) => void;
-        locations: Location[];
-    }) => {
-        const [search, setSearch] = useState('');
-        const [isOpen, setIsOpen] = useState(false);
-
-        useEffect(() => {
-            if (valueId) {
-                const l = locations.find((l) => l.id === valueId);
-                if (l) setSearch(l.name);
-            } else {
-                setSearch('');
-            }
-        }, [valueId, locations]);
-
-        const filtered = locations.filter((l) =>
-            l.name.toLowerCase().includes(search.toLowerCase()) ||
-            l.code.toLowerCase().includes(search.toLowerCase())
-        );
-
-        return (
-            <div className="relative">
-                <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-                <input
-                    type="text"
-                    value={search}
-                    onFocus={() => setIsOpen(true)}
-                    onChange={(e) => {
-                        setSearch(e.target.value);
-                        setIsOpen(true);
-                        if (e.target.value === '') onChange('');
-                    }}
-                    onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-                    placeholder={`Search ${label}...`}
-                    className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                {isOpen && filtered.length > 0 && (
-                    <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded shadow-lg max-h-40 overflow-y-auto">
-                        {filtered.map((l) => (
-                            <div
-                                key={l.id}
-                                className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer text-gray-700"
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    onChange(l.id);
-                                    setSearch(l.name);
-                                    setIsOpen(false);
-                                }}
-                            >
-                                <div className="font-medium">{l.name}</div>
-                                <div className="text-xs text-gray-500">{l.code}</div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    // Improved Manager Select using a simple filterable dropdown logic
-    const SearchableManagerSelect = ({
-        label,
-        valueId,
-        onChange,
-        users,
-    }: {
-        label: string;
-        valueId?: string;
-        onChange: (id: string) => void;
-        users: ManagerUser[];
-    }) => {
-        const [search, setSearch] = useState('');
-        const [isOpen, setIsOpen] = useState(false);
-
-        // Initialize search with current selected user name if any
-        useEffect(() => {
-            if (valueId) {
-                const u = users.find((u) => u.id === valueId);
-                if (u) setSearch(u.name);
-            } else {
-                setSearch('');
-            }
-        }, [valueId, users]);
-
-        const filtered = users.filter((u) => u.name.toLowerCase().includes(search.toLowerCase()));
-
-        return (
-            <div className="relative">
-                <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-                <input
-                    type="text"
-                    value={search}
-                    onFocus={() => setIsOpen(true)}
-                    onChange={(e) => {
-                        setSearch(e.target.value);
-                        setIsOpen(true);
-                        // If clear, clear selection
-                        if (e.target.value === '') onChange('');
-                    }}
-                    onBlur={() => {
-                        // Delay hide to allow click
-                        setTimeout(() => setIsOpen(false), 200);
-                    }}
-                    placeholder={`Search ${label}...`}
-                    className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                {isOpen && filtered.length > 0 && (
-                    <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded shadow-lg max-h-40 overflow-y-auto">
-                        {filtered.map((u) => (
-                            <div
-                                key={u.id}
-                                className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer text-gray-700"
-                                onMouseDown={(e) => {
-                                    e.preventDefault(); // Prevent blur
-                                    onChange(u.id);
-                                    setSearch(u.name);
-                                    setIsOpen(false);
-                                }}
-                            >
-                                {u.name}
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
-    };
 
     // Function to render form or view based on run status
     const renderRunFormOrView = (process: any, run: ProcessRun) => {
@@ -765,9 +676,26 @@ export default function EmbellishmentConfig({
                     <div className="mb-4">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 bg-green-500 rounded-full" />
-                                <h3 className="font-semibold text-sm">View Run {run.runNumber} Configuration</h3>
-                            </div>
+                        <h3 className="font-semibold text-sm">View Run {run.runNumber} Configuration</h3>
+                        {run.location && (
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
+                                <MapPin className="w-3 h-3" />
+                                {run.location.code}
+                            </span>
+                        )}
+                        {run.preProductionLocation && (
+                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                <MapPin className="w-3 h-3" />
+                                PRE: {run.preProductionLocation.code}
+                            </span>
+                        )}
+                        {run.postProductionLocation && (
+                            <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                <MapPin className="w-3 h-3" />
+                                POST: {run.postProductionLocation.code}
+                            </span>
+                        )}
+                    </div>
                             {hasPermission(Permission.RUNS_UPDATE) && (
                                 <div className="flex items-center gap-2">
                                     <button
@@ -955,31 +883,41 @@ export default function EmbellishmentConfig({
                             </button>
                         </div>
 
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                            <SearchableLocationSelect
+                                label="Default Location"
+                                locations={locations}
+                                valueId={runLocations[run.id] ?? run.locationId ?? undefined}
+                                onChange={(id) => setRunLocations((prev) => ({ ...prev, [run.id]: id }))}
+                            />
+                            <SearchableLocationSelect
+                                label="Pre-Prod Location"
+                                locations={locations}
+                                valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
+                                onChange={(id) => setPreProdLocations((prev) => ({ ...prev, [run.id]: id }))}
+                            />
+                            <SearchableLocationSelect
+                                label="Post-Prod Location"
+                                locations={locations}
+                                valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
+                                onChange={(id) => setPostProdLocations((prev) => ({ ...prev, [run.id]: id }))}
+                            />
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4 mb-4">
                             <SearchableManagerSelect
                                 label="Executor"
                                 users={managers}
-                                valueId={currentManagerSelection.executorId}
-                                onChange={(id) => handleManagerSelect(run.id, 'executorId', id)}
+                                selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
+                                onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
                             />
                             <SearchableManagerSelect
                                 label="Reviewer"
                                 users={managers}
-                                valueId={currentManagerSelection.reviewerId}
-                                onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                                selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
+                                onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                             />
                         </div>
-
-                        <div className="mb-4">
-                            <SearchableLocationSelect
-                                label="Location"
-                                locations={locations}
-                                valueId={runLocations[run.id] ?? run.location?.id ?? undefined}
-                                onChange={(id: string) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
-                            />
-                        </div>
-
-
 
                         {/* EDITABLE COMPACT FORM TABLE */}
                         <div className="border border-gray-300 rounded overflow-hidden bg-white">

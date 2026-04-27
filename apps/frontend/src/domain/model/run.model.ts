@@ -178,6 +178,16 @@ export interface ProcessRun {
         code: string;
         name: string;
     } | null;
+    preProductionLocation?: {
+        id: string;
+        code: string;
+        name: string;
+    } | null;
+    postProductionLocation?: {
+        id: string;
+        code: string;
+        name: string;
+    } | null;
     values:
     | Record<string, any>
     | AlloverRunValues

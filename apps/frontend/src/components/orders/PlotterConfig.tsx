@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import SearchableManagerSelect from '../common/SearchableManagerSelect';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -52,6 +53,8 @@ export default function PlotterConfig({
     const [editForm, setEditForm] = useState<PlotterRunValues | null>(null);
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
+    const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
 
 
 
@@ -274,6 +277,18 @@ export default function PlotterConfig({
                         [run.id]: run.location!.id
                     }));
                 }
+                if (run.preProductionLocation?.id) {
+                    setPreProdLocations(prev => ({
+                        ...prev,
+                        [run.id]: run.preProductionLocation!.id
+                    }));
+                }
+                if (run.postProductionLocation?.id) {
+                    setPostProdLocations(prev => ({
+                        ...prev,
+                        [run.id]: run.postProductionLocation!.id
+                    }));
+                }
             }
         } else {
             setEditForm(null);
@@ -425,7 +440,10 @@ export default function PlotterConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id
+                runLocations[runId] ?? run?.location?.id,
+                undefined, // comments
+                preProdLocations[runId] ?? run?.preProductionLocation?.id,
+                postProdLocations[runId] ?? run?.postProductionLocation?.id
             );
             if (res.success) {
                 // Clear images state
@@ -454,26 +472,6 @@ export default function PlotterConfig({
         }
     };
 
-    const SearchableManagerSelect = ({ label, valueId, onChange, users }: any) => {
-        // ... Reusing simplified version for brevity or refactor to common if needed
-        // For now rendering basic select to save space/time, or copy full implementation if strictly needed.
-        // Copying concise version:
-        return (
-            <div>
-                <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-                <select
-                    className="w-full text-sm border border-gray-300 rounded px-2 py-1"
-                    value={valueId || ''}
-                    onChange={(e) => onChange(e.target.value)}
-                >
-                    <option value="">Select {label}...</option>
-                    {users.map((u: any) => (
-                        <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                </select>
-            </div>
-        )
-    };
 
     // --- Render ---
     const renderRun = (process: any, run: ProcessRun) => {
@@ -497,11 +495,27 @@ export default function PlotterConfig({
                         <h3 className="font-semibold text-sm">
                             {mode === 'edit' ? `Configure Run ${run.runNumber}` : `Run ${run.runNumber} Config`}
                         </h3>
-                        {mode === 'view' && run.location && (
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />
-                                {run.location.code}
-                            </span>
+                        {mode === 'view' && (
+                            <div className="flex gap-1 ml-2">
+                                {run.location && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
+                                        <MapPin className="w-3 h-3" />
+                                        {run.location.code}
+                                    </span>
+                                )}
+                                {run.preProductionLocation && (
+                                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                        <MapPin className="w-3 h-3" />
+                                        PRE: {run.preProductionLocation.code}
+                                    </span>
+                                )}
+                                {run.postProductionLocation && (
+                                    <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                        <MapPin className="w-3 h-3" />
+                                        POST: {run.postProductionLocation.code}
+                                    </span>
+                                )}
+                            </div>
                         )}
                     </div>
                     {mode === 'view' && hasPermission(Permission.RUNS_UPDATE) && (
@@ -531,20 +545,34 @@ export default function PlotterConfig({
                                 <SearchableManagerSelect
                                     label="Executor"
                                     users={managers}
-                                    valueId={runManagers[run.id]?.executorId ?? run.executor?.id}
-                                    onChange={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
+                                    selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
+                                    onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
                                 />
-                                <SearchableManagerSelect
+                                 <SearchableManagerSelect
                                     label="Reviewer"
                                     users={managers}
-                                    valueId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id}
-                                    onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                                    selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
+                                    onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                                 />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
                                 <SearchableLocationSelect
-                                    label="Location"
+                                    label="Default Location"
                                     locations={locations}
                                     valueId={runLocations[run.id] ?? run.location?.id}
                                     onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                                <SearchableLocationSelect
+                                    label="Pre-Prod Location"
+                                    locations={locations}
+                                    valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
+                                    onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                                <SearchableLocationSelect
+                                    label="Post-Prod Location"
+                                    locations={locations}
+                                    valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
+                                    onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
                                 />
                             </div>
 

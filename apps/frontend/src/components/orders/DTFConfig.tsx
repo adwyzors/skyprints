@@ -23,6 +23,8 @@ import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
 import RunCommentEditor from './RunCommentEditor';
+import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import SearchableManagerSelect from '../common/SearchableManagerSelect';
 
 interface DTFConfigProps {
     order: Order;
@@ -176,6 +178,8 @@ export default function DTFConfig({
 
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
+    const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
 
 
 
@@ -281,6 +285,17 @@ export default function DTFConfig({
                             ],
                     images: values.images || [],
                 });
+
+                // Init location
+                if (run.location?.id) {
+                    setRunLocations(prev => ({ ...prev, [run.id]: run.location!.id }));
+                }
+                if (run.preProductionLocation?.id) {
+                    setPreProdLocations(prev => ({ ...prev, [run.id]: run.preProductionLocation!.id }));
+                }
+                if (run.postProductionLocation?.id) {
+                    setPostProdLocations(prev => ({ ...prev, [run.id]: run.postProductionLocation!.id }));
+                }
             }
         } else {
             setEditForm(null);
@@ -467,7 +482,10 @@ export default function DTFConfig({
                 imageUrls,
                 managerSelection?.executorId ?? run?.executor?.id,
                 managerSelection?.reviewerId ?? run?.reviewer?.id,
-                runLocations[runId] ?? run?.locationId ?? undefined
+                runLocations[runId] ?? run?.locationId ?? undefined,
+                undefined, // comments
+                preProdLocations[runId] ?? run?.preProductionLocation?.id,
+                postProdLocations[runId] ?? run?.postProductionLocation?.id
             );
 
             if (res.success) {
@@ -485,90 +503,7 @@ export default function DTFConfig({
         }
     };
 
-    const SearchableLocationSelect = ({
-        label,
-        valueId,
-        onChange,
-        locations,
-    }: {
-        label: string;
-        valueId?: string;
-        onChange: (id: string) => void;
-        locations: Location[];
-    }) => {
-        const [search, setSearch] = useState('');
-        const [isOpen, setIsOpen] = useState(false);
 
-        useEffect(() => {
-            if (valueId) {
-                const l = locations.find((l) => l.id === valueId);
-                if (l) setSearch(l.name);
-            } else {
-                setSearch('');
-            }
-        }, [valueId, locations]);
-
-        const filtered = locations.filter((l) =>
-            l.name.toLowerCase().includes(search.toLowerCase()) ||
-            l.code.toLowerCase().includes(search.toLowerCase())
-        );
-
-        return (
-            <div className="relative">
-                <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-                <input
-                    type="text"
-                    value={search}
-                    onFocus={() => setIsOpen(true)}
-                    onChange={(e) => {
-                        setSearch(e.target.value);
-                        setIsOpen(true);
-                        if (e.target.value === '') onChange('');
-                    }}
-                    onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-                    placeholder={`Search ${label}...`}
-                    className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                {isOpen && filtered.length > 0 && (
-                    <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded shadow-lg max-h-40 overflow-y-auto">
-                        {filtered.map((l) => (
-                            <div
-                                key={l.id}
-                                className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer text-gray-700"
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    onChange(l.id);
-                                    setSearch(l.name);
-                                    setIsOpen(false);
-                                }}
-                            >
-                                <div className="font-medium">{l.name}</div>
-                                <div className="text-xs text-gray-500">{l.code}</div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    const SearchableManagerSelect = ({ label, valueId, onChange, users }: any) => (
-        <div>
-            <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-            <select
-                className="w-full text-sm border border-gray-300 rounded px-2 py-1"
-                value={valueId || ''}
-                onChange={(e) => onChange(e.target.value)}
-            >
-                <option value="">Select {label}...</option>
-                {users.map((u: any) => (
-                    <option key={u.id} value={u.id}>
-                        {u.name}
-                    </option>
-                ))}
-            </select>
-        </div>
-    );
 
     const renderRun = (process: any, run: ProcessRun) => {
         const isConfigured = run.configStatus === 'COMPLETE';
@@ -588,6 +523,28 @@ export default function DTFConfig({
                         <h3 className="font-semibold text-sm">
                             {mode === 'edit' ? `Configure DTF Run ${run.runNumber}` : `DTF Run ${run.runNumber}`}
                         </h3>
+                        {mode === 'view' && (
+                            <div className="flex gap-1 ml-2">
+                                {run.location && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
+                                        <MapPin className="w-3 h-3" />
+                                        {run.location.code}
+                                    </span>
+                                )}
+                                {run.preProductionLocation && (
+                                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                        <MapPin className="w-3 h-3" />
+                                        PRE: {run.preProductionLocation.code}
+                                    </span>
+                                )}
+                                {run.postProductionLocation && (
+                                    <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                        <MapPin className="w-3 h-3" />
+                                        POST: {run.postProductionLocation.code}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                     {mode === 'view' && hasPermission(Permission.RUNS_UPDATE) && (
                         <div className="flex items-center gap-2">
@@ -623,22 +580,34 @@ export default function DTFConfig({
                                 <SearchableManagerSelect
                                     label="Executor"
                                     users={managers}
-                                    valueId={runManagers[run.id]?.executorId ?? run.executor?.id}
-                                    onChange={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
+                                    selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
+                                    onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
                                 />
                                 <SearchableManagerSelect
                                     label="Reviewer"
                                     users={managers}
-                                    valueId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id}
-                                    onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                                    selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
+                                    onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                                 />
                             </div>
-                            <div className="mb-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <SearchableLocationSelect
-                                    label="Location"
+                                    label="Default Location"
                                     locations={locations}
                                     valueId={runLocations[run.id] ?? run.location?.id ?? undefined}
                                     onChange={(id: string) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                                <SearchableLocationSelect
+                                    label="Pre-Prod Location"
+                                    locations={locations}
+                                    valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
+                                    onChange={(id: string) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                                <SearchableLocationSelect
+                                    label="Post-Prod Location"
+                                    locations={locations}
+                                    valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
+                                    onChange={(id: string) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
                                 />
                             </div>
                         </>
@@ -646,10 +615,26 @@ export default function DTFConfig({
                     )}
 
                     {/* Location Read Only */}
-                    {mode === 'view' && run.location && (
-                        <div className="mb-4 text-xs flex items-center gap-1 text-gray-600">
-                            <span className="font-semibold">Location: </span>
-                            <span className="font-medium text-gray-800">{run.location.name} ({run.location.code})</span>
+                    {mode === 'view' && (run.location || run.preProductionLocation || run.postProductionLocation) && (
+                        <div className="mb-4 text-xs flex flex-wrap gap-3 text-gray-600">
+                            {run.location && (
+                                <div className="flex items-center gap-1">
+                                    <span className="font-semibold">Location: </span>
+                                    <span className="font-medium text-gray-800">{run.location.name} ({run.location.code})</span>
+                                </div>
+                            )}
+                            {run.preProductionLocation && (
+                                <div className="flex items-center gap-1">
+                                    <span className="font-semibold text-blue-600">Pre-Prod: </span>
+                                    <span className="font-medium text-gray-800">{run.preProductionLocation.name} ({run.preProductionLocation.code})</span>
+                                </div>
+                            )}
+                            {run.postProductionLocation && (
+                                <div className="flex items-center gap-1">
+                                    <span className="font-semibold text-purple-600">Post-Prod: </span>
+                                    <span className="font-medium text-gray-800">{run.postProductionLocation.name} ({run.postProductionLocation.code})</span>
+                                </div>
+                            )}
                         </div>
                     )}
 

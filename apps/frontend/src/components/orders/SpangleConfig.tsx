@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import RunCommentEditor from './RunCommentEditor';
 
 import { useAuth } from '@/auth/AuthProvider';
@@ -78,6 +79,29 @@ export default function SpangleConfig({
     const [editingRunId, setEditingRunId] = useState<string | null>(null);
     const [openRunId, setOpenRunId] = useState<string | null>(null);
 
+    // Initialize locations when opening a run
+    useEffect(() => {
+        if (openRunId) {
+            let run: ProcessRun | undefined;
+            for (const p of localOrder.processes) {
+                run = p.runs.find(r => r.id === openRunId);
+                if (run) break;
+            }
+
+            if (run) {
+                if (run.location?.id) {
+                    setRunLocations(prev => ({ ...prev, [run!.id]: run!.location!.id }));
+                }
+                if (run.preProductionLocation?.id) {
+                    setPreProdLocations(prev => ({ ...prev, [run!.id]: run!.preProductionLocation!.id }));
+                }
+                if (run.postProductionLocation?.id) {
+                    setPostProdLocations(prev => ({ ...prev, [run!.id]: run!.postProductionLocation!.id }));
+                }
+            }
+        }
+    }, [openRunId, localOrder]);
+
     // UI State
     const [runManagers, setRunManagers] = useState<Record<string, { executorId?: string; reviewerId?: string }>>({});
     const [runImages, setRunImages] = useState<Record<string, File[]>>({});
@@ -96,6 +120,8 @@ export default function SpangleConfig({
     );
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
+    const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
 
 
 
@@ -310,7 +336,10 @@ export default function SpangleConfig({
                 imageUrls,
                 managerSelection?.executorId ?? currentExecutorId,
                 managerSelection?.reviewerId ?? currentReviewerId,
-                runLocations[runId] ?? run?.location?.id
+                runLocations[runId] ?? run?.location?.id,
+                undefined, // comments
+                preProdLocations[runId] ?? run?.preProductionLocation?.id,
+                postProdLocations[runId] ?? run?.postProductionLocation?.id
             );
 
             if (res.success) {
@@ -341,17 +370,6 @@ export default function SpangleConfig({
         }
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SearchableManagerSelect = ({ label, valueId, onChange, users }: any) => (
-        <div>
-            <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-            <select className="w-full text-sm border border-gray-300 rounded px-2 py-1" value={valueId || ''} onChange={e => onChange(e.target.value)}>
-                <option value="">Select {label}...</option>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {users.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-        </div>
-    );
 
     const toggleRunOpen = (run: ProcessRun) => {
         if (openRunId === run.id) {
@@ -384,11 +402,27 @@ export default function SpangleConfig({
                     <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-blue-500' : 'bg-green-500'}`} />
                         <h3 className="font-semibold text-sm">{isEditing ? `Edit Run ${run.runNumber}` : `Spangle Run ${run.runNumber}`}</h3>
-                        {isViewMode && run.location && (
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <MapPin className="w-3 h-3" />
-                                {run.location.code}
-                            </span>
+                        {isViewMode && (
+                            <div className="flex gap-1 ml-2">
+                                {run.location && (
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
+                                        <MapPin className="w-3 h-3" />
+                                        {run.location.code}
+                                    </span>
+                                )}
+                                {run.preProductionLocation && (
+                                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                        <MapPin className="w-3 h-3" />
+                                        PRE: {run.preProductionLocation.code}
+                                    </span>
+                                )}
+                                {run.postProductionLocation && (
+                                    <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                        <MapPin className="w-3 h-3" />
+                                        POST: {run.postProductionLocation.code}
+                                    </span>
+                                )}
+                            </div>
                         )}
                     </div>
                     {isViewMode && hasPermission(Permission.RUNS_UPDATE) && (
@@ -415,21 +449,35 @@ export default function SpangleConfig({
                             <SearchableManagerSelect
                                 label="Executor"
                                 users={managers}
-                                valueId={runManagers[run.id]?.executorId ?? run.executor?.id}
-                                onChange={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
+                                selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
+                                onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
                             />
                             <SearchableManagerSelect
                                 label="Reviewer"
                                 users={managers}
-                                valueId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id}
-                                onChange={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                                selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
+                                onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                             />
-                            <SearchableLocationSelect
-                                label="Location"
-                                locations={locations}
-                                valueId={runLocations[run.id] ?? run.location?.id}
-                                onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
-                            />
+                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                                <SearchableLocationSelect
+                                    label="Default Location"
+                                    locations={locations}
+                                    valueId={runLocations[run.id] ?? run.location?.id}
+                                    onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                                <SearchableLocationSelect
+                                    label="Pre-Prod Location"
+                                    locations={locations}
+                                    valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
+                                    onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                                <SearchableLocationSelect
+                                    label="Post-Prod Location"
+                                    locations={locations}
+                                    valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
+                                    onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                            </div>
                         </div>
                     )}
 
@@ -541,9 +589,21 @@ export default function SpangleConfig({
                                         <div className="flex items-center gap-2">
                                             <h3 className="font-semibold text-gray-900">Run {run.runNumber}</h3>
                                             {run.location && (
-                                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
                                                     <MapPin className="w-3 h-3" />
                                                     {run.location.code}
+                                                </span>
+                                            )}
+                                            {run.preProductionLocation && (
+                                                <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                                    <MapPin className="w-3 h-3" />
+                                                    PRE: {run.preProductionLocation.code}
+                                                </span>
+                                            )}
+                                            {run.postProductionLocation && (
+                                                <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                                    <MapPin className="w-3 h-3" />
+                                                    POST: {run.postProductionLocation.code}
                                                 </span>
                                             )}
                                         </div>

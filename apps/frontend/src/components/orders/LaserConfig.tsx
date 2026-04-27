@@ -23,6 +23,7 @@ import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import RunCommentEditor from './RunCommentEditor';
 
 interface LaserConfigProps {
@@ -146,6 +147,8 @@ export default function LaserConfig({
     }, [order]);
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
+    const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
 
 
 
@@ -173,6 +176,18 @@ export default function LaserConfig({
                     setRunLocations(prev => ({
                         ...prev,
                         [run.id]: run.location!.id
+                    }));
+                }
+                if (run.preProductionLocation?.id) {
+                    setPreProdLocations(prev => ({
+                        ...prev,
+                        [run.id]: run.preProductionLocation!.id
+                    }));
+                }
+                if (run.postProductionLocation?.id) {
+                    setPostProdLocations(prev => ({
+                        ...prev,
+                        [run.id]: run.postProductionLocation!.id
                     }));
                 }
             }
@@ -461,7 +476,10 @@ export default function LaserConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id
+                runLocations[runId] ?? run?.location?.id,
+                undefined, // comments
+                preProdLocations[runId] ?? run?.preProductionLocation?.id,
+                postProdLocations[runId] ?? run?.postProductionLocation?.id
             );
 
             if (response && response.success === true) {
@@ -494,70 +512,6 @@ export default function LaserConfig({
     };
 
 
-    const SearchableManagerSelect = ({
-        label,
-        valueId,
-        onChange,
-        users,
-    }: {
-        label: string;
-        valueId?: string;
-        onChange: (id: string) => void;
-        users: ManagerUser[];
-    }) => {
-        const [search, setSearch] = useState('');
-        const [isOpen, setIsOpen] = useState(false);
-
-        useEffect(() => {
-            if (valueId) {
-                const u = users.find((u) => u.id === valueId);
-                if (u) setSearch(u.name);
-            } else {
-                setSearch('');
-            }
-        }, [valueId, users]);
-
-        const filtered = users.filter((u) => u.name.toLowerCase().includes(search.toLowerCase()));
-
-        return (
-            <div className="relative">
-                <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-                <input
-                    type="text"
-                    value={search}
-                    onFocus={() => setIsOpen(true)}
-                    onChange={(e) => {
-                        setSearch(e.target.value);
-                        setIsOpen(true);
-                        if (e.target.value === '') onChange('');
-                    }}
-                    onBlur={() => {
-                        setTimeout(() => setIsOpen(false), 200);
-                    }}
-                    placeholder={`Search ${label}...`}
-                    className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                {isOpen && filtered.length > 0 && (
-                    <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded shadow-lg max-h-40 overflow-y-auto">
-                        {filtered.map((u) => (
-                            <div
-                                key={u.id}
-                                className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer text-gray-700"
-                                onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    onChange(u.id);
-                                    setSearch(u.name);
-                                    setIsOpen(false);
-                                }}
-                            >
-                                {u.name}
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
-    };
 
     const renderRunFormOrView = (process: any, run: ProcessRun) => {
         const isConfigured = run.configStatus === 'COMPLETE';
@@ -583,9 +537,21 @@ export default function LaserConfig({
                                 <div className="w-2 h-2 bg-green-500 rounded-full" />
                                 <h3 className="font-semibold text-sm">View Run {run.runNumber} Configuration</h3>
                                 {run.location && (
-                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
                                         <MapPin className="w-3 h-3" />
                                         {run.location.code}
+                                    </span>
+                                )}
+                                {run.preProductionLocation && (
+                                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                        <MapPin className="w-3 h-3" />
+                                        PRE: {run.preProductionLocation.code}
+                                    </span>
+                                )}
+                                {run.postProductionLocation && (
+                                    <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                        <MapPin className="w-3 h-3" />
+                                        POST: {run.postProductionLocation.code}
                                     </span>
                                 )}
                             </div>
@@ -669,16 +635,28 @@ export default function LaserConfig({
                                 </div>
                             )}
 
-                            {/* Managers Read Only */}
-                            <div className="grid grid-cols-2 gap-4 border-t pt-2">
+                            {/* Managers and Locations Read Only */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-t pt-2">
                                 <div>
                                     <span className="text-xs text-gray-500">Executor: </span>
-                                    <span className="text-sm">{run.executor?.name || 'Unassigned'}</span>
+                                    <div className="text-sm font-medium">{run.executor?.name || 'Unassigned'}</div>
                                 </div>
                                 <div>
                                     <span className="text-xs text-gray-500">Reviewer: </span>
-                                    <span className="text-sm">{run.reviewer?.name || 'Unassigned'}</span>
+                                    <div className="text-sm font-medium">{run.reviewer?.name || 'Unassigned'}</div>
                                 </div>
+                                {run.preProductionLocation && (
+                                    <div>
+                                        <span className="text-xs text-blue-600 font-semibold">Pre-Prod: </span>
+                                        <div className="text-sm font-medium">{run.preProductionLocation.name}</div>
+                                    </div>
+                                )}
+                                {run.postProductionLocation && (
+                                    <div>
+                                        <span className="text-xs text-purple-600 font-semibold">Post-Prod: </span>
+                                        <div className="text-sm font-medium">{run.postProductionLocation.name}</div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Run Comments */}
@@ -734,20 +712,34 @@ export default function LaserConfig({
                         <SearchableManagerSelect
                             label="Executor"
                             users={managers}
-                            valueId={currentManagerSelection.executorId}
-                            onChange={(id) => handleManagerSelect(run.id, 'executorId', id)}
+                            selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
+                            onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
                         />
                         <SearchableManagerSelect
                             label="Reviewer"
                             users={managers}
-                            valueId={currentManagerSelection.reviewerId}
-                            onChange={(id) => handleManagerSelect(run.id, 'reviewerId', id)}
+                            selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
+                            onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                         />
-                            <SearchableLocationSelect
-                            label="Location"
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <SearchableLocationSelect
+                            label="Default Location"
                             locations={locations}
                             valueId={runLocations[run.id] ?? run.location?.id}
                             onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
+                        />
+                        <SearchableLocationSelect
+                            label="Pre-Prod Location"
+                            locations={locations}
+                            valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
+                            onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                        />
+                        <SearchableLocationSelect
+                            label="Post-Prod Location"
+                            locations={locations}
+                            valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
+                            onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
                         />
                     </div>
 

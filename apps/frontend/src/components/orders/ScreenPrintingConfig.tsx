@@ -25,6 +25,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
+import SearchableManagerSelect from '@/components/common/SearchableManagerSelect';
 
 import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
@@ -202,6 +203,8 @@ export default function ScreenPrintingConfig({
 
 
     const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
+    const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
 
 
 
@@ -533,7 +536,10 @@ export default function ScreenPrintingConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[run.id] ?? run.locationId ?? undefined
+                runLocations[run.id] ?? run.locationId ?? undefined,
+                undefined, // comments
+                preProdLocations[run.id] ?? run.preProductionLocation?.id,
+                postProdLocations[run.id] ?? run.postProductionLocation?.id
             );
 
             // Check if API returned success
@@ -570,6 +576,22 @@ export default function ScreenPrintingConfig({
                     return newState;
                 });
                 setExistingRunImages((prev) => {
+                    const newState = { ...prev };
+                    delete newState[runId];
+                    return newState;
+                });
+                // Clear locations temp state
+                setRunLocations((prev) => {
+                    const newState = { ...prev };
+                    delete newState[runId];
+                    return newState;
+                });
+                setPreProdLocations((prev) => {
+                    const newState = { ...prev };
+                    delete newState[runId];
+                    return newState;
+                });
+                setPostProdLocations((prev) => {
                     const newState = { ...prev };
                     delete newState[runId];
                     return newState;
@@ -614,74 +636,6 @@ export default function ScreenPrintingConfig({
         return pairs;
     };
 
-    // Improved Manager Select using a simple filterable dropdown logic
-    const SearchableManagerSelect = ({
-        label,
-        valueId,
-        onChange,
-        users,
-    }: {
-        label: string;
-        valueId?: string;
-        onChange: (id: string) => void;
-        users: ManagerUser[];
-    }) => {
-        const [search, setSearch] = useState('');
-        const [isOpen, setIsOpen] = useState(false);
-
-        // Initialize search with current selected user name if any
-        useEffect(() => {
-            if (valueId) {
-                const u = users.find((u) => u.id === valueId);
-                if (u) setSearch(u.name);
-            } else {
-                setSearch('');
-            }
-        }, [valueId, users]);
-
-        const filtered = users.filter((u) => u.name.toLowerCase().includes(search.toLowerCase()));
-
-        return (
-            <div className="relative">
-                <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-                <input
-                    type="text"
-                    value={search}
-                    onFocus={() => setIsOpen(true)}
-                    onChange={(e) => {
-                        setSearch(e.target.value);
-                        setIsOpen(true);
-                        // If clear, clear selection
-                        if (e.target.value === '') onChange('');
-                    }}
-                    onBlur={() => {
-                        // Delay hide to allow click
-                        setTimeout(() => setIsOpen(false), 200);
-                    }}
-                    placeholder={`Search ${label}...`}
-                    className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-                {isOpen && filtered.length > 0 && (
-                    <div className="absolute z-10 w-full bg-white border border-gray-200 mt-1 rounded shadow-lg max-h-40 overflow-y-auto">
-                        {filtered.map((u) => (
-                            <div
-                                key={u.id}
-                                className="px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer text-gray-700"
-                                onMouseDown={(e) => {
-                                    e.preventDefault(); // Prevent blur
-                                    onChange(u.id);
-                                    setSearch(u.name);
-                                    setIsOpen(false);
-                                }}
-                            >
-                                {u.name}
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
-    };
 
 
 
@@ -802,7 +756,7 @@ export default function ScreenPrintingConfig({
                                 </div>
                             </div>
 
-                            {/* Location Read Only */}
+                             {/* Locations Read Only */}
                             <div className="grid grid-cols-4 border-t border-gray-300 divide-x divide-gray-300">
                                 <div className="bg-gray-50 p-1.5">
                                     <div className="flex items-center gap-1">
@@ -810,10 +764,42 @@ export default function ScreenPrintingConfig({
                                         <label className="text-xs font-medium text-gray-700">Location</label>
                                     </div>
                                 </div>
-                                <div className="p-1.5 bg-white col-span-3">
+                                <div className="p-1.5 bg-white">
                                     <div className="w-full text-sm border border-gray-200 bg-gray-50 rounded px-2 py-1 font-medium text-gray-700">
                                         {run.location ? (
                                             <span>{run.location.name} <span className="text-gray-400 text-xs">({run.location.code})</span></span>
+                                        ) : (
+                                            <span className="text-gray-400">Not assigned</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="bg-gray-50 p-1.5">
+                                    <div className="flex items-center gap-1">
+                                        <MapPin className="w-3 h-3 text-blue-600" />
+                                        <label className="text-xs font-medium text-gray-700">Pre-Prod</label>
+                                    </div>
+                                </div>
+                                <div className="p-1.5 bg-white">
+                                    <div className="w-full text-sm border border-gray-200 bg-gray-50 rounded px-2 py-1 font-medium text-gray-700">
+                                        {run.preProductionLocation ? (
+                                            <span>{run.preProductionLocation.name} <span className="text-gray-400 text-xs">({run.preProductionLocation.code})</span></span>
+                                        ) : (
+                                            <span className="text-gray-400">Not assigned</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-4 border-t border-gray-300 divide-x divide-gray-300">
+                                <div className="bg-gray-50 p-1.5">
+                                    <div className="flex items-center gap-1">
+                                        <MapPin className="w-3 h-3 text-purple-600" />
+                                        <label className="text-xs font-medium text-gray-700">Post-Prod</label>
+                                    </div>
+                                </div>
+                                <div className="p-1.5 bg-white col-span-3">
+                                    <div className="w-full text-sm border border-gray-200 bg-gray-50 rounded px-2 py-1 font-medium text-gray-700">
+                                        {run.postProductionLocation ? (
+                                            <span>{run.postProductionLocation.name} <span className="text-gray-400 text-xs">({run.postProductionLocation.code})</span></span>
                                         ) : (
                                             <span className="text-gray-400">Not assigned</span>
                                         )}
@@ -911,24 +897,35 @@ export default function ScreenPrintingConfig({
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                             <SearchableLocationSelect
+                                label="Default Location"
+                                locations={locations}
+                                valueId={runLocations[run.id] ?? run.locationId ?? undefined}
+                                onChange={(id) => setRunLocations((prev) => ({ ...prev, [run.id]: id }))}
+                            />
                             <SearchableManagerSelect
                                 label="Executor"
                                 users={managers}
-                                valueId={currentManagerSelection.executorId}
-                                onChange={(id) => handleManagerSelect(run.id, 'executorId', id)}
+                                selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
+                                onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
                             />
                             <SearchableManagerSelect
                                 label="Reviewer"
                                 users={managers}
-                                valueId={currentManagerSelection.reviewerId}
-                                onChange={(id) => handleManagerSelect(run.id, 'reviewerId', id)}
+                                selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
+                                onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                             />
                             <SearchableLocationSelect
-                                label="Location"
+                                label="Pre-Prod Location"
                                 locations={locations}
-                                valueId={runLocations[run.id] ?? run.locationId ?? undefined}
-                                onChange={(id) => setRunLocations((prev) => ({ ...prev, [run.id]: id }))}
+                                valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
+                                onChange={(id) => setPreProdLocations((prev) => ({ ...prev, [run.id]: id }))}
+                            />
+                            <SearchableLocationSelect
+                                label="Post-Prod Location"
+                                locations={locations}
+                                valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
+                                onChange={(id) => setPostProdLocations((prev) => ({ ...prev, [run.id]: id }))}
                             />
                         </div>
 
@@ -1231,10 +1228,22 @@ export default function ScreenPrintingConfig({
                                                 <span className="text-xs text-gray-500">
                                                     ({filledFields}/{totalFields} fields)
                                                 </span>
-                                                {run.location && (
-                                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                 {run.location && (
+                                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
                                                         <MapPin className="w-3 h-3" />
                                                         {run.location.code}
+                                                    </span>
+                                                )}
+                                                {run.preProductionLocation && (
+                                                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                                        <MapPin className="w-3 h-3" />
+                                                        PRE: {run.preProductionLocation.code}
+                                                    </span>
+                                                )}
+                                                {run.postProductionLocation && (
+                                                    <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                                        <MapPin className="w-3 h-3" />
+                                                        POST: {run.postProductionLocation.code}
                                                     </span>
                                                 )}
                                                 {isConfigured && (
