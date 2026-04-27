@@ -9,7 +9,9 @@ export async function configureRun(
     executorId?: string,
     reviewerId?: string,
     locationId?: string,
-    comments?: string
+    comments?: string,
+    preProductionLocationId?: string,
+    postProductionLocationId?: string
 ) {
     const payload: any = {
         fields,
@@ -33,6 +35,14 @@ export async function configureRun(
 
     if (locationId) {
         payload.locationId = locationId;
+    }
+
+    if (preProductionLocationId) {
+        payload.preProductionLocationId = preProductionLocationId;
+    }
+
+    if (postProductionLocationId) {
+        payload.postProductionLocationId = postProductionLocationId;
     }
 
     // Using specialized endpoint for process run configuration

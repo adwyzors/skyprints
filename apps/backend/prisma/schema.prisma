@@ -323,6 +323,12 @@ model ProcessRun {
 
   location Location? @relation(fields: [locationId], references: [id])
 
+  preProductionLocationId  String?
+  postProductionLocationId String?
+
+  preProductionLocation  Location? @relation("PreProdLocation", fields: [preProductionLocationId], references: [id])
+  postProductionLocation Location? @relation("PostProdLocation", fields: [postProductionLocationId], references: [id])
+
   orderProcess OrderProcess @relation(fields: [orderProcessId], references: [id], onDelete: Cascade)
   runTemplate  RunTemplate  @relation(fields: [runTemplateId], references: [id])
   createdAt    DateTime     @default(now())
@@ -367,6 +373,8 @@ model Location {
   users User[]
 
   runs ProcessRun[]
+  preProductionRuns  ProcessRun[] @relation("PreProdLocation")
+  postProductionRuns ProcessRun[] @relation("PostProdLocation")
 
   createdAt DateTime @default(now())
 

@@ -170,6 +170,8 @@ export interface ProcessRun {
         name: string;
     } | null;
     locationId?: string | null;
+    preProductionLocationId?: string | null;
+    postProductionLocationId?: string | null;
     comments?: string | null;
     location?: {
         id: string;

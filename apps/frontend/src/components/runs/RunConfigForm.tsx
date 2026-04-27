@@ -20,6 +20,9 @@ import React, { useEffect, useState } from 'react';
 import { apiRequest } from "@/services/api.service";
 import { configureRun } from '@/services/run.service';
 import { getManagers, User as ManagerUser } from '@/services/user.service';
+import { getLocations } from '@/services/location.service';
+import { Location } from '@/domain/model/location.model';
+import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
 
 interface RunConfigFormProps {
     runId: string;
@@ -37,6 +40,8 @@ interface RunConfigFormProps {
     orderImages?: string[];
     /** Whether the order is configured to use order images for all runs */
     useOrderImageForRuns?: boolean;
+    initialPreProductionLocationId?: string;
+    initialPostProductionLocationId?: string;
     onSaveSuccess: () => void;
     onCancel: () => void;
 }
@@ -148,6 +153,8 @@ export default function RunConfigForm({
     orderImages = [],
     useOrderImageForRuns = false,
     initialComments = '',
+    initialPreProductionLocationId = '',
+    initialPostProductionLocationId = '',
     onSaveSuccess,
     onCancel
 }: RunConfigFormProps) {
@@ -188,11 +195,15 @@ export default function RunConfigForm({
     );
 
     const [managers, setManagers] = useState<ManagerUser[]>([]);
+    const [locations, setLocations] = useState<Location[]>([]);
+    const [preProductionLocationId, setPreProductionLocationId] = useState<string>(initialPreProductionLocationId);
+    const [postProductionLocationId, setPostProductionLocationId] = useState<string>(initialPostProductionLocationId);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         getManagers().then(setManagers).catch(console.error);
+        getLocations().then(setLocations).catch(console.error);
     }, []);
 
     const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -349,7 +360,9 @@ export default function RunConfigForm({
                 executorId || undefined,
                 reviewerId || undefined,
                 undefined, // locationId
-                comments || undefined
+                comments || undefined,
+                preProductionLocationId || undefined,
+                postProductionLocationId || undefined
             );
 
             if (response && response.success) {
@@ -403,6 +416,23 @@ export default function RunConfigForm({
                         users={managers}
                         valueId={reviewerId}
                         onChange={setReviewerId}
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    <SearchableLocationSelect
+                        label="Production Location"
+                        locations={locations}
+                        valueId={preProductionLocationId}
+                        onChange={setPreProductionLocationId}
+                        placeholder="Select pre-production location..."
+                    />
+                    <SearchableLocationSelect
+                        label="Post-Production Location"
+                        locations={locations}
+                        valueId={postProductionLocationId}
+                        onChange={setPostProductionLocationId}
+                        placeholder="Select post-production location..."
                     />
                 </div>
 

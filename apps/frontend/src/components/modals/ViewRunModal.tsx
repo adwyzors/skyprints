@@ -463,6 +463,8 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                 initialReviewer={run.reviewer}
                                 orderImages={run.orderProcess.order.images || []}
                                 useOrderImageForRuns={run.orderProcess.order.useOrderImageForRuns || false}
+                                initialPreProductionLocationId={run.preProductionLocationId || ''}
+                                initialPostProductionLocationId={run.postProductionLocationId || ''}
                                 onSaveSuccess={() => {
                                     fetchRun();
                                     if (onRunUpdate) onRunUpdate();

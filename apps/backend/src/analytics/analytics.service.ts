@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getEffectiveLocationId } from '../runs/runs.service';
 
 @Injectable()
 export class AnalyticsService {
@@ -145,16 +146,17 @@ export class AnalyticsService {
                         });
                     }
 
-                    if (run.locationId) {
+                    const effectiveLocId = getEffectiveLocationId(run);
+                    if (effectiveLocId) {
                         await this.prisma.locationAnalytics.upsert({
-                            where: { locationId: run.locationId },
+                            where: { locationId: effectiveLocId },
                             update: {
                                 totalRuns: { increment: 1 },
                                 totalUnits: { increment: order.quantity / (orderProcess.runs.length || 1) },
                                 totalRevenue: { increment: revenuePerProcess / (orderProcess.runs.length || 1) }
                             },
                             create: {
-                                locationId: run.locationId,
+                                locationId: effectiveLocId,
                                 locationName: run.location?.name || 'Unknown',
                                 totalRuns: 1,
                                 totalUnits: order.quantity / (orderProcess.runs.length || 1),
@@ -318,11 +320,21 @@ export class AnalyticsService {
                             statusCode: { notIn: ['BILLED', 'GROUP_BILLED'] }
                         }
                     },
-                    ...(locationId && { locationId })
+                    // If locationId filter is set, match against any of the three location fields
+                    ...(locationId && {
+                        OR: [
+                            { locationId },
+                            { preProductionLocationId: locationId },
+                            { postProductionLocationId: locationId },
+                        ],
+                    })
                 },
                 select: {
                     id: true,
                     lifeCycleStatusCode: true,
+                    locationId: true,
+                    preProductionLocationId: true,
+                    postProductionLocationId: true,
                     fields: true, // Need fields for "Process Name" override and "Estimated Amount"
                     orderProcess: {
                         select: {
@@ -338,6 +350,11 @@ export class AnalyticsService {
                     }
                 }
             });
+
+            // When locationId filter is active, further filter runs by effective location
+            const filteredRuns = locationId
+                ? activeRuns.filter(r => getEffectiveLocationId(r) === locationId)
+                : activeRuns;
 
             const matrix: Record<string, Record<string, { count: number, value: number }>> = {};
 
@@ -381,7 +398,7 @@ export class AnalyticsService {
                 });
             });
 
-            activeRuns.forEach(run => {
+            filteredRuns.forEach(run => {
                 let pName = run.orderProcess.process.name?.trim();
                 const dbStatus = run.lifeCycleStatusCode;
                 const fields = (run.fields as Record<string, any>) || {};
@@ -488,18 +505,21 @@ export class AnalyticsService {
                 OrderStatus.COMPLETE
             ];
 
-            const [byLocation, byReviewer, byExecutor] = await Promise.all([
-                this.prisma.processRun.groupBy({
-                    by: ['locationId'],
+            const [activeRuns, byReviewer, byExecutor] = await Promise.all([
+                this.prisma.processRun.findMany({
                     where: {
-                        locationId: { not: null },
                         orderProcess: {
                             order: {
                                 statusCode: { in: activeOrderStatuses }
                             }
                         }
                     },
-                    _count: { _all: true }
+                    select: {
+                        locationId: true,
+                        preProductionLocationId: true,
+                        postProductionLocationId: true,
+                        lifeCycleStatusCode: true,
+                    }
                 }),
                 this.prisma.processRun.groupBy({
                     by: ['reviewerId'],
@@ -548,7 +568,12 @@ export class AnalyticsService {
 
             // Maps for fast lookup of counts
             const locationCountsMap = new Map<string, number>();
-            byLocation.forEach(l => locationCountsMap.set(l.locationId!, l._count._all));
+            activeRuns.forEach(run => {
+                const locId = getEffectiveLocationId(run);
+                if (locId) {
+                    locationCountsMap.set(locId, (locationCountsMap.get(locId) || 0) + 1);
+                }
+            });
 
             const managerCountsMap = new Map<string, number>();
             byReviewer.forEach(r => {

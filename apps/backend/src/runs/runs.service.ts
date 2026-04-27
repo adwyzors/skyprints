@@ -6,6 +6,36 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ContextLogger } from '../common/logger/context.logger';
 import { RunFieldsValidator } from './run-fields.validator';
 
+const POST_PROD_STAGES = [
+    'WAITING',
+    'CUTTING/WEEDING',
+    'CURING',
+    'FUSING',
+    'QC & COUNTING',
+    'COMPLETE',
+    'BILLED',
+];
+
+/**
+ * Determines the effective location for a run based on its lifecycle status.
+ * Post-production stages use postProductionLocationId, others use preProductionLocationId.
+ * Falls back to locationId if the specific field is null (backward compatibility).
+ */
+export function getEffectiveLocationId(run: {
+    lifeCycleStatusCode?: string;
+    postProductionLocationId?: string | null;
+    preProductionLocationId?: string | null;
+    locationId?: string | null;
+}): string | null {
+    const status = run.lifeCycleStatusCode;
+
+    if (status && POST_PROD_STAGES.includes(status)) {
+        return run.postProductionLocationId ?? run.locationId ?? null;
+    }
+
+    return run.preProductionLocationId ?? run.locationId ?? null;
+}
+
 @Injectable()
 export class RunsService {
     private readonly logger = new ContextLogger(RunsService.name);

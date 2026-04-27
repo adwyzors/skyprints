@@ -303,7 +303,13 @@ export class AdminProcessService {
             AND: combinedAnd,
             ...(executorUserId && { executorId: executorUserId }),
             ...(reviewerUserId && { reviewerId: reviewerUserId }),
-            ...(query.locationId && { locationId: query.locationId }),
+            ...(query.locationId && {
+                OR: [
+                    { locationId: query.locationId },
+                    { preProductionLocationId: query.locationId },
+                    { postProductionLocationId: query.locationId },
+                ]
+            }),
             ...(createdFrom || createdTo ? {
                 createdAt: {
                     ...(createdFrom && { gte: new Date(createdFrom) }),
@@ -403,6 +409,8 @@ export class AdminProcessService {
                     comments: true,
                     fields: true,
                     createdAt: true,
+                    preProductionLocationId: true,
+                    postProductionLocationId: true,
                     runTemplate: {
                         select: { name: true },
                     },
@@ -678,6 +686,8 @@ export class AdminProcessService {
                     ...(dto.executorId !== undefined && { executorId: dto.executorId }),
                     ...(dto.reviewerId !== undefined && { reviewerId: dto.reviewerId }),
                     ...(dto.locationId !== undefined && { locationId: dto.locationId }),
+                    ...(dto.preProductionLocationId !== undefined && { preProductionLocationId: dto.preProductionLocationId }),
+                    ...(dto.postProductionLocationId !== undefined && { postProductionLocationId: dto.postProductionLocationId }),
                     ...(dto.comments !== undefined && { comments: dto.comments }),
                     ...(run.configuredAt
                         ? {}
