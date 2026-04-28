@@ -25,6 +25,18 @@ export class AdminProcessService {
         'images',
     ]);
 
+    private static readonly SUMMARY_FIELDS = new Set<string>([
+        'Total Amount',
+        'Total Mtr',
+        'Total Quantity',
+        'Total Pieces',
+        'Total Stitches',
+        'Estimated Amount',
+        'End Rate',
+        'Actual Total',
+        'Quantity',
+    ]);
+
 
     async getLifeCycleStatusesByProcess(processId: string): Promise<LifeCycleStatusDto[]> {
         // 1️⃣ Get all lifecycle workflow type IDs used by this process
@@ -1216,6 +1228,12 @@ export class AdminProcessService {
             const expected = templateMap.get(key);
 
             if (!expected) {
+                // Allow standard summary fields even if not in template
+                if (AdminProcessService.SUMMARY_FIELDS.has(key)) {
+                    normalized[key] = value;
+                    continue;
+                }
+
                 throw new BadRequestException(
                     `Unknown field ${key}`,
                 );
