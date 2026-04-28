@@ -1,5 +1,5 @@
 import { BilledOrderReportRow, ReportsQuery } from "../domain/model/reports.model";
-import api from "./api.service";
+import { apiRequest } from "./api.service";
 
 export const getBilledOrdersReport = async (query: ReportsQuery): Promise<BilledOrderReportRow[]> => {
     const params = new URLSearchParams();
@@ -8,8 +8,7 @@ export const getBilledOrdersReport = async (query: ReportsQuery): Promise<Billed
     if (query.endDate) params.append('endDate', query.endDate);
     if (query.processId) params.append('processId', query.processId);
 
-    const response = await api.get(`/reports/billed-orders?${params.toString()}`);
-    return response.data;
+    return apiRequest<BilledOrderReportRow[]>(`/reports/billed-orders?${params.toString()}`);
 };
 
 export const getExportUrl = (query: ReportsQuery): string => {
