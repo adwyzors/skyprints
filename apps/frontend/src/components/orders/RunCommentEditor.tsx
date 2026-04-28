@@ -40,7 +40,7 @@ export default function RunCommentEditor({
                 (run.values as any)?.images || [],
                 run.executor?.id,
                 run.reviewer?.id,
-                run.location?.id || (run as any).locationId,
+                undefined, // deprecated locationId
                 commentText
             );
 

@@ -423,7 +423,6 @@ export default function DiamondConfig({
 
             const executorId = managerSelection?.executorId ?? run?.executor?.id;
             const reviewerId = managerSelection?.reviewerId ?? run?.reviewer?.id;
-            const locationId = runLocations[runId] ?? run?.locationId ?? undefined;
 
             const res = await configureRun(
                 localOrder.id,
@@ -433,7 +432,7 @@ export default function DiamondConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                locationId,
+                undefined, // deprecated locationId
                 undefined, // comments
                 preProdLocations[runId] ?? run?.preProductionLocation?.id,
                 postProdLocations[runId] ?? run?.postProductionLocation?.id
@@ -490,12 +489,6 @@ export default function DiamondConfig({
                         </h3>
                         {mode === 'view' && (
                             <div className="flex gap-1 ml-2">
-                                {run.location && (
-                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
-                                        <MapPin className="w-3 h-3" />
-                                        {run.location.code}
-                                    </span>
-                                )}
                                 {run.preProductionLocation && (
                                     <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
                                         <MapPin className="w-3 h-3" />
@@ -535,12 +528,6 @@ export default function DiamondConfig({
                     {/* Locations Read Only */}
                     {mode === 'view' && (run.location || run.preProductionLocation || run.postProductionLocation) && (
                         <div className="mb-2 text-xs flex flex-wrap gap-3 text-gray-600">
-                            {run.location && (
-                                <div className="flex items-center gap-1">
-                                    <span className="font-semibold">Location: </span>
-                                    <span className="font-medium text-gray-800">{run.location.name} ({run.location.code})</span>
-                                </div>
-                            )}
                             {run.preProductionLocation && (
                                 <div className="flex items-center gap-1">
                                     <span className="font-semibold text-blue-600">Pre-Prod: </span>
@@ -572,13 +559,7 @@ export default function DiamondConfig({
                                     onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                                 />
                             </div>
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <SearchableLocationSelect
-                                    label="Default Location"
-                                    locations={locations}
-                                    valueId={runLocations[run.id] ?? run.location?.id ?? undefined}
-                                    onChange={(id: string) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
-                                />
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <SearchableLocationSelect
                                     label="Pre-Prod Location"
                                     locations={locations}
@@ -805,12 +786,6 @@ export default function DiamondConfig({
                                     <div className="flex items-center gap-2">
                                         <div className={`w-2 h-2 rounded-full ${run.configStatus === 'COMPLETE' ? 'bg-green-500' : 'bg-yellow-500'}`} />
                                         <span className="font-medium text-sm">Run {run.runNumber}</span>
-                                        {run.location && (
-                                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                <MapPin className="w-3 h-3" />
-                                                {run.location.code}
-                                            </span>
-                                        )}
                                         {run.configStatus === 'COMPLETE' && <span className="text-xs text-green-600 font-medium flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Configured</span>}
                                     </div>
                                     <div className="flex items-center gap-1">

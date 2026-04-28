@@ -442,7 +442,7 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                 imageUrls,
                 managerSelection?.executorId ?? currentExecutorId,
                 managerSelection?.reviewerId ?? currentReviewerId,
-                runLocations[runId] ?? run?.location?.id,
+                undefined, // deprecated locationId
                 undefined, // comments
                 preProdLocations[runId] ?? run?.preProductionLocation?.id,
                 postProdLocations[runId] ?? run?.postProductionLocation?.id
@@ -519,12 +519,6 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                         <h3 className="font-semibold text-sm">{mode === 'edit' ? `Configure Run ${run.runNumber}` : `Sublimation Run ${run.runNumber}`}</h3>
                         {mode === 'view' && (
                             <div className="flex gap-1 ml-2">
-                                {run.location && (
-                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
-                                        <MapPin className="w-3 h-3" />
-                                        {run.location.code}
-                                    </span>
-                                )}
                                 {run.preProductionLocation && (
                                     <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
                                         <MapPin className="w-3 h-3" />
@@ -574,13 +568,7 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                         />
                     </div>
                     {mode === 'edit' && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <SearchableLocationSelect
-                                label="Default Location"
-                                locations={locations}
-                                valueId={runLocations[run.id] ?? run.location?.id}
-                                onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <SearchableLocationSelect
                                 label="Pre-Prod Location"
                                 locations={locations}
@@ -779,12 +767,6 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                                     <div className="text-left">
                                         <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                                              Run {run.runNumber}
-                                            {run.location && (
-                                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-normal flex items-center gap-1" title="Default Location">
-                                                    <MapPin className="w-3 h-3" />
-                                                    {run.location.code}
-                                                </span>
-                                            )}
                                             {run.preProductionLocation && (
                                                 <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-normal flex items-center gap-1" title="Pre-Production Location">
                                                     <MapPin className="w-3 h-3" />

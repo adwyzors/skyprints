@@ -495,7 +495,7 @@ export default function AlloverSublimationConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id,
+                undefined, // deprecated locationId
                 undefined, // comments
                 preProdLocations[runId] ?? run?.preProductionLocation?.id,
                 postProdLocations[runId] ?? run?.postProductionLocation?.id
@@ -554,12 +554,6 @@ export default function AlloverSublimationConfig({
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                                 <h3 className="font-semibold text-sm">View Run {run.runNumber} Configuration</h3>
-                                {run.location && (
-                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
-                                        <MapPin className="w-3 h-3" />
-                                        {run.location.code}
-                                    </span>
-                                )}
                                 {run.preProductionLocation && (
                                     <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
                                         <MapPin className="w-3 h-3" />
@@ -752,13 +746,7 @@ export default function AlloverSublimationConfig({
                             onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                         />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <SearchableLocationSelect
-                            label="Default Location"
-                            locations={locations}
-                            valueId={runLocations[run.id] ?? run.location?.id}
-                            onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <SearchableLocationSelect
                             label="Pre-Prod Location"
                             locations={locations}
@@ -1017,12 +1005,6 @@ export default function AlloverSublimationConfig({
                                             >
                                                 <div className={`w-2 h-2 rounded-full ${isConfigured ? 'bg-green-500' : 'bg-yellow-500'}`} />
                                                 <span className="font-medium text-sm">Run {run.runNumber}</span>
-                                                {run.location && (
-                                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                        <MapPin className="w-3 h-3" />
-                                                        {run.location.code}
-                                                    </span>
-                                                )}
                                                 {isConfigured && (
                                                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
                                                         <CheckCircle className="w-3 h-3" /> Configured

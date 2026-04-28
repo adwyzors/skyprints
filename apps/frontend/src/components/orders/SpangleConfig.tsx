@@ -336,7 +336,7 @@ export default function SpangleConfig({
                 imageUrls,
                 managerSelection?.executorId ?? currentExecutorId,
                 managerSelection?.reviewerId ?? currentReviewerId,
-                runLocations[runId] ?? run?.location?.id,
+                undefined, // deprecated locationId
                 undefined, // comments
                 preProdLocations[runId] ?? run?.preProductionLocation?.id,
                 postProdLocations[runId] ?? run?.postProductionLocation?.id
@@ -404,12 +404,6 @@ export default function SpangleConfig({
                         <h3 className="font-semibold text-sm">{isEditing ? `Edit Run ${run.runNumber}` : `Spangle Run ${run.runNumber}`}</h3>
                         {isViewMode && (
                             <div className="flex gap-1 ml-2">
-                                {run.location && (
-                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
-                                        <MapPin className="w-3 h-3" />
-                                        {run.location.code}
-                                    </span>
-                                )}
                                 {run.preProductionLocation && (
                                     <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
                                         <MapPin className="w-3 h-3" />
@@ -458,26 +452,20 @@ export default function SpangleConfig({
                                 selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
                                 onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                             />
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-                                <SearchableLocationSelect
-                                    label="Default Location"
-                                    locations={locations}
-                                    valueId={runLocations[run.id] ?? run.location?.id}
-                                    onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
-                                />
-                                <SearchableLocationSelect
-                                    label="Pre-Prod Location"
-                                    locations={locations}
-                                    valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
-                                    onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
-                                />
-                                <SearchableLocationSelect
-                                    label="Post-Prod Location"
-                                    locations={locations}
-                                    valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
-                                    onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
-                                />
-                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                            <SearchableLocationSelect
+                                label="Pre-Prod Location"
+                                locations={locations}
+                                valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
+                                onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                            />
+                            <SearchableLocationSelect
+                                label="Post-Prod Location"
+                                locations={locations}
+                                valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
+                                onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                            />
+                        </div>
                         </div>
                     )}
 
@@ -588,12 +576,6 @@ export default function SpangleConfig({
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <h3 className="font-semibold text-gray-900">Run {run.runNumber}</h3>
-                                            {run.location && (
-                                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
-                                                    <MapPin className="w-3 h-3" />
-                                                    {run.location.code}
-                                                </span>
-                                            )}
                                             {run.preProductionLocation && (
                                                 <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
                                                     <MapPin className="w-3 h-3" />

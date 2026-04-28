@@ -566,7 +566,7 @@ export default function EmbellishmentConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run.locationId ?? undefined,
+                undefined, // deprecated locationId
                 undefined, // comments
                 preProdLocations[runId] ?? run.preProductionLocation?.id,
                 postProdLocations[runId] ?? run.postProductionLocation?.id
@@ -677,24 +677,18 @@ export default function EmbellishmentConfig({
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-sm">View Run {run.runNumber} Configuration</h3>
-                        {run.location && (
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
-                                <MapPin className="w-3 h-3" />
-                                {run.location.code}
-                            </span>
-                        )}
-                        {run.preProductionLocation && (
-                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
-                                <MapPin className="w-3 h-3" />
-                                PRE: {run.preProductionLocation.code}
-                            </span>
-                        )}
-                        {run.postProductionLocation && (
-                            <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
-                                <MapPin className="w-3 h-3" />
-                                POST: {run.postProductionLocation.code}
-                            </span>
-                        )}
+                                {run.preProductionLocation && (
+                                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                        <MapPin className="w-3 h-3" />
+                                        PRE: {run.preProductionLocation.code}
+                                    </span>
+                                )}
+                                {run.postProductionLocation && (
+                                    <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                        <MapPin className="w-3 h-3" />
+                                        POST: {run.postProductionLocation.code}
+                                    </span>
+                                )}
                     </div>
                             {hasPermission(Permission.RUNS_UPDATE) && (
                                 <div className="flex items-center gap-2">
@@ -798,11 +792,22 @@ export default function EmbellishmentConfig({
                             </div>
 
                             {/* Location Read Only */}
-                            {run.location && (
-                                <div className="mt-2 text-xs flex items-center gap-1 text-gray-600">
-                                    <MapPin className="w-3 h-3" />
-                                    <span>Location: </span>
-                                    <span className="font-medium text-gray-800">{run.location.name} ({run.location.code})</span>
+                            {(run.preProductionLocation || run.postProductionLocation) && (
+                                <div className="mt-2 text-xs flex items-center gap-3 text-gray-600">
+                                    {run.preProductionLocation && (
+                                        <div className="flex items-center gap-1">
+                                            <MapPin className="w-3 h-3 text-blue-600" />
+                                            <span>Pre-Prod: </span>
+                                            <span className="font-medium text-gray-800">{run.preProductionLocation.name} ({run.preProductionLocation.code})</span>
+                                        </div>
+                                    )}
+                                    {run.postProductionLocation && (
+                                        <div className="flex items-center gap-1">
+                                            <MapPin className="w-3 h-3 text-purple-600" />
+                                            <span>Post-Prod: </span>
+                                            <span className="font-medium text-gray-800">{run.postProductionLocation.name} ({run.postProductionLocation.code})</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -883,13 +888,7 @@ export default function EmbellishmentConfig({
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                            <SearchableLocationSelect
-                                label="Default Location"
-                                locations={locations}
-                                valueId={runLocations[run.id] ?? run.locationId ?? undefined}
-                                onChange={(id) => setRunLocations((prev) => ({ ...prev, [run.id]: id }))}
-                            />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                             <SearchableLocationSelect
                                 label="Pre-Prod Location"
                                 locations={locations}
@@ -1192,12 +1191,6 @@ export default function EmbellishmentConfig({
                                                 <span className="text-xs text-gray-500">
                                                     ({filledFields}/{totalFields} fields)
                                                 </span>
-                                                {run.location && (
-                                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                                        <MapPin className="w-3 h-3" />
-                                                        {run.location.code}
-                                                    </span>
-                                                )}
                                                 {isConfigured && (
                                                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
                                                         <CheckCircle className="w-3 h-3" />

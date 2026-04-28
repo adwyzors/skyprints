@@ -418,7 +418,7 @@ export default function PositiveConfig({
                 imageUrls,
                 executorId,
                 reviewerId,
-                runLocations[runId] ?? run?.location?.id,
+                undefined, // deprecated locationId
                 undefined, // comments
                 preProdLocations[runId] ?? run?.preProductionLocation?.id,
                 postProdLocations[runId] ?? run?.postProductionLocation?.id
@@ -471,12 +471,6 @@ export default function PositiveConfig({
                         <h3 className="font-semibold text-sm">
                             {mode === 'edit' ? `Configure Run ${run.runNumber}` : `Run ${run.runNumber} Config`}
                         </h3>
-                        {mode === 'view' && run.location && (
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
-                                <MapPin className="w-3 h-3" />
-                                {run.location.code}
-                            </span>
-                        )}
                         {mode === 'view' && run.preProductionLocation && (
                             <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
                                 <MapPin className="w-3 h-3" />
@@ -523,12 +517,6 @@ export default function PositiveConfig({
                                 users={managers}
                                 selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
                                 onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
-                            />
-                            <SearchableLocationSelect
-                                label="Default Location"
-                                locations={locations}
-                                valueId={runLocations[run.id] ?? run.location?.id}
-                                onChange={(id) => setRunLocations(prev => ({ ...prev, [run.id]: id }))}
                             />
                             <SearchableLocationSelect
                                 label="Pre-Prod Location"
@@ -753,12 +741,6 @@ export default function PositiveConfig({
                                     <div onClick={() => setOpenRunId(run.id)} className="flex items-center gap-2 flex-1">
                                         <div className={`w-2 h-2 rounded-full ${run.configStatus === 'COMPLETE' ? 'bg-green-500' : 'bg-yellow-500'}`} />
                                         <span className="font-medium text-sm">Run {run.runNumber}</span>
-                                        {run.location && (
-                                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Default Location">
-                                                <MapPin className="w-3 h-3" />
-                                                {run.location.code}
-                                            </span>
-                                        )}
                                         {run.preProductionLocation && (
                                             <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
                                                 <MapPin className="w-3 h-3" />
