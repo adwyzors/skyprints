@@ -36,6 +36,7 @@
         "class-transformer": "^0.5.1",
         "class-validator": "^0.14.0",
         "cookie-parser": "^1.4.7",
+        "exceljs": "^4.4.0",
         "json-logic-js": "^2.0.5",
         "jsonwebtoken": "^9.0.3",
         "jwks-rsa": "^3.2.0",

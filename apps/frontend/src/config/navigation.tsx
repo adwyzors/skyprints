@@ -63,6 +63,13 @@ export const ADMIN_TABS: NavTab[] = [
         permission: Permission.BILLINGS_VIEW,
     },
     {
+        label: 'Reports',
+        path: '/admin/reports',
+        icon: <BarChart3 className="w-4 h-4" />,
+        badge: null,
+        permission: Permission.ANALYTICS_VIEW,
+    },
+    {
         label: 'Customers',
         path: '/admin/customers',
         icon: <Users className="w-4 h-4" />,

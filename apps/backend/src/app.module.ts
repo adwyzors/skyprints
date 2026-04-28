@@ -24,6 +24,7 @@ import { RunsModule } from './runs/runs.module';
 import { WorkflowModule } from './workflow/workflow.module';
 
 import { AnalyticsModule } from './analytics/analytics.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
     imports: [ConfigModule.forRoot({
@@ -47,6 +48,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
         HealthModule,
         AnalyticsModule,
         JobsModule,
+        ReportsModule,
     ],
     providers: [
         AppService,
