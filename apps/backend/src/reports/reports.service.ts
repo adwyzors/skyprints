@@ -9,7 +9,7 @@ export class ReportsService {
     constructor(private readonly prisma: PrismaService) {}
 
     async getBilledOrdersReport(query: ReportsQueryDto) {
-        const { customerId, startDate, endDate, processId, preProductionLocationId, postProductionLocationId, page, limit } = query;
+        const { customerId, startDate, endDate, processId, preProductionLocationId, postProductionLocationId, search, page, limit } = query;
 
         const whereClause: any = {
             statusCode: { in: ["BILLED", "GROUP_BILLED"] },
@@ -156,6 +156,18 @@ export class ReportsService {
                 }).filter(Boolean);
 
                 const description = Array.from(new Set(runDescs)).join("; ");
+                
+                // Search filtering
+                if (search) {
+                    const searchLower = search.toLowerCase();
+                    const matchesDescription = description.toLowerCase().includes(searchLower);
+                    const matchesOrderCode = order.code.toLowerCase().includes(searchLower);
+                    const matchesCustomer = order.customer.name.toLowerCase().includes(searchLower);
+                    
+                    if (!matchesDescription && !matchesOrderCode && !matchesCustomer) {
+                        continue;
+                    }
+                }
 
                 const productionDate = orderProcess.lifecycleCompletedAt || date;
 

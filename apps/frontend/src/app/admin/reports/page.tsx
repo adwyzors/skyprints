@@ -13,7 +13,8 @@ import {
     Download,
     FileText,
     Filter,
-    Loader2
+    Loader2,
+    Search
 } from 'lucide-react';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 
@@ -75,6 +76,10 @@ function ReportsPageContent() {
         setQuery(prev => ({ ...prev, limit, page: 1 }));
     };
 
+    const handleSearch = (val: string) => {
+        setQuery(prev => ({ ...prev, search: val, page: 1 }));
+    };
+
     // Robust data extraction
     const data: BilledOrderReportRow[] = useMemo(() => {
         if (!reportData) return [];
@@ -133,6 +138,16 @@ function ReportsPageContent() {
                         <div>
                             <h1 className="text-2xl font-bold tracking-tight text-gray-900">Reports</h1>
                             <p className="text-sm text-gray-500">Billed orders breakdown by process</p>
+                        </div>
+                        <div className="hidden lg:flex items-center relative ml-4">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search description, order code..."
+                                className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64 transition-all"
+                                defaultValue={query.search}
+                                onChange={(e) => handleSearch(e.target.value)}
+                            />
                         </div>
                     </div>
 

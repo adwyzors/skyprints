@@ -20,6 +20,7 @@ export interface ReportsQuery {
     processId?: string;
     preProductionLocationId?: string;
     postProductionLocationId?: string;
+    search?: string;
     page?: number;
     limit?: number;
 }

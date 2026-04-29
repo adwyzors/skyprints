@@ -27,6 +27,10 @@ export class ReportsQueryDto {
 
     @IsOptional()
     @IsString()
+    search?: string;
+
+    @IsOptional()
+    @IsString()
     page?: string;
 
     @IsOptional()

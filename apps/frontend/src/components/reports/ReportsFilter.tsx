@@ -120,9 +120,10 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
                         Prod Location
                     </label>
                     <SearchableLocationSelect
+                        label="Prod Location"
                         locations={locations}
-                        selectedLocationId={query.preProductionLocationId || null}
-                        onSelect={(id) => handleLocationChange('preProductionLocationId', id)}
+                        valueId={query.preProductionLocationId || ''}
+                        onChange={(id) => handleLocationChange('preProductionLocationId', id)}
                     />
                 </div>
 
@@ -133,9 +134,10 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
                         Post-Prod Location
                     </label>
                     <SearchableLocationSelect
+                        label="Post-Prod Location"
                         locations={locations}
-                        selectedLocationId={query.postProductionLocationId || null}
-                        onSelect={(id) => handleLocationChange('postProductionLocationId', id)}
+                        valueId={query.postProductionLocationId || ''}
+                        onChange={(id) => handleLocationChange('postProductionLocationId', id)}
                     />
                 </div>
 
