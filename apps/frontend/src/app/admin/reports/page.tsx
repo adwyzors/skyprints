@@ -2,7 +2,7 @@
 
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
-import { Suspense, useEffect, useState } from 'react';
+import { useMemo, Suspense, useEffect, useState } from 'react';
 import { 
     Download, 
     FileText, 
@@ -77,9 +77,27 @@ function ReportsPageContent() {
         setQuery(prev => ({ ...prev, limit, page: 1 }));
     };
 
-    const totalAmount = reportData?.meta?.totalAmount || 0;
-    const totalQty = reportData?.meta?.totalQty || 0;
-    const data: BilledOrderReportRow[] = Array.isArray(reportData) ? reportData as BilledOrderReportRow[] : (reportData?.data || []);
+    // Robust data extraction
+    const data: BilledOrderReportRow[] = useMemo(() => {
+        if (!reportData) return [];
+        if (Array.isArray(reportData)) return reportData as BilledOrderReportRow[];
+        return (reportData as any)?.data || [];
+    }, [reportData]);
+
+    // Robust totals calculation
+    const totalAmount = useMemo(() => {
+        if (reportData && !Array.isArray(reportData) && (reportData as any).meta?.totalAmount !== undefined) {
+            return (reportData as any).meta.totalAmount;
+        }
+        return data.reduce((sum, row) => sum + parseFloat(row.amount || '0'), 0);
+    }, [reportData, data]);
+
+    const totalQty = useMemo(() => {
+        if (reportData && !Array.isArray(reportData) && (reportData as any).meta?.totalQty !== undefined) {
+            return (reportData as any).meta.totalQty;
+        }
+        return data.reduce((sum, row) => sum + (row.quantity || 0), 0);
+    }, [reportData, data]);
 
     return (
         <div className="flex h-full bg-gray-50/50 overflow-hidden">
