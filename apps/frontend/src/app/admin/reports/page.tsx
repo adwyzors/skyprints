@@ -223,6 +223,7 @@ function ReportsPageContent() {
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Image</th>
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Customer</th>
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Process</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Run No</th>
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Description</th>
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Qty</th>
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Rate</th>
@@ -266,6 +267,7 @@ function ReportsPageContent() {
                                                             {row.processName}
                                                         </span>
                                                     </td>
+                                                    <td className="px-4 py-3 text-xs text-gray-500 font-mono">{row.runNumbers || '-'}</td>
                                                     <td className="px-4 py-3">
                                                         <p className="text-xs text-gray-500 line-clamp-2 max-w-[200px]" title={row.description}>
                                                             {row.description || '-'}

@@ -183,10 +183,16 @@ export class ReportsService {
                         .filter(Boolean)
                 )).join(", ");
 
+                const runNumbers = orderProcess.runs
+                    .map(r => r.runNumber)
+                    .sort((a, b) => a - b)
+                    .join(", ");
+
                 reportData.push({
                     orderCode: order.code,
                     images: order.images || [],
                     processName: orderProcess.process.name,
+                    runNumbers: runNumbers || "-",
                     description: description || "-",
                     customerName: order.customer.name,
                     quantity: order.quantity,
@@ -239,6 +245,7 @@ export class ReportsService {
         worksheet.columns = [
             { header: "Order Code", key: "orderCode", width: 15 },
             { header: "Process Name", key: "processName", width: 20 },
+            { header: "Run No", key: "runNumbers", width: 15 },
             { header: "Description", key: "description", width: 30 },
             { header: "Customer", key: "customerName", width: 25 },
             { header: "Quantity", key: "quantity", width: 10 },
