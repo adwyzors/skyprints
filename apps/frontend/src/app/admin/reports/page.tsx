@@ -99,6 +99,19 @@ function ReportsPageContent() {
         return data.reduce((sum, row) => sum + (row.quantity || 0), 0);
     }, [reportData, data]);
 
+    const totalPages = useMemo(() => {
+        if (reportData && !Array.isArray(reportData) && (reportData as any).meta?.totalPages !== undefined) {
+            return (reportData as any).meta.totalPages;
+        }
+        return Math.ceil(data.length / (query.limit || 20));
+    }, [reportData, data.length, query.limit]);
+
+    const paginatedData = useMemo(() => {
+        if (reportData && !Array.isArray(reportData)) return data; // Server-side already paginated
+        const skip = ((query.page || 1) - 1) * (query.limit || 20);
+        return data.slice(skip, skip + (query.limit || 20));
+    }, [data, reportData, query.page, query.limit]);
+
     return (
         <div className="flex h-full bg-gray-50/50 overflow-hidden">
             {/* SIDEBAR FILTERS */}
@@ -175,7 +188,7 @@ function ReportsPageContent() {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <p className="text-sm text-gray-500 font-medium">
-                                    Showing <span className="text-gray-900">{data.length}</span> of <span className="text-gray-900">{reportData?.meta?.total}</span> records
+                                    Showing <span className="text-gray-900">{paginatedData.length}</span> of <span className="text-gray-900">{(reportData as any)?.meta?.total || data.length}</span> records
                                 </p>
                                 <PageSizeSelector pageSize={query.limit || 20} onPageSizeChange={handlePageSizeChange} />
                             </div>
@@ -198,7 +211,7 @@ function ReportsPageContent() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                            {data.map((row, idx) => (
+                                            {paginatedData.map((row, idx) => (
                                                 <tr key={idx} className="hover:bg-gray-50 transition-colors group">
                                                     <td className="px-4 py-3">
                                                         <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
@@ -247,12 +260,15 @@ function ReportsPageContent() {
                                 </div>
                             </div>
 
-                            {reportData?.meta?.totalPages && reportData.meta.totalPages > 1 && (
+                            {totalPages > 1 && (
                                 <div className="mt-6">
                                     <Pagination 
-                                        currentPage={reportData.meta.page} 
-                                        totalPages={reportData.meta.totalPages} 
-                                        onPageChange={handlePageChange} 
+                                        currentPage={(reportData as any)?.meta?.page || query.page || 1} 
+                                        totalPages={totalPages} 
+                                        onPageChange={handlePageChange}
+                                        totalItems={(reportData as any)?.meta?.total || data.length}
+                                        pageSize={query.limit || 20}
+                                        itemLabel="records"
                                     />
                                 </div>
                             )}
