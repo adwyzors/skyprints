@@ -17,6 +17,8 @@ import { ContextLogger } from '../common/logger/context.logger';
 import { ProcessRunsQueryDto } from '../dto/process-runs.query.dto';
 import { toProcessSummary } from '../mappers/process.mapper';
 import { OrdersService } from '../orders/orders.service';
+import { BillingCalculatorService } from '../billing/services/billing-calculator.service';
+import { recomputeOrderEstimate } from '../orders/utils/order-estimate.util';
 
 @Injectable()
 export class AdminProcessService {
@@ -114,6 +116,7 @@ export class AdminProcessService {
     constructor(private readonly prisma: PrismaService,
         private readonly orderService: OrdersService,
         private readonly cloudflare: CloudflareService,
+        private readonly billingCalculator: BillingCalculatorService,
     ) { }
 
     /* =========================================================
@@ -710,6 +713,15 @@ export class AdminProcessService {
                 },
             });
 
+            // Recompute estimate after configuration
+            const runWithOrder = await tx.processRun.findUnique({
+                where: { id: run.id },
+                select: { orderProcess: { select: { orderId: true } } }
+            });
+            if (runWithOrder) {
+                await recomputeOrderEstimate(tx, runWithOrder.orderProcess.orderId, this.billingCalculator);
+            }
+
             /* =====================================================
              * PROCESS COUNTERS (FIRST TIME ONLY)
              * ===================================================== */
@@ -1163,6 +1175,9 @@ export class AdminProcessService {
                     });
                 }
             }
+
+            // Recompute estimate after status change
+            await recomputeOrderEstimate(tx, updatedOrderProcess.orderId, this.billingCalculator);
 
             return { success: true, status: target.code };
         });

@@ -2,9 +2,12 @@ import {
     BadRequestException,
     Injectable
 } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService, PrismaExecutor } from '../../prisma/prisma.service';
 import { ContextLogger } from '../common/logger/context.logger';
 import { RunFieldsValidator } from './run-fields.validator';
+import { BillingCalculatorService } from '../billing/services/billing-calculator.service';
+import { recomputeOrderEstimate } from '../orders/utils/order-estimate.util';
+import { Prisma } from '@prisma/client';
 
 const POST_PROD_STAGES = [
     'WAITING',
@@ -43,6 +46,7 @@ export class RunsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly fieldValidator: RunFieldsValidator,
+        private readonly billingCalculator: BillingCalculatorService,
     ) { }
 
     /* ---------------- HELPERS ---------------- */
@@ -144,5 +148,22 @@ export class RunsService {
             orderProcessId,
             runId,
         );
+    }
+
+    /* ---------------- WRITES ---------------- */
+
+    async create(tx: PrismaExecutor, data: Prisma.ProcessRunUncheckedCreateInput, orderId: string) {
+        const run = await tx.processRun.create({ data });
+        await recomputeOrderEstimate(tx, orderId, this.billingCalculator);
+        return run;
+    }
+
+    async update(tx: PrismaExecutor, runId: string, data: Prisma.ProcessRunUncheckedUpdateInput, orderId: string) {
+        const run = await tx.processRun.update({
+            where: { id: runId },
+            data,
+        });
+        await recomputeOrderEstimate(tx, orderId, this.billingCalculator);
+        return run;
     }
 }

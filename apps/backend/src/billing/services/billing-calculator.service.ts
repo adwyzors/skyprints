@@ -162,4 +162,25 @@ export class BillingCalculatorService {
         };
     }
 
+    calculateRun(run: any) {
+        const formula = run.runTemplate.billingFormula;
+        if (!formula) return 0;
+
+        const staticVars = extractNumericVariables(
+            run.fields as Record<string, unknown>
+        );
+
+        const requiredVars = extractFormulaVariables(formula);
+
+        const merged = { ...staticVars };
+        for (const v of requiredVars) {
+            if (!(v in merged)) {
+                merged[v] = 0;
+            }
+        }
+
+        const compiled = this.compiler.compile(formula);
+        return this.engine.evaluate(compiled, merged);
+    }
+
 }

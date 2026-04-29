@@ -13,6 +13,8 @@ import { ContextLogger } from '../common/logger/context.logger';
 import { generateFiscalCode } from '../common/utils/fiscal-year.utils';
 import { OrdersQueryDto } from '../dto/orders.query.dto';
 import { toOrderSummary } from '../mappers/order.mapper';
+import { BillingCalculatorService } from '../billing/services/billing-calculator.service';
+import { recomputeOrderEstimate } from './utils/order-estimate.util';
 
 
 const SYSTEM_USER_ID = 'a98afcd6-e0d9-4948-afb8-11fb4d18185a';
@@ -24,6 +26,7 @@ export class OrdersService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly cloudflare: CloudflareService,
+        private readonly billingCalculator: BillingCalculatorService,
     ) { }
 
     /* ========================== QUERY ========================== */
@@ -564,6 +567,52 @@ export class OrdersService {
             return await this.prisma.transaction(async tx => {
 
                 /* =====================================================
+                 * CREDIT LIMIT CHECK
+                 * ===================================================== */
+                const customer = await tx.customer.findUnique({
+                    where: { id: dto.customerId },
+                });
+
+                if (!customer) {
+                    throw new BadRequestException('Customer not found');
+                }
+
+                const activeOrders = await tx.order.findMany({
+                    where: {
+                        customerId: dto.customerId,
+                        deletedAt: null,
+                        isTest: false,
+                        statusCode: {
+                            notIn: [OrderStatus.BILLED, OrderStatus.GROUP_BILLED],
+                        },
+                    },
+                    select: {
+                        estimatedAmount: true,
+                    },
+                });
+
+                const activeAmount = activeOrders.reduce(
+                    (sum, o) => sum + Number(o.estimatedAmount || 0),
+                    0,
+                );
+
+                const exposure =
+                    Math.max(Number(customer.outstandingAmount || 0), 0) +
+                    activeAmount;
+
+                if (
+                    Number(customer.creditLimit) > 0 &&
+                    exposure >= Number(customer.creditLimit)
+                ) {
+                    this.logger.warn({
+                        customerId: dto.customerId,
+                        exposure,
+                        limit: customer.creditLimit,
+                    }, 'Credit limit exceeded');
+                    throw new BadRequestException('Credit limit reached');
+                }
+
+                /* =====================================================
                  * LOAD PROCESSES (LEANER)
                  * ===================================================== */
                 const processes = await tx.process.findMany({
@@ -703,6 +752,8 @@ export class OrdersService {
                             });
                         }
                     }
+                    // Recompute estimate after creation
+                    await recomputeOrderEstimate(tx, orderId, this.billingCalculator);
                 }
 
                 return { id: orderId, code };

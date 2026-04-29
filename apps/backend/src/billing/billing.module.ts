@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
 
 import { FormulaCompiler } from "./formula/formula-compiler";
@@ -36,8 +36,9 @@ import { AnalyticsModule } from "../analytics/analytics.module";
 
     ],
     exports: [
-        BillingService
+        BillingService,
+        BillingCalculatorService
     ],
-    imports: [OrdersModule, AnalyticsModule]
+    imports: [forwardRef(() => OrdersModule), AnalyticsModule]
 })
 export class BillingModule { }

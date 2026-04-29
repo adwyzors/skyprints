@@ -61,6 +61,9 @@ model Customer {
   tds   Boolean @default(false)
   tax   Boolean @default(false)
 
+  creditLimit       Decimal @db.Decimal(18, 4) @default(0)
+  outstandingAmount Decimal @db.Decimal(18, 4) @default(0)
+
   @@index([isActive])
   @@index([deletedAt])
   @@index([isActive, deletedAt])
@@ -254,6 +257,8 @@ model Order {
   createdAt          DateTime  @default(now())
   lifecycleStartedAt DateTime?
 
+  estimatedAmount Decimal @db.Decimal(18, 4) @default(0)
+
   @@unique([code, deletedAt])
   @@index([id, deletedAt])
   @@index([deletedAt, createdAt(sort: Desc)])
@@ -261,6 +266,7 @@ model Order {
   @@index([deletedAt, customerId, createdAt(sort: Desc)])
   @@index([deletedAt, statusCode, createdAt(sort: Desc)])
   @@index([deletedAt, createdById])
+  @@index([customerId, statusCode])
 }
 
 ///////////////////////////////
