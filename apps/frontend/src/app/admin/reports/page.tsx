@@ -79,7 +79,7 @@ function ReportsPageContent() {
 
     const totalAmount = reportData?.meta?.totalAmount || 0;
     const totalQty = reportData?.meta?.totalQty || 0;
-    const data = reportData?.data || [];
+    const data: BilledOrderReportRow[] = Array.isArray(reportData) ? reportData as BilledOrderReportRow[] : (reportData?.data || []);
 
     return (
         <div className="flex h-full bg-gray-50/50 overflow-hidden">
@@ -94,7 +94,7 @@ function ReportsPageContent() {
                     <ReportsFilter 
                         onClose={() => setIsSidebarOpen(false)} 
                         query={query}
-                        onQueryChange={(newQuery) => setQuery({ ...newQuery, page: 1 })}
+                        onQueryChange={(newFilters) => setQuery(prev => ({ ...prev, ...newFilters, page: 1 }))}
                     />
                 </div>
             </div>
@@ -190,7 +190,7 @@ function ReportsPageContent() {
                                                     <td className="px-4 py-3">
                                                         <div className="flex flex-wrap gap-1 max-w-[100px]">
                                                             {row.images && row.images.length > 0 ? (
-                                                                row.images.slice(0, 1).map((img, i) => (
+                                                                row.images.slice(0, 1).map((img: string, i: number) => (
                                                                     <div 
                                                                         key={i}
                                                                         onClick={() => setPreviewImage(img)}

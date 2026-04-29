@@ -67,19 +67,27 @@ export class ReportsService {
         let reportData: any[] = [];
 
         // Normalize filter dates
-        const start = startDate ? new Date(startDate) : null;
-        if (start) start.setHours(0, 0, 0, 0);
+        const start = (startDate && startDate !== '') ? new Date(startDate) : null;
+        if (start && isNaN(start.getTime())) {
+            // Fallback for invalid date strings
+        } else if (start) {
+            start.setHours(0, 0, 0, 0);
+        }
 
-        const end = endDate ? new Date(endDate) : null;
-        if (end) end.setHours(23, 59, 59, 999);
+        const end = (endDate && endDate !== '') ? new Date(endDate) : null;
+        if (end && isNaN(end.getTime())) {
+            // Fallback
+        } else if (end) {
+            end.setHours(23, 59, 59, 999);
+        }
 
         for (const order of orders) {
             const orderAnalytic = analyticsMap.get(order.id);
             const date = orderAnalytic?.billedAt || order.createdAt;
 
             // Date filtering post-fetch
-            if (start && date < start) continue;
-            if (end && date > end) continue;
+            if (start && !isNaN(start.getTime()) && date < start) continue;
+            if (end && !isNaN(end.getTime()) && date > end) continue;
 
             // Billing amount and number extraction
             let amount = 0;
