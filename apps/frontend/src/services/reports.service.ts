@@ -7,6 +7,9 @@ export const getBilledOrdersReport = async (query: ReportsQuery): Promise<Billed
     if (query.startDate) params.append('startDate', query.startDate);
     if (query.endDate) params.append('endDate', query.endDate);
     if (query.processId) params.append('processId', query.processId);
+    if (query.preProductionLocationId) params.append('preProductionLocationId', query.preProductionLocationId);
+    if (query.postProductionLocationId) params.append('postProductionLocationId', query.postProductionLocationId);
+    if (query.search) params.append('search', query.search);
     if (query.page) params.append('page', query.page.toString());
     if (query.limit) params.append('limit', query.limit.toString());
 
@@ -31,6 +34,9 @@ export const getExportUrl = (query: ReportsQuery): string => {
     if (query.startDate) params.append('startDate', query.startDate);
     if (query.endDate) params.append('endDate', query.endDate);
     if (query.processId) params.append('processId', query.processId);
+    if (query.preProductionLocationId) params.append('preProductionLocationId', query.preProductionLocationId);
+    if (query.postProductionLocationId) params.append('postProductionLocationId', query.postProductionLocationId);
+    if (query.search) params.append('search', query.search);
 
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     return `${baseUrl}/reports/billed-orders/export?${params.toString()}`;

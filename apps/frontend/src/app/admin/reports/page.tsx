@@ -17,6 +17,7 @@ import {
     Search
 } from 'lucide-react';
 import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function ReportsPage() {
     return (
@@ -44,6 +45,14 @@ function ReportsPageContent() {
         page: 1,
         limit: 20
     });
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearch = useDebounce(searchTerm, 500);
+
+    // Sync debounced search to query
+    useEffect(() => {
+        setQuery(prev => ({ ...prev, search: debouncedSearch, page: 1 }));
+    }, [debouncedSearch]);
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
 
@@ -77,7 +86,7 @@ function ReportsPageContent() {
     };
 
     const handleSearch = (val: string) => {
-        setQuery(prev => ({ ...prev, search: val, page: 1 }));
+        setSearchTerm(val);
     };
 
     // Robust data extraction
