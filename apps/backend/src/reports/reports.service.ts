@@ -9,7 +9,7 @@ export class ReportsService {
     constructor(private readonly prisma: PrismaService) {}
 
     async getBilledOrdersReport(query: ReportsQueryDto) {
-        const { customerId, startDate, endDate, processId, page, limit } = query;
+        const { customerId, startDate, endDate, processId, preProductionLocationId, postProductionLocationId, page, limit } = query;
 
         const whereClause: any = {
             statusCode: { in: ["BILLED", "GROUP_BILLED"] },
@@ -20,12 +20,18 @@ export class ReportsService {
             whereClause.customerId = customerId;
         }
 
-        if (processId) {
-            whereClause.processes = {
-                some: {
-                    processId: processId,
-                },
-            };
+        const processWhere: any = {};
+        if (processId) processWhere.processId = processId;
+        
+        if (preProductionLocationId || postProductionLocationId) {
+            const runWhere: any = {};
+            if (preProductionLocationId) runWhere.preProductionLocationId = preProductionLocationId;
+            if (postProductionLocationId) runWhere.postProductionLocationId = postProductionLocationId;
+            processWhere.runs = { some: runWhere };
+        }
+
+        if (Object.keys(processWhere).length > 0) {
+            whereClause.processes = { some: processWhere };
         }
 
         const orders = await this.prisma.order.findMany({
@@ -122,6 +128,16 @@ export class ReportsService {
 
             for (const orderProcess of order.processes) {
                 if (processId && orderProcess.processId !== processId) continue;
+
+                // Location filtering in loop
+                if (preProductionLocationId || postProductionLocationId) {
+                    const matches = orderProcess.runs.some(r => {
+                        const preMatch = !preProductionLocationId || r.preProductionLocationId === preProductionLocationId;
+                        const postMatch = !postProductionLocationId || r.postProductionLocationId === postProductionLocationId;
+                        return preMatch && postMatch;
+                    });
+                    if (!matches) continue;
+                }
 
                 const rate = order.quantity > 0 ? amount / order.quantity : 0;
 

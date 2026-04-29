@@ -16,6 +16,14 @@ export class ReportsQueryDto {
     @IsOptional()
     @IsString()
     processId?: string;
+    
+    @IsOptional()
+    @IsString()
+    preProductionLocationId?: string;
+
+    @IsOptional()
+    @IsString()
+    postProductionLocationId?: string;
 
     @IsOptional()
     @IsString()

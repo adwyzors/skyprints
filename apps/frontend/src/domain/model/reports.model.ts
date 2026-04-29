@@ -18,6 +18,8 @@ export interface ReportsQuery {
     startDate?: string;
     endDate?: string;
     processId?: string;
+    preProductionLocationId?: string;
+    postProductionLocationId?: string;
     page?: number;
     limit?: number;
 }

@@ -1,14 +1,17 @@
 'use client';
 
-import { Filter, X, Calendar, User, Activity } from 'lucide-react';
+import { Filter, X, Calendar, User, Activity, MapPin } from 'lucide-react';
 import SearchableCustomerSelect from '../common/SearchableCustomerSelect';
 import SearchableProcessSelect from '../common/SearchableProcessSelect';
+import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import { ReportsQuery } from '@/domain/model/reports.model';
 import { useEffect, useState } from 'react';
 import { getCustomers } from '@/services/customer.service';
 import { getProcesses } from '@/services/process.service';
+import { getLocations } from '@/services/location.service';
 import { Customer } from '@/domain/model/customer.model';
 import { ProcessSummary } from '@/domain/model/process.model';
+import { Location } from '@/domain/model/location.model';
 
 interface ReportsFilterProps {
     onClose: () => void;
@@ -19,16 +22,19 @@ interface ReportsFilterProps {
 export default function ReportsFilter({ onClose, query, onQueryChange }: ReportsFilterProps) {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [processes, setProcesses] = useState<ProcessSummary[]>([]);
+    const [locations, setLocations] = useState<Location[]>([]);
 
     useEffect(() => {
         const loadFilterData = async () => {
             try {
-                const [customerData, processData] = await Promise.all([
+                const [customerData, processData, locationData] = await Promise.all([
                     getCustomers(),
-                    getProcesses()
+                    getProcesses(),
+                    getLocations()
                 ]);
                 setCustomers(customerData);
                 setProcesses(processData);
+                setLocations(locationData);
             } catch (error) {
                 console.error('Failed to load filter data:', error);
             }
@@ -44,6 +50,10 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
         onQueryChange({ ...query, processId });
     };
 
+    const handleLocationChange = (type: 'preProductionLocationId' | 'postProductionLocationId', locationId: string) => {
+        onQueryChange({ ...query, [type]: locationId });
+    };
+
     const handleDateChange = (type: 'startDate' | 'endDate', value: string) => {
         onQueryChange({ ...query, [type]: value });
     };
@@ -52,12 +62,14 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
         onQueryChange({
             customerId: '',
             processId: '',
+            preProductionLocationId: '',
+            postProductionLocationId: '',
             startDate: '',
             endDate: ''
         });
     };
 
-    const hasFilters = query.customerId || query.processId || query.startDate || query.endDate;
+    const hasFilters = query.customerId || query.processId || query.preProductionLocationId || query.postProductionLocationId || query.startDate || query.endDate;
 
     return (
         <div className="flex flex-col h-full bg-white">
@@ -98,6 +110,32 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
                         processes={processes}
                         selectedProcessId={query.processId || null}
                         onSelect={handleProcessChange}
+                    />
+                </div>
+
+                {/* Production Location Filter */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <MapPin className="w-3 h-3" />
+                        Prod Location
+                    </label>
+                    <SearchableLocationSelect
+                        locations={locations}
+                        selectedLocationId={query.preProductionLocationId || null}
+                        onSelect={(id) => handleLocationChange('preProductionLocationId', id)}
+                    />
+                </div>
+
+                {/* Post-Production Location Filter */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <MapPin className="w-3 h-3" />
+                        Post-Prod Location
+                    </label>
+                    <SearchableLocationSelect
+                        locations={locations}
+                        selectedLocationId={query.postProductionLocationId || null}
+                        onSelect={(id) => handleLocationChange('postProductionLocationId', id)}
                     />
                 </div>
 
