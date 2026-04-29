@@ -1086,6 +1086,8 @@ export class AdminProcessService {
             /* =====================================================
              * 4️⃣ UPDATE RUN STATUS AND HISTORY
              * ===================================================== */
+            const transitionDate = expectedDate ? new Date(expectedDate) : new Date();
+
             await tx.processRun.update({
                 where: { id: run.id },
                 data: { lifeCycleStatusCode: target.code },
@@ -1099,7 +1101,7 @@ export class AdminProcessService {
                     completedAt: null,
                 },
                 data: {
-                    completedAt: new Date(),
+                    completedAt: transitionDate,
                 }
             });
 
@@ -1108,8 +1110,8 @@ export class AdminProcessService {
                 data: {
                     processRunId: run.id,
                     statusCode: target.code,
-                    expectedDate: expectedDate ? new Date(expectedDate) : null,
-                    completedAt: target.isTerminal ? new Date() : null,
+                    expectedDate: expectedDate ? transitionDate : null,
+                    completedAt: target.isTerminal ? transitionDate : null,
                 }
             });
 
@@ -1140,7 +1142,7 @@ export class AdminProcessService {
                     lifecycleCompletedRuns: updatedOrderProcess.totalRuns,
                     lifecycleCompletedAt: null,
                 },
-                data: { lifecycleCompletedAt: new Date() },
+                data: { lifecycleCompletedAt: transitionDate },
             });
 
             if (finalized.count === 1) {
