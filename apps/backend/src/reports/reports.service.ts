@@ -35,6 +35,7 @@ export class ReportsService {
                 processes: {
                     include: {
                         process: true,
+                        runs: true,
                     },
                 },
                 billingContexts: {
@@ -113,9 +114,28 @@ export class ReportsService {
 
                 const rate = order.quantity > 0 ? amount / order.quantity : 0;
 
+                // Extract run descriptions
+                const runDescs = orderProcess.runs.map(r => {
+                    const values = r.fields as any;
+                    const mainDesc = values?.particulars || values?.design || values?.designName || values?.particular;
+                    if (mainDesc) return mainDesc;
+
+                    if (Array.isArray(values?.items)) {
+                        const itemDescs = values.items
+                            .map((item: any) => item.design || item.particulars || item.description || item.designSizes || item.fileSizes)
+                            .filter(Boolean);
+                        if (itemDescs.length > 0) return itemDescs.join(", ");
+                    }
+                    return null;
+                }).filter(Boolean);
+
+                const description = Array.from(new Set(runDescs)).join("; ");
+
                 reportData.push({
                     orderCode: order.code,
+                    images: order.images || [],
                     processName: orderProcess.process.name,
+                    description: description || "-",
                     customerName: order.customer.name,
                     quantity: order.quantity,
                     rate: rate.toFixed(2),
@@ -138,6 +158,7 @@ export class ReportsService {
         worksheet.columns = [
             { header: "Order Code", key: "orderCode", width: 15 },
             { header: "Process Name", key: "processName", width: 20 },
+            { header: "Description", key: "description", width: 30 },
             { header: "Customer", key: "customerName", width: 25 },
             { header: "Quantity", key: "quantity", width: 10 },
             { header: "Rate", key: "rate", width: 10 },

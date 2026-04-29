@@ -1,6 +1,8 @@
 export interface BilledOrderReportRow {
     orderCode: string;
+    images?: string[];
     processName: string;
+    description?: string;
     customerName: string;
     quantity: number;
     rate: string;

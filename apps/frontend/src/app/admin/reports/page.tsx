@@ -15,6 +15,7 @@ import {
 import { BilledOrderReportRow, ReportsQuery } from '@/domain/model/reports.model';
 import { getBilledOrdersReport, getExportUrl } from '@/services/reports.service';
 import ReportsFilter from '@/components/reports/ReportsFilter';
+import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 
 export default function ReportsPage() {
     return (
@@ -40,6 +41,8 @@ function ReportsPageContent() {
         startDate: '',
         endDate: ''
     });
+
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     const fetchData = async () => {
         setLoading(true);
@@ -143,8 +146,10 @@ function ReportsPageContent() {
                                 <thead className="bg-gray-50/80 border-b border-gray-200">
                                     <tr>
                                         <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Order Code</th>
+                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Image</th>
                                         <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Customer</th>
                                         <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Process</th>
+                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Description</th>
                                         <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Qty</th>
                                         <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Rate</th>
                                         <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Amount</th>
@@ -160,11 +165,35 @@ function ReportsPageContent() {
                                                     {row.orderCode}
                                                 </span>
                                             </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex flex-wrap gap-1 max-w-[100px]">
+                                                    {row.images && row.images.length > 0 ? (
+                                                        row.images.slice(0, 1).map((img, i) => (
+                                                            <div 
+                                                                key={i}
+                                                                onClick={() => setPreviewImage(img)}
+                                                                className="w-10 h-10 rounded border border-gray-200 overflow-hidden cursor-pointer hover:border-blue-400 transition-all bg-gray-50"
+                                                            >
+                                                                <img src={img} className="w-full h-full object-cover" alt="" />
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="w-10 h-10 rounded border border-gray-100 bg-gray-50 flex items-center justify-center">
+                                                            <span className="text-[10px] text-gray-300">No img</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="px-4 py-3 text-sm font-medium text-gray-700">{row.customerName}</td>
                                             <td className="px-4 py-3">
                                                 <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
                                                     {row.processName}
                                                 </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <p className="text-xs text-gray-500 line-clamp-2 max-w-[200px]" title={row.description}>
+                                                    {row.description || '-'}
+                                                </p>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-600 text-right font-medium">{row.quantity.toLocaleString()}</td>
                                             <td className="px-4 py-3 text-sm text-gray-500 text-right">₹{row.rate}</td>
@@ -179,6 +208,7 @@ function ReportsPageContent() {
                     )}
                 </div>
             </div>
+            <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
         </div>
     );
 }
