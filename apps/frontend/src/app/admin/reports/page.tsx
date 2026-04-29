@@ -100,11 +100,16 @@ function ReportsPageContent() {
     }, [reportData, data]);
 
     const totalPages = useMemo(() => {
+        // If server provides totalPages, use it
         if (reportData && !Array.isArray(reportData) && (reportData as any).meta?.totalPages !== undefined) {
             return (reportData as any).meta.totalPages;
         }
-        return Math.ceil(data.length / (query.limit || 20));
-    }, [reportData, data.length, query.limit]);
+        // Fallback: If we have exactly 'limit' records, assume there's at least one more page
+        const count = data.length;
+        const limit = query.limit || 20;
+        if (count === limit) return (query.page || 1) + 1; 
+        return Math.ceil(count / limit);
+    }, [reportData, data.length, query.limit, query.page]);
 
     const paginatedData = useMemo(() => {
         if (reportData && !Array.isArray(reportData)) return data; // Server-side already paginated
