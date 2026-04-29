@@ -87,36 +87,20 @@ function ReportsPageContent() {
 
     // Robust totals calculation
     const totalAmount = useMemo(() => {
-        if (reportData && !Array.isArray(reportData) && (reportData as any).meta?.totalAmount !== undefined) {
-            return (reportData as any).meta.totalAmount;
-        }
-        return data.reduce((sum, row) => sum + parseFloat(row.amount || '0'), 0);
-    }, [reportData, data]);
+        return reportData?.meta?.totalAmount || 0;
+    }, [reportData]);
 
     const totalQty = useMemo(() => {
-        if (reportData && !Array.isArray(reportData) && (reportData as any).meta?.totalQty !== undefined) {
-            return (reportData as any).meta.totalQty;
-        }
-        return data.reduce((sum, row) => sum + (row.quantity || 0), 0);
-    }, [reportData, data]);
+        return reportData?.meta?.totalQty || 0;
+    }, [reportData]);
 
     const totalPages = useMemo(() => {
-        // If server provides totalPages, use it
-        if (reportData && !Array.isArray(reportData) && (reportData as any).meta?.totalPages !== undefined) {
-            return (reportData as any).meta.totalPages;
-        }
-        // Fallback: If we have exactly 'limit' records, assume there's at least one more page
-        const count = data.length;
-        const limit = query.limit || 20;
-        if (count === limit) return (query.page || 1) + 1; 
-        return Math.ceil(count / limit);
-    }, [reportData, data.length, query.limit, query.page]);
+        return reportData?.meta?.totalPages || 1;
+    }, [reportData]);
 
     const paginatedData = useMemo(() => {
-        if (reportData && !Array.isArray(reportData)) return data; // Server-side already paginated
-        const skip = ((query.page || 1) - 1) * (query.limit || 20);
-        return data.slice(skip, skip + (query.limit || 20));
-    }, [data, reportData, query.page, query.limit]);
+        return data; // Server-side already paginated
+    }, [data]);
 
     return (
         <div className="flex h-full bg-gray-50/50 overflow-hidden">
@@ -194,13 +178,13 @@ function ReportsPageContent() {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <p className="text-sm text-gray-500 font-medium">
-                                    Showing <span className="text-gray-900">{paginatedData.length}</span> of <span className="text-gray-900">{(reportData as any)?.meta?.total || data.length}</span> records
+                                    Showing <span className="text-gray-900">{paginatedData.length}</span> of <span className="text-gray-900">{reportData?.meta?.total || data.length}</span> records
                                 </p>
                                 <div className="flex items-center gap-4">
                                     <PageSizeSelector pageSize={query.limit || 20} onPageSizeChange={handlePageSizeChange} />
                                     <button
-                                        onClick={() => handlePageChange(((reportData as any)?.meta?.page || query.page || 1) + 1)}
-                                        disabled={((reportData as any)?.meta?.page || query.page || 1) >= totalPages}
+                                        onClick={() => handlePageChange((reportData?.meta?.page || query.page || 1) + 1)}
+                                        disabled={(reportData?.meta?.page || query.page || 1) >= totalPages}
                                         className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                                     >
                                         Next Page
@@ -279,10 +263,10 @@ function ReportsPageContent() {
                             {/* PAGINATION */}
                             <div className="mt-8">
                                 <Pagination
-                                    currentPage={(reportData as any)?.meta?.page || query.page || 1}
+                                    currentPage={reportData?.meta?.page || query.page || 1}
                                     totalPages={totalPages}
                                     onPageChange={handlePageChange}
-                                    totalItems={(reportData as any)?.meta?.total || data.length}
+                                    totalItems={reportData?.meta?.total || data.length}
                                     pageSize={query.limit || 20}
                                     itemLabel="records"
                                 />
