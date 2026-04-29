@@ -9,6 +9,7 @@ import {
     Filter, 
     Loader2, 
     ChevronLeft,
+    ChevronRight,
     TrendingUp,
     Table as TableIcon
 } from 'lucide-react';
@@ -195,7 +196,17 @@ function ReportsPageContent() {
                                 <p className="text-sm text-gray-500 font-medium">
                                     Showing <span className="text-gray-900">{paginatedData.length}</span> of <span className="text-gray-900">{(reportData as any)?.meta?.total || data.length}</span> records
                                 </p>
-                                <PageSizeSelector pageSize={query.limit || 20} onPageSizeChange={handlePageSizeChange} />
+                                <div className="flex items-center gap-4">
+                                    <PageSizeSelector pageSize={query.limit || 20} onPageSizeChange={handlePageSizeChange} />
+                                    <button
+                                        onClick={() => handlePageChange(((reportData as any)?.meta?.page || query.page || 1) + 1)}
+                                        disabled={((reportData as any)?.meta?.page || query.page || 1) >= totalPages}
+                                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                    >
+                                        Next Page
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
@@ -265,18 +276,17 @@ function ReportsPageContent() {
                                 </div>
                             </div>
 
-                            {totalPages > 1 && (
-                                <div className="mt-6">
-                                    <Pagination 
-                                        currentPage={(reportData as any)?.meta?.page || query.page || 1} 
-                                        totalPages={totalPages} 
-                                        onPageChange={handlePageChange}
-                                        totalItems={(reportData as any)?.meta?.total || data.length}
-                                        pageSize={query.limit || 20}
-                                        itemLabel="records"
-                                    />
-                                </div>
-                            )}
+                            {/* PAGINATION */}
+                            <div className="mt-8">
+                                <Pagination
+                                    currentPage={(reportData as any)?.meta?.page || query.page || 1}
+                                    totalPages={totalPages}
+                                    onPageChange={handlePageChange}
+                                    totalItems={(reportData as any)?.meta?.total || data.length}
+                                    pageSize={query.limit || 20}
+                                    itemLabel="records"
+                                />
+                            </div>
                         </div>
                     )}
                 </div>
