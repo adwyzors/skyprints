@@ -12,10 +12,12 @@ import {
     TrendingUp,
     Table as TableIcon
 } from 'lucide-react';
-import { BilledOrderReportRow, ReportsQuery } from '@/domain/model/reports.model';
+import { BilledOrderReportResponse, BilledOrderReportRow, ReportsQuery } from '@/domain/model/reports.model';
 import { getBilledOrdersReport, getExportUrl } from '@/services/reports.service';
 import ReportsFilter from '@/components/reports/ReportsFilter';
 import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
+import Pagination from '@/components/common/Pagination';
+import PageSizeSelector from '@/components/orders/PageSizeSelector';
 
 export default function ReportsPage() {
     return (
@@ -34,12 +36,14 @@ const ProtectedReportsPageContent = withAuth(ReportsPageContent, { permission: P
 function ReportsPageContent() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [loading, setLoading] = useState(true);
-    const [data, setData] = useState<BilledOrderReportRow[]>([]);
+    const [reportData, setReportData] = useState<BilledOrderReportResponse | null>(null);
     const [query, setQuery] = useState<ReportsQuery>({
         customerId: '',
         processId: '',
         startDate: '',
-        endDate: ''
+        endDate: '',
+        page: 1,
+        limit: 20
     });
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -47,8 +51,8 @@ function ReportsPageContent() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const reportData = await getBilledOrdersReport(query);
-            setData(reportData);
+            const res = await getBilledOrdersReport(query);
+            setReportData(res);
         } catch (error) {
             console.error('Failed to fetch report:', error);
         } finally {
@@ -65,8 +69,17 @@ function ReportsPageContent() {
         window.open(url, '_blank');
     };
 
-    const totalAmount = data.reduce((sum, row) => sum + parseFloat(row.amount), 0);
-    const totalQty = data.reduce((sum, row) => sum + row.quantity, 0);
+    const handlePageChange = (page: number) => {
+        setQuery(prev => ({ ...prev, page }));
+    };
+
+    const handlePageSizeChange = (limit: number) => {
+        setQuery(prev => ({ ...prev, limit, page: 1 }));
+    };
+
+    const totalAmount = reportData?.meta?.totalAmount || 0;
+    const totalQty = reportData?.meta?.totalQty || 0;
+    const data = reportData?.data || [];
 
     return (
         <div className="flex h-full bg-gray-50/50 overflow-hidden">
@@ -81,7 +94,7 @@ function ReportsPageContent() {
                     <ReportsFilter 
                         onClose={() => setIsSidebarOpen(false)} 
                         query={query}
-                        onQueryChange={setQuery}
+                        onQueryChange={(newQuery) => setQuery({ ...newQuery, page: 1 })}
                     />
                 </div>
             </div>
@@ -141,69 +154,90 @@ function ReportsPageContent() {
                             <p className="text-sm">Try adjusting your filters to find billed orders</p>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-gray-50/80 border-b border-gray-200">
-                                    <tr>
-                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Order Code</th>
-                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Image</th>
-                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Customer</th>
-                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Process</th>
-                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Description</th>
-                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Qty</th>
-                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Rate</th>
-                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Amount</th>
-                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Bill Number</th>
-                                        <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {data.map((row, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-50 transition-colors group">
-                                            <td className="px-4 py-3">
-                                                <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
-                                                    {row.orderCode}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex flex-wrap gap-1 max-w-[100px]">
-                                                    {row.images && row.images.length > 0 ? (
-                                                        row.images.slice(0, 1).map((img, i) => (
-                                                            <div 
-                                                                key={i}
-                                                                onClick={() => setPreviewImage(img)}
-                                                                className="w-10 h-10 rounded border border-gray-200 overflow-hidden cursor-pointer hover:border-blue-400 transition-all bg-gray-50"
-                                                            >
-                                                                <img src={img} className="w-full h-full object-cover" alt="" />
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded border border-gray-100 bg-gray-50 flex items-center justify-center">
-                                                            <span className="text-[10px] text-gray-300">No img</span>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-500 font-medium">
+                                    Showing <span className="text-gray-900">{data.length}</span> of <span className="text-gray-900">{reportData?.meta?.total}</span> records
+                                </p>
+                                <PageSizeSelector pageSize={query.limit || 20} onPageSizeChange={handlePageSizeChange} />
+                            </div>
+
+                            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-gray-50/80 border-b border-gray-200">
+                                            <tr>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Order Code</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Image</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Customer</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Process</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Description</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Qty</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Rate</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Amount</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Bill Number</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {data.map((row, idx) => (
+                                                <tr key={idx} className="hover:bg-gray-50 transition-colors group">
+                                                    <td className="px-4 py-3">
+                                                        <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
+                                                            {row.orderCode}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex flex-wrap gap-1 max-w-[100px]">
+                                                            {row.images && row.images.length > 0 ? (
+                                                                row.images.slice(0, 1).map((img, i) => (
+                                                                    <div 
+                                                                        key={i}
+                                                                        onClick={() => setPreviewImage(img)}
+                                                                        className="w-10 h-10 rounded border border-gray-200 overflow-hidden cursor-pointer hover:border-blue-400 transition-all bg-gray-50"
+                                                                    >
+                                                                        <img src={img} className="w-full h-full object-cover" alt="" />
+                                                                    </div>
+                                                                ))
+                                                            ) : (
+                                                                <div className="w-10 h-10 rounded border border-gray-100 bg-gray-50 flex items-center justify-center">
+                                                                    <span className="text-[10px] text-gray-300">No img</span>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm font-medium text-gray-700">{row.customerName}</td>
-                                            <td className="px-4 py-3">
-                                                <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                                                    {row.processName}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <p className="text-xs text-gray-500 line-clamp-2 max-w-[200px]" title={row.description}>
-                                                    {row.description || '-'}
-                                                </p>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-600 text-right font-medium">{row.quantity.toLocaleString()}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-500 text-right">₹{row.rate}</td>
-                                            <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">₹{parseFloat(row.amount).toLocaleString()}</td>
-                                            <td className="px-4 py-3 text-xs font-medium text-gray-500">{row.billNumber}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-500">{row.date}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm font-medium text-gray-700">{row.customerName}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                            {row.processName}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <p className="text-xs text-gray-500 line-clamp-2 max-w-[200px]" title={row.description}>
+                                                            {row.description || '-'}
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600 text-right font-medium">{row.quantity.toLocaleString()}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-500 text-right">₹{row.rate}</td>
+                                                    <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">₹{parseFloat(row.amount).toLocaleString()}</td>
+                                                    <td className="px-4 py-3 text-xs font-medium text-gray-500">{row.billNumber}</td>
+                                                    <td className="px-4 py-3 text-sm text-gray-500">{row.date}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {reportData?.meta?.totalPages && reportData.meta.totalPages > 1 && (
+                                <div className="mt-6">
+                                    <Pagination 
+                                        currentPage={reportData.meta.page} 
+                                        totalPages={reportData.meta.totalPages} 
+                                        onPageChange={handlePageChange} 
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

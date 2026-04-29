@@ -16,4 +16,18 @@ export interface ReportsQuery {
     startDate?: string;
     endDate?: string;
     processId?: string;
+    page?: number;
+    limit?: number;
+}
+
+export interface BilledOrderReportResponse {
+    data: BilledOrderReportRow[];
+    meta: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+        totalAmount: number;
+        totalQty: number;
+    };
 }

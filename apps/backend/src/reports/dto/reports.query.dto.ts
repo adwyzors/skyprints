@@ -16,4 +16,12 @@ export class ReportsQueryDto {
     @IsOptional()
     @IsString()
     processId?: string;
+
+    @IsOptional()
+    @IsString()
+    page?: string;
+
+    @IsOptional()
+    @IsString()
+    limit?: string;
 }

@@ -9,7 +9,7 @@ export class ReportsService {
     constructor(private readonly prisma: PrismaService) {}
 
     async getBilledOrdersReport(query: ReportsQueryDto) {
-        const { customerId, startDate, endDate, processId } = query;
+        const { customerId, startDate, endDate, processId, page, limit } = query;
 
         const whereClause: any = {
             statusCode: { in: ["BILLED", "GROUP_BILLED"] },
@@ -101,7 +101,6 @@ export class ReportsService {
                         const inputs = snapshot.inputs as any;
                         const orderResult = inputs?.[order.id]?.["__ORDER_RESULT__"];
                         amount = orderResult ? Number(orderResult) : Number(snapshot.result); 
-                        // fallback to snapshot.result if __ORDER_RESULT__ missing (though it shouldn't be)
                     } else {
                         amount = Number(snapshot.result);
                     }
@@ -109,12 +108,10 @@ export class ReportsService {
             }
 
             for (const orderProcess of order.processes) {
-                // If filtering by processId, skip others
                 if (processId && orderProcess.processId !== processId) continue;
 
                 const rate = order.quantity > 0 ? amount / order.quantity : 0;
 
-                // Extract run descriptions
                 const runDescs = orderProcess.runs.map(r => {
                     const values = r.fields as any;
                     const mainDesc = values?.particulars || values?.design || values?.designName || values?.particular;
@@ -146,11 +143,38 @@ export class ReportsService {
             }
         }
 
-        return reportData;
+        // Calculate metadata for the full filtered set
+        const totalAmount = reportData.reduce((sum, row) => sum + parseFloat(row.amount), 0);
+        const totalQty = reportData.reduce((sum, row) => sum + row.quantity, 0);
+        const total = reportData.length;
+
+        // Apply pagination
+        let paginatedData = reportData;
+        const pageNum = page ? parseInt(page) : 1;
+        const limitNum = limit ? parseInt(limit) : total;
+
+        if (page && limit) {
+            const skip = (pageNum - 1) * limitNum;
+            paginatedData = reportData.slice(skip, skip + limitNum);
+        }
+
+        return {
+            data: paginatedData,
+            meta: {
+                total,
+                page: pageNum,
+                limit: limitNum,
+                totalPages: limitNum > 0 ? Math.ceil(total / limitNum) : 1,
+                totalAmount,
+                totalQty
+            }
+        };
     }
 
     async exportBilledOrdersToExcel(query: ReportsQueryDto, res: Response) {
-        const data = await this.getBilledOrdersReport(query);
+        // Fetch full report without pagination for export
+        const report = await this.getBilledOrdersReport({ ...query, page: undefined, limit: undefined });
+        const data = (report as any).data;
 
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet("Billed Orders Report");
