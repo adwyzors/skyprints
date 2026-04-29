@@ -2,23 +2,20 @@
 
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
-import { useMemo, Suspense, useEffect, useState } from 'react';
-import { 
-    Download, 
-    FileText, 
-    Filter, 
-    Loader2, 
-    ChevronLeft,
-    ChevronRight,
-    TrendingUp,
-    Table as TableIcon
-} from 'lucide-react';
+import Pagination from '@/components/common/Pagination';
+import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
+import PageSizeSelector from '@/components/orders/PageSizeSelector';
+import ReportsFilter from '@/components/reports/ReportsFilter';
 import { BilledOrderReportResponse, BilledOrderReportRow, ReportsQuery } from '@/domain/model/reports.model';
 import { getBilledOrdersReport, getExportUrl } from '@/services/reports.service';
-import ReportsFilter from '@/components/reports/ReportsFilter';
-import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
-import Pagination from '@/components/common/Pagination';
-import PageSizeSelector from '@/components/orders/PageSizeSelector';
+import {
+    ChevronRight,
+    Download,
+    FileText,
+    Filter,
+    Loader2
+} from 'lucide-react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 
 export default function ReportsPage() {
     return (
@@ -112,8 +109,8 @@ function ReportsPageContent() {
             `}
             >
                 <div className="w-72 h-full">
-                    <ReportsFilter 
-                        onClose={() => setIsSidebarOpen(false)} 
+                    <ReportsFilter
+                        onClose={() => setIsSidebarOpen(false)}
                         query={query}
                         onQueryChange={(newFilters) => setQuery(prev => ({ ...prev, ...newFilters, page: 1 }))}
                     />
@@ -206,6 +203,8 @@ function ReportsPageContent() {
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Qty</th>
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Rate</th>
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Amount</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Prod</th>
+                                                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Post-Prod</th>
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Bill Number</th>
                                                 <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date</th>
                                             </tr>
@@ -222,7 +221,7 @@ function ReportsPageContent() {
                                                         <div className="flex flex-wrap gap-1 max-w-[100px]">
                                                             {row.images && row.images.length > 0 ? (
                                                                 row.images.slice(0, 1).map((img: string, i: number) => (
-                                                                    <div 
+                                                                    <div
                                                                         key={i}
                                                                         onClick={() => setPreviewImage(img)}
                                                                         className="w-10 h-10 rounded border border-gray-200 overflow-hidden cursor-pointer hover:border-blue-400 transition-all bg-gray-50"
@@ -251,6 +250,16 @@ function ReportsPageContent() {
                                                     <td className="px-4 py-3 text-sm text-gray-600 text-right font-medium">{row.quantity.toLocaleString()}</td>
                                                     <td className="px-4 py-3 text-sm text-gray-500 text-right">₹{row.rate}</td>
                                                     <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">₹{parseFloat(row.amount).toLocaleString()}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="text-[11px] text-gray-600 bg-gray-50 px-2 py-0.5 rounded border border-gray-100 block truncate max-w-[120px]" title={row.preProductionLocation}>
+                                                            {row.preProductionLocation || '-'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className="text-[11px] text-gray-600 bg-gray-50 px-2 py-0.5 rounded border border-gray-100 block truncate max-w-[120px]" title={row.postProductionLocation}>
+                                                            {row.postProductionLocation || '-'}
+                                                        </span>
+                                                    </td>
                                                     <td className="px-4 py-3 text-xs font-medium text-gray-500">{row.billNumber}</td>
                                                     <td className="px-4 py-3 text-sm text-gray-500">{row.date}</td>
                                                 </tr>

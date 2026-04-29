@@ -9,6 +9,8 @@ export interface BilledOrderReportRow {
     amount: string;
     billNumber: string;
     date: string;
+    preProductionLocation?: string;
+    postProductionLocation?: string;
 }
 
 export interface ReportsQuery {

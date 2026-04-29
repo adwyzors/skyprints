@@ -35,7 +35,12 @@ export class ReportsService {
                 processes: {
                     include: {
                         process: true,
-                        runs: true,
+                        runs: {
+                            include: {
+                                preProductionLocation: true,
+                                postProductionLocation: true,
+                            },
+                        },
                     },
                 },
                 billingContexts: {
@@ -136,6 +141,20 @@ export class ReportsService {
 
                 const description = Array.from(new Set(runDescs)).join("; ");
 
+                const productionDate = orderProcess.lifecycleCompletedAt || date;
+
+                const preProductionLocations = Array.from(new Set(
+                    orderProcess.runs
+                        .map(r => (r as any).preProductionLocation?.name)
+                        .filter(Boolean)
+                )).join(", ");
+
+                const postProductionLocations = Array.from(new Set(
+                    orderProcess.runs
+                        .map(r => (r as any).postProductionLocation?.name)
+                        .filter(Boolean)
+                )).join(", ");
+
                 reportData.push({
                     orderCode: order.code,
                     images: order.images || [],
@@ -146,7 +165,9 @@ export class ReportsService {
                     rate: rate.toFixed(2),
                     amount: amount.toFixed(2),
                     billNumber: billNumber,
-                    date: date.toISOString().split('T')[0],
+                    date: productionDate.toISOString().split('T')[0],
+                    preProductionLocation: preProductionLocations || "-",
+                    postProductionLocation: postProductionLocations || "-",
                 });
             }
         }
@@ -197,6 +218,8 @@ export class ReportsService {
             { header: "Amount", key: "amount", width: 15 },
             { header: "Bill Number", key: "billNumber", width: 20 },
             { header: "Date", key: "date", width: 15 },
+            { header: "Pre-Prod Location", key: "preProductionLocation", width: 20 },
+            { header: "Post-Prod Location", key: "postProductionLocation", width: 20 },
         ];
 
         worksheet.addRows(data);
