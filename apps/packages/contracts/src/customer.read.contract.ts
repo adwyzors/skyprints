@@ -14,6 +14,9 @@ export const CustomerSummarySchema = z.object({
     tds: z.boolean(),
     tax: z.boolean(),
 
+    creditLimit: z.number(),
+    outstandingAmount: z.number(),
+
     isActive: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
