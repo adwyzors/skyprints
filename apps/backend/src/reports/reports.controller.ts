@@ -19,8 +19,8 @@ export class ReportsController {
             res.setHeader('x-page', String(result.meta.page));
             res.setHeader('x-limit', String(result.meta.limit));
             res.setHeader('x-total-pages', String(result.meta.totalPages));
-            res.setHeader('x-total-estimated-amount', String(result.meta.totalEstimatedAmount));
-            res.setHeader('x-total-quantity', String(result.meta.totalQuantity));
+            res.setHeader('x-total-estimated-amount', String(result.meta.totalAmount));
+            res.setHeader('x-total-quantity', String(result.meta.totalQty));
         }
 
         return result.data;

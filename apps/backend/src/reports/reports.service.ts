@@ -100,15 +100,14 @@ export class ReportsService {
             if (start && !isNaN(start.getTime()) && date < start) continue;
             if (end && !isNaN(end.getTime()) && date > end) continue;
 
-            // Billing amount and number extraction
-            let amount = 0;
-            let billNumber = "N/A";
-
             // Find the most relevant context (prefer GROUP if it's GROUP_BILLED, else ORDER)
             const contextOrder = order.statusCode === "GROUP_BILLED" 
                 ? order.billingContexts.find(bc => bc.billingContext.type === "GROUP") || order.billingContexts[0]
                 : order.billingContexts.find(bc => bc.billingContext.type === "ORDER") || order.billingContexts[0];
 
+            let billingInputs: any = null;
+            let billNumber = "N/A";
+            
             if (contextOrder) {
                 const context = contextOrder.billingContext;
                 const snapshot = context.snapshots[0];
@@ -118,10 +117,9 @@ export class ReportsService {
                     if (context.type === "GROUP") {
                         // Extract this order's portion from group inputs
                         const inputs = snapshot.inputs as any;
-                        const orderResult = inputs?.[order.id]?.["__ORDER_RESULT__"];
-                        amount = orderResult ? Number(orderResult) : Number(snapshot.result); 
+                        billingInputs = inputs?.[order.id];
                     } else {
-                        amount = Number(snapshot.result);
+                        billingInputs = snapshot.inputs;
                     }
                 }
             }
@@ -129,80 +127,69 @@ export class ReportsService {
             for (const orderProcess of order.processes) {
                 if (processId && orderProcess.processId !== processId) continue;
 
-                // Location filtering in loop
-                if (preProductionLocationId || postProductionLocationId) {
-                    const matches = orderProcess.runs.some(r => {
-                        const preMatch = !preProductionLocationId || r.preProductionLocationId === preProductionLocationId;
-                        const postMatch = !postProductionLocationId || r.postProductionLocationId === postProductionLocationId;
-                        return preMatch && postMatch;
-                    });
-                    if (!matches) continue;
-                }
-
-                const rate = order.quantity > 0 ? amount / order.quantity : 0;
-
-                const runDescs = orderProcess.runs.map(r => {
-                    const values = r.fields as any;
-                    const mainDesc = values?.particulars || values?.design || values?.designName || values?.particular;
-                    if (mainDesc) return mainDesc;
-
-                    if (Array.isArray(values?.items)) {
-                        const itemDescs = values.items
-                            .map((item: any) => item.design || item.particulars || item.description || item.designSizes || item.fileSizes)
-                            .filter(Boolean);
-                        if (itemDescs.length > 0) return itemDescs.join(", ");
+                for (const run of orderProcess.runs) {
+                    // Location filtering
+                    if (preProductionLocationId || postProductionLocationId) {
+                        const preMatch = !preProductionLocationId || run.preProductionLocationId === preProductionLocationId;
+                        const postMatch = !postProductionLocationId || run.postProductionLocationId === postProductionLocationId;
+                        if (!preMatch || !postMatch) continue;
                     }
-                    return null;
-                }).filter(Boolean);
 
-                const description = Array.from(new Set(runDescs)).join("; ");
-                
-                // Search filtering
-                if (search) {
-                    const searchLower = search.toLowerCase();
-                    const matchesDescription = description.toLowerCase().includes(searchLower);
-                    const matchesOrderCode = order.code.toLowerCase().includes(searchLower);
-                    const matchesCustomer = order.customer.name.toLowerCase().includes(searchLower);
+                    // Extract run-specific billing data
+                    let amount = 0;
+                    let quantity = order.quantity;
+                    let rate = 0;
+
+                    if (billingInputs && billingInputs[run.id]) {
+                        const runBilling = billingInputs[run.id];
+                        amount = Number(runBilling["__RESULT__"] || 0);
+                        
+                        // Try to find quantity and rate in billing inputs
+                        quantity = Number(runBilling["quantity"] || runBilling["qty"] || runBilling["Quantity"] || runBilling["Qty"] || order.quantity);
+                        rate = Number(runBilling["rate"] || runBilling["price"] || runBilling["Rate"] || runBilling["Price"] || (quantity > 0 ? amount / quantity : 0));
+                    }
+
+                    // Description logic from run fields
+                    const runFields = run.fields as any;
+                    let description = runFields?.particulars || runFields?.design || runFields?.designName || runFields?.particular || "";
                     
-                    if (!matchesDescription && !matchesOrderCode && !matchesCustomer) {
-                        continue;
+                    if (!description && Array.isArray(runFields?.items)) {
+                        description = runFields.items
+                            .map((item: any) => item.design || item.particulars || item.description || item.designSizes || item.fileSizes)
+                            .filter(Boolean)
+                            .join(", ");
                     }
+
+                    // Search filtering
+                    if (search) {
+                        const searchLower = search.toLowerCase();
+                        const matchesDescription = description.toLowerCase().includes(searchLower);
+                        const matchesOrderCode = order.code.toLowerCase().includes(searchLower);
+                        const matchesCustomer = order.customer.name.toLowerCase().includes(searchLower);
+                        
+                        if (!matchesDescription && !matchesOrderCode && !matchesCustomer) {
+                            continue;
+                        }
+                    }
+
+                    const productionDate = orderProcess.lifecycleCompletedAt || date;
+
+                    reportData.push({
+                        orderCode: order.code,
+                        images: order.images || [],
+                        processName: orderProcess.process.name,
+                        runNumbers: run.runNumber.toString(),
+                        description: description || "-",
+                        customerName: order.customer.name,
+                        quantity: quantity,
+                        rate: rate.toFixed(2),
+                        amount: amount.toFixed(2),
+                        billNumber: billNumber,
+                        date: productionDate.toISOString().split('T')[0],
+                        preProductionLocation: run.preProductionLocation?.name || "-",
+                        postProductionLocation: run.postProductionLocation?.name || "-",
+                    });
                 }
-
-                const productionDate = orderProcess.lifecycleCompletedAt || date;
-
-                const preProductionLocations = Array.from(new Set(
-                    orderProcess.runs
-                        .map(r => (r as any).preProductionLocation?.name)
-                        .filter(Boolean)
-                )).join(", ");
-
-                const postProductionLocations = Array.from(new Set(
-                    orderProcess.runs
-                        .map(r => (r as any).postProductionLocation?.name)
-                        .filter(Boolean)
-                )).join(", ");
-
-                const runNumbers = orderProcess.runs
-                    .map(r => r.runNumber)
-                    .sort((a, b) => a - b)
-                    .join(", ");
-
-                reportData.push({
-                    orderCode: order.code,
-                    images: order.images || [],
-                    processName: orderProcess.process.name,
-                    runNumbers: runNumbers || "-",
-                    description: description || "-",
-                    customerName: order.customer.name,
-                    quantity: order.quantity,
-                    rate: rate.toFixed(2),
-                    amount: amount.toFixed(2),
-                    billNumber: billNumber,
-                    date: productionDate.toISOString().split('T')[0],
-                    preProductionLocation: preProductionLocations || "-",
-                    postProductionLocation: postProductionLocations || "-",
-                });
             }
         }
 
@@ -236,8 +223,8 @@ export class ReportsService {
                 page: pageNum,
                 limit: limitNum,
                 totalPages: limitNum > 0 ? Math.ceil(total / limitNum) : 1,
-                totalEstimatedAmount: totalAmount,
-                totalQuantity: totalQty
+                totalAmount: totalAmount,
+                totalQty: totalQty
             }
         };
     }
