@@ -201,9 +201,7 @@ export default function CustomerClient({
                                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
                                         Tax / TDS
                                     </th>
-                                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                        Credit Limit
-                                    </th>
+
                                     <th className="px-6 py-4 w-10"></th>
                                 </tr>
                             </thead>
@@ -275,12 +273,7 @@ export default function CustomerClient({
                                                         {!customer.tax && !customer.tds && <span className="text-gray-400 text-xs">-</span>}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-mono">
-                                                    {customer.creditLimit > 0
-                                                        ? <span className="text-orange-600 font-semibold">₹{customer.creditLimit.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
-                                                        : <span className="text-gray-400 text-xs">Unlimited</span>
-                                                    }
-                                                </td>
+
                                                 <td className="px-6 py-4 whitespace-nowrap text-right">
                                                     {canDelete && (
                                                         <button

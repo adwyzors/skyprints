@@ -30,8 +30,6 @@ export default function CustomerModal({
         gstno: '',
         tax: false,
         tds: false,
-        creditLimit: 0,
-        outstandingAmount: 0,
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,8 +48,6 @@ export default function CustomerModal({
                 tdsno: customer.tdsno ?? undefined,
                 tax: !!customer.tax,
                 tds: !!customer.tds,
-                creditLimit: customer.creditLimit ?? 0,
-                outstandingAmount: customer.outstandingAmount ?? 0,
             });
         } else {
             // Reset for create mode
@@ -65,8 +61,6 @@ export default function CustomerModal({
                 tdsno: undefined,
                 tax: false,
                 tds: false,
-                creditLimit: 0,
-                outstandingAmount: 0,
             });
         }
         setError(null);
@@ -258,52 +252,7 @@ export default function CustomerModal({
                         </label>
                     </div>
 
-                    {/* ── Credit Limit Section ── */}
-                    <div className="pt-1 border-t border-gray-100">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Credit Settings</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-gray-700">
-                                    Credit Limit
-                                    <span className="ml-1 text-gray-400 font-normal">(0 = unlimited)</span>
-                                </label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                                    <input
-                                        type="number"
-                                        name="creditLimit"
-                                        min="0"
-                                        step="0.01"
-                                        placeholder="0.00"
-                                        value={formData.creditLimit ?? 0}
-                                        onChange={handleChange}
-                                        className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
-                                    />
-                                </div>
-                            </div>
 
-                            {isEditMode && (
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-gray-700">
-                                        Outstanding Amount
-                                    </label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                                        <input
-                                            type="number"
-                                            name="outstandingAmount"
-                                            min="0"
-                                            step="0.01"
-                                            placeholder="0.00"
-                                            value={formData.outstandingAmount ?? 0}
-                                            onChange={handleChange}
-                                            className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
 
                     {error && (
                         <div className="p-2 bg-red-50 border border-red-100 rounded-lg text-center">

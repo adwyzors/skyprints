@@ -577,40 +577,7 @@ export class OrdersService {
                     throw new BadRequestException('Customer not found');
                 }
 
-                const activeOrders = await tx.order.findMany({
-                    where: {
-                        customerId: dto.customerId,
-                        deletedAt: null,
-                        isTest: false,
-                        statusCode: {
-                            notIn: [OrderStatus.BILLED, OrderStatus.GROUP_BILLED],
-                        },
-                    },
-                    select: {
-                        estimatedAmount: true,
-                    },
-                });
 
-                const activeAmount = activeOrders.reduce(
-                    (sum, o) => sum + Number(o.estimatedAmount || 0),
-                    0,
-                );
-
-                const exposure =
-                    Math.max(Number(customer.outstandingAmount || 0), 0) +
-                    activeAmount;
-
-                if (
-                    Number(customer.creditLimit) > 0 &&
-                    exposure >= Number(customer.creditLimit)
-                ) {
-                    this.logger.warn({
-                        customerId: dto.customerId,
-                        exposure,
-                        limit: customer.creditLimit,
-                    }, 'Credit limit exceeded');
-                    throw new BadRequestException('Credit limit reached');
-                }
 
                 /* =====================================================
                  * LOAD PROCESSES (LEANER)
