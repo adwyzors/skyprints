@@ -144,6 +144,7 @@ export class ReportsService {
                         return fields?.["Total Mtr"] || 
                                fields?.["Total Quantity"] || 
                                fields?.["Total Pieces"] || 
+                               fields?.["pcs"] || 
                                fields?.["Quantity"] || 
                                fields?.["quantity"] || 
                                fields?.["qty"] || 
@@ -161,6 +162,7 @@ export class ReportsService {
                         const inputQty = runBilling["total_mtr"] || 
                                          runBilling["total_quantity"] || 
                                          runBilling["total_pieces"] || 
+                                         runBilling["pcs"] || 
                                          runBilling["quantity"] || 
                                          runBilling["qty"];
                         
@@ -169,7 +171,17 @@ export class ReportsService {
                         }
                         
                         // Use final rate from snapshot if available, otherwise fallback to rate/price or calculated
-                        rate = Number(runBilling["finalRate"] || runBilling["final_rate"] || runBilling["rate"] || runBilling["price"] || runBilling["Rate"] || runBilling["Price"] || (numericQuantity > 0 ? amount / numericQuantity : 0));
+                        rate = Number(
+                            runBilling["new_rate"] || 
+                            runBilling["finalRate"] || 
+                            runBilling["final_rate"] || 
+                            runBilling["per_pc_cost"] || 
+                            runBilling["rate"] || 
+                            runBilling["price"] || 
+                            runBilling["Rate"] || 
+                            runBilling["Price"] || 
+                            (numericQuantity > 0 ? amount / numericQuantity : 0)
+                        );
                     }
 
                     // For allover sublimation, show mtr
@@ -183,7 +195,7 @@ export class ReportsService {
 
                     let displayQuantity: string | number = numericQuantity;
                     if (isSublimation) {
-                        displayQuantity = `${numericQuantity} mtr`;
+                        displayQuantity = `${parseFloat(numericQuantity.toFixed(2))} mtr`;
                     }
 
                     // Description logic from run fields
