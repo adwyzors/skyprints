@@ -34,6 +34,39 @@ export class ReportsService {
             whereClause.processes = { some: processWhere };
         }
 
+        // Optimized Date Filtering: Find order IDs from analytics first if dates are provided
+        if ((startDate && startDate !== '') || (endDate && endDate !== '')) {
+            const dateWhere: any = {};
+            if (startDate && startDate !== '') {
+                const s = new Date(startDate);
+                s.setHours(0, 0, 0, 0);
+                dateWhere.billedAt = { gte: s };
+            }
+            if (endDate && endDate !== '') {
+                const e = new Date(endDate);
+                e.setHours(23, 59, 59, 999);
+                if (dateWhere.billedAt) dateWhere.billedAt.lte = e;
+                else dateWhere.billedAt = { lte: e };
+            }
+
+            const analyticsMatches = await this.prisma.orderAnalytics.findMany({
+                where: dateWhere,
+                select: { orderId: true }
+            });
+            
+            const matchedOrderIds = analyticsMatches.map(a => a.orderId);
+            
+            if (matchedOrderIds.length > 0) {
+                whereClause.id = { in: matchedOrderIds };
+            } else if (!search) {
+                // If no analytics match and it's not a search, we can return early
+                return {
+                    data: [],
+                    meta: { total: 0, page: page ? parseInt(page) : 1, limit: limit ? parseInt(limit) : 20, totalPages: 0, totalAmount: 0, totalQty: 0 }
+                };
+            }
+        }
+
         const orders = await this.prisma.order.findMany({
             where: whereClause,
             include: {
@@ -135,11 +168,13 @@ export class ReportsService {
                 }
             }
 
-            // 2. Determine the reference date for the order (Billed date)
+            // 2. Reference date for the order
             const orderAnalytic = analyticsMap.get(order.id);
             const date = orderAnalytic?.billedAt || latestSnapshotDate || order.createdAt;
-            if (start && !isNaN(start.getTime()) && date < start) continue;
-            if (end && !isNaN(end.getTime()) && date > end) continue;
+            // No need for manual date filtering here anymore as it's handled in Prisma where possible
+            // except as a final safety check for records without analytics
+            if (startDate && startDate !== '' && date < new Date(startDate)) continue;
+            if (endDate && endDate !== '' && date > new Date(endDate)) continue;
 
             for (const orderProcess of order.processes) {
                 if (processId && orderProcess.processId !== processId) continue;
