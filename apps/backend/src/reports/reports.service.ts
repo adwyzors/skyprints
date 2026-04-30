@@ -228,8 +228,8 @@ export class ReportsService {
                 page: pageNum,
                 limit: limitNum,
                 totalPages: limitNum > 0 ? Math.ceil(total / limitNum) : 1,
-                totalAmount,
-                totalQty
+                totalEstimatedAmount: totalAmount,
+                totalQuantity: totalQty
             }
         };
     }
