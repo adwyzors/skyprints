@@ -267,10 +267,16 @@ export class ReportsService {
                             amount = totalOrderAmount;
                         } else {
                             // Otherwise, estimate it based on the order's estimated amount distribution
-                            // This is a safety net for very old group-billed orders
-                            const totalEstimated = Number(order.estimatedAmount) || 1;
+                            const totalEstimated = Number(order.estimatedAmount) || 0;
                             const runEstimated = Number(runFields?.estimated_amount || 0);
-                            amount = (runEstimated / totalEstimated) * totalOrderAmount;
+                            
+                            if (totalEstimated > 0) {
+                                amount = (runEstimated / totalEstimated) * totalOrderAmount;
+                            } else {
+                                // If no estimates, distribute equally across all runs in all processes
+                                const totalRuns = order.processes.reduce((acc, p) => acc + p.runs.length, 0);
+                                amount = totalOrderAmount / (totalRuns || 1);
+                            }
                         }
 
                         if (rate === 0 && amount > 0 && numericQuantity > 0) {
@@ -332,16 +338,23 @@ export class ReportsService {
             }
         }
 
-        // Calculate metadata for the full filtered set
-        const totalAmount = reportData.reduce((sum, row) => {
-            const amt = parseFloat(String(row.amount).replace(/,/g, ''));
-            return sum + (isNaN(amt) ? 0 : amt);
-        }, 0);
+        // Calculate metadata for the full filtered set from raw data
+        let totalAmount = 0;
+        let totalQty = 0;
 
-        const totalQty = reportData.reduce((sum, row) => {
-            const qty = parseInt(String(row.quantity), 10);
-            return sum + (isNaN(qty) ? 0 : qty);
-        }, 0);
+        for (const row of reportData) {
+            // Extract numeric amount (handling string formatting if any)
+            const amt = typeof row.amount === 'number' ? row.amount : parseFloat(String(row.amount).replace(/,/g, ''));
+            totalAmount += (isNaN(amt) ? 0 : amt);
+
+            // Extract numeric quantity (handling "mtr" suffix or other strings)
+            let qtyStr = String(row.quantity);
+            if (qtyStr.includes('mtr')) {
+                qtyStr = qtyStr.replace('mtr', '').trim();
+            }
+            const qty = parseFloat(qtyStr);
+            totalQty += (isNaN(qty) ? 0 : qty);
+        }
 
         const total = reportData.length;
 
