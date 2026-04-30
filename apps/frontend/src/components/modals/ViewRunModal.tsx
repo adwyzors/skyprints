@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '@/auth/AuthProvider';
@@ -147,7 +146,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                 run.orderProcess.order.id,
                 run.orderProcessId,
                 run.id,
-                { 
+                {
                     statusCode: nextStatusCode,
                     expectedDate: overrideExpectedDate
                 }
@@ -189,7 +188,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
         setExpectedDate(new Date().toISOString().split('T')[0]);
         setTransitionPrompt({ targetStatusCode, stepName });
     };
-    
+
     const handleUpdateComments = async () => {
         if (!run) return;
         setUpdatingComments(true);
@@ -336,7 +335,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                 <FileText className="w-3 h-3" /> Comments
                                             </span>
                                             {hasPermission(Permission.RUNS_UPDATE) && (
-                                                <button 
+                                                <button
                                                     onClick={() => {
                                                         if (!isEditingComments) {
                                                             setEditedComments(run.comments || '');
@@ -416,9 +415,9 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                     {getStatusDisplayName(h.statusCode)}
                                                 </div>
                                                 <div className="text-[10px] text-gray-500 mt-1">
-                                                    {new Date(h.createdAt).toLocaleString(undefined, { 
-                                                        day: '2-digit', month: 'short', 
-                                                        hour: '2-digit', minute: '2-digit' 
+                                                    {new Date(h.createdAt).toLocaleString(undefined, {
+                                                        day: '2-digit', month: 'short',
+                                                        hour: '2-digit', minute: '2-digit'
                                                     })}
                                                 </div>
                                                 {h.completedAt && (
@@ -527,23 +526,23 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                             {/* Skip/Rollback Action */}
                                                             {!isCurrent && (
                                                                 <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1">
-                                                                            {!isCompleted && getCanTransition(currentStepCode, step.code) && (
-                                                                                <button
-                                                                                    onClick={() => handleTransitionRequest(step.code, getStatusDisplayName(step.code))}
-                                                                                    disabled={updating}
-                                                                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                                                    title="Skip to this step"
-                                                                                >
-                                                                                    <FastForward className="w-4 h-4" />
-                                                                                </button>
-                                                                            )}
-                                                                            {isCompleted && hasPermission(Permission.RUNS_LIFECYCLE_ROLLBACK) && (
-                                                                                <button
-                                                                                    onClick={() => {
-                                                                                        if (confirm(`Are you sure you want to rollback to ${getStatusDisplayName(step.code)}?`)) {
-                                                                                            handleTransition(step.code);
-                                                                                        }
-                                                                                    }}
+                                                                    {!isCompleted && getCanTransition(currentStepCode, step.code) && (
+                                                                        <button
+                                                                            onClick={() => handleTransitionRequest(step.code, getStatusDisplayName(step.code))}
+                                                                            disabled={updating}
+                                                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                                            title="Skip to this step"
+                                                                        >
+                                                                            <FastForward className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
+                                                                    {isCompleted && hasPermission(Permission.RUNS_LIFECYCLE_ROLLBACK) && (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                if (confirm(`Are you sure you want to rollback to ${getStatusDisplayName(step.code)}?`)) {
+                                                                                    handleTransition(step.code);
+                                                                                }
+                                                                            }}
                                                                             disabled={updating}
                                                                             className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
                                                                             title="Rollback to this step"
@@ -566,7 +565,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                                     <div className="flex items-center justify-between">
                                                                         <span className="text-gray-400 flex items-center gap-1">
                                                                             <Settings className="w-2.5 h-2.5" />
-                                                                        Expected:
+                                                                            Expected:
                                                                         </span>
                                                                         <span className={`${!step.completedAt && new Date(step.expectedDate) < new Date() ? 'text-red-500 font-medium' : 'text-blue-600'}`}>
                                                                             {new Date(step.expectedDate).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -577,7 +576,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                                     <div className="flex items-center justify-between pt-1 border-t border-gray-100">
                                                                         <span className="text-gray-400 flex items-center gap-1">
                                                                             <CheckCircle className="w-2.5 h-2.5 text-green-500" />
-                                                                        Completed:
+                                                                            Completed:
                                                                         </span>
                                                                         <span className="text-green-600 font-medium">
                                                                             {new Date(step.completedAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -653,7 +652,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                 Please confirm or update the expected completion date for <span className="font-medium text-gray-700">{transitionPrompt.stepName || 'this step'}</span>.
                             </p>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Expected Date
+                                Completion Date
                             </label>
                             <input
                                 type="date"

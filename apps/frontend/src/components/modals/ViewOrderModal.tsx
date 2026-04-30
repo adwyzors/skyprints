@@ -822,33 +822,33 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                         >
                                                                                             {getStatusDisplayName(step.code)}
                                                                                         </span>
-                                                                                         {/* Date display */}
-                                                                                         {(step.completedAt || step.expectedDate) && (
-                                                                                             <div className="flex flex-col gap-0.5 mt-2 p-2 bg-gray-50/50 rounded-md border border-gray-100">
-                                                                                                 {step.expectedDate && (
-                                                                                                     <div className="flex items-center justify-between text-[10px]">
-                                                                                                         <span className="text-gray-400 flex items-center gap-1">
-                                                                                                             <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                                                                                             Expected:
-                                                                                                         </span>
-                                                                                                         <span className={`${!step.completedAt && new Date(step.expectedDate) < new Date() ? 'text-red-500 font-medium' : 'text-blue-600'}`}>
-                                                                                                             {new Date(step.expectedDate).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
-                                                                                                         </span>
-                                                                                                     </div>
-                                                                                                 )}
-                                                                                                 {step.completedAt && (
-                                                                                                     <div className="flex items-center justify-between text-[10px] mt-0.5 pt-0.5 border-t border-gray-200/50">
-                                                                                                         <span className="text-gray-400 flex items-center gap-1">
-                                                                                                             <CheckCircle className="w-2.5 h-2.5 text-green-500" />
-                                                                                                             Completed:
-                                                                                                         </span>
-                                                                                                         <span className="text-green-600 font-medium">
-                                                                                                             {new Date(step.completedAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
-                                                                                                         </span>
-                                                                                                     </div>
-                                                                                                 )}
-                                                                                             </div>
-                                                                                         )}
+                                                                                        {/* Date display */}
+                                                                                        {(step.completedAt || step.expectedDate) && (
+                                                                                            <div className="flex flex-col gap-0.5 mt-2 p-2 bg-gray-50/50 rounded-md border border-gray-100">
+                                                                                                {step.expectedDate && (
+                                                                                                    <div className="flex items-center justify-between text-[10px]">
+                                                                                                        <span className="text-gray-400 flex items-center gap-1">
+                                                                                                            <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                                                                                            Expected:
+                                                                                                        </span>
+                                                                                                        <span className={`${!step.completedAt && new Date(step.expectedDate) < new Date() ? 'text-red-500 font-medium' : 'text-blue-600'}`}>
+                                                                                                            {new Date(step.expectedDate).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                                {step.completedAt && (
+                                                                                                    <div className="flex items-center justify-between text-[10px] mt-0.5 pt-0.5 border-t border-gray-200/50">
+                                                                                                        <span className="text-gray-400 flex items-center gap-1">
+                                                                                                            <CheckCircle className="w-2.5 h-2.5 text-green-500" />
+                                                                                                            Completed:
+                                                                                                        </span>
+                                                                                                        <span className="text-green-600 font-medium">
+                                                                                                            {new Date(step.completedAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        )}
 
                                                                                     </div>
                                                                                     <div className="flex items-center gap-1">
@@ -944,7 +944,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                     onClose={() => setConfigModalRun(null)}
                 />
             )}
-            
+
             {/* TRANSITION EXPECTED DATE MODAL */}
             {transitionPrompt && (
                 <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
@@ -963,7 +963,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                 Please confirm or update the expected completion date for <span className="font-medium text-gray-700">{transitionPrompt.stepName || 'this step'}</span>.
                             </p>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Expected Date
+                                Completion Date
                             </label>
                             <input
                                 type="date"
