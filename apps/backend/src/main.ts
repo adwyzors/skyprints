@@ -15,7 +15,7 @@ async function bootstrap() {
     app.enableCors({
         origin: process.env.FRONT_END_BASE_URL?.split(",") ?? ["http://localhost:3000"],
         credentials: true,
-        exposedHeaders: ['x-total-count', 'x-total-pages', 'x-page', 'x-limit', 'x-total-estimated-amount','x-total-quantity'],
+        exposedHeaders: ['x-total-count', 'x-total-pages', 'x-page', 'x-limit', 'x-total-estimated-amount', 'x-total-quantity'],
     });
 
     app.useGlobalInterceptors(new PaginationInterceptor(), new LoggingInterceptor());
