@@ -110,18 +110,16 @@ export class ReportsService {
             
             if (contextOrder) {
                 const context = contextOrder.billingContext;
-                const snapshot = context.snapshots[0];
-                billNumber = context.name || context.id;
+                const latestSnapshot = context.snapshots?.[0];
+                billingInputs = latestSnapshot?.inputs as any;
 
-                if (snapshot) {
-                    if (context.type === "GROUP") {
-                        // Extract this order's portion from group inputs
-                        const inputs = snapshot.inputs as any;
-                        billingInputs = inputs?.[order.id];
-                    } else {
-                        billingInputs = snapshot.inputs;
-                    }
+                // 🔑 IF Group Context, the inputs are a map where keys are orderIds. 
+                // We need to extract the inputs for THIS specific order.
+                if (context.type === "GROUP" && billingInputs) {
+                    billingInputs = billingInputs[order.id];
                 }
+                
+                billNumber = context.name || context.id;
             }
 
             for (const orderProcess of order.processes) {

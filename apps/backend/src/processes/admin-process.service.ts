@@ -369,7 +369,7 @@ export class AdminProcessService {
                                                 snapshots: {
                                                     where: { isLatest: true, intent: 'FINAL' },
                                                     take: 1,
-                                                    select: { result: true }
+                                                    select: { result: true, inputs: true }
                                                 }
                                             }
                                         }
@@ -464,7 +464,7 @@ export class AdminProcessService {
                                                     snapshots: {
                                                         where: { isLatest: true, intent: 'FINAL' },
                                                         take: 1,
-                                                        select: { result: true }
+                                                        select: { result: true, inputs: true }
                                                     }
                                                 }
                                             }
@@ -511,7 +511,17 @@ export class AdminProcessService {
 
             // Extract billing amount
             const ctxOrder = run.orderProcess.order as any;
-            const amount = ctxOrder.billingContexts?.[0]?.billingContext?.snapshots?.[0]?.result;
+            const bCtx = ctxOrder.billingContexts?.[0]?.billingContext;
+            const snapshot = bCtx?.snapshots?.[0];
+            let amount = snapshot?.result;
+
+            // 🔑 IF Group Context, the order's specific amount is inside the inputs
+            if (bCtx?.type === 'GROUP' && snapshot?.inputs) {
+                const orderData = (snapshot.inputs as any)[ctxOrder.id];
+                if (orderData && orderData['__ORDER_RESULT__']) {
+                    amount = orderData['__ORDER_RESULT__'];
+                }
+            }
 
             return {
                 ...run,
