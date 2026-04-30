@@ -9,8 +9,6 @@ export interface Customer {
     tdsno?: number;
     tax?: boolean;
     tds?: boolean;
-    creditLimit: number;
-    outstandingAmount: number;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
