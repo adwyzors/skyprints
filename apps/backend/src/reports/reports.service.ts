@@ -50,6 +50,7 @@ export class ReportsService {
                     },
                 },
                 billingContexts: {
+                    orderBy: { createdAt: 'desc' },
                     include: {
                         billingContext: {
                             include: {
@@ -102,9 +103,12 @@ export class ReportsService {
             if (end && !isNaN(end.getTime()) && date > end) continue;
 
             // Find the most relevant context (prefer GROUP if it's GROUP_BILLED, else ORDER)
+            // Crucially, we must pick a context that has a FINAL snapshot.
             const contextOrder = order.statusCode === "GROUP_BILLED" 
-                ? order.billingContexts.find(bc => bc.billingContext.type === "GROUP") || order.billingContexts[0]
-                : order.billingContexts.find(bc => bc.billingContext.type === "ORDER") || order.billingContexts[0];
+                ? order.billingContexts.find(bc => bc.billingContext.type === "GROUP" && bc.billingContext.snapshots.length > 0) 
+                  || order.billingContexts.find(bc => bc.billingContext.snapshots.length > 0)
+                : order.billingContexts.find(bc => bc.billingContext.type === "ORDER" && bc.billingContext.snapshots.length > 0)
+                  || order.billingContexts.find(bc => bc.billingContext.snapshots.length > 0);
 
             let billingInputs: any = null;
             let billNumber = "N/A";

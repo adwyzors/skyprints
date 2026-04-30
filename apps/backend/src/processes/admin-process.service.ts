@@ -361,11 +361,12 @@ export class AdminProcessService {
                                 quantity: true,
                                 totalProcesses: true,
                                 billingContexts: {
-                                    take: 1,
                                     orderBy: { createdAt: 'desc' },
+                                    take: 5, // Fetch a few to find the finalized one
                                     select: {
                                         billingContext: {
                                             select: {
+                                                type: true,
                                                 snapshots: {
                                                     where: { intent: 'FINAL' },
                                                     orderBy: { version: 'desc' },
@@ -457,11 +458,12 @@ export class AdminProcessService {
                                     useOrderImageForRuns: true,
                                     customer: { select: { name: true } },
                                     billingContexts: {
-                                        take: 1,
                                         orderBy: { createdAt: 'desc' },
+                                        take: 5,
                                         select: {
                                             billingContext: {
                                                 select: {
+                                                    type: true,
                                                     snapshots: {
                                                         where: { intent: 'FINAL' },
                                                         orderBy: { version: 'desc' },
@@ -511,9 +513,10 @@ export class AdminProcessService {
             }
 
 
-            // Extract billing amount
+            // Extract billing amount from the most relevant finalized context
             const ctxOrder = run.orderProcess.order as any;
-            const bCtx = ctxOrder.billingContexts?.[0]?.billingContext;
+            const finalizedContextOrder = ctxOrder.billingContexts?.find((bc: any) => bc.billingContext?.snapshots?.length > 0);
+            const bCtx = finalizedContextOrder?.billingContext;
             const snapshot = bCtx?.snapshots?.[0];
             let amount = snapshot?.result;
 
