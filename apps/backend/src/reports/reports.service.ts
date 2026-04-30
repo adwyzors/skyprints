@@ -207,8 +207,16 @@ export class ReportsService {
         }
 
         // Calculate metadata for the full filtered set
-        const totalAmount = reportData.reduce((sum, row) => sum + parseFloat(row.amount), 0);
-        const totalQty = reportData.reduce((sum, row) => sum + row.quantity, 0);
+        const totalAmount = reportData.reduce((sum, row) => {
+            const amt = parseFloat(String(row.amount).replace(/,/g, ''));
+            return sum + (isNaN(amt) ? 0 : amt);
+        }, 0);
+        
+        const totalQty = reportData.reduce((sum, row) => {
+            const qty = parseInt(String(row.quantity), 10);
+            return sum + (isNaN(qty) ? 0 : qty);
+        }, 0);
+        
         const total = reportData.length;
 
         // Apply pagination
@@ -228,8 +236,8 @@ export class ReportsService {
                 page: pageNum,
                 limit: limitNum,
                 totalPages: limitNum > 0 ? Math.ceil(total / limitNum) : 1,
-                totalAmount,
-                totalQty
+                totalEstimatedAmount: totalAmount,
+                totalQuantity: totalQty
             }
         };
     }
