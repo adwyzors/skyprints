@@ -138,15 +138,32 @@ export class ReportsService {
                     // Extract run-specific billing data
                     const runFields = run.fields as any;
                     let amount = 0;
-                    let numericQuantity = Number(runFields?.quantity || runFields?.qty || runFields?.Quantity || runFields?.Qty || order.quantity);
+                    
+                    // Comprehensive quantity extraction from run fields
+                    const getRunQty = (fields: any) => {
+                        return fields?.["Total Mtr"] || 
+                               fields?.["Total Quantity"] || 
+                               fields?.["Total Pieces"] || 
+                               fields?.["Quantity"] || 
+                               fields?.["quantity"] || 
+                               fields?.["qty"] || 
+                               fields?.["Qty"];
+                    };
+
+                    let numericQuantity = Number(getRunQty(runFields) || order.quantity);
                     let rate = 0;
 
                     if (billingInputs && billingInputs[run.id]) {
                         const runBilling = billingInputs[run.id];
                         amount = Number(runBilling["__RESULT__"] || 0);
                         
-                        // Try to find quantity in billing inputs (which include run fields)
-                        const inputQty = runBilling["quantity"] || runBilling["qty"] || runBilling["Quantity"] || runBilling["Qty"];
+                        // Try to find quantity in billing inputs (which include normalized run fields)
+                        const inputQty = runBilling["total_mtr"] || 
+                                         runBilling["total_quantity"] || 
+                                         runBilling["total_pieces"] || 
+                                         runBilling["quantity"] || 
+                                         runBilling["qty"];
+                        
                         if (inputQty !== undefined) {
                             numericQuantity = Number(inputQty);
                         }
@@ -156,9 +173,16 @@ export class ReportsService {
                     }
 
                     // For allover sublimation, show mtr
-                    let displayQuantity: string | number = numericQuantity;
                     const processName = orderProcess.process.name.toLowerCase();
-                    if (processName.includes("all over sublimation") || processName.includes("allover sublimation")) {
+                    const isSublimation = processName.includes("all over sublimation") || processName.includes("allover sublimation");
+                    
+                    if (isSublimation) {
+                        const mtrValue = runFields?.["Total Mtr"] || (billingInputs && billingInputs[run.id]?.["total_mtr"]);
+                        if (mtrValue !== undefined) numericQuantity = Number(mtrValue);
+                    }
+
+                    let displayQuantity: string | number = numericQuantity;
+                    if (isSublimation) {
                         displayQuantity = `${numericQuantity} mtr`;
                     }
 
