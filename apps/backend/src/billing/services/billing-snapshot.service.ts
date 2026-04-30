@@ -289,22 +289,9 @@ export class BillingSnapshotService {
             ------------------------------- */
             // We need to fetch the results for each order
             for (const orderId of orderIds) {
-                // Since this is the first group billing, we attribute revenue to analytics
-                // We'll need to calculate or fetch the latest snapshot result
-                const latestSnapshot = await this.prisma.billingSnapshot.findFirst({
-                    where: {
-                        billingContext: {
-                            type: 'ORDER',
-                            orders: { some: { orderId } }
-                        },
-                        isLatest: true,
-                        intent: 'FINAL'
-                    },
-                    orderBy: { createdAt: "desc" }
-                });
-
-                if (latestSnapshot) {
-                    await this.analyticsService.trackOrderFinalized(orderId, Number(latestSnapshot.result), latestSnapshot.createdAt);
+                const orderCalc = calc.perOrderCalculations[orderId];
+                if (orderCalc) {
+                    await this.analyticsService.trackOrderFinalized(orderId, Number(orderCalc.result), snapshot.createdAt);
                 }
             }
 

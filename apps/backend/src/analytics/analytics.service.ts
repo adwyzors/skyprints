@@ -378,7 +378,8 @@ export class AnalyticsService {
                             }
                         }
                     },
-                    isLatest: true
+                    isLatest: true,
+                    intent: 'FINAL'
                 },
                 select: {
                     result: true,
@@ -643,11 +644,18 @@ export class AnalyticsService {
 
         for (const snapshot of snapshots) {
             // Process each order in the context
-            const ordersCount = snapshot.billingContext.orders.length;
-            const amountPerOrder = Number(snapshot.result) / (ordersCount || 1);
+            const inputs = snapshot.inputs as any;
 
             for (const contextOrder of snapshot.billingContext.orders) {
-                await this.trackOrderFinalized(contextOrder.orderId, amountPerOrder, snapshot.createdAt);
+                const orderId = contextOrder.orderId;
+                let amount = Number(snapshot.result) / (snapshot.billingContext.orders.length || 1);
+
+                // 🔑 Use specific result if available in the group snapshot
+                if (inputs?.[orderId] && inputs[orderId]['__ORDER_RESULT__']) {
+                    amount = Number(inputs[orderId]['__ORDER_RESULT__']);
+                }
+
+                await this.trackOrderFinalized(orderId, amount, snapshot.createdAt);
             }
         }
 
