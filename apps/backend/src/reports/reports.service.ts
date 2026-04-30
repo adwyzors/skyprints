@@ -136,21 +136,33 @@ export class ReportsService {
                     }
 
                     // Extract run-specific billing data
+                    const runFields = run.fields as any;
                     let amount = 0;
-                    let quantity = order.quantity;
+                    let numericQuantity = Number(runFields?.quantity || runFields?.qty || runFields?.Quantity || runFields?.Qty || order.quantity);
                     let rate = 0;
 
                     if (billingInputs && billingInputs[run.id]) {
                         const runBilling = billingInputs[run.id];
                         amount = Number(runBilling["__RESULT__"] || 0);
                         
-                        // Try to find quantity and rate in billing inputs
-                        quantity = Number(runBilling["quantity"] || runBilling["qty"] || runBilling["Quantity"] || runBilling["Qty"] || order.quantity);
-                        rate = Number(runBilling["rate"] || runBilling["price"] || runBilling["Rate"] || runBilling["Price"] || (quantity > 0 ? amount / quantity : 0));
+                        // Try to find quantity in billing inputs (which include run fields)
+                        const inputQty = runBilling["quantity"] || runBilling["qty"] || runBilling["Quantity"] || runBilling["Qty"];
+                        if (inputQty !== undefined) {
+                            numericQuantity = Number(inputQty);
+                        }
+                        
+                        // Use final rate from snapshot if available, otherwise fallback to rate/price or calculated
+                        rate = Number(runBilling["finalRate"] || runBilling["final_rate"] || runBilling["rate"] || runBilling["price"] || runBilling["Rate"] || runBilling["Price"] || (numericQuantity > 0 ? amount / numericQuantity : 0));
+                    }
+
+                    // For allover sublimation, show mtr
+                    let displayQuantity: string | number = numericQuantity;
+                    const processName = orderProcess.process.name.toLowerCase();
+                    if (processName.includes("all over sublimation") || processName.includes("allover sublimation")) {
+                        displayQuantity = `${numericQuantity} mtr`;
                     }
 
                     // Description logic from run fields
-                    const runFields = run.fields as any;
                     let description = runFields?.particulars || runFields?.design || runFields?.designName || runFields?.particular || "";
                     
                     if (!description && Array.isArray(runFields?.items)) {
@@ -181,7 +193,7 @@ export class ReportsService {
                         runNumbers: run.runNumber.toString(),
                         description: description || "-",
                         customerName: order.customer.name,
-                        quantity: quantity,
+                        quantity: displayQuantity,
                         rate: rate.toFixed(2),
                         amount: amount.toFixed(2),
                         billNumber: billNumber,
