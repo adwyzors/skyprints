@@ -378,7 +378,8 @@ export class AnalyticsService {
                             }
                         }
                     },
-                    isLatest: true
+                    isLatest: true,
+                    intent: 'FINAL'
                 },
                 select: {
                     result: true,

@@ -54,7 +54,7 @@ export class ReportsService {
                         billingContext: {
                             include: {
                                 snapshots: {
-                                    where: { isLatest: true },
+                                    where: { isLatest: true, intent: 'FINAL' },
                                     take: 1,
                                 },
                             },

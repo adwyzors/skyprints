@@ -167,7 +167,7 @@ export class BillingContextService {
                         }
                     },
                     snapshots: {
-                        where: { isLatest: true },
+                        where: { isLatest: true, intent: 'FINAL' },
                         select: { result: true }
                     }
                 }

@@ -367,7 +367,7 @@ export class AdminProcessService {
                                         billingContext: {
                                             select: {
                                                 snapshots: {
-                                                    where: { isLatest: true },
+                                                    where: { isLatest: true, intent: 'FINAL' },
                                                     take: 1,
                                                     select: { result: true }
                                                 }
@@ -462,7 +462,7 @@ export class AdminProcessService {
                                             billingContext: {
                                                 select: {
                                                     snapshots: {
-                                                        where: { isLatest: true },
+                                                        where: { isLatest: true, intent: 'FINAL' },
                                                         take: 1,
                                                         select: { result: true }
                                                     }
