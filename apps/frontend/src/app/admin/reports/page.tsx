@@ -36,7 +36,6 @@ const ProtectedReportsPageContent = withAuth(ReportsPageContent, { permission: P
 function ReportsPageContent() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [loading, setLoading] = useState(false);
-    const [hasInitialFetchOccurred, setHasInitialFetchOccurred] = useState(false);
     const [reportData, setReportData] = useState<BilledOrderReportResponse | null>(null);
     const [query, setQuery] = useState<ReportsQuery>({
         customerId: '',
@@ -58,13 +57,7 @@ function ReportsPageContent() {
     const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     const fetchData = async () => {
-        // Only fetch if some filter is applied or search is present
-        const hasFilters = query.customerId || query.processId || query.startDate || query.endDate || query.search || query.preProductionLocationId || query.postProductionLocationId;
-        
-        if (!hasFilters && !hasInitialFetchOccurred) return;
-
         setLoading(true);
-        setHasInitialFetchOccurred(true);
         try {
             const res = await getBilledOrdersReport(query);
             setReportData(res);
@@ -130,7 +123,6 @@ function ReportsPageContent() {
                         onClose={() => setIsSidebarOpen(false)}
                         query={query}
                         onQueryChange={(newFilters) => {
-                            setHasInitialFetchOccurred(true);
                             setQuery(prev => ({ ...prev, ...newFilters, page: 1 }));
                         }}
                     />
@@ -191,21 +183,7 @@ function ReportsPageContent() {
                 {/* Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto scrollbar-hide">
                     <div className="p-4 md:p-6 space-y-6">
-                        {!hasInitialFetchOccurred ? (
-                            <div className="flex flex-col items-center justify-center py-32 bg-white rounded-2xl border border-dashed border-gray-200">
-                                <div className="bg-blue-50 p-4 rounded-full mb-4">
-                                    <Filter className="w-8 h-8 text-blue-500" />
-                                </div>
-                                <h3 className="text-lg font-bold text-gray-900">No Filters Applied</h3>
-                                <p className="text-sm text-gray-500 mt-1">Select a date range or customer to generate the report</p>
-                                <button 
-                                    onClick={() => setIsSidebarOpen(true)}
-                                    className="mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-                                >
-                                    Open Filters
-                                </button>
-                            </div>
-                        ) : loading ? (
+                        {loading ? (
                             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
                                 <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
                                 <p className="text-gray-500 font-medium">Generating report...</p>
