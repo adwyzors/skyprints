@@ -143,7 +143,9 @@ export class ReportsService {
             });
 
             for (const bc of sortedContexts) {
-                for (const snapshot of bc.billingContext.snapshots) {
+                // Only consider the latest snapshot (already ordered by version desc in Prisma)
+                const snapshot = bc.billingContext.snapshots[0];
+                if (snapshot) {
                     if (!latestSnapshotDate || snapshot.createdAt > latestSnapshotDate) {
                         latestSnapshotDate = snapshot.createdAt;
                     }
