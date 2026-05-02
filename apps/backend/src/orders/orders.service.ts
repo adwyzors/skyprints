@@ -583,7 +583,7 @@ export class OrdersService {
                         deletedAt: null,
                         isTest: false,
                         statusCode: {
-                            notIn: [OrderStatus.BILLED, OrderStatus.GROUP_BILLED],
+                            notIn: [OrderStatus.CONFIGURE, OrderStatus.GROUP_BILLED],
                         },
                     },
                     select: {
@@ -825,7 +825,7 @@ export class OrdersService {
                     deletedAt: null,
                     isTest: false,
                     statusCode: {
-                        notIn: [OrderStatus.BILLED, OrderStatus.GROUP_BILLED],
+                        notIn: [OrderStatus.CONFIGURE, OrderStatus.GROUP_BILLED],
                     },
                 },
                 select: {
