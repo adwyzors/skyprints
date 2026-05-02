@@ -27,6 +27,32 @@ export class BillingSnapshotService {
         private readonly analyticsService: AnalyticsService
     ) { }
 
+    private async adjustCustomerOutstanding(
+        tx: Prisma.TransactionClient,
+        orderId: string,
+        amount: Decimal,
+        isAdd: boolean
+    ) {
+        if (amount.isZero()) return;
+
+        const order = await tx.order.findUnique({
+            where: { id: orderId },
+            select: { customerId: true }
+        });
+
+        if (order?.customerId) {
+            await tx.customer.update({
+                where: { id: order.customerId },
+                data: {
+                    outstandingAmount: isAdd
+                        ? { increment: amount }
+                        : { decrement: amount }
+                }
+            });
+            this.logger.log(`[OUTSTANDING] ${isAdd ? 'Added' : 'Subtracted'} ${amount} to customer ${order.customerId} for order ${orderId}`);
+        }
+    }
+
     private async saveDraftTx(
         tx: Prisma.TransactionClient,
         billingContextId: string,
@@ -245,7 +271,7 @@ export class BillingSnapshotService {
 
             const version = (_max.version ?? 0) + 1;
 
-            return tx.billingSnapshot.create({
+            const s = await tx.billingSnapshot.create({
                 data: {
                     billingContextId,
                     version,
@@ -266,39 +292,56 @@ export class BillingSnapshotService {
                     createdBy,
                 },
             });
-        });
 
-        /* -------------------------------
-           8️⃣ Transition orders ONCE (ATOMIC)
-        ------------------------------- */
-        if (snapshot.version === 1) {
-            const res = await this.prisma.order.updateMany({
-                where: {
-                    id: { in: orderIds },
-                    statusCode: {
-                        not: OrderStatus.GROUP_BILLED,
+            // 🔑 HANDLE OUTSTANDING ADJUSTMENT
+            if (s.version === 1) {
+                // First time GROUP_BILLED -> Add full amount for all orders
+                for (const orderId of orderIds) {
+                    const orderCalc = calc.perOrderCalculations[orderId];
+                    if (orderCalc) {
+                        await this.adjustCustomerOutstanding(tx, orderId, orderCalc.result, true);
+                    }
+                }
+
+                // Transition status
+                await tx.order.updateMany({
+                    where: {
+                        id: { in: orderIds },
+                        statusCode: { not: OrderStatus.GROUP_BILLED },
                     },
-                },
-                data: {
-                    statusCode: OrderStatus.GROUP_BILLED,
-                },
-            });
+                    data: { statusCode: OrderStatus.GROUP_BILLED },
+                });
 
-            /* -------------------------------
-               8.1 Update Analytics for Group
-            ------------------------------- */
-            // We need to fetch the results for each order
-            for (const orderId of orderIds) {
-                const orderCalc = calc.perOrderCalculations[orderId];
-                if (orderCalc) {
-                    await this.analyticsService.trackOrderFinalized(orderId, Number(orderCalc.result), snapshot.createdAt);
+                // Track Analytics
+                for (const orderId of orderIds) {
+                    const orderCalc = calc.perOrderCalculations[orderId];
+                    if (orderCalc) {
+                        await this.analyticsService.trackOrderFinalized(orderId, Number(orderCalc.result), s.createdAt);
+                    }
+                }
+            } else {
+                // version > 1: Edit -> Adjust difference
+                const prevSnapshot = await tx.billingSnapshot.findFirst({
+                    where: { billingContextId, version: s.version - 1 },
+                    select: { inputs: true }
+                });
+                const prevInputs = (prevSnapshot?.inputs as any) || {};
+
+                for (const orderId of orderIds) {
+                    const orderCalc = calc.perOrderCalculations[orderId];
+                    if (orderCalc) {
+                        const oldAmountStr = prevInputs[orderId]?.['__ORDER_RESULT__'] || '0';
+                        const oldAmount = new Prisma.Decimal(oldAmountStr);
+                        const diff = orderCalc.result.minus(oldAmount);
+                        if (!diff.isZero()) {
+                            await this.adjustCustomerOutstanding(tx, orderId, diff.abs(), diff.isPositive());
+                        }
+                    }
                 }
             }
 
-            this.logger.debug(
-                `GROUP_BILLED transition affected ${res.count} orders`,
-            );
-        }
+            return s;
+        });
 
         return snapshot;
     }
@@ -378,29 +421,28 @@ export class BillingSnapshotService {
         /* -------------------------------
            4️⃣ Finalize snapshot (SHORT TX)
         ------------------------------- */
-        const snapshot =
-            await this.prisma.transaction(tx =>
-                this.finalizeContextTx(
-                    tx,
-                    draftId,
-                    calc.result,
-                    calc.inputs,
-                    createdBy,
-                ),
+        const snapshot = await this.prisma.transaction(async tx => {
+            const s = await this.finalizeContextTx(
+                tx,
+                draftId,
+                calc.result,
+                calc.inputs,
+                createdBy,
             );
 
-        /* -------------------------------
-           5️⃣ Transition order if first FINAL
-        ------------------------------- */
-        if (snapshot.version === 1) {
-            await this.prisma.order.updateMany({
-                where: {
-                    id: orderId,
-                    statusCode: { equals: OrderStatus.COMPLETE },
-                },
-                data: { statusCode: OrderStatus.BILLED },
-            });
-        }
+            // 🔑 Transition status (NO OUTSTANDING UPDATE for individual BILLED)
+            if (s.version === 1) {
+                await tx.order.updateMany({
+                    where: {
+                        id: orderId,
+                        statusCode: { equals: OrderStatus.COMPLETE },
+                    },
+                    data: { statusCode: OrderStatus.BILLED },
+                });
+            }
+
+            return s;
+        });
 
         return snapshot;
     }

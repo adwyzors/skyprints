@@ -250,10 +250,12 @@ export default function CustomerModal({
                             <div className="space-y-1.5">
                                 <label className="text-xs font-medium text-gray-700">Outstanding Amount</label>
                                 <input
-                                    type="text"
-                                    value={formData.outstandingAmount?.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
-                                    readOnly
-                                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm text-gray-500 cursor-not-allowed"
+                                    type="number"
+                                    name="outstandingAmount"
+                                    placeholder="0"
+                                    value={formData.outstandingAmount}
+                                    onChange={handleChange}
+                                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono text-sm"
                                 />
                             </div>
                         )}
