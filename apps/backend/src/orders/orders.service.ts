@@ -29,6 +29,47 @@ export class OrdersService {
         private readonly billingCalculator: BillingCalculatorService,
     ) { }
 
+    private async validateCreditLimit(tx: any, customerId: string, additionalAmount: number = 0) {
+        const customer = await tx.customer.findUnique({
+            where: { id: customerId },
+        });
+
+        if (!customer) {
+            throw new BadRequestException('Customer not found');
+        }
+
+        const creditLimit = Number(customer.creditLimit || 0);
+        if (creditLimit <= 0) return;
+
+        const activeOrders = await tx.order.findMany({
+            where: {
+                customerId,
+                deletedAt: null,
+                isTest: false,
+                statusCode: {
+                    notIn: [OrderStatus.CONFIGURE, OrderStatus.GROUP_BILLED],
+                },
+            },
+            select: {
+                estimatedAmount: true,
+            },
+        });
+
+        const activeAmount = activeOrders.reduce(
+            (sum, o) => sum + Number(o.estimatedAmount || 0),
+            0,
+        );
+
+        const exposure =
+            Math.max(Number(customer.outstandingAmount || 0), 0) +
+            activeAmount +
+            additionalAmount;
+
+        if (exposure >= creditLimit) {
+            throw new BadRequestException('Credit limit reached');
+        }
+    }
+
     /* ========================== QUERY ========================== */
     async getAll(query: OrdersQueryDto) {
         const {
@@ -569,48 +610,7 @@ export class OrdersService {
                 /* =====================================================
                  * CREDIT LIMIT CHECK
                  * ===================================================== */
-                const customer = await tx.customer.findUnique({
-                    where: { id: dto.customerId },
-                });
-
-                if (!customer) {
-                    throw new BadRequestException('Customer not found');
-                }
-
-                const activeOrders = await tx.order.findMany({
-                    where: {
-                        customerId: dto.customerId,
-                        deletedAt: null,
-                        isTest: false,
-                        statusCode: {
-                            notIn: [OrderStatus.CONFIGURE, OrderStatus.GROUP_BILLED],
-                        },
-                    },
-                    select: {
-                        estimatedAmount: true,
-                    },
-                });
-
-                const activeAmount = activeOrders.reduce(
-                    (sum, o) => sum + Number(o.estimatedAmount || 0),
-                    0,
-                );
-
-                const exposure =
-                    Math.max(Number(customer.outstandingAmount || 0), 0) +
-                    activeAmount;
-
-                if (
-                    Number(customer.creditLimit) > 0 &&
-                    exposure >= Number(customer.creditLimit)
-                ) {
-                    this.logger.warn({
-                        customerId: dto.customerId,
-                        exposure,
-                        limit: customer.creditLimit,
-                    }, 'Credit limit exceeded');
-                    throw new BadRequestException('Credit limit reached');
-                }
+                await this.validateCreditLimit(tx, dto.customerId);
 
 
                 /* =====================================================
@@ -819,40 +819,7 @@ export class OrdersService {
             /* =====================================================
              * CREDIT LIMIT CHECK
              * ===================================================== */
-            const activeOrders = await tx.order.findMany({
-                where: {
-                    customerId: sourceOrder.customerId,
-                    deletedAt: null,
-                    isTest: false,
-                    statusCode: {
-                        notIn: [OrderStatus.CONFIGURE, OrderStatus.GROUP_BILLED],
-                    },
-                },
-                select: {
-                    estimatedAmount: true,
-                },
-            });
-
-            const activeAmount = activeOrders.reduce(
-                (sum, o) => sum + Number(o.estimatedAmount || 0),
-                0,
-            );
-
-            const exposure =
-                Math.max(Number(sourceOrder.customer.outstandingAmount || 0), 0) +
-                activeAmount;
-
-            if (
-                Number(sourceOrder.customer.creditLimit) > 0 &&
-                exposure >= Number(sourceOrder.customer.creditLimit)
-            ) {
-                this.logger.warn({
-                    customerId: sourceOrder.customerId,
-                    exposure,
-                    limit: sourceOrder.customer.creditLimit,
-                }, 'Credit limit exceeded on reorder');
-                throw new BadRequestException('Credit limit reached');
-            }
+            await this.validateCreditLimit(tx, sourceOrder.customerId);
 
             /* =====================================================
              * 2️⃣ Generate NEW order code
@@ -1210,6 +1177,11 @@ export class OrdersService {
             });
 
             if (!order) throw new NotFoundException('Order not found');
+
+            /* =====================================================
+             * CREDIT LIMIT CHECK (MOVING TO PRODUCTION)
+             * ===================================================== */
+            await this.validateCreditLimit(tx, order.customerId, Number(order.estimatedAmount || 0));
 
             await tx.order.update({
                 where: { id: orderId },

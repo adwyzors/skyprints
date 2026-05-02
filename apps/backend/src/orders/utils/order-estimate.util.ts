@@ -11,9 +11,6 @@ export async function recomputeOrderEstimate(
       orderProcess: {
         orderId,
       },
-      statusCode: {
-        in: ['IN_PROGRESS', 'COMPLETE'],
-      },
     },
     include: {
       runTemplate: true,
