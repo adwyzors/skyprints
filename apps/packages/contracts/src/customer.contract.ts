@@ -16,6 +16,8 @@ export const CreateCustomerSchema = z.object({
     tdsno: z.coerce.number().int().optional().nullable(),
     tds: z.boolean().optional(),
     tax: z.boolean().optional(),
+    creditLimit: z.coerce.number().optional().default(0),
+    outstandingAmount: z.coerce.number().optional().default(0),
 
     isActive: z.boolean().optional(),
 });

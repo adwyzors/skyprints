@@ -30,6 +30,8 @@ export default function CustomerModal({
         gstno: '',
         tax: false,
         tds: false,
+        creditLimit: 0,
+        outstandingAmount: 0,
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,6 +50,8 @@ export default function CustomerModal({
                 tdsno: customer.tdsno ?? undefined,
                 tax: !!customer.tax,
                 tds: !!customer.tds,
+                creditLimit: customer.creditLimit || 0,
+                outstandingAmount: customer.outstandingAmount || 0,
             });
         } else {
             // Reset for create mode
@@ -61,6 +65,8 @@ export default function CustomerModal({
                 tdsno: undefined,
                 tax: false,
                 tds: false,
+                creditLimit: 0,
+                outstandingAmount: 0,
             });
         }
         setError(null);
@@ -223,6 +229,31 @@ export default function CustomerModal({
                                     value={formData.tdsno || ''}
                                     onChange={handleChange}
                                     className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono text-sm"
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-medium text-gray-700">Credit Limit (0 = Unlimited)</label>
+                            <input
+                                type="number"
+                                name="creditLimit"
+                                placeholder="0"
+                                value={formData.creditLimit}
+                                onChange={handleChange}
+                                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono text-sm"
+                            />
+                        </div>
+                        {isEditMode && (
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-gray-700">Outstanding Amount</label>
+                                <input
+                                    type="text"
+                                    value={formData.outstandingAmount?.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                                    readOnly
+                                    className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg font-mono text-sm text-gray-500 cursor-not-allowed"
                                 />
                             </div>
                         )}

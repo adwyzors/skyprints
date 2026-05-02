@@ -201,6 +201,9 @@ export default function CustomerClient({
                                     <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
                                         Tax / TDS
                                     </th>
+                                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Credit / Exposure
+                                    </th>
 
                                     <th className="px-6 py-4 w-10"></th>
                                 </tr>
@@ -272,6 +275,30 @@ export default function CustomerClient({
                                                         )}
                                                         {!customer.tax && !customer.tds && <span className="text-gray-400 text-xs">-</span>}
                                                     </div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                    {customer.creditLimit > 0 ? (
+                                                        <div className="flex flex-col items-center gap-1">
+                                                            <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                                                                <span className={customer.outstandingAmount >= customer.creditLimit ? 'text-red-600' : 'text-gray-600'}>
+                                                                    ₹{customer.outstandingAmount.toLocaleString()}
+                                                                </span>
+                                                                <span className="text-gray-300">/</span>
+                                                                <span className="text-blue-600">
+                                                                    ₹{customer.creditLimit.toLocaleString()}
+                                                                </span>
+                                                            </div>
+                                                            <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className={`h-full transition-all ${customer.outstandingAmount >= customer.creditLimit ? 'bg-red-500' : 'bg-blue-500'
+                                                                        }`}
+                                                                    style={{ width: `${Math.min((customer.outstandingAmount / customer.creditLimit) * 100, 100)}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400 text-xs font-medium italic">Unlimited</span>
+                                                    )}
                                                 </td>
 
                                                 <td className="px-6 py-4 whitespace-nowrap text-right">

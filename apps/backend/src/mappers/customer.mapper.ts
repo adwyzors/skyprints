@@ -17,6 +17,8 @@ export function toCustomerSummary(customer: Customer) {
         tax: customer.tax,
 
         isActive: customer.isActive,
+        creditLimit: Number(customer.creditLimit || 0),
+        outstandingAmount: Number(customer.outstandingAmount || 0),
         createdAt: customer.createdAt.toISOString(),
         updatedAt: customer.updatedAt.toISOString(),
     };

@@ -17,6 +17,8 @@ export const mapCustomerSummaryDtosToCustomers = (
         tax: dto.tax,
         tds: dto.tds,
         isActive: dto.isActive,
+        creditLimit: dto.creditLimit,
+        outstandingAmount: dto.outstandingAmount,
         createdAt: new Date(dto.createdAt),
         updatedAt: new Date(dto.updatedAt),
     }));

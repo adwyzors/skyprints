@@ -17,7 +17,7 @@ async function main() {
 
   console.log(`Backfilling ${orders.length} orders...`);
 
-  const batchSize = 50;
+  const batchSize = 5;
   for (let i = 0; i < orders.length; i += batchSize) {
     const batch = orders.slice(i, i + batchSize);
     await Promise.all(
