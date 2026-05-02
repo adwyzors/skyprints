@@ -44,6 +44,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [useOrderImageForRuns, setUseOrderImageForRuns] = useState(false);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
 
     const { hasPermission } = useAuth();
     const canCreateTest = hasPermission(Permission.ORDERS_CREATE_TEST);
@@ -60,6 +61,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
         setImagePreviews([]);
         setUseOrderImageForRuns(false);
         setIsTest(false);
+        setCreditLimitError(null);
     };
 
     /* ================= FETCH DATA ================= */
@@ -251,12 +253,21 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
             setShowConfirm(false); // Close confirmation
             onClose(); // Close main modal
         } catch (err: any) {
-            setShowConfirm(false); // Close confirmation on error to show error message on main modal
-            if (err.message?.includes('invalid_type') || err.message?.includes('expected')) {
+            setShowConfirm(false); // Close confirmation on error
+
+            const errorMsg = err.message || '';
+            
+            // Check for credit limit specifically
+            if (errorMsg.toLowerCase().includes('credit limit reached')) {
+                setCreditLimitError('Credit limit reached for this customer.');
+                return;
+            }
+
+            if (errorMsg.includes('invalid_type') || errorMsg.includes('expected')) {
                 setError('Server validation error. Please check your data and try again.');
                 console.error('Validation error details:', err);
             } else {
-                setError(err.message || 'Failed to create order');
+                setError(errorMsg || 'Failed to create order');
             }
         } finally {
             setLoading(false);
@@ -728,6 +739,29 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* CREDIT LIMIT ERROR DIALOG */}
+            {creditLimitError && (
+                <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden p-8 text-center border border-red-100">
+                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <span className="text-3xl">⚠️</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">Credit Limit Reached</h3>
+                        <p className="text-gray-500 text-sm leading-relaxed mb-8">
+                            This order cannot be created because the customer has exceeded their assigned credit limit. 
+                            <br/><br/>
+                            Please contact administration to adjust the limit or settle outstanding payments.
+                        </p>
+                        <button
+                            onClick={() => setCreditLimitError(null)}
+                            className="w-full py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-[0.98] transition-all shadow-lg shadow-red-200 flex items-center justify-center"
+                        >
+                            Understood
+                        </button>
                     </div>
                 </div>
             )}
