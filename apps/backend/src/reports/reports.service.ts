@@ -132,6 +132,7 @@ export class ReportsService {
             const allBillingInputs: any[] = [];
             let primaryBillNumber = "N/A";
             let latestSnapshotDate: Date | null = null;
+            let orderLevelResult: any = null;
 
             // Sort contexts: prefer GROUP for GROUP_BILLED, then by most recent
             const sortedContexts = [...order.billingContexts].sort((a, b) => {
@@ -210,7 +211,6 @@ export class ReportsService {
                     // Search for run-specific billing data in all available snapshots
                     let runBilling: any = null;
                     let runBillNumber = primaryBillNumber;
-                    let orderLevelResult: any = null;
 
                     for (const entry of allBillingInputs) {
                         if (entry.orderResult) orderLevelResult = entry.orderResult;
@@ -238,42 +238,27 @@ export class ReportsService {
                             numericQuantity = Number(inputQty);
                         }
 
-                        // 2. Extract Rate (Prioritize new/final rates, fallback to estimated)
-                        rate = Number(
-                            runBilling["new_rate"] ||
-                            runBilling["finalRate"] ||
-                            runBilling["final_rate"] ||
-                            runBilling["per_pc_cost"] ||
-                            runBilling["rate"] ||
-                            runBilling["Rate"] ||
-                            runBilling["price"] ||
-                            runBilling["Price"] || 
-                            runBilling["estimated_rate"] ||
-                            runBilling["Estimated Rate"] || 0
-                        );
+                        // 2. Extract Rate (Prioritize new_rate, even if 0)
+                        const rawRate = runBilling["new_rate"] !== undefined ? runBilling["new_rate"] :
+                                       runBilling["finalRate"] || 
+                                       runBilling["final_rate"] || 
+                                       runBilling["per_pc_cost"] || 
+                                       runBilling["rate"] || 
+                                       runBilling["Rate"] || 0;
+                        rate = Number(rawRate);
 
-                        // 3. Extract Amount (Prioritize stored totals, fallback to rate * quantity)
-                        const storedAmount = Number(
-                            runBilling["__RESULT__"] || 
-                            runBilling["new_amount"] || 
-                            runBilling["New Amount"] ||
-                            runBilling["actual_total"] ||
-                            runBilling["Actual Total"] ||
-                            runBilling["total_amount"] ||
-                            runBilling["Total Amount"] ||
-                            runBilling["amount"] ||
-                            runBilling["Amount"] || 0
-                        );
-
-                        if (storedAmount > 0) {
-                            amount = storedAmount;
+                        // 3. Extract Amount
+                        const resultAmount = runBilling["__RESULT__"];
+                        if (resultAmount !== undefined) {
+                            amount = Number(resultAmount);
+                        } else if (rate !== 0) {
+                            const storedAmount = runBilling["new_amount"] || 
+                                               runBilling["actual_total"] || 
+                                               runBilling["total_amount"] || 
+                                               runBilling["amount"] || 0;
+                            amount = storedAmount > 0 ? Number(storedAmount) : rate * numericQuantity;
                         } else {
-                            amount = rate * numericQuantity;
-                        }
-
-                        // 4. Final Rate Fallback: If rate is still 0 but amount exists
-                        if (rate === 0 && amount > 0 && numericQuantity > 0) {
-                            rate = amount / numericQuantity;
+                            amount = 0;
                         }
                     }
 
