@@ -227,27 +227,44 @@ export class ReportsService {
                             runBilling["total_quantity"] ||
                             runBilling["total_pieces"] ||
                             runBilling["pcs"] ||
+                            runBilling["PCS"] ||
+                            runBilling["Pcs"] ||
                             runBilling["quantity"] ||
-                            runBilling["qty"];
+                            runBilling["Quantity"] ||
+                            runBilling["qty"] ||
+                            runBilling["Qty"];
 
                         if (inputQty !== undefined) {
                             numericQuantity = Number(inputQty);
                         }
 
-                        // 2. Extract Rate
+                        // 2. Extract Rate (Prioritize new/final rates, fallback to estimated)
                         rate = Number(
                             runBilling["new_rate"] ||
                             runBilling["finalRate"] ||
                             runBilling["final_rate"] ||
                             runBilling["per_pc_cost"] ||
                             runBilling["rate"] ||
-                            runBilling["price"] ||
                             runBilling["Rate"] ||
-                            runBilling["Price"] || 0
+                            runBilling["price"] ||
+                            runBilling["Price"] || 
+                            runBilling["estimated_rate"] ||
+                            runBilling["Estimated Rate"] || 0
                         );
 
-                        // 3. Extract Amount (Prefer __RESULT__, fallback to rate * quantity)
-                        const storedAmount = Number(runBilling["__RESULT__"] || 0);
+                        // 3. Extract Amount (Prioritize stored totals, fallback to rate * quantity)
+                        const storedAmount = Number(
+                            runBilling["__RESULT__"] || 
+                            runBilling["new_amount"] || 
+                            runBilling["New Amount"] ||
+                            runBilling["actual_total"] ||
+                            runBilling["Actual Total"] ||
+                            runBilling["total_amount"] ||
+                            runBilling["Total Amount"] ||
+                            runBilling["amount"] ||
+                            runBilling["Amount"] || 0
+                        );
+
                         if (storedAmount > 0) {
                             amount = storedAmount;
                         } else {
@@ -260,8 +277,8 @@ export class ReportsService {
                         }
                     }
 
-                    // FALLBACK: If runBilling is missing, but we have order-level totals
-                    if (amount === 0 && (orderLevelResult || orderAnalytic)) {
+                    // FALLBACK: Only if the run was NOT found in any billing snapshot at all
+                    if (!runBilling && amount === 0 && (orderLevelResult || orderAnalytic)) {
                         const totalOrderAmount = Number(orderLevelResult || orderAnalytic?.totalAmount || 0);
 
                         // If it's the only process and only run, we can safely assign the full amount
@@ -299,7 +316,14 @@ export class ReportsService {
                         displayQuantity = `${parseFloat(numericQuantity.toFixed(2))} mtr`;
                     }
 
-                    let description = runFields?.particulars || runFields?.design || runFields?.designName || runFields?.particular || "";
+                    let description = runFields?.particulars || 
+                                      runFields?.Particulars ||
+                                      runFields?.design || 
+                                      runFields?.Design ||
+                                      runFields?.designName || 
+                                      runFields?.DesignName ||
+                                      runFields?.particular || 
+                                      runFields?.Particular || "";
 
                     if (!description && Array.isArray(runFields?.items)) {
                         description = runFields.items
