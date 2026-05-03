@@ -430,8 +430,18 @@ export class BillingSnapshotService {
                 createdBy,
             );
 
-            // 🔑 Transition status (NO OUTSTANDING UPDATE for individual BILLED)
+            // 🔑 Handle outstanding + status transition for ORDER billing
+
             if (s.version === 1) {
+                // First time billing → add full amount to outstanding
+                await this.adjustCustomerOutstanding(
+                    tx,
+                    orderId,
+                    calc.result,
+                    true // increment
+                );
+
+                // Transition order status
                 await tx.order.updateMany({
                     where: {
                         id: orderId,
@@ -439,6 +449,38 @@ export class BillingSnapshotService {
                     },
                     data: { statusCode: OrderStatus.BILLED },
                 });
+
+                // Track analytics (keep existing behavior consistent with GROUP)
+                await this.analyticsService.trackOrderFinalized(
+                    orderId,
+                    Number(calc.result),
+                    s.createdAt
+                );
+
+            } else {
+                // Re-billing → adjust difference only
+                const prevSnapshot = await tx.billingSnapshot.findFirst({
+                    where: {
+                        billingContextId: contextId,
+                        version: s.version - 1,
+                    },
+                    select: { inputs: true }
+                });
+
+                const prevInputs = (prevSnapshot?.inputs as any) || {};
+                const oldAmountStr = prevInputs?.['__ORDER_RESULT__'] || '0';
+
+                const oldAmount = new Prisma.Decimal(oldAmountStr);
+                const diff = calc.result.minus(oldAmount);
+
+                if (!diff.isZero()) {
+                    await this.adjustCustomerOutstanding(
+                        tx,
+                        orderId,
+                        diff.abs(),
+                        diff.isPositive() // add if increased, subtract if decreased
+                    );
+                }
             }
 
             return s;
