@@ -429,17 +429,22 @@ export class BillingSnapshotService {
             );
 
             // 🔑 HANDLE OUTSTANDING ADJUSTMENT (REDUCE ON INVOICE)
-
+            this.logger.log(`[finalizeOrder] orderId=${orderId}, s.version=${s.version}, intent=${intent}`);
             if (s.version === 1) {
                 const order = await tx.order.findUnique({
                     where: { id: orderId },
                     select: { estimatedAmount: true, customerId: true, statusCode: true }
                 });
 
+                this.logger.log(`finalizeOrder order.statusCode=${order?.statusCode}`);
+                this.logger.log(`[OUTSTANDING] order.estimatedAmount=${order?.estimatedAmount}, customerId=${order?.customerId}`);
                 // Only subtract if it was in a post-config status (meaning it was added to outstanding)
                 if (order && ([OrderStatus.PRODUCTION_READY, OrderStatus.IN_PRODUCTION, OrderStatus.COMPLETE] as OrderStatus[]).includes(order.statusCode)) {
+                    this.logger.log(`[OUTSTANDING] Order is in post-config status`);
                     const amount = new Prisma.Decimal(order.estimatedAmount.toString());
+                    this.logger.log(`[OUTSTANDING] amount=${amount}`);
                     if (!amount.isZero()) {
+                        this.logger.log(`[OUTSTANDING] Decrementing amount`);
                         await tx.customer.update({
                             where: { id: order.customerId },
                             data: { outstandingAmount: { decrement: amount } }
@@ -447,6 +452,7 @@ export class BillingSnapshotService {
                         this.logger.log(`[OUTSTANDING] Subtracted ${amount} from customer ${order.customerId} for order ${orderId} (Invoiced)`);
                     }
                 }
+                this.logger.log(`[OUTSTANDING] Updating order status`);
 
                 // Transition order status
                 await tx.order.update({
