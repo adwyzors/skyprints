@@ -323,20 +323,26 @@ export class BillingSnapshotService {
                     },
                     data: { statusCode: OrderStatus.GROUP_BILLED },
                 });
-
-                // Track Analytics
-                for (const orderId of orderIds) {
-                    const orderCalc = calc.perOrderCalculations[orderId];
-                    if (orderCalc) {
-                        await this.analyticsService.trackOrderFinalized(orderId, Number(orderCalc.result), s.createdAt);
-                    }
-                }
             } else {
                 // Re-billing: No adjustment needed if we only track WIP in outstandingAmount
             }
 
             return s;
         });
+
+        // 📊 Track Analytics (OUTSIDE TX to avoid connection pool exhaustion)
+        if (snapshot.version === 1) {
+            for (const orderId of orderIds) {
+                const orderCalc = calc.perOrderCalculations[orderId];
+                if (orderCalc) {
+                    await this.analyticsService.trackOrderFinalized(
+                        orderId,
+                        Number(orderCalc.result),
+                        snapshot.createdAt
+                    ).catch(err => this.logger.error(`Failed to track analytics for order ${orderId}`, err));
+                }
+            }
+        }
 
         return snapshot;
     }
@@ -460,19 +466,21 @@ export class BillingSnapshotService {
                     data: { statusCode: OrderStatus.BILLED },
                 });
 
-                // Track analytics
-                await this.analyticsService.trackOrderFinalized(
-                    orderId,
-                    Number(calc.result),
-                    s.createdAt
-                );
-
             } else {
                 // Re-billing: No adjustment needed if we only track WIP in outstandingAmount
             }
 
             return s;
         });
+
+        // 📊 Track analytics (OUTSIDE TX to avoid connection pool exhaustion)
+        if (snapshot.version === 1) {
+            await this.analyticsService.trackOrderFinalized(
+                orderId,
+                Number(calc.result),
+                snapshot.createdAt
+            ).catch(err => this.logger.error(`Failed to track analytics for order ${orderId}`, err));
+        }
 
         return snapshot;
     }
