@@ -47,7 +47,9 @@ export class OrdersService {
                 deletedAt: null,
                 isTest: false,
                 statusCode: {
-                    notIn: [OrderStatus.CONFIGURE, OrderStatus.GROUP_BILLED],
+                    // Only count orders in CONFIGURE status as "active/estimated" 
+                    // because orders in PRODUCTION_READY/IN_PRODUCTION/COMPLETE are now in outstandingAmount
+                    in: [OrderStatus.CONFIGURE],
                 },
             },
             select: {
@@ -987,6 +989,21 @@ export class OrdersService {
                     },
                 });
 
+                // 🔑 SUBTRACT FROM OUTSTANDING IF MOVING BACK TO CONFIGURE
+                if (order.statusCode === OrderStatus.PRODUCTION_READY && dto.customerId === undefined) {
+                    const amount = new Prisma.Decimal((dto.quantity ? (order as any).estimatedAmount : (order as any).estimatedAmount).toString());
+                    // Wait, I need to be careful with estimates here. 
+                    // To be safe, I'll just reload the order's estimated amount.
+                    const currentOrder = await tx.order.findUnique({ where: { id: orderId }, select: { estimatedAmount: true, customerId: true } });
+                    if (currentOrder && !currentOrder.estimatedAmount.isZero()) {
+                        await tx.customer.update({
+                            where: { id: currentOrder.customerId },
+                            data: { outstandingAmount: { decrement: currentOrder.estimatedAmount } }
+                        });
+                        this.logger.log(`[OUTSTANDING] Subtracted ${currentOrder.estimatedAmount} from customer ${currentOrder.customerId} (Reverting to CONFIGURE)`);
+                    }
+                }
+
                 return { success: true };
             });
         } catch (err) {
@@ -1147,11 +1164,22 @@ export class OrdersService {
             /* =====================================================
              * UPDATE ORDER
              * ===================================================== */
+            if (([OrderStatus.PRODUCTION_READY, OrderStatus.IN_PRODUCTION, OrderStatus.COMPLETE] as OrderStatus[]).includes(order.statusCode)) {
+                const currentOrder = await tx.order.findUnique({ where: { id: orderId }, select: { estimatedAmount: true, customerId: true } });
+                if (currentOrder && !currentOrder.estimatedAmount.isZero()) {
+                    await tx.customer.update({
+                        where: { id: currentOrder.customerId },
+                        data: { outstandingAmount: { decrement: currentOrder.estimatedAmount } }
+                    });
+                }
+            }
+
             await tx.order.update({
                 where: { id: orderId },
                 data: {
                     totalProcesses: { increment: 1 },
                     statusCode: OrderStatus.CONFIGURE,
+                    completedProcesses: 0
                 },
             });
 
@@ -1182,6 +1210,16 @@ export class OrdersService {
              * CREDIT LIMIT CHECK (MOVING TO PRODUCTION)
              * ===================================================== */
             await this.validateCreditLimit(tx, order.customerId, Number(order.estimatedAmount || 0));
+
+            // 🔑 ADD TO OUTSTANDING AMOUNT AT RATE CONFIG DONE
+            const amount = new Prisma.Decimal(order.estimatedAmount.toString());
+            if (!amount.isZero()) {
+                await tx.customer.update({
+                    where: { id: order.customerId },
+                    data: { outstandingAmount: { increment: amount } }
+                });
+                this.logger.log(`[OUTSTANDING] Added ${amount} to customer ${order.customerId} for order ${orderId} (Rate Config Done)`);
+            }
 
             await tx.order.update({
                 where: { id: orderId },
@@ -1288,9 +1326,22 @@ export class OrdersService {
             throw new NotFoundException('Order not found');
         }
 
-        await this.prisma.order.update({
-            where: { id: orderId },
-            data: { deletedAt: new Date() }
+        await this.prisma.transaction(async tx => {
+            // 🔑 SUBTRACT FROM OUTSTANDING IF IT WAS ALREADY ADDED
+            if (([OrderStatus.PRODUCTION_READY, OrderStatus.IN_PRODUCTION, OrderStatus.COMPLETE] as OrderStatus[]).includes(order.statusCode)) {
+                const amount = new Prisma.Decimal(order.estimatedAmount.toString());
+                if (!amount.isZero()) {
+                    await tx.customer.update({
+                        where: { id: order.customerId },
+                        data: { outstandingAmount: { decrement: amount } }
+                    });
+                }
+            }
+
+            await tx.order.update({
+                where: { id: orderId },
+                data: { deletedAt: new Date() }
+            });
         });
 
         this.logger.log(`[ORDER][DELETE] order=${orderId}`);

@@ -41,15 +41,16 @@ export class BillingSnapshotService {
         });
 
         if (order?.customerId) {
+            const decimalAmount = new Prisma.Decimal(amount.toString());
             await tx.customer.update({
                 where: { id: order.customerId },
                 data: {
                     outstandingAmount: isAdd
-                        ? { increment: amount }
-                        : { decrement: amount }
+                        ? { increment: decimalAmount }
+                        : { decrement: decimalAmount }
                 }
             });
-            this.logger.log(`[OUTSTANDING] ${isAdd ? 'Added' : 'Subtracted'} ${amount} to customer ${order.customerId} for order ${orderId}`);
+            this.logger.log(`[OUTSTANDING] ${isAdd ? 'Added' : 'Subtracted'} ${decimalAmount} to customer ${order.customerId} for order ${orderId}`);
         }
     }
 
@@ -293,13 +294,24 @@ export class BillingSnapshotService {
                 },
             });
 
-            // 🔑 HANDLE OUTSTANDING ADJUSTMENT
+            // 🔑 HANDLE OUTSTANDING ADJUSTMENT (REDUCE ON INVOICE)
             if (s.version === 1) {
-                // First time GROUP_BILLED -> Add full amount for all orders
                 for (const orderId of orderIds) {
-                    const orderCalc = calc.perOrderCalculations[orderId];
-                    if (orderCalc) {
-                        await this.adjustCustomerOutstanding(tx, orderId, orderCalc.result, true);
+                    const order = await tx.order.findUnique({
+                        where: { id: orderId },
+                        select: { estimatedAmount: true, customerId: true, statusCode: true }
+                    });
+
+                    // Only subtract if it was in a post-config status (meaning it was added to outstanding)
+                    if (order && ([OrderStatus.PRODUCTION_READY, OrderStatus.IN_PRODUCTION, OrderStatus.COMPLETE] as OrderStatus[]).includes(order.statusCode)) {
+                        const amount = new Prisma.Decimal(order.estimatedAmount.toString());
+                        if (!amount.isZero()) {
+                            await tx.customer.update({
+                                where: { id: order.customerId },
+                                data: { outstandingAmount: { decrement: amount } }
+                            });
+                            this.logger.log(`[OUTSTANDING] Subtracted ${amount} from customer ${order.customerId} for order ${orderId} (Group Billed)`);
+                        }
                     }
                 }
 
@@ -320,24 +332,7 @@ export class BillingSnapshotService {
                     }
                 }
             } else {
-                // version > 1: Edit -> Adjust difference
-                const prevSnapshot = await tx.billingSnapshot.findFirst({
-                    where: { billingContextId, version: s.version - 1 },
-                    select: { inputs: true }
-                });
-                const prevInputs = (prevSnapshot?.inputs as any) || {};
-
-                for (const orderId of orderIds) {
-                    const orderCalc = calc.perOrderCalculations[orderId];
-                    if (orderCalc) {
-                        const oldAmountStr = prevInputs[orderId]?.['__ORDER_RESULT__'] || '0';
-                        const oldAmount = new Prisma.Decimal(oldAmountStr);
-                        const diff = orderCalc.result.minus(oldAmount);
-                        if (!diff.isZero()) {
-                            await this.adjustCustomerOutstanding(tx, orderId, diff.abs(), diff.isPositive());
-                        }
-                    }
-                }
+                // Re-billing: No adjustment needed if we only track WIP in outstandingAmount
             }
 
             return s;
@@ -426,31 +421,40 @@ export class BillingSnapshotService {
                 tx,
                 draftId,
                 calc.result,
-                calc.inputs,
+                {
+                    ...calc.inputs,
+                    '__ORDER_RESULT__': calc.result.toString()
+                },
                 createdBy,
             );
 
-            // 🔑 Handle outstanding + status transition for ORDER billing
+            // 🔑 HANDLE OUTSTANDING ADJUSTMENT (REDUCE ON INVOICE)
 
             if (s.version === 1) {
-                // First time billing → add full amount to outstanding
-                await this.adjustCustomerOutstanding(
-                    tx,
-                    orderId,
-                    calc.result,
-                    true // increment
-                );
+                const order = await tx.order.findUnique({
+                    where: { id: orderId },
+                    select: { estimatedAmount: true, customerId: true, statusCode: true }
+                });
+
+                // Only subtract if it was in a post-config status (meaning it was added to outstanding)
+                if (order && ([OrderStatus.PRODUCTION_READY, OrderStatus.IN_PRODUCTION, OrderStatus.COMPLETE] as OrderStatus[]).includes(order.statusCode)) {
+                    const amount = new Prisma.Decimal(order.estimatedAmount.toString());
+                    if (!amount.isZero()) {
+                        await tx.customer.update({
+                            where: { id: order.customerId },
+                            data: { outstandingAmount: { decrement: amount } }
+                        });
+                        this.logger.log(`[OUTSTANDING] Subtracted ${amount} from customer ${order.customerId} for order ${orderId} (Invoiced)`);
+                    }
+                }
 
                 // Transition order status
-                await tx.order.updateMany({
-                    where: {
-                        id: orderId,
-                        statusCode: { equals: OrderStatus.COMPLETE },
-                    },
+                await tx.order.update({
+                    where: { id: orderId },
                     data: { statusCode: OrderStatus.BILLED },
                 });
 
-                // Track analytics (keep existing behavior consistent with GROUP)
+                // Track analytics
                 await this.analyticsService.trackOrderFinalized(
                     orderId,
                     Number(calc.result),
@@ -458,29 +462,7 @@ export class BillingSnapshotService {
                 );
 
             } else {
-                // Re-billing → adjust difference only
-                const prevSnapshot = await tx.billingSnapshot.findFirst({
-                    where: {
-                        billingContextId: contextId,
-                        version: s.version - 1,
-                    },
-                    select: { inputs: true }
-                });
-
-                const prevInputs = (prevSnapshot?.inputs as any) || {};
-                const oldAmountStr = prevInputs?.['__ORDER_RESULT__'] || '0';
-
-                const oldAmount = new Prisma.Decimal(oldAmountStr);
-                const diff = calc.result.minus(oldAmount);
-
-                if (!diff.isZero()) {
-                    await this.adjustCustomerOutstanding(
-                        tx,
-                        orderId,
-                        diff.abs(),
-                        diff.isPositive() // add if increased, subtract if decreased
-                    );
-                }
+                // Re-billing: No adjustment needed if we only track WIP in outstandingAmount
             }
 
             return s;
