@@ -7,15 +7,20 @@ import * as path from 'path';
 const LOGS_DIR = path.join(process.cwd(), 'logs');
 const LOG_FILE = path.join(LOGS_DIR, 'combined.log');
 
-// Ensure logs directory exists
-if (!fs.existsSync(LOGS_DIR)) {
-    fs.mkdirSync(LOGS_DIR, { recursive: true });
+// Ensure logs directory exists (ONLY locally)
+const isLocal = process.env.NODE_ENV === 'local' || !process.env.NODE_ENV;
+if (isLocal && !fs.existsSync(LOGS_DIR)) {
+    try {
+        fs.mkdirSync(LOGS_DIR, { recursive: true });
+    } catch (err) {
+        console.warn('Could not create logs directory, file logging disabled', err);
+    }
 }
 
 export class ContextLogger extends Logger {
     private writeToFile(level: string, message: any, trace?: any) {
         // Only log to file in local environment
-        if (process.env.NODE_ENV !== 'local') {
+        if (!isLocal) {
             return;
         }
 
