@@ -26,7 +26,7 @@ export class JwtAuthGuard implements CanActivate {
         const token = this.extractToken(req);
 
         if (!token) {
-            this.logger.debug('JWT token missing');
+            this.logger.log('JWT token missing');
             throw new UnauthorizedException('Missing access token');
         }
 

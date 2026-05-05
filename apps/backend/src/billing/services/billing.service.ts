@@ -4,11 +4,11 @@ import {
     NotFoundException
 } from "@nestjs/common";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
+import { ContextLogger } from "../../common/logger/context.logger";
 import { FormulaCompiler } from "../formula/formula-compiler";
 import { MathOnlyFormulaEngine } from "../formula/math-only.formula.engine";
 import { extractNumericVariables } from "../utils/field-mapper";
 import { extractFormulaVariables } from "../utils/formula-variable-extractor";
-import { ContextLogger } from "../../common/logger/context.logger";
 
 @Injectable()
 export class BillingService {
@@ -98,7 +98,7 @@ export class BillingService {
             ...dynamicInputs
         };
 
-        this.logger.debug(
+        this.logger.log(
             `Merged variables: ${JSON.stringify(mergedVariables)}`
         );
 

@@ -13,7 +13,7 @@
 //    @Cron(process.env.ORDER_RETENTION_CRON ?? '0 1 * * *')
 //    async run() {
 //        if (!this.enabled) {
-//            this.logger.debug('Job skipped (disabled)');
+//            this.logger.log('Job skipped (disabled)');
 //            return;
 //        }
 

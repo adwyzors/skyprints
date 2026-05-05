@@ -2,10 +2,10 @@ import {
     BadRequestException,
     Injectable
 } from '@nestjs/common';
+import { ContextLogger } from '../common/logger/context.logger';
 import { WorkflowEngine } from './interfaces/workflow-engine.interface';
 import { evalCondition } from './utils/eval-condition';
 import { WorkflowRepository } from './workflow.repository';
-import { ContextLogger } from '../common/logger/context.logger';
 
 @Injectable()
 export class DynamicWorkflowEngine implements WorkflowEngine {
@@ -21,7 +21,7 @@ export class DynamicWorkflowEngine implements WorkflowEngine {
         toStatusCode: string,
         context: Record<string, unknown>,
     ): Promise<void> {
-        this.logger.debug(
+        this.logger.log(
             `Validating transition | type=${workflowTypeCode} | ${fromStatusCode} → ${toStatusCode}`,
         );
 
@@ -49,7 +49,7 @@ export class DynamicWorkflowEngine implements WorkflowEngine {
         }
 
         if (transition.condition) {
-            this.logger.debug(
+            this.logger.log(
                 `Evaluating transition condition: ${transition.condition}`,
             );
 

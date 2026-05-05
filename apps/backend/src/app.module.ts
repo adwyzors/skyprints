@@ -30,6 +30,7 @@ import { ReportsModule } from './reports/reports.module';
     imports: [ConfigModule.forRoot({
         isGlobal: true, // VERY IMPORTANT
         envFilePath: [
+            '.env.local',
             '.env',
             `apps/backend/.env.${process.env.NODE_ENV || 'local'}`,
         ]

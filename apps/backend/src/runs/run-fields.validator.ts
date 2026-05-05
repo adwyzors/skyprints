@@ -75,6 +75,6 @@ export class RunFieldsValidator {
             }
         }
 
-        this.logger.debug('Run fields validated');
+        this.logger.log('Run fields validated');
     }
 }

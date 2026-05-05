@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { evaluate } from "mathjs";
-import { BillingFormulaEngine } from "./billing-formula.engine";
 import { ContextLogger } from "../../common/logger/context.logger";
+import { BillingFormulaEngine } from "./billing-formula.engine";
 
 @Injectable()
 export class MathOnlyFormulaEngine implements BillingFormulaEngine {
@@ -11,7 +11,7 @@ export class MathOnlyFormulaEngine implements BillingFormulaEngine {
         expression: string,
         variables: Record<string, number>
     ): number {
-        this.logger.debug(
+        this.logger.log(
             `Evaluating formula="${expression}" vars=${JSON.stringify(variables)}`
         );
 

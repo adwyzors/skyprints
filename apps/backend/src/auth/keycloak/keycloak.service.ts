@@ -25,7 +25,7 @@ export class KeycloakService {
                 },
             );
 
-            this.logger.debug('Token exchange succeeded');
+            this.logger.log('Token exchange succeeded');
             return res.data;
         } catch (err: any) {
             this.logger.error(
@@ -55,7 +55,7 @@ export class KeycloakService {
                 },
             );
 
-            this.logger.debug('Token refresh succeeded');
+            this.logger.log('Token refresh succeeded');
             return res.data;
         } catch (err: any) {
             this.logger.error(
@@ -67,16 +67,18 @@ export class KeycloakService {
     }
 
     getLoginUrl(state?: string) {
-        this.logger.debug('Generating Keycloak authorization URL');
+        this.logger.log('Generating Keycloak authorization URL');
 
         const url = new URL(process.env.KEYCLOAK_AUTH_URL!);
 
         url.searchParams.set('client_id', process.env.KEYCLOAK_CLIENT_ID!);
         url.searchParams.set('response_type', 'code');
         url.searchParams.set('scope', 'openid profile email');
+        const redirectUri = `${process.env.APP_BASE_URL}/auth/callback`;
+        this.logger.log(`Generating redirect_uri: ${redirectUri}`);
         url.searchParams.set(
             'redirect_uri',
-            `${process.env.APP_BASE_URL}/auth/callback`,
+            redirectUri,
         );
 
         if (state) {
@@ -104,7 +106,7 @@ export class KeycloakService {
                 },
             );
 
-            this.logger.debug('Keycloak session successfully terminated');
+            this.logger.log('Keycloak session successfully terminated');
         } catch (err: any) {
             this.logger.error(
                 'Keycloak logout failed',

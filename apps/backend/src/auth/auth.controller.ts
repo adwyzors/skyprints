@@ -37,8 +37,6 @@ export class AuthController {
         ).toString('base64');
 
         const url = this.keycloak.getLoginUrl(state);
-
-        this.logger.debug('Redirecting user to Keycloak authorization endpoint');
         res.redirect(url);
         return;
     }
@@ -54,7 +52,7 @@ export class AuthController {
         this.logger.log('OAuth callback received from Keycloak');
 
         const tokens = await this.keycloak.exchangeCode(code);
-        this.logger.debug('Authorization code successfully exchanged');
+        this.logger.log('Authorization code successfully exchanged');
 
         this.auth.setAuthCookies(res, tokens, req);
 
@@ -94,7 +92,7 @@ export class AuthController {
         }
 
         const tokens = await this.keycloak.refresh(req.cookies.REFRESH_TOKEN);
-        this.logger.debug('Access token refreshed successfully');
+        this.logger.log('Access token refreshed successfully');
 
         this.auth.setAccessCookie(res, tokens.access_token, req);
         return { ok: true };
@@ -109,7 +107,7 @@ export class AuthController {
         this.logger.log('Logout requested');
 
         const hasRefreshToken = !!req.cookies?.REFRESH_TOKEN;
-        this.logger.debug(
+        this.logger.log(
             `Refresh token present during logout: ${hasRefreshToken}`,
         );
 
@@ -136,7 +134,7 @@ export class AuthController {
             throw new UnauthorizedException('Unauthenticated');
         }
 
-        this.logger.debug(
+        this.logger.log(
             `[ME] authUserId=${authUser.id}`,
         );
 

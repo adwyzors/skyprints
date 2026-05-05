@@ -8,15 +8,26 @@ export function isOrderBillingInputs(
         return false;
     }
 
-    for (const run of Object.values(value as Record<string, unknown>)) {
-        if (!run || typeof run !== "object") {
-            return false;
-        }
+    const entries = Object.entries(value as Record<string, unknown>);
+    
+    for (const [key, val] of entries) {
+        // Skip metadata keys
+        if (key === '__RESULT__' || key === '__ORDER_RESULT__') continue;
 
-        for (const field of Object.values(run as Record<string, unknown>)) {
-            if (typeof field !== "number" || !Number.isFinite(field)) {
-                return false;
+        // If it's a nested object (Run ID -> Fields)
+        if (val && typeof val === "object" && !Array.isArray(val)) {
+            for (const [fieldKey, fieldVal] of Object.entries(val as Record<string, unknown>)) {
+                if (fieldKey === '__RESULT__') continue;
+                
+                // Allow numbers or numeric strings
+                if (typeof fieldVal !== "number" && typeof fieldVal !== "string") {
+                    return false;
+                }
             }
+        } 
+        // If it's a flat object (Field -> Value)
+        else if (typeof val !== "number" && typeof val !== "string") {
+            return false;
         }
     }
 

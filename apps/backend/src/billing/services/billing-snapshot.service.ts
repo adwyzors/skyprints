@@ -62,7 +62,7 @@ export class BillingSnapshotService {
         reason?: string,
         createdBy?: string,
     ) {
-        this.logger.debug(
+        this.logger.log(
             `[saveDraftTx] billingContextId=${billingContextId} createdBy=${createdBy ?? 'system'}`,
         );
 
@@ -84,7 +84,7 @@ export class BillingSnapshotService {
 
         const version = (_max.version ?? 0) + 1;
 
-        this.logger.debug(
+        this.logger.log(
             `[saveDraftTx] Creating snapshot version=${version} intent=${intent}`,
         );
 
@@ -132,7 +132,7 @@ export class BillingSnapshotService {
         >,
         createdBy?: string,
     ) {
-        this.logger.debug(
+        this.logger.log(
             `[createGroupSnapshotTx] billingContextId=${billingContextId}`,
         );
 
@@ -302,16 +302,45 @@ export class BillingSnapshotService {
                         select: { estimatedAmount: true, customerId: true, statusCode: true }
                     });
 
-                    // Only subtract if it was in a post-config status (meaning it was added to outstanding)
-                    if (order && ([OrderStatus.PRODUCTION_READY, OrderStatus.IN_PRODUCTION, OrderStatus.COMPLETE] as OrderStatus[]).includes(order.statusCode)) {
-                        const amount = new Prisma.Decimal(order.estimatedAmount.toString());
-                        if (!amount.isZero()) {
-                            await tx.customer.update({
-                                where: { id: order.customerId },
-                                data: { outstandingAmount: { decrement: amount } }
-                            });
-                            this.logger.log(`[OUTSTANDING] Subtracted ${amount} from customer ${order.customerId} for order ${orderId} (Group Billed)`);
-                        }
+                    if (!order) {
+                        this.logger.error(`[finalizeGroup] Order ${orderId} not found during group finalization`);
+                        continue;
+                    }
+
+                    // 🔑 ONLY subtract if the order was in a status that added it to outstanding balance
+                    const wasInOutstanding = ([
+                        OrderStatus.PRODUCTION_READY,
+                        OrderStatus.IN_PRODUCTION,
+                        OrderStatus.COMPLETE,
+                        OrderStatus.BILLED
+                    ] as OrderStatus[]).includes(order.statusCode);
+
+                    if (!wasInOutstanding) {
+                        this.logger.warn(`[OUTSTANDING] Skipping balance reduction for order ${orderId} as it was never added (Status: ${order.statusCode})`);
+                        continue;
+                    }
+
+                    const orderCalc = calc.perOrderCalculations[orderId];
+                    if (!orderCalc) continue;
+
+                    const actualAmount = new Prisma.Decimal(orderCalc.result.toString());
+
+                    if (!actualAmount.isZero()) {
+                        // Fetch current balance to prevent going negative
+                        const customer = await tx.customer.findUnique({
+                            where: { id: order.customerId },
+                            select: { outstandingAmount: true }
+                        });
+                        const currentBalance = new Prisma.Decimal(customer?.outstandingAmount?.toString() || '0');
+                        
+                        // New balance = max(0, current - actual)
+                        const decrementAmount = Prisma.Decimal.min(currentBalance, actualAmount);
+
+                        await tx.customer.update({
+                            where: { id: order.customerId },
+                            data: { outstandingAmount: { decrement: decrementAmount } }
+                        });
+                        this.logger.log(`[OUTSTANDING] Subtracted ${decrementAmount} from customer ${order.customerId} for order ${orderId} (Group Billed)`);
                     }
                 }
 
@@ -442,20 +471,57 @@ export class BillingSnapshotService {
                     select: { estimatedAmount: true, customerId: true, statusCode: true }
                 });
 
-                this.logger.log(`finalizeOrder order.statusCode=${order?.statusCode}`);
+                if (!order) {
+                    this.logger.error(`[finalizeOrder] Order ${orderId} not found during finalization`);
+                    return s;
+                }
+
+                this.logger.log(`finalizeOrder order.statusCode=${order.statusCode}`);
                 this.logger.log(`[OUTSTANDING] order.estimatedAmount=${order?.estimatedAmount}, customerId=${order?.customerId}`);
-                // Only subtract if it was in a post-config status (meaning it was added to outstanding)
-                if (order && ([OrderStatus.PRODUCTION_READY, OrderStatus.IN_PRODUCTION, OrderStatus.COMPLETE] as OrderStatus[]).includes(order.statusCode)) {
-                    this.logger.log(`[OUTSTANDING] Order is in post-config status`);
-                    const amount = new Prisma.Decimal(order.estimatedAmount.toString());
-                    this.logger.log(`[OUTSTANDING] amount=${amount}`);
-                    if (!amount.isZero()) {
-                        this.logger.log(`[OUTSTANDING] Decrementing amount`);
+                const wasAddedToOutstanding = ([
+                    OrderStatus.PRODUCTION_READY,
+                    OrderStatus.IN_PRODUCTION,
+                    OrderStatus.COMPLETE
+                ] as OrderStatus[]).includes(order.statusCode);
+
+                const oldEstimate = new Prisma.Decimal(order.estimatedAmount.toString());
+                const newActual = new Prisma.Decimal(calc.result.toString());
+
+                if (wasAddedToOutstanding) {
+                    // Transition: Adjust the difference (Add actual, subtract estimate)
+                    const adjustment = newActual.minus(oldEstimate);
+                    
+                    if (!adjustment.isZero()) {
+                        // If adjustment is negative, ensure we don't go below 0
+                        if (adjustment.isNegative()) {
+                            const customer = await tx.customer.findUnique({
+                                where: { id: order.customerId },
+                                select: { outstandingAmount: true }
+                            });
+                            const currentBalance = new Prisma.Decimal(customer?.outstandingAmount?.toString() || '0');
+                            const decrementAmount = Prisma.Decimal.min(currentBalance, adjustment.abs());
+                            
+                            await tx.customer.update({
+                                where: { id: order.customerId },
+                                data: { outstandingAmount: { decrement: decrementAmount } }
+                            });
+                            this.logger.log(`[OUTSTANDING] Decremented customer balance by ${decrementAmount} (Estimate: ${oldEstimate} -> Actual: ${newActual})`);
+                        } else {
+                            await tx.customer.update({
+                                where: { id: order.customerId },
+                                data: { outstandingAmount: { increment: adjustment } }
+                            });
+                            this.logger.log(`[OUTSTANDING] Incremented customer balance by ${adjustment} (Estimate: ${oldEstimate} -> Actual: ${newActual})`);
+                        }
+                    }
+                } else {
+                    // New Addition: Add full actual amount
+                    if (!newActual.isZero()) {
                         await tx.customer.update({
                             where: { id: order.customerId },
-                            data: { outstandingAmount: { decrement: amount } }
+                            data: { outstandingAmount: { increment: newActual } }
                         });
-                        this.logger.log(`[OUTSTANDING] Subtracted ${amount} from customer ${order.customerId} for order ${orderId} (Invoiced)`);
+                        this.logger.log(`[OUTSTANDING] Added full actual amount ${newActual} to customer balance`);
                     }
                 }
                 this.logger.log(`[OUTSTANDING] Updating order status`);

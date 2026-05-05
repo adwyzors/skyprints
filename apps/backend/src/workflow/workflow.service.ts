@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { WorkflowEngine } from './interfaces/workflow-engine.interface';
 import { ContextLogger } from '../common/logger/context.logger';
+import type { WorkflowEngine } from './interfaces/workflow-engine.interface';
 
 export interface OutboxPort {
     add(event: {
@@ -37,7 +37,7 @@ export class WorkflowService {
             context?: Record<string, unknown>;
         },
     ): Promise<void> {
-        this.logger.debug(
+        this.logger.log(
             `Workflow transition request | entity=${params.entityType} | id=${params.entityId}`,
         );
 

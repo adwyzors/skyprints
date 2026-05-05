@@ -4,12 +4,12 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
 import Decimal from "decimal.js";
+import { ContextLogger } from "../../common/logger/context.logger";
 import { FormulaCompiler } from "../formula/formula-compiler";
 import { MathOnlyFormulaEngine } from "../formula/math-only.formula.engine";
 import { extractNumericVariables } from "../utils/field-mapper";
 import { checksumFormula } from "../utils/formula-checksum";
 import { extractFormulaVariables } from "../utils/formula-variable-extractor";
-import { ContextLogger } from "../../common/logger/context.logger";
 
 @Injectable()
 export class BillingCalculatorService {
@@ -36,6 +36,12 @@ export class BillingCalculatorService {
             }
         });
 
+        const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            select: { quantity: true }
+        });
+        const orderQuantity = order?.quantity ?? 0;
+
         let total = new Decimal(0);
         const snapshotInputs: Record<string, any> = {};
 
@@ -54,30 +60,26 @@ export class BillingCalculatorService {
                 const requiredVars =
                     extractFormulaVariables(formula);
 
-                const missingVars: string[] = [];
+                const merged = {
+                    quantity: orderQuantity,
+                    ...staticVars,
+                    ...dynamicVars
+                };
+
                 for (const v of requiredVars) {
-                    if (!(v in staticVars) && !(v in dynamicVars)) {
+                    if (!(v in merged)) {
                         if (allowDefaults) {
-                            dynamicVars[v] = 0;
+                            merged[v] = 0;
                             this.logger.warn(
                                 `Defaulting missing variable "${v}" to 0 for run ${run.id}`
                             );
                         } else {
-                            missingVars.push(v);
+                            throw new BadRequestException(
+                                `Missing variable "${v}" for run ${run.id}`
+                            );
                         }
                     }
                 }
-
-                if (missingVars.length > 0) {
-                    throw new BadRequestException(
-                        `Missing variable "${missingVars[0]}" for run ${run.id}`
-                    );
-                }
-
-                const merged = {
-                    ...staticVars,
-                    ...dynamicVars
-                };
 
                 const compiled = this.compiler.compile(formula);
                 const value = this.engine.evaluate(compiled, merged);
@@ -136,7 +138,7 @@ export class BillingCalculatorService {
             inputs: Record<string, Record<string, number>>;
         }[]
     ) {
-        this.logger.debug(
+        this.logger.log(
             `[calculateForGroupFromSnapshots] orders=${orders.length}`
         );
 
@@ -162,7 +164,7 @@ export class BillingCalculatorService {
         };
     }
 
-    calculateRun(run: any) {
+    calculateRun(run: any, orderQuantity: number = 0) {
         const formula = run.runTemplate.billingFormula;
         if (!formula) return 0;
 
@@ -172,7 +174,11 @@ export class BillingCalculatorService {
 
         const requiredVars = extractFormulaVariables(formula);
 
-        const merged = { ...staticVars };
+        const merged = { 
+            quantity: orderQuantity,
+            ...staticVars 
+        };
+        
         for (const v of requiredVars) {
             if (!(v in merged)) {
                 merged[v] = 0;

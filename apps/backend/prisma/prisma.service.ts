@@ -40,7 +40,7 @@ type UnwrapTuple<T extends readonly unknown[]> = {
 @Injectable()
 export class PrismaService {
     private readonly DEFAULT_TX_TIMEOUT =
-        process.env.NODE_ENV === 'production' ? 10_000 : 60_000;
+        process.env.NODE_ENV === 'production' ? 10_000 : 900_000; // 15 minutes local timeout for debugging
 
     /* ---------- MODEL GETTERS ---------- */
 

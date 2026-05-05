@@ -1207,12 +1207,20 @@ export class OrdersService {
             if (!order) throw new NotFoundException('Order not found');
 
             /* =====================================================
-             * CREDIT LIMIT CHECK (MOVING TO PRODUCTION)
+             * 🔄 RECOMPUTE ESTIMATE (ENSURE ACCURACY)
              * ===================================================== */
-            await this.validateCreditLimit(tx, order.customerId, Number(order.estimatedAmount || 0));
+            await recomputeOrderEstimate(tx, orderId, this.billingCalculator);
+            
+            // Reload to get the fresh amount
+            const freshOrder = await tx.order.findUnique({
+                where: { id: orderId },
+                select: { estimatedAmount: true, customerId: true, statusCode: true }
+            });
+            
+            if (!freshOrder) throw new NotFoundException('Order lost during update');
 
             // 🔑 ADD TO OUTSTANDING AMOUNT AT RATE CONFIG DONE
-            const amount = new Prisma.Decimal(order.estimatedAmount.toString());
+            const amount = new Prisma.Decimal(freshOrder.estimatedAmount.toString());
             if (!amount.isZero()) {
                 await tx.customer.update({
                     where: { id: order.customerId },

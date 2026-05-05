@@ -16,6 +16,13 @@ export function extractNumericVariables(
 
         if (typeof value === "number" && Number.isFinite(value)) {
             result[normalizedKey] = value;
+        } else if (typeof value === "string") {
+            // Attempt to parse string as number
+            const cleaned = value.replace(/[^0-9.-]+/g, '');
+            const parsed = parseFloat(cleaned);
+            if (!isNaN(parsed) && Number.isFinite(parsed)) {
+                result[normalizedKey] = parsed;
+            }
         }
     }
 

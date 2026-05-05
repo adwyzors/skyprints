@@ -6,6 +6,12 @@ export async function recomputeOrderEstimate(
   orderId: string,
   billingCalculator: BillingCalculatorService,
 ) {
+  const order = await tx.order.findUnique({
+    where: { id: orderId },
+    select: { quantity: true }
+  });
+  const orderQuantity = order?.quantity ?? 0;
+
   const runs = await tx.processRun.findMany({
     where: {
       orderProcess: {
@@ -21,10 +27,17 @@ export async function recomputeOrderEstimate(
 
   for (const run of runs) {
     try {
-      const value = billingCalculator.calculateRun(run);
-      total += Number(value || 0);
+      const fields = (run.fields as Record<string, any>) || {};
+      // Check both human-readable and normalized keys
+      const value = fields['Estimated Amount'] ?? fields['estimated_amount'] ?? 0;
+      
+      // Clean and parse if it's a string (e.g. "9,999.00")
+      const numValue = typeof value === 'string' 
+        ? parseFloat(value.replace(/[^0-9.-]+/g, '')) 
+        : Number(value);
+
+      total += isNaN(numValue) ? 0 : numValue;
     } catch (e) {
-      // DO NOT fail system due to bad run
       continue;
     }
   }

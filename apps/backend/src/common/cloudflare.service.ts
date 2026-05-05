@@ -59,7 +59,7 @@ export class CloudflareService {
 
         // If file is already under target size, return as-is
         if (file.length <= targetSizeBytes) {
-            this.logger.debug(`Image already under ${targetSizeKB}KB, skipping compression`);
+            this.logger.log(`Image already under ${targetSizeKB}KB, skipping compression`);
             return file;
         }
 
@@ -106,7 +106,7 @@ export class CloudflareService {
                         .toBuffer();
                 }
 
-                this.logger.debug(
+                this.logger.log(
                     `Attempt ${attempts}: quality=${quality}, size=${(compressed.length / 1024).toFixed(2)}KB`,
                 );
 
