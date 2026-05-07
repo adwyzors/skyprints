@@ -29,7 +29,7 @@ export class OrdersService {
         private readonly billingCalculator: BillingCalculatorService,
     ) { }
 
-    private async validateCreditLimit(tx: any, customerId: string, additionalAmount: number = 0) {
+    public async validateCreditLimit(tx: any, customerId: string, additionalAmount: number = 0, excludeOrderId?: string) {
         const customer = await tx.customer.findUnique({
             where: { id: customerId },
         });
@@ -46,6 +46,7 @@ export class OrdersService {
                 customerId,
                 deletedAt: null,
                 isTest: false,
+                id: excludeOrderId ? { not: excludeOrderId } : undefined,
                 statusCode: {
                     // Only count orders in CONFIGURE status as "active/estimated" 
                     // because orders in PRODUCTION_READY/IN_PRODUCTION/COMPLETE are now in outstandingAmount

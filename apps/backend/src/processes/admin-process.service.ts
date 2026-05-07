@@ -632,9 +632,19 @@ export class AdminProcessService {
                 select: {
                     id: true,
                     fields: true,
-                    configuredAt: true,            // ⭐ added
-                    statusCode: true,              // ⭐ added
+                    configuredAt: true,
+                    statusCode: true,
                     orderProcessId: true,
+                    orderProcess: {
+                        select: {
+                            order: {
+                                select: {
+                                    id: true,
+                                    customerId: true,
+                                },
+                            },
+                        },
+                    },
                     runTemplate: {
                         select: { fields: true },
                     },
@@ -651,6 +661,37 @@ export class AdminProcessService {
                 run.runTemplate.fields as RunTemplateField[],
                 dto.fields,
             );
+
+            /* =====================================================
+             * CREDIT LIMIT CHECK (NEW REQUIREMENT)
+             * ===================================================== */
+            const orderId = run.orderProcess.order.id;
+            const customerId = run.orderProcess.order.customerId;
+
+            // Fetch all other runs for this order to calculate the potential new total
+            const otherRuns = await tx.processRun.findMany({
+                where: {
+                    orderProcess: { orderId },
+                    id: { not: processRunId }
+                },
+                select: { fields: true }
+            });
+
+            let otherTotal = 0;
+            for (const r of otherRuns) {
+                const f = (r.fields as Record<string, any>) || {};
+                const val = f['Estimated Amount'] ?? f['estimated_amount'] ?? 0;
+                otherTotal += Number(val);
+            }
+
+            // New estimate for this specific run from the normalized fields
+            const newRunEstimate = normalizedFields['Estimated Amount'] ?? normalizedFields['estimated_amount'] ?? 0;
+            const potentialOrderTotal = otherTotal + Number(newRunEstimate);
+
+            this.logger.debug(`[CREDIT_CHECK] orderId=${orderId} currentOtherTotal=${otherTotal} newRunEstimate=${newRunEstimate} potentialTotal=${potentialOrderTotal}`);
+
+            // Validate against customer credit limit
+            await this.orderService.validateCreditLimit(tx, customerId, potentialOrderTotal, orderId);
 
             /* =====================================================
              * EXECUTOR / REVIEWER VALIDATION (UNCHANGED)
