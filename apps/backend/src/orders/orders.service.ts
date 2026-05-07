@@ -257,6 +257,15 @@ export class OrdersService {
                                     reviewer: {
                                         select: { id: true, name: true },
                                     },
+                                    location: {
+                                        select: { id: true, name: true, code: true },
+                                    },
+                                    preProductionLocation: {
+                                        select: { id: true, name: true, code: true },
+                                    },
+                                    postProductionLocation: {
+                                        select: { id: true, name: true, code: true },
+                                    },
                                 },
                             },
                         },
@@ -564,6 +573,20 @@ export class OrdersService {
                                     },
                                 },
                                 location: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        code: true,
+                                    }
+                                },
+                                preProductionLocation: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        code: true,
+                                    }
+                                },
+                                postProductionLocation: {
                                     select: {
                                         id: true,
                                         name: true,

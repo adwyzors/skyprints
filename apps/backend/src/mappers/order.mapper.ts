@@ -74,6 +74,22 @@ export function toOrderSummary(order: any): OrderSummaryDto {
                         }
                         : null,
 
+                    preProductionLocation: run.preProductionLocation
+                        ? {
+                            id: run.preProductionLocation.id,
+                            name: run.preProductionLocation.name,
+                            code: run.preProductionLocation.code,
+                        }
+                        : null,
+
+                    postProductionLocation: run.postProductionLocation
+                        ? {
+                            id: run.postProductionLocation.id,
+                            name: run.postProductionLocation.name,
+                            code: run.postProductionLocation.code,
+                        }
+                        : null,
+
                     lifecycle: buildLifecycleProgress(
                         run.runTemplate.lifecycleWorkflowType.statuses,
                         run.lifeCycleStatusCode,
