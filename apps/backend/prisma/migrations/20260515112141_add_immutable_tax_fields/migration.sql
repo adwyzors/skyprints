@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "BillingSnapshot" ADD COLUMN     "finalAmount" DECIMAL(18,4) NOT NULL DEFAULT 0,
+ADD COLUMN     "subTotalAmount" DECIMAL(18,4) NOT NULL DEFAULT 0,
+ADD COLUMN     "taxAmount" DECIMAL(18,4) NOT NULL DEFAULT 0,
+ADD COLUMN     "taxEnabled" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "taxPercentage" DECIMAL(5,2) NOT NULL DEFAULT 0;

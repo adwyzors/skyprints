@@ -140,23 +140,18 @@ function BillsPageContent() {
 
             // Construct invoiceDataList
             const invoiceDataList = contextsDetails.map(details => {
-                const totalAmount = details.orders.reduce((sum, order) => sum + (Number(order.billing?.result) || 0), 0);
-                const cgstAmount = details.orders[0]?.customer?.tax ? (totalAmount * 2.5) / 100 : 0;
-                const sgstAmount = details.orders[0]?.customer?.tax ? (totalAmount * 2.5) / 100 : 0;
-                const tdsRate = 2;
-                const tdsAmount = details.orders[0]?.customer?.tds ? (totalAmount * tdsRate) / 100 : 0;
-                const finalTotal = totalAmount + cgstAmount + sgstAmount - tdsAmount;
+                const snapshot = details.latestSnapshot;
 
                 return {
-                    heading: details.orders[0]?.customer?.tax ? 'Tax Invoice' : 'Delivery Challan',
+                    heading: snapshot?.taxEnabled ? 'Tax Invoice' : 'Delivery Challan',
                     companyName: 'Sky Art Prints LLP',
                     companyAddress: '13, Bhavani Complex, Bhavani Shankar Road, Dadar West, Mumbai 400053',
                     msmeReg: 'MSME Reg#: UDYAM-MH-19-0217047',
                     gstin: details.orders[0]?.customer?.gstno || 'NA',
                     billTo: details.orders[0]?.customer?.name || 'NA',
                     address: details.orders[0]?.customer?.address || 'NA',
-                    date: details.latestSnapshot?.createdAt
-                        ? new Date(details.latestSnapshot.createdAt).toLocaleDateString('en-IN', {
+                    date: snapshot?.createdAt
+                        ? new Date(snapshot.createdAt).toLocaleDateString('en-IN', {
                             day: '2-digit', month: '2-digit', year: 'numeric',
                         })
                         : 'NA',
@@ -170,12 +165,11 @@ function BillsPageContent() {
                                 ? (Number(order.billing.result) / order.quantity).toFixed(2) : '0.00',
                         amount: order.billing?.result || '0',
                     })),
-                    subtotal: totalAmount.toFixed(2),
-                    cgstAmount: cgstAmount.toFixed(2),
-                    sgstAmount: sgstAmount.toFixed(2),
-                    tdsAmount: tdsAmount.toFixed(2),
-                    tdsRate: tdsRate.toString(),
-                    total: finalTotal.toFixed(2),
+                    subtotal: snapshot?.subTotalAmount || snapshot?.result || '0',
+                    taxPercentage: snapshot?.taxPercentage || '0',
+                    taxAmount: snapshot?.taxAmount || '0',
+                    total: snapshot?.finalAmount || snapshot?.result || '0',
+                    taxEnabled: snapshot?.taxEnabled ?? false,
                 };
             });
 

@@ -101,6 +101,12 @@ export class BillingSnapshotService {
                 calculationType: CalculationType.INITIAL,
                 reason,
                 createdBy,
+                // Default values for new fields
+                taxEnabled: false,
+                subTotalAmount: new Prisma.Decimal(0),
+                taxPercentage: new Prisma.Decimal(0),
+                taxAmount: new Prisma.Decimal(0),
+                finalAmount: new Prisma.Decimal(0),
             },
         });
     }
@@ -272,6 +278,18 @@ export class BillingSnapshotService {
 
             const version = (_max.version ?? 0) + 1;
 
+            // Fetch customer tax setting from first order
+            const firstOrder = await tx.order.findUnique({
+                where: { id: orderIds[0] },
+                select: { customer: { select: { tax: true } } }
+            });
+
+            const taxEnabled = firstOrder?.customer?.tax ?? false;
+            const subtotal = calc.result;
+            const taxPercentage = taxEnabled ? new Prisma.Decimal(18) : new Prisma.Decimal(0);
+            const taxAmount = subtotal.mul(taxPercentage.div(100));
+            const finalAmount = subtotal.plus(taxAmount);
+
             const s = await tx.billingSnapshot.create({
                 data: {
                     billingContextId,
@@ -291,6 +309,13 @@ export class BillingSnapshotService {
                     currency: 'INR',
                     calculationType: CalculationType.RECALCULATED,
                     createdBy,
+
+                    // Immutable snapshot fields
+                    taxEnabled,
+                    subTotalAmount: subtotal,
+                    taxPercentage,
+                    taxAmount,
+                    finalAmount,
                 },
             });
 
@@ -384,6 +409,13 @@ export class BillingSnapshotService {
         draftId: string,
         result: Decimal,
         snapshotInputs: any,
+        taxInfo: {
+            taxEnabled: boolean;
+            subTotalAmount: Decimal;
+            taxPercentage: Decimal;
+            taxAmount: Decimal;
+            finalAmount: Decimal;
+        },
         createdBy?: string
     ) {
         this.logger.log(
@@ -397,7 +429,8 @@ export class BillingSnapshotService {
                 inputs: snapshotInputs,
                 result,
                 calculationType: "RECALCULATED",
-                createdBy
+                createdBy,
+                ...taxInfo
             }
         });
     }
@@ -452,6 +485,21 @@ export class BillingSnapshotService {
            4️⃣ Finalize snapshot (SHORT TX)
         ------------------------------- */
         const snapshot = await this.prisma.transaction(async tx => {
+            const order = await tx.order.findUnique({
+                where: { id: orderId },
+                select: {
+                    customerId: true,
+                    customer: {
+                        select: { tax: true }
+                    }
+                }
+            });
+
+            const subtotal = calc.result;
+            const taxPercentage = order?.customer?.tax ? new Prisma.Decimal(18) : new Prisma.Decimal(0);
+            const taxAmount = subtotal.mul(taxPercentage.div(100));
+            const finalAmount = subtotal.plus(taxAmount);
+
             const s = await this.finalizeContextTx(
                 tx,
                 draftId,
@@ -459,6 +507,13 @@ export class BillingSnapshotService {
                 {
                     ...calc.inputs,
                     '__ORDER_RESULT__': calc.result.toString()
+                },
+                {
+                    taxEnabled: order?.customer?.tax ?? false,
+                    subTotalAmount: subtotal,
+                    taxPercentage,
+                    taxAmount,
+                    finalAmount,
                 },
                 createdBy,
             );
@@ -623,7 +678,12 @@ export class BillingSnapshotService {
             result: snapshot.result.toString(),
             inputs: snapshot.inputs,
             isLatest: true,
-            createdAt: snapshot.createdAt.toISOString()
+            createdAt: snapshot.createdAt.toISOString(),
+            taxEnabled: snapshot.taxEnabled,
+            subTotalAmount: snapshot.subTotalAmount.toString(),
+            taxPercentage: snapshot.taxPercentage.toString(),
+            taxAmount: snapshot.taxAmount.toString(),
+            finalAmount: snapshot.finalAmount.toString(),
         };
     }
 }

@@ -143,11 +143,10 @@ interface InvoiceData {
     billNumber: string;
     items: InvoiceItem[];
     subtotal: string;
-    cgstAmount: string;
-    sgstAmount: string;
-    tdsAmount: string;
-    tdsRate: string;
+    taxPercentage: string;
+    taxAmount: string;
     total: string;
+    taxEnabled: boolean;
 }
 
 interface InvoicePDFProps {
@@ -277,25 +276,17 @@ const InvoicePDF = ({ invoiceData, invoiceDataList }: InvoicePDFProps) => {
                         <Text style={styles.totalValue}>{parseFloat(data.subtotal).toFixed(2)}</Text>
                     </View>
 
-                    {parseFloat(data.cgstAmount) > 0 && (
-                        <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>CGST (2.5%):</Text>
-                            <Text style={styles.totalValue}>{data.cgstAmount}</Text>
-                        </View>
-                    )}
-
-                    {parseFloat(data.sgstAmount) > 0 && (
-                        <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>SGST (2.5%):</Text>
-                            <Text style={styles.totalValue}>{data.sgstAmount}</Text>
-                        </View>
-                    )}
-
-                    {parseFloat(data.tdsAmount) > 0 && (
-                        <View style={styles.totalRow}>
-                            <Text style={styles.totalLabel}>TDS ({data.tdsRate}%):</Text>
-                            <Text style={styles.totalValue}>{data.tdsAmount}</Text>
-                        </View>
+                    {data.taxEnabled && (
+                        <>
+                            <View style={styles.totalRow}>
+                                <Text style={styles.totalLabel}>CGST ({(parseFloat(data.taxPercentage) / 2).toFixed(1)}%):</Text>
+                                <Text style={styles.totalValue}>{(parseFloat(data.taxAmount) / 2).toFixed(2)}</Text>
+                            </View>
+                            <View style={styles.totalRow}>
+                                <Text style={styles.totalLabel}>SGST ({(parseFloat(data.taxPercentage) / 2).toFixed(1)}%):</Text>
+                                <Text style={styles.totalValue}>{(parseFloat(data.taxAmount) / 2).toFixed(2)}</Text>
+                            </View>
+                        </>
                     )}
 
                     <View style={[styles.totalRow, styles.grandTotalRow]}>

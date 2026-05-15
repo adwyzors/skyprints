@@ -24,7 +24,13 @@ export const BillingSnapshotResponseDto = z.object({
     result: z.string(), // Decimal serialized
     inputs: z.record(z.string(), z.any()),
     isLatest: z.literal(true),
-    createdAt: z.string()
+    createdAt: z.string(),
+
+    taxEnabled: z.boolean().default(false),
+    subTotalAmount: z.string().default("0"),
+    taxPercentage: z.string().default("0"),
+    taxAmount: z.string().default("0"),
+    finalAmount: z.string().default("0")
 });
 
 export type BillingSnapshotResponseDto =

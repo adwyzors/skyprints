@@ -453,6 +453,14 @@ model BillingSnapshot {
   calculationType CalculationType
   reason          String?
 
+  taxEnabled Boolean @default(false)
+
+  subTotalAmount Decimal @db.Decimal(18, 4) @default(0)
+  taxPercentage  Decimal @db.Decimal(5, 2) @default(0)
+  taxAmount      Decimal @db.Decimal(18, 4) @default(0)
+
+  finalAmount Decimal @db.Decimal(18, 4) @default(0)
+
   createdBy String?
   createdAt DateTime @default(now())
 

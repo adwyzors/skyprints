@@ -60,42 +60,27 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                 return;
             }
 
-            // Calculate total amount from all orders
-            const totalAmount = details.orders.reduce((sum, order) => {
-                return sum + (Number(order.billing?.result) || 0);
-            }, 0);
+            const snapshot = details.latestSnapshot;
 
-            // Calculate GST amounts (2.5% each for CGST and SGST) - Only if tax is enabled
-            const cgstAmount = details.orders[0]?.customer?.tax ? (totalAmount * 2.5) / 100 : 0;
-            const sgstAmount = details.orders[0]?.customer?.tax ? (totalAmount * 2.5) / 100 : 0;
-
-            // Calculate TDS (fixed rate of 2%, decoupled from tdsno which is a registration number)
-            const tdsRate = 2;
-            const tdsAmount = details.orders[0]?.customer?.tds ? (totalAmount * tdsRate) / 100 : 0;
-
-            // Calculate final total
-            const finalTotal = totalAmount + cgstAmount + sgstAmount - tdsAmount;
+            if (!snapshot) {
+                alert("No billing snapshot found for this group.");
+                return;
+            }
 
             // Create invoice data
             const invoiceData = {
-                // Header based on tax existence
-                heading: details.orders[0]?.customer?.tax ? 'Tax Invoice' : 'Delivery Challan',
-                // heading: "Delivery Challan",
+                heading: snapshot.taxEnabled ? 'Tax Invoice' : 'Delivery Challan',
 
-                // Company details
                 companyName: 'Sky Art Prints LLP',
                 companyAddress: '13, Bhavani Complex, Bhavani Shankar Road, Dadar West, Mumbai 400053',
                 msmeReg: 'MSME Reg#: UDYAM-MH-19-0217047',
 
                 gstin: details.orders[0]?.customer?.gstno || 'NA',
-                // gstin: "NA",
 
-                // Customer details
                 billTo: details.orders[0]?.customer?.name || 'NA',
                 address: details.orders[0]?.customer?.address || 'NA',
-                // address: "NA",
-                date: details.latestSnapshot?.createdAt
-                    ? new Date(details.latestSnapshot.createdAt).toLocaleDateString('en-IN', {
+                date: snapshot.createdAt
+                    ? new Date(snapshot.createdAt).toLocaleDateString('en-IN', {
                         day: '2-digit',
                         month: '2-digit',
                         year: 'numeric',
@@ -103,11 +88,10 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                     : 'NA',
                 billNumber: details.name,
 
-                // Orders table data
                 items: details.orders.map((order, index) => ({
                     srNo: index + 1,
                     orderCode: order.code,
-                    jobCode: order.jobCode || '', // Include job code
+                    jobCode: order.jobCode || '',
                     quantity: order.quantity,
                     rate:
                         order.billing?.result && order.quantity > 0
@@ -116,13 +100,11 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                     amount: order.billing?.result || '0',
                 })),
 
-                // Calculations
-                subtotal: totalAmount.toFixed(2),
-                cgstAmount: cgstAmount.toFixed(2),
-                sgstAmount: sgstAmount.toFixed(2),
-                tdsAmount: tdsAmount.toFixed(2),
-                tdsRate: tdsRate.toString(),
-                total: finalTotal.toFixed(2),
+                subtotal: snapshot.subTotalAmount || snapshot.result || '0',
+                taxPercentage: snapshot.taxPercentage || '0',
+                taxAmount: snapshot.taxAmount || '0',
+                total: snapshot.finalAmount || snapshot.result || '0',
+                taxEnabled: snapshot.taxEnabled ?? false,
             };
 
             // Generate PDF blob

@@ -11,6 +11,12 @@ export interface BillingSnapshot {
     inputs: Record<string, Record<string, number>>;
     calculationType: 'INITIAL' | 'RECALCULATED' | 'MANUAL_ADJUSTMENT' | string;
     createdAt: string;
+
+    taxEnabled: boolean;
+    subTotalAmount: string;
+    taxPercentage: string;
+    taxAmount: string;
+    finalAmount: string;
 }
 
 export interface BillingContext {
