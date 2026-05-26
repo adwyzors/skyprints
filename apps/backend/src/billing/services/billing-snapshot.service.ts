@@ -281,14 +281,37 @@ export class BillingSnapshotService {
             // Fetch customer tax setting from first order
             const firstOrder = await tx.order.findUnique({
                 where: { id: orderIds[0] },
-                select: { customer: { select: { tax: true } } }
+                select: {
+                    customer: {
+                        select: {
+                            name: true,
+                            code: true,
+                            gstno: true,
+                            tax: true,
+                            tds: true,
+                            tdsno: true,
+                            address: true
+                        }
+                    }
+                }
             });
 
-            const taxEnabled = firstOrder?.customer?.tax ?? false;
+            const customer = firstOrder?.customer;
+            const taxEnabled = customer?.tax ?? false;
             const subtotal = calc.result;
             const taxPercentage = taxEnabled ? new Prisma.Decimal(18) : new Prisma.Decimal(0);
             const taxAmount = subtotal.mul(taxPercentage.div(100));
             const finalAmount = subtotal.plus(taxAmount);
+
+            const customerMeta = customer ? {
+                name: customer.name,
+                code: customer.code,
+                gstno: customer.gstno,
+                tax: customer.tax,
+                tds: customer.tds,
+                tdsno: customer.tdsno,
+                address: customer.address
+            } : null;
 
             const s = await tx.billingSnapshot.create({
                 data: {
@@ -296,15 +319,18 @@ export class BillingSnapshotService {
                     version,
                     intent: 'FINAL',
                     isLatest: true,
-                    inputs: Object.fromEntries(
-                        Object.entries(calc.perOrderCalculations).map(([orderId, orderCalc]) => [
-                            orderId,
-                            {
-                                ...orderCalc.inputs,
-                                '__ORDER_RESULT__': orderCalc.result.toString()
-                            }
-                        ])
-                    ),
+                    inputs: {
+                        ...Object.fromEntries(
+                            Object.entries(calc.perOrderCalculations).map(([orderId, orderCalc]) => [
+                                orderId,
+                                {
+                                    ...orderCalc.inputs,
+                                    '__ORDER_RESULT__': orderCalc.result.toString()
+                                }
+                            ])
+                        ),
+                        '__CUSTOMER_METADATA__': customerMeta
+                    },
                     result: calc.result,
                     currency: 'INR',
                     calculationType: CalculationType.RECALCULATED,
@@ -490,7 +516,15 @@ export class BillingSnapshotService {
                 select: {
                     customerId: true,
                     customer: {
-                        select: { tax: true }
+                        select: {
+                            name: true,
+                            code: true,
+                            gstno: true,
+                            tax: true,
+                            tds: true,
+                            tdsno: true,
+                            address: true
+                        }
                     }
                 }
             });
@@ -500,13 +534,24 @@ export class BillingSnapshotService {
             const taxAmount = subtotal.mul(taxPercentage.div(100));
             const finalAmount = subtotal.plus(taxAmount);
 
+            const customerMeta = order?.customer ? {
+                name: order.customer.name,
+                code: order.customer.code,
+                gstno: order.customer.gstno,
+                tax: order.customer.tax,
+                tds: order.customer.tds,
+                tdsno: order.customer.tdsno,
+                address: order.customer.address
+            } : null;
+
             const s = await this.finalizeContextTx(
                 tx,
                 draftId,
                 calc.result,
                 {
                     ...calc.inputs,
-                    '__ORDER_RESULT__': calc.result.toString()
+                    '__ORDER_RESULT__': calc.result.toString(),
+                    '__CUSTOMER_METADATA__': customerMeta
                 },
                 {
                     taxEnabled: order?.customer?.tax ?? false,

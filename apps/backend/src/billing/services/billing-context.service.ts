@@ -325,6 +325,33 @@ export class BillingContextService {
                         }
                     }
                 }
+
+                // Resolve customer details from the snapshot if available, otherwise fall back to live customer data.
+                const snapshotCustomerMeta = (groupSnapshot?.inputs as any)?.__CUSTOMER_METADATA__ 
+                    || (orderSnapshot?.inputs as any)?.__CUSTOMER_METADATA__;
+
+                let customerInfo = {
+                    name: order.customer.name,
+                    code: order.customer.code,
+                    gstno: order.customer.gstno,
+                    tax: order.customer.tax,
+                    tds: order.customer.tds,
+                    tdsno: order.customer.tdsno,
+                    address: order.customer.address
+                };
+
+                if (snapshotCustomerMeta) {
+                    customerInfo = {
+                        name: snapshotCustomerMeta.name || customerInfo.name,
+                        code: snapshotCustomerMeta.code || customerInfo.code,
+                        gstno: snapshotCustomerMeta.gstno || customerInfo.gstno,
+                        tax: snapshotCustomerMeta.tax !== undefined ? snapshotCustomerMeta.tax : customerInfo.tax,
+                        tds: snapshotCustomerMeta.tds !== undefined ? snapshotCustomerMeta.tds : customerInfo.tds,
+                        tdsno: snapshotCustomerMeta.tdsno !== undefined ? snapshotCustomerMeta.tdsno : customerInfo.tdsno,
+                        address: snapshotCustomerMeta.address || customerInfo.address
+                    };
+                }
+
                 return {
                     id: order.id,
                     code: order.code,
@@ -332,12 +359,13 @@ export class BillingContextService {
                     status: order.statusCode,
                     quantity: order.quantity,
                     customer: {
-                        name: order.customer.name,
-                        code: order.customer.code,
-                        gstno: order.customer.gstno,
-                        tax: order.customer.tax,
-                        tds: order.customer.tds,
-                        tdsno: order.customer.tdsno
+                        name: customerInfo.name,
+                        code: customerInfo.code,
+                        gstno: customerInfo.gstno,
+                        tax: customerInfo.tax,
+                        tds: customerInfo.tds,
+                        tdsno: customerInfo.tdsno,
+                        address: customerInfo.address
                     },
                     processes: order.processes.map(p => ({
                         id: p.id,
