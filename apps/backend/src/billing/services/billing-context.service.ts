@@ -212,6 +212,11 @@ export class BillingContextService {
                         result: snapshot.result.toString(),
                         currency: snapshot.currency,
                         calculationType: snapshot.calculationType,
+                        taxEnabled: snapshot.taxEnabled,
+                        subTotalAmount: snapshot.subTotalAmount.toString(),
+                        taxPercentage: snapshot.taxPercentage.toString(),
+                        taxAmount: snapshot.taxAmount.toString(),
+                        finalAmount: snapshot.finalAmount.toString(),
                         createdAt: snapshot.createdAt
                     }
                     : null
@@ -400,6 +405,12 @@ export class BillingContextService {
 
                     calculationType: groupSnapshot.calculationType,
                     reason: groupSnapshot.reason,
+
+                    taxEnabled: groupSnapshot.taxEnabled,
+                    subTotalAmount: groupSnapshot.subTotalAmount.toString(),
+                    taxPercentage: groupSnapshot.taxPercentage.toString(),
+                    taxAmount: groupSnapshot.taxAmount.toString(),
+                    finalAmount: groupSnapshot.finalAmount.toString(),
 
                     createdAt: groupSnapshot.createdAt
                 }
