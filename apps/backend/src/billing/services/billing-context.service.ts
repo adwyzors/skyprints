@@ -44,7 +44,17 @@ export class BillingContextService {
             let name = contextData.name;
 
             if (dto.type === "GROUP") {
-                name = await generateFiscalCode(tx, dto.isTest ? "TESTR" : "R");
+                // Determine tax status from the first order (if any) to decide the prefix.
+                let taxEnabled = true; // default to true (R) if we can't determine.
+                if (orderIds.length > 0) {
+                    const firstOrder = await tx.order.findFirst({
+                        where: { id: orderIds[0] },
+                        select: { customer: { select: { tax: true } } },
+                    });
+                    taxEnabled = firstOrder?.customer?.tax ?? true;
+                }
+                const prefix = dto.isTest ? "TESTR" : taxEnabled ? "R" : "D";
+                name = await generateFiscalCode(tx, prefix);
             }
 
             const context = await tx.billingContext.create({
@@ -332,7 +342,7 @@ export class BillingContextService {
                 }
 
                 // Resolve customer details from the snapshot if available, otherwise fall back to live customer data.
-                const snapshotCustomerMeta = (groupSnapshot?.inputs as any)?.__CUSTOMER_METADATA__ 
+                const snapshotCustomerMeta = (groupSnapshot?.inputs as any)?.__CUSTOMER_METADATA__
                     || (orderSnapshot?.inputs as any)?.__CUSTOMER_METADATA__;
 
                 let customerInfo = {

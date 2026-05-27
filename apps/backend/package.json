@@ -16,7 +16,8 @@
         "start:dev": "nest start --watch",
         "start:debug": "nest start --debug --watch",
         "prisma": "npx prisma generate && npx prisma migrate deploy",
-        "postinstall": "npm run build --workspace=@app/contracts &&npm run prisma:generate --workspace=@app/backend"
+        "postinstall": "npm run build --workspace=@app/contracts &&npm run prisma:generate --workspace=@app/backend",
+        "migration:legacy-billing": "ts-node ./scripts/run-legacy-billing-migration.ts"
     },
     "dependencies": {
         "@app/contracts": "*",
@@ -59,7 +60,7 @@
         "@types/express": "^5.0.6",
         "@types/jest": "^30.0.0",
         "@types/multer": "^2.0.0",
-        "@types/node": "^22.10.7",
+        "@types/node": "^22.19.19",
         "@types/supertest": "^6.0.2",
         "@vercel/node": "^5.5.27",
         "dotenv-cli": "^11.0.0",
@@ -76,7 +77,7 @@
         "ts-loader": "^9.5.2",
         "ts-node": "^10.9.2",
         "tsconfig-paths": "^4.2.0",
-        "typescript": "^5.7.3",
+        "typescript": "^5.9.3",
         "typescript-eslint": "^8.20.0"
     },
     "jest": {
