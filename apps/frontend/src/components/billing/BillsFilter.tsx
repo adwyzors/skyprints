@@ -61,10 +61,10 @@ export default function BillsFilter({
           </div>
         </div>
 
-        {/* Tax Enabled Filter */}
+        {/* Tax Applicable Filter */}
         <div>
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
-            Tax Enabled
+            Tax Applicable
           </label>
 
           <div className="space-y-2">
@@ -75,7 +75,7 @@ export default function BillsFilter({
                 onChange={(e) => onTaxEnabledChange(e.target.checked)}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
               />
-              <span>Enabled</span>
+              <span>Tax Invoice</span>
             </label>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-600 cursor-pointer">
               <input
@@ -84,7 +84,7 @@ export default function BillsFilter({
                 onChange={(e) => onTaxDisabledChange(e.target.checked)}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
               />
-              <span>Disabled</span>
+              <span>Delivery Challan</span>
             </label>
           </div>
         </div>
