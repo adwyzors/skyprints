@@ -24,7 +24,7 @@ export class ImageRetentionController {
     if (isProd && secretHeader !== this.secret) {
       throw new BadRequestException('Invalid cleanup secret');
     }
-    const limit = limitHeader ? parseInt(limitHeader, 10) : undefined;
+    const limit = limitHeader ? parseInt(limitHeader, 100) : undefined;
     const dryRun = dryRunHeader === 'true' || dryRunHeader === '1';
     try {
       const result = await this.retentionService.cleanup({ limit, dryRun });

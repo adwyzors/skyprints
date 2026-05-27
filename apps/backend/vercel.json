@@ -23,4 +23,15 @@
             ]
         }
     ]
+,
+    "crons": [
+        {
+            "path": "/internal/image-retention/cleanup",
+            "schedule": "0 2 * * *",
+            "method": "POST",
+            "headers": {
+                "x-cleanup-secret": "@IMAGE_RETENTION_SECRET"
+            }
+        }
+    ]
 }

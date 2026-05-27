@@ -7,7 +7,7 @@ export class ImageRetentionService {
     private readonly logger = new Logger(ImageRetentionService.name);
 
     /**
-     * Prevent overlapping executions in same serverless instance.
+     * Prevent overlapping execution
      */
     private cleaning = false;
 
@@ -44,7 +44,11 @@ export class ImageRetentionService {
 
             /**
              * STEP 1
-             * Fetch eligible billed orders
+             * Fetch ALL eligible billed orders
+             *
+             * IMPORTANT:
+             * Do NOT filter by order.images
+             * because runs may still contain images.
              */
             const eligibleOrders = await this.prisma.order.findMany({
                 where: {
@@ -54,9 +58,6 @@ export class ImageRetentionService {
                     deletedAt: null,
                     createdAt: {
                         lt: thirtyDaysAgo,
-                    },
-                    images: {
-                        isEmpty: false,
                     },
                 },
                 select: {
@@ -88,23 +89,7 @@ export class ImageRetentionService {
 
             /**
              * STEP 2
-             * Collect ALL image URLs
-             */
-            const imageUrlSet = new Set<string>();
-
-            /**
-             * Collect order images
-             */
-            for (const order of eligibleOrders) {
-                for (const url of order.images ?? []) {
-                    if (url?.trim()) {
-                        imageUrlSet.add(url);
-                    }
-                }
-            }
-
-            /**
-             * Fetch process runs
+             * Fetch all runs for these orders
              */
             const runs = await this.prisma.processRun.findMany({
                 where: {
@@ -126,17 +111,43 @@ export class ImageRetentionService {
             });
 
             /**
-             * Collect run images
+             * STEP 3
+             * Collect ALL image URLs
+             */
+            const imageUrlSet = new Set<string>();
+
+            /**
+             * Order images
+             */
+            for (const order of eligibleOrders) {
+                for (const url of order.images ?? []) {
+                    if (
+                        typeof url === 'string' &&
+                        url.trim()
+                    ) {
+                        imageUrlSet.add(url);
+                    }
+                }
+            }
+
+            /**
+             * Run images
              */
             for (const run of runs) {
-                const fields = run.fields as Record<string, any>;
+                const fields = run.fields as Record<
+                    string,
+                    any
+                >;
 
                 if (
                     fields?.images &&
                     Array.isArray(fields.images)
                 ) {
                     for (const url of fields.images) {
-                        if (typeof url === 'string' && url.trim()) {
+                        if (
+                            typeof url === 'string' &&
+                            url.trim()
+                        ) {
                             imageUrlSet.add(url);
                         }
                     }
@@ -146,16 +157,31 @@ export class ImageRetentionService {
             const allUrls = Array.from(imageUrlSet);
 
             /**
-             * STEP 3
-             * Build global reference map
-             *
-             * MUCH faster than N queries per image
+             * No images found
              */
+            if (!allUrls.length) {
+                return this._finalResult({
+                    scannedOrders: eligibleOrders.length,
+                    processedOrders: 0,
+                    uniqueImagesFound: 0,
+                    deletedImages: 0,
+                    failedImages: [],
+                    skippedImages: [],
+                    dryRun: !!dryRun,
+                    durationMs: Date.now() - start,
+                });
+            }
 
+            /**
+             * STEP 4
+             * Build reference map from OTHER orders/runs
+             *
+             * This avoids N DB queries per image.
+             */
             const referencedUrls = new Set<string>();
 
             /**
-             * Other orders
+             * Other order references
              */
             const otherOrders = await this.prisma.order.findMany({
                 where: {
@@ -171,14 +197,17 @@ export class ImageRetentionService {
 
             for (const order of otherOrders) {
                 for (const url of order.images ?? []) {
-                    if (url?.trim()) {
+                    if (
+                        typeof url === 'string' &&
+                        url.trim()
+                    ) {
                         referencedUrls.add(url);
                     }
                 }
             }
 
             /**
-             * Other runs
+             * Other run references
              */
             const otherRuns = await this.prisma.processRun.findMany({
                 where: {
@@ -194,14 +223,20 @@ export class ImageRetentionService {
             });
 
             for (const run of otherRuns) {
-                const fields = run.fields as Record<string, any>;
+                const fields = run.fields as Record<
+                    string,
+                    any
+                >;
 
                 if (
                     fields?.images &&
                     Array.isArray(fields.images)
                 ) {
                     for (const url of fields.images) {
-                        if (typeof url === 'string' && url.trim()) {
+                        if (
+                            typeof url === 'string' &&
+                            url.trim()
+                        ) {
                             referencedUrls.add(url);
                         }
                     }
@@ -209,8 +244,8 @@ export class ImageRetentionService {
             }
 
             /**
-             * STEP 4
-             * Determine safe vs unsafe URLs
+             * STEP 5
+             * Determine safe vs unsafe images
              */
             const safeUrls: string[] = [];
             const unsafeUrls: string[] = [];
@@ -224,8 +259,8 @@ export class ImageRetentionService {
             }
 
             /**
-             * STEP 5
-             * Delete safe URLs in chunks
+             * STEP 6
+             * Delete images in chunks
              */
             const deletedImages: string[] = [];
 
@@ -287,13 +322,13 @@ export class ImageRetentionService {
             }
 
             /**
-             * STEP 6
+             * STEP 7
              * Remove references from DB
              */
             if (!dryRun && deletedImages.length) {
                 await this.prisma.transaction(async (tx) => {
                     /**
-                     * Update orders
+                     * Update order images
                      */
                     for (const orderId of orderIds) {
                         const order = await tx.order.findUnique({
@@ -326,7 +361,7 @@ export class ImageRetentionService {
                     }
 
                     /**
-                     * Update runs
+                     * Update run fields JSON
                      */
                     for (const run of runs) {
                         const fields = run.fields as Record<
@@ -348,7 +383,7 @@ export class ImageRetentionService {
                             );
 
                         /**
-                         * Skip unnecessary update
+                         * Skip unnecessary updates
                          */
                         if (
                             remainingImages.length ===
@@ -372,6 +407,9 @@ export class ImageRetentionService {
                 });
             }
 
+            /**
+             * Final response
+             */
             return this._finalResult({
                 scannedOrders: eligibleOrders.length,
                 processedOrders: eligibleOrders.length,
@@ -397,7 +435,13 @@ export class ImageRetentionService {
     }
 
     /**
-     * Extract object key from public R2 URL
+     * Extract R2 object key from URL
+     *
+     * Example:
+     * https://pub-xxx.r2.dev/orders/file.webp
+     *
+     * =>
+     * orders/file.webp
      */
     private _extractR2KeyFromUrl(
         url: string,
@@ -412,7 +456,7 @@ export class ImageRetentionService {
     }
 
     /**
-     * Split into chunks
+     * Chunk helper
      */
     private _chunkArray<T>(
         arr: T[],
