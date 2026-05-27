@@ -67,11 +67,21 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                 return;
             }
 
-            // Prepare fallback values for older snapshots
-            let subTotal = snapshot.subTotalAmount ?? null;
-            let taxPerc = snapshot.taxPercentage ?? null;
-            let taxAmt = snapshot.taxAmount ?? null;
-            const totalAmt = snapshot.finalAmount ?? snapshot.result ?? '0';
+            // Determine total amount: prefer finalAmount if it's a non-zero value, otherwise fall back to snapshot.result
+            const totalAmt = (snapshot.finalAmount && Number(snapshot.finalAmount) !== 0)
+                ? snapshot.finalAmount
+                : snapshot.result ?? '0';
+
+            // Prepare fallback values for older snapshots. Treat '0' or null/undefined as missing.
+            let subTotal = (snapshot.subTotalAmount && Number(snapshot.subTotalAmount) !== 0)
+                ? snapshot.subTotalAmount
+                : null;
+            let taxPerc = (snapshot.taxPercentage && Number(snapshot.taxPercentage) !== 0)
+                ? snapshot.taxPercentage
+                : null;
+            let taxAmt = (snapshot.taxAmount && Number(snapshot.taxAmount) !== 0)
+                ? snapshot.taxAmount
+                : null;
 
             // If subTotal is missing, derive it from total and tax information
             if (!subTotal) {
@@ -80,7 +90,8 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                     const calculatedSub = (Number(totalAmt) - Number(taxAmt)).toFixed(2);
                     subTotal = calculatedSub;
                 } else {
-                    subTotal = totalAmt; // No tax applied
+                    // No tax applied; subtotal equals total amount
+                    subTotal = totalAmt;
                 }
             }
 
@@ -126,7 +137,7 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                 subtotal: subTotal || '0',
                 taxPercentage: taxPerc || '0',
                 taxAmount: taxAmt || '0',
-                total: snapshot.finalAmount ?? snapshot.result ?? '0',
+                total: totalAmt,
                 taxEnabled: snapshot.taxEnabled ?? false,
             };
 
