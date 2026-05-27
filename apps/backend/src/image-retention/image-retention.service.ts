@@ -1,13 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma, ProcessRun } from '@prisma/client';
+
 import { PrismaService } from '../../prisma/prisma.service';
 import { CloudflareService } from '../common/cloudflare.service';
 
 @Injectable()
 export class ImageRetentionService {
-    private readonly logger = new Logger(ImageRetentionService.name);
+    private readonly logger = new Logger(
+        ImageRetentionService.name,
+    );
 
     /**
-     * Prevent overlapping execution
+     * Prevent overlapping executions
      */
     private cleaning = false;
 
@@ -37,44 +41,120 @@ export class ImageRetentionService {
         try {
             const batchSize =
                 limit ??
-                parseInt(process.env.MAX_ORDERS_PER_RUN ?? '100', 10);
+                parseInt(
+                    process.env.MAX_ORDERS_PER_RUN ?? '100',
+                    10,
+                );
 
             const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            thirtyDaysAgo.setDate(
+                thirtyDaysAgo.getDate() - 30,
+            );
 
             /**
              * STEP 1
-             * Fetch ALL eligible billed orders
+             *
+             * Fetch MORE candidate orders than needed.
+             *
+             * Why?
+             * Many old billed orders may already be cleaned.
+             *
+             * So we fetch extra candidates,
+             * then filter only orders that still have images.
+             */
+            const candidateOrders =
+                await this.prisma.order.findMany({
+                    where: {
+                        statusCode: {
+                            in: ['BILLED', 'GROUP_BILLED'],
+                        },
+                        deletedAt: null,
+                        createdAt: {
+                            lt: thirtyDaysAgo,
+                        },
+                    },
+                    select: {
+                        id: true,
+                        code: true,
+                        images: true,
+                        createdAt: true,
+                    },
+                    orderBy: {
+                        createdAt: 'asc',
+                    },
+                    take: batchSize * 3,
+                });
+
+            /**
+             * STEP 2
+             *
+             * Keep ONLY orders
+             * that still contain images somewhere.
              *
              * IMPORTANT:
-             * Do NOT filter by order.images
-             * because runs may still contain images.
+             * - order images may be empty
+             * - runs may still contain images
              */
-            const eligibleOrders = await this.prisma.order.findMany({
-                where: {
-                    statusCode: {
-                        in: ['BILLED', 'GROUP_BILLED'],
-                    },
-                    deletedAt: null,
-                    createdAt: {
-                        lt: thirtyDaysAgo,
-                    },
-                },
-                select: {
-                    id: true,
-                    code: true,
-                    images: true,
-                    createdAt: true,
-                },
-                take: batchSize,
-                orderBy: {
-                    createdAt: 'asc',
-                },
-            });
+            const eligibleOrders: typeof candidateOrders =
+                [];
 
+            for (const order of candidateOrders) {
+                const hasOrderImages =
+                    Array.isArray(order.images) &&
+                    order.images.length > 0;
+
+                /**
+                 * Order itself contains images
+                 */
+                if (hasOrderImages) {
+                    eligibleOrders.push(order);
+
+                    if (
+                        eligibleOrders.length >= batchSize
+                    ) {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                /**
+                 * Check runs only if order has no images
+                 */
+                const runWithImages =
+                    await this.prisma.processRun.findFirst({
+                        where: {
+                            orderProcess: {
+                                orderId: order.id,
+                            },
+                            fields: {
+                                path: ['images'],
+                                not: Prisma.JsonNull,
+                            },
+                        },
+                        select: {
+                            id: true,
+                        },
+                    });
+
+                if (runWithImages) {
+                    eligibleOrders.push(order);
+
+                    if (
+                        eligibleOrders.length >= batchSize
+                    ) {
+                        break;
+                    }
+                }
+            }
+
+            /**
+             * No eligible orders
+             */
             if (!eligibleOrders.length) {
                 return this._finalResult({
-                    scannedOrders: 0,
+                    scannedOrders: candidateOrders.length,
                     processedOrders: 0,
                     uniqueImagesFound: 0,
                     deletedImages: 0,
@@ -85,39 +165,44 @@ export class ImageRetentionService {
                 });
             }
 
-            const orderIds = eligibleOrders.map((o) => o.id);
-
-            /**
-             * STEP 2
-             * Fetch all runs for these orders
-             */
-            const runs = await this.prisma.processRun.findMany({
-                where: {
-                    orderProcess: {
-                        orderId: {
-                            in: orderIds,
-                        },
-                    },
-                },
-                select: {
-                    id: true,
-                    fields: true,
-                    orderProcess: {
-                        select: {
-                            orderId: true,
-                        },
-                    },
-                },
-            });
+            const orderIds = eligibleOrders.map(
+                (o) => o.id,
+            );
 
             /**
              * STEP 3
+             *
+             * Fetch all runs for eligible orders
+             */
+            const runs =
+                await this.prisma.processRun.findMany({
+                    where: {
+                        orderProcess: {
+                            orderId: {
+                                in: orderIds,
+                            },
+                        },
+                    },
+                    select: {
+                        id: true,
+                        fields: true,
+                        orderProcess: {
+                            select: {
+                                orderId: true,
+                            },
+                        },
+                    },
+                });
+
+            /**
+             * STEP 4
+             *
              * Collect ALL image URLs
              */
             const imageUrlSet = new Set<string>();
 
             /**
-             * Order images
+             * Collect order images
              */
             for (const order of eligibleOrders) {
                 for (const url of order.images ?? []) {
@@ -131,7 +216,7 @@ export class ImageRetentionService {
             }
 
             /**
-             * Run images
+             * Collect run images
              */
             for (const run of runs) {
                 const fields = run.fields as Record<
@@ -161,8 +246,8 @@ export class ImageRetentionService {
              */
             if (!allUrls.length) {
                 return this._finalResult({
-                    scannedOrders: eligibleOrders.length,
-                    processedOrders: 0,
+                    scannedOrders: candidateOrders.length,
+                    processedOrders: eligibleOrders.length,
                     uniqueImagesFound: 0,
                     deletedImages: 0,
                     failedImages: [],
@@ -173,27 +258,30 @@ export class ImageRetentionService {
             }
 
             /**
-             * STEP 4
-             * Build reference map from OTHER orders/runs
+             * STEP 5
              *
-             * This avoids N DB queries per image.
+             * Build global reference map
+             * from OTHER orders/runs.
+             *
+             * Avoids N DB queries per image.
              */
             const referencedUrls = new Set<string>();
 
             /**
-             * Other order references
+             * Other orders
              */
-            const otherOrders = await this.prisma.order.findMany({
-                where: {
-                    id: {
-                        notIn: orderIds,
+            const otherOrders =
+                await this.prisma.order.findMany({
+                    where: {
+                        id: {
+                            notIn: orderIds,
+                        },
+                        deletedAt: null,
                     },
-                    deletedAt: null,
-                },
-                select: {
-                    images: true,
-                },
-            });
+                    select: {
+                        images: true,
+                    },
+                });
 
             for (const order of otherOrders) {
                 for (const url of order.images ?? []) {
@@ -207,20 +295,21 @@ export class ImageRetentionService {
             }
 
             /**
-             * Other run references
+             * Other runs
              */
-            const otherRuns = await this.prisma.processRun.findMany({
-                where: {
-                    orderProcess: {
-                        orderId: {
-                            notIn: orderIds,
+            const otherRuns =
+                await this.prisma.processRun.findMany({
+                    where: {
+                        orderProcess: {
+                            orderId: {
+                                notIn: orderIds,
+                            },
                         },
                     },
-                },
-                select: {
-                    fields: true,
-                },
-            });
+                    select: {
+                        fields: true,
+                    },
+                });
 
             for (const run of otherRuns) {
                 const fields = run.fields as Record<
@@ -244,10 +333,12 @@ export class ImageRetentionService {
             }
 
             /**
-             * STEP 5
-             * Determine safe vs unsafe images
+             * STEP 6
+             *
+             * Determine safe vs unsafe URLs
              */
             const safeUrls: string[] = [];
+
             const unsafeUrls: string[] = [];
 
             for (const url of allUrls) {
@@ -259,8 +350,9 @@ export class ImageRetentionService {
             }
 
             /**
-             * STEP 6
-             * Delete images in chunks
+             * STEP 7
+             *
+             * Delete safe URLs in chunks
              */
             const deletedImages: string[] = [];
 
@@ -277,142 +369,155 @@ export class ImageRetentionService {
             );
 
             for (const chunk of chunks) {
-                const promises = chunk.map(async (url) => {
-                    try {
-                        if (dryRun) {
-                            this.logger.log(
-                                `[DRY_RUN] Would delete ${url}`,
+                const promises = chunk.map(
+                    async (url) => {
+                        try {
+                            /**
+                             * DRY RUN
+                             */
+                            if (dryRun) {
+                                this.logger.log(
+                                    `[DRY_RUN] Would delete ${url}`,
+                                );
+
+                                return;
+                            }
+
+                            const key =
+                                this._extractR2KeyFromUrl(url);
+
+                            if (!key) {
+                                unsafeUrls.push(url);
+
+                                this.logger.warn(
+                                    `[CLEANUP] Invalid R2 URL: ${url}`,
+                                );
+
+                                return;
+                            }
+
+                            await this.cloudflare.deleteObject(
+                                key,
                             );
 
-                            return;
-                        }
+                            deletedImages.push(url);
+                        } catch (error) {
+                            failedImages.push({
+                                url,
+                                error,
+                            });
 
-                        const key =
-                            this._extractR2KeyFromUrl(url);
-
-                        if (!key) {
-                            unsafeUrls.push(url);
-
-                            this.logger.warn(
-                                `[CLEANUP] Invalid R2 URL: ${url}`,
+                            this.logger.error(
+                                `[CLEANUP] Failed deleting ${url}`,
+                                error instanceof Error
+                                    ? error.stack
+                                    : undefined,
                             );
-
-                            return;
                         }
-
-                        await this.cloudflare.deleteObject(key);
-
-                        deletedImages.push(url);
-                    } catch (error) {
-                        failedImages.push({
-                            url,
-                            error,
-                        });
-
-                        this.logger.error(
-                            `[CLEANUP] Failed deleting ${url}`,
-                            error instanceof Error
-                                ? error.stack
-                                : undefined,
-                        );
-                    }
-                });
+                    },
+                );
 
                 await Promise.allSettled(promises);
             }
 
             /**
-             * STEP 7
-             * Remove references from DB
+             * STEP 8
+             *
+             * Remove deleted image references from DB
              */
             if (!dryRun && deletedImages.length) {
-                await this.prisma.transaction(async (tx) => {
-                    /**
-                     * Update order images
-                     */
-                    for (const orderId of orderIds) {
-                        const order = await tx.order.findUnique({
-                            where: {
-                                id: orderId,
-                            },
-                            select: {
-                                images: true,
-                            },
-                        });
-
-                        if (!order) {
-                            continue;
-                        }
-
-                        const remainingImages =
-                            (order.images ?? []).filter(
-                                (url) =>
-                                    !deletedImages.includes(url),
-                            );
-
-                        await tx.order.update({
-                            where: {
-                                id: orderId,
-                            },
-                            data: {
-                                images: remainingImages,
-                            },
-                        });
-                    }
-
-                    /**
-                     * Update run fields JSON
-                     */
-                    for (const run of runs) {
-                        const fields = run.fields as Record<
-                            string,
-                            any
-                        >;
-
-                        if (
-                            !fields?.images ||
-                            !Array.isArray(fields.images)
-                        ) {
-                            continue;
-                        }
-
-                        const remainingImages =
-                            fields.images.filter(
-                                (url: string) =>
-                                    !deletedImages.includes(url),
-                            );
-
+                await this.prisma.transaction(
+                    async (tx) => {
                         /**
-                         * Skip unnecessary updates
+                         * Update order images
                          */
-                        if (
-                            remainingImages.length ===
-                            fields.images.length
-                        ) {
-                            continue;
-                        }
+                        for (const orderId of orderIds) {
+                            const order =
+                                await tx.order.findUnique({
+                                    where: {
+                                        id: orderId,
+                                    },
+                                    select: {
+                                        images: true,
+                                    },
+                                });
 
-                        await tx.processRun.update({
-                            where: {
-                                id: run.id,
-                            },
-                            data: {
-                                fields: {
-                                    ...fields,
+                            if (!order) {
+                                continue;
+                            }
+
+                            const remainingImages =
+                                (order.images ?? []).filter(
+                                    (url) =>
+                                        !deletedImages.includes(url),
+                                );
+
+                            await tx.order.update({
+                                where: {
+                                    id: orderId,
+                                },
+                                data: {
                                     images: remainingImages,
                                 },
-                            },
-                        });
-                    }
-                });
+                            });
+                        }
+
+                        /**
+                         * Update run fields JSON
+                         */
+                        for (const run of runs) {
+                            const fields =
+                                run.fields as Record<
+                                    string,
+                                    any
+                                >;
+
+                            if (
+                                !fields?.images ||
+                                !Array.isArray(fields.images)
+                            ) {
+                                continue;
+                            }
+
+                            const remainingImages =
+                                fields.images.filter(
+                                    (url: string) =>
+                                        !deletedImages.includes(url),
+                                );
+
+                            /**
+                             * Skip unnecessary updates
+                             */
+                            if (
+                                remainingImages.length ===
+                                fields.images.length
+                            ) {
+                                continue;
+                            }
+
+                            await tx.processRun.update({
+                                where: {
+                                    id: run.id,
+                                },
+                                data: {
+                                    fields: {
+                                        ...fields,
+                                        images: remainingImages,
+                                    },
+                                },
+                            });
+                        }
+                    },
+                );
             }
 
             /**
              * Final response
              */
             return this._finalResult({
-                scannedOrders: eligibleOrders.length,
-                processedOrders: eligibleOrders.length,
+                scannedOrders: candidateOrders.length,
+                processedOrders:
+                    eligibleOrders.length,
                 uniqueImagesFound: allUrls.length,
                 deletedImages: deletedImages.length,
                 failedImages,
@@ -435,7 +540,7 @@ export class ImageRetentionService {
     }
 
     /**
-     * Extract R2 object key from URL
+     * Extract object key from R2 URL
      *
      * Example:
      * https://pub-xxx.r2.dev/orders/file.webp
@@ -449,7 +554,10 @@ export class ImageRetentionService {
         try {
             const parsed = new URL(url);
 
-            return parsed.pathname.replace(/^\//, '');
+            return parsed.pathname.replace(
+                /^\//,
+                '',
+            );
         } catch {
             return null;
         }
@@ -464,7 +572,11 @@ export class ImageRetentionService {
     ): T[][] {
         const chunks: T[][] = [];
 
-        for (let i = 0; i < arr.length; i += size) {
+        for (
+            let i = 0;
+            i < arr.length;
+            i += size
+        ) {
             chunks.push(arr.slice(i, i + size));
         }
 
