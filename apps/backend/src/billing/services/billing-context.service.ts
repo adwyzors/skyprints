@@ -105,15 +105,24 @@ export class BillingContextService {
         page = 1,
         limit = 12,
         search = "",
-        isTest = false
+        isTest = false,
+        isTaxEnabled?: boolean
     ) {
-        this.logger.log(`Fetching billing contexts page=${page} limit=${limit} search=${search}`);
+        this.logger.log(`Fetching billing contexts page=${page} limit=${limit} search=${search} isTaxEnabled=${isTaxEnabled}`);
 
         const skip = (page - 1) * limit;
 
         const where: any = {
             type: "GROUP",
             isTest: isTest,
+            ...(isTaxEnabled !== undefined && {
+                snapshots: {
+                    some: {
+                        isLatest: true,
+                        taxEnabled: isTaxEnabled
+                    }
+                }
+            }),
             ...(search && {
                 OR: [
                     { name: { contains: search, mode: 'insensitive' } },

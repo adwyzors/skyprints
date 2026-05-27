@@ -54,7 +54,14 @@ function BillsPageContent() {
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [isTest, setIsTest] = useState(searchParams.get('isTest') === 'true');
-    const [isTaxEnabled, setIsTaxEnabled] = useState(searchParams.get('isTaxEnabled') === 'true' ? true : searchParams.get('isTaxEnabled') === 'false' ? false : undefined);
+    const [taxEnabled, setTaxEnabled] = useState(() => {
+        const param = searchParams.get('taxEnabled');
+        return param === null ? true : param === 'true';
+    });
+    const [taxDisabled, setTaxDisabled] = useState(() => {
+        const param = searchParams.get('taxDisabled');
+        return param === null ? true : param === 'true';
+    });
     const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -77,12 +84,36 @@ function BillsPageContent() {
         const fetchContexts = async () => {
             setLoading(true);
             try {
+                // Determine what isTaxEnabled to pass to the API:
+                // - Both true: pass undefined (shows both)
+                // - Only taxEnabled is true: pass true
+                // - Only taxDisabled is true: pass false
+                // - Both false: do not query API, set data to empty
+                let isTaxEnabledApiValue: boolean | undefined = undefined;
+                if (taxEnabled && !taxDisabled) {
+                    isTaxEnabledApiValue = true;
+                } else if (!taxEnabled && taxDisabled) {
+                    isTaxEnabledApiValue = false;
+                } else if (!taxEnabled && !taxDisabled) {
+                    setData({
+                        data: [],
+                        total: 0,
+                        page: 1,
+                        limit: pageSize,
+                        totalPages: 0,
+                        totalQuantity: 0,
+                        totalEstimatedAmount: 0
+                    });
+                    setLoading(false);
+                    return;
+                }
+
                 const response = await getBillingContexts({
                     page: data.page,
                     limit: pageSize,
                     search: debouncedSearch,
                     isTest: isTest,
-                    ...(isTaxEnabled !== undefined ? { isTaxEnabled } : {}),
+                    ...(isTaxEnabledApiValue !== undefined ? { isTaxEnabled: isTaxEnabledApiValue } : {}),
                 });
                 setData(response);
             } catch (error) {
@@ -92,7 +123,7 @@ function BillsPageContent() {
             }
         };
         fetchContexts();
-    }, [data.page, debouncedSearch, pageSize, isTest]);
+    }, [data.page, debouncedSearch, pageSize, isTest, taxEnabled, taxDisabled]);
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= data.totalPages) {
@@ -211,18 +242,28 @@ function BillsPageContent() {
                         isTest={isTest}
                         onIsTestChange={(val) => {
                             setIsTest(val);
+                            setData((prev) => ({ ...prev, page: 1 }));
                             const params = new URLSearchParams(searchParams.toString());
                             if (val) params.set('isTest', 'true');
                             else params.delete('isTest');
                             params.set('page', '1');
                             router.push(`/admin/bills?${params.toString()}`);
                         }}
-                        isTaxEnabled={isTaxEnabled}
-                        onIsTaxEnabledChange={(val) => {
-                            setIsTaxEnabled(val);
+                        taxEnabled={taxEnabled}
+                        onTaxEnabledChange={(val) => {
+                            setTaxEnabled(val);
+                            setData((prev) => ({ ...prev, page: 1 }));
                             const params = new URLSearchParams(searchParams.toString());
-                            if (val !== undefined) params.set('isTaxEnabled', String(val));
-                            else params.delete('isTaxEnabled');
+                            params.set('taxEnabled', String(val));
+                            params.set('page', '1');
+                            router.push(`/admin/bills?${params.toString()}`);
+                        }}
+                        taxDisabled={taxDisabled}
+                        onTaxDisabledChange={(val) => {
+                            setTaxDisabled(val);
+                            setData((prev) => ({ ...prev, page: 1 }));
+                            const params = new URLSearchParams(searchParams.toString());
+                            params.set('taxDisabled', String(val));
                             params.set('page', '1');
                             router.push(`/admin/bills?${params.toString()}`);
                         }}

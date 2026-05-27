@@ -48,13 +48,15 @@ export class BillingContextController {
         @Query('limit') limit?: number,
         @Query('search') search?: string,
         @Query('isTest') isTest?: string,
+        @Query('isTaxEnabled') isTaxEnabled?: string,
         @Res({ passthrough: true }) res?: Response
     ) {
         const result = await this.service.getAllContexts(
             page ? Number(page) : 1,
             limit ? Number(limit) : 12,
             search || "",
-            isTest === 'true'
+            isTest === 'true',
+            isTaxEnabled === 'true' ? true : isTaxEnabled === 'false' ? false : undefined
         );
 
         // Set pagination metadata in headers

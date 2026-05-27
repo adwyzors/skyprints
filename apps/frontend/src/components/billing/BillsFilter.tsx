@@ -6,16 +6,20 @@ interface BillsFilterProps {
   onClose: () => void;
   isTest: boolean;
   onIsTestChange: (isTest: boolean) => void;
-  isTaxEnabled?: boolean;
-  onIsTaxEnabledChange?: (isTaxEnabled: boolean) => void;
+  taxEnabled: boolean;
+  onTaxEnabledChange: (val: boolean) => void;
+  taxDisabled: boolean;
+  onTaxDisabledChange: (val: boolean) => void;
 }
 
 export default function BillsFilter({
   onClose,
   isTest,
   onIsTestChange,
-  isTaxEnabled = false,
-  onIsTaxEnabledChange,
+  taxEnabled,
+  onTaxEnabledChange,
+  taxDisabled,
+  onTaxDisabledChange,
 }: BillsFilterProps) {
   return (
     <div className="flex flex-col h-full bg-white">
@@ -63,15 +67,25 @@ export default function BillsFilter({
             Tax Enabled
           </label>
 
-          <div className="flex items-center space-x-2">
-            <input
-              id="tax-enabled-switch"
-              type="checkbox"
-              checked={isTaxEnabled}
-              onChange={(e) => onIsTaxEnabledChange?.(e.target.checked)}
-            />
-
-            <span>{isTaxEnabled ? 'Enabled' : 'Disabled'}</span>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={taxEnabled}
+                onChange={(e) => onTaxEnabledChange(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+              />
+              <span>Enabled</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={taxDisabled}
+                onChange={(e) => onTaxDisabledChange(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+              />
+              <span>Disabled</span>
+            </label>
           </div>
         </div>
 
