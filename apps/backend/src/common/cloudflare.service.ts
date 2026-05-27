@@ -240,6 +240,30 @@ export class CloudflareService {
         }
     }
 
+    /**
+     * Delete an object directly by its R2 key
+     * @param key - The R2 object key
+     */
+    async deleteObject(key: string): Promise<void> {
+        try {
+            this.logger.log(`[R2][DELETE_OBJECT] key=${key}`);
+            const command = new DeleteObjectCommand({
+                Bucket: this.bucketName,
+                Key: key,
+            });
+            await this.s3Client.send(command);
+            this.logger.log(`[R2][DELETE_OBJECT_SUCCESS] key=${key}`);
+        } catch (error: any) {
+            const isNotFound = error?.name === 'NoSuchKey' || error?.$metadata?.httpStatusCode === 404;
+            if (isNotFound) {
+                this.logger.log(`[R2][DELETE_OBJECT_NOT_FOUND] key=${key} (treated as success)`);
+                return;
+            }
+            this.logger.error(`[R2][DELETE_OBJECT_FAILED] key=${key}`, error);
+            throw error;
+        }
+    }
+
 
     /**
      * Delete multiple files from Cloudflare R2

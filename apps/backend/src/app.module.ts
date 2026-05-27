@@ -16,6 +16,7 @@ import { BillingModule } from './billing/billing.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { CustomersModule } from './customers/customers.module';
 import { JobsModule } from './jobs/jobs.module';
+import { ImageRetentionModule } from './image-retention/image-retention.module';
 import { LocationsModule } from './locations/locations.module';
 import { OrdersModule } from './orders/orders.module';
 import { ProcessesModule } from './processes/processes.module';
@@ -50,6 +51,7 @@ import { ReportsModule } from './reports/reports.module';
         AnalyticsModule,
         JobsModule,
         ReportsModule,
+        ImageRetentionModule,
     ],
     providers: [
         AppService,
