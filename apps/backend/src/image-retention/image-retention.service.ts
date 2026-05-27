@@ -37,7 +37,7 @@ export class ImageRetentionService {
         try {
             const batchSize =
                 limit ??
-                parseInt(process.env.MAX_ORDERS_PER_RUN ?? '15', 10);
+                parseInt(process.env.MAX_ORDERS_PER_RUN ?? '100', 10);
 
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
