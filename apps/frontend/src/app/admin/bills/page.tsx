@@ -54,6 +54,7 @@ function BillsPageContent() {
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [isTest, setIsTest] = useState(searchParams.get('isTest') === 'true');
+    const [isTaxEnabled, setIsTaxEnabled] = useState(searchParams.get('isTaxEnabled') === 'true' ? true : searchParams.get('isTaxEnabled') === 'false' ? false : undefined);
     const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -80,7 +81,8 @@ function BillsPageContent() {
                     page: data.page,
                     limit: pageSize,
                     search: debouncedSearch,
-                    isTest: isTest
+                    isTest: isTest,
+                    ...(isTaxEnabled !== undefined ? { isTaxEnabled } : {}),
                 });
                 setData(response);
             } catch (error) {
@@ -212,6 +214,15 @@ function BillsPageContent() {
                             const params = new URLSearchParams(searchParams.toString());
                             if (val) params.set('isTest', 'true');
                             else params.delete('isTest');
+                            params.set('page', '1');
+                            router.push(`/admin/bills?${params.toString()}`);
+                        }}
+                        isTaxEnabled={isTaxEnabled}
+                        onIsTaxEnabledChange={(val) => {
+                            setIsTaxEnabled(val);
+                            const params = new URLSearchParams(searchParams.toString());
+                            if (val !== undefined) params.set('isTaxEnabled', String(val));
+                            else params.delete('isTaxEnabled');
                             params.set('page', '1');
                             router.push(`/admin/bills?${params.toString()}`);
                         }}

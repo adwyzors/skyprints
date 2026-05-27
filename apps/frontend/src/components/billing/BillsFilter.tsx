@@ -3,81 +3,117 @@
 import { Filter, X } from 'lucide-react';
 
 interface BillsFilterProps {
-    onClose: () => void;
-    isTest: boolean;
-    onIsTestChange: (isTest: boolean) => void;
+  onClose: () => void;
+  isTest: boolean;
+  onIsTestChange: (isTest: boolean) => void;
+  isTaxEnabled?: boolean;
+  onIsTaxEnabledChange?: (isTaxEnabled: boolean) => void;
 }
 
-export default function BillsFilter({ onClose, isTest, onIsTestChange }: BillsFilterProps) {
-    return (
-        <div className="flex flex-col h-full bg-white">
-            <div className="flex items-center justify-between p-4 border-b">
-                <div className="flex items-center gap-2 font-bold text-gray-800">
-                    <Filter className="w-4 h-4 text-blue-600" />
-                    <span>Filters</span>
-                </div>
-                <button
-                    onClick={onClose}
-                    className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                    <X className="w-5 h-5 text-gray-400" />
-                </button>
-            </div>
-
-            <div className="p-4 space-y-6 flex-1 overflow-y-auto scrollbar-hide">
-                {/* Order Type */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Order Type</label>
-                    <div className="grid grid-cols-2 gap-2">
-                        {[
-                            { value: false, label: 'Standard' },
-                            { value: true, label: 'Test' }
-                        ].map(opt => (
-                            <button
-                                key={String(opt.value)}
-                                onClick={() => onIsTestChange(opt.value)}
-                                className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all ${isTest === opt.value
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-200'
-                                    }`}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Status placeholder */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Status</label>
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 text-sm font-medium">
-                            All Billing Groups
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Quick Links</label>
-                    <div className="space-y-1">
-                        <button className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-                            Recent Groups
-                        </button>
-                        <button className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
-                            High Priority
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="p-4 border-t bg-gray-50">
-                <button
-                    disabled
-                    className="w-full py-2 bg-gray-200 text-gray-500 rounded-lg text-sm font-medium cursor-not-allowed"
-                >
-                    No filters active
-                </button>
-            </div>
+export default function BillsFilter({
+  onClose,
+  isTest,
+  onIsTestChange,
+  isTaxEnabled = false,
+  onIsTaxEnabledChange,
+}: BillsFilterProps) {
+  return (
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center gap-2 font-bold text-gray-800">
+          <Filter className="w-4 h-4 text-blue-600" />
+          <span>Filters</span>
         </div>
-    );
+
+        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+          <X className="w-5 h-5 text-gray-400" />
+        </button>
+      </div>
+
+      <div className="p-4 space-y-6 flex-1 overflow-y-auto scrollbar-hide">
+        {/* Order Type */}
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+            Order Type
+          </label>
+
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: false, label: 'Standard' },
+              { value: true, label: 'Test' },
+            ].map((opt) => (
+              <button
+                key={String(opt.value)}
+                onClick={() => onIsTestChange(opt.value)}
+                className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all ${
+                  isTest === opt.value
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-200'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tax Enabled Filter */}
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+            Tax Enabled
+          </label>
+
+          <div className="flex items-center space-x-2">
+            <input
+              id="tax-enabled-switch"
+              type="checkbox"
+              checked={isTaxEnabled}
+              onChange={(e) => onIsTaxEnabledChange?.(e.target.checked)}
+            />
+
+            <span>{isTaxEnabled ? 'Enabled' : 'Disabled'}</span>
+          </div>
+        </div>
+
+        {/* Status */}
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+            Status
+          </label>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 text-sm font-medium">
+              All Billing Groups
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Links */}
+        <div>
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+            Quick Links
+          </label>
+
+          <div className="space-y-1">
+            <button className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+              Recent Groups
+            </button>
+
+            <button className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+              High Priority
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 border-t bg-gray-50">
+        <button
+          disabled
+          className="w-full py-2 bg-gray-200 text-gray-500 rounded-lg text-sm font-medium cursor-not-allowed"
+        >
+          No filters active
+        </button>
+      </div>
+    </div>
+  );
 }
