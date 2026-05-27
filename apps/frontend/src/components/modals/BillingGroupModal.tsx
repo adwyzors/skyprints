@@ -67,7 +67,29 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                 return;
             }
 
-            // Create invoice data
+            // Prepare fallback values for older snapshots
+            let subTotal = snapshot.subTotalAmount ?? null;
+            let taxPerc = snapshot.taxPercentage ?? null;
+            let taxAmt = snapshot.taxAmount ?? null;
+            const totalAmt = snapshot.finalAmount ?? snapshot.result ?? '0';
+
+            // If subTotal is missing, derive it from total and tax information
+            if (!subTotal) {
+                if (snapshot.taxEnabled && taxAmt) {
+                    // total = subTotal + taxAmount
+                    const calculatedSub = (Number(totalAmt) - Number(taxAmt)).toFixed(2);
+                    subTotal = calculatedSub;
+                } else {
+                    subTotal = totalAmt; // No tax applied
+                }
+            }
+
+            // If tax percentage missing but tax is enabled, compute it
+            if (!taxPerc && snapshot.taxEnabled && taxAmt && subTotal) {
+                const perc = (Number(taxAmt) / Number(subTotal) * 100).toFixed(2);
+                taxPerc = perc;
+            }
+
             const invoiceData = {
                 heading: snapshot.taxEnabled ? 'Tax Invoice' : 'Delivery Challan',
 
@@ -100,10 +122,11 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                     amount: order.billing?.result || '0',
                 })),
 
-                subtotal: snapshot.subTotalAmount || snapshot.result || '0',
-                taxPercentage: snapshot.taxPercentage || '0',
-                taxAmount: snapshot.taxAmount || '0',
-                total: snapshot.finalAmount || snapshot.result || '0',
+                // Use derived values with graceful fallback
+                subtotal: subTotal || '0',
+                taxPercentage: taxPerc || '0',
+                taxAmount: taxAmt || '0',
+                total: snapshot.finalAmount ?? snapshot.result ?? '0',
                 taxEnabled: snapshot.taxEnabled ?? false,
             };
 
