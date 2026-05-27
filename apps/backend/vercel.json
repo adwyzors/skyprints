@@ -22,16 +22,11 @@
                 }
             ]
         }
-    ]
-,
+    ],
     "crons": [
         {
             "path": "/internal/image-retention/cleanup",
-            "schedule": "0 2 * * *",
-
-            "headers": {
-                "x-cleanup-secret": "@IMAGE_RETENTION_SECRET"
-            }
+            "schedule": "0 2 * * *"
         }
     ]
 }
