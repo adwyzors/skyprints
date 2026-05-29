@@ -1,11 +1,10 @@
 import type { CreateBillingContextDto } from "@app/contracts";
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
 import { ContextLogger } from "../../common/logger/context.logger";
 import { generateFiscalCode } from "../../common/utils/fiscal-year.utils";
-import { BillingSnapshotService } from "./billing-snapshot.service";
 import { BillingCalculatorService } from "./billing-calculator.service";
+import { BillingSnapshotService } from "./billing-snapshot.service";
 
 @Injectable()
 export class BillingContextService {
@@ -45,16 +44,7 @@ export class BillingContextService {
             let name = contextData.name;
 
             if (dto.type === "GROUP") {
-                // Determine tax status from the first order (if any) to decide the prefix.
-                let taxEnabled = true; // default to true (R) if we can't determine.
-                if (orderIds.length > 0) {
-                    const firstOrder = await tx.order.findFirst({
-                        where: { id: orderIds[0] },
-                        select: { customer: { select: { tax: true } } },
-                    });
-                    taxEnabled = firstOrder?.customer?.tax ?? true;
-                }
-                const prefix = dto.isTest ? "TESTR" : taxEnabled ? "R" : "D";
+                const prefix = dto.isTest ? "TESTR" : "R";
                 name = await generateFiscalCode(tx, prefix);
             }
 
