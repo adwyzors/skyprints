@@ -30,7 +30,10 @@ export const BillingSnapshotResponseDto = z.object({
     subTotalAmount: z.string().default("0"),
     taxPercentage: z.string().default("0"),
     taxAmount: z.string().default("0"),
-    finalAmount: z.string().default("0")
+    finalAmount: z.string().default("0"),
+    tdsEnabled: z.boolean().optional().default(false),
+    tdsPercentage: z.string().optional().default("0"),
+    tdsAmount: z.string().optional().default("0")
 });
 
 export type BillingSnapshotResponseDto =

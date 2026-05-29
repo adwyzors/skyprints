@@ -174,6 +174,38 @@ function BillsPageContent() {
             // Construct invoiceDataList
             const invoiceDataList = contextsDetails.map(details => {
                 const snapshot = details.latestSnapshot;
+                const subTotal = snapshot?.subTotalAmount || snapshot?.result || '0';
+                const taxAmt = snapshot?.taxAmount || '0';
+                const totalAmt = snapshot?.finalAmount || snapshot?.result || '0';
+                const taxEnabled = snapshot?.taxEnabled ?? false;
+
+                let tdsEnabled = snapshot?.tdsEnabled ?? false;
+                let tdsPerc = snapshot?.tdsPercentage || '0';
+                let tdsAmt = snapshot?.tdsAmount || '0';
+
+                // Fallback for older snapshots
+                const snapshotInputs = snapshot?.inputs as any;
+                if (!tdsEnabled && snapshotInputs?.__TDS_METADATA__) {
+                    const meta = snapshotInputs.__TDS_METADATA__;
+                    tdsEnabled = !!meta.tdsEnabled;
+                    tdsPerc = String(meta.tdsPercentage || '0');
+                    tdsAmt = String(meta.tdsAmount || '0');
+                }
+
+                // Fallback for older snapshots (prioritizing customer metadata saved in the legacy snapshot)
+                if (!tdsEnabled && snapshotInputs?.__CUSTOMER_METADATA__?.tds) {
+                    tdsEnabled = true;
+                    tdsPerc = String(snapshotInputs.__CUSTOMER_METADATA__.tdsno || '2');
+                    tdsAmt = (Number(subTotal) * (Number(tdsPerc) / 100)).toFixed(2);
+                }
+
+                let finalTotal = totalAmt;
+                if (tdsEnabled && tdsAmt && Number(tdsAmt) > 0) {
+                    const expectedWithoutTds = Number(subTotal) + Number(taxAmt);
+                    if (Math.abs(Number(totalAmt) - expectedWithoutTds) < 0.01) {
+                        finalTotal = (Number(totalAmt) - Number(tdsAmt)).toFixed(2);
+                    }
+                }
 
                 return {
                     heading: snapshot?.taxEnabled ? 'Tax Invoice' : 'Delivery Challan',
@@ -198,11 +230,14 @@ function BillsPageContent() {
                                 ? (Number(order.billing.result) / order.quantity).toFixed(2) : '0.00',
                         amount: order.billing?.result || '0',
                     })),
-                    subtotal: snapshot?.subTotalAmount || snapshot?.result || '0',
+                    subtotal: subTotal,
                     taxPercentage: snapshot?.taxPercentage || '0',
-                    taxAmount: snapshot?.taxAmount || '0',
-                    total: snapshot?.finalAmount || snapshot?.result || '0',
-                    taxEnabled: snapshot?.taxEnabled ?? false,
+                    taxAmount: taxAmt,
+                    total: finalTotal,
+                    taxEnabled: taxEnabled,
+                    tdsEnabled,
+                    tdsPercentage: tdsPerc,
+                    tdsAmount: tdsAmt,
                 };
             });
 

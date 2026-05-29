@@ -17,6 +17,9 @@ export interface BillingSnapshot {
     taxPercentage: string;
     taxAmount: string;
     finalAmount: string;
+    tdsEnabled?: boolean;
+    tdsPercentage?: string;
+    tdsAmount?: string;
 }
 
 export interface BillingContext {

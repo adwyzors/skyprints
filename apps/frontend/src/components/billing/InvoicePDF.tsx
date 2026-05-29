@@ -147,6 +147,9 @@ interface InvoiceData {
     taxAmount: string;
     total: string;
     taxEnabled: boolean;
+    tdsEnabled?: boolean;
+    tdsPercentage?: string;
+    tdsAmount?: string;
 }
 
 interface InvoicePDFProps {
@@ -287,6 +290,13 @@ const InvoicePDF = ({ invoiceData, invoiceDataList }: InvoicePDFProps) => {
                                 <Text style={styles.totalValue}>{(parseFloat(data.taxAmount) / 2).toFixed(2)}</Text>
                             </View>
                         </>
+                    )}
+
+                    {data.tdsEnabled && (
+                        <View style={styles.totalRow}>
+                            <Text style={styles.totalLabel}>TDS ({parseFloat(data.tdsPercentage || '0').toFixed(1)}%):</Text>
+                            <Text style={styles.totalValue}>-{parseFloat(data.tdsAmount || '0').toFixed(2)}</Text>
+                        </View>
                     )}
 
                     <View style={[styles.totalRow, styles.grandTotalRow]}>

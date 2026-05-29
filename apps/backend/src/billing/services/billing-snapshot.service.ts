@@ -299,9 +299,13 @@ export class BillingSnapshotService {
             const customer = firstOrder?.customer;
             const taxEnabled = customer?.tax ?? false;
             const subtotal = calc.result;
-            const taxPercentage = taxEnabled ? new Prisma.Decimal(18) : new Prisma.Decimal(0);
+            const taxPercentage = taxEnabled ? new Prisma.Decimal(5) : new Prisma.Decimal(0);
             const taxAmount = subtotal.mul(taxPercentage.div(100));
-            const finalAmount = subtotal.plus(taxAmount);
+
+            const tdsEnabled = customer?.tds ?? false;
+            const tdsPercentage = tdsEnabled ? new Prisma.Decimal(customer?.tdsno || 2) : new Prisma.Decimal(0);
+            const tdsAmount = subtotal.mul(tdsPercentage.div(100));
+            const finalAmount = subtotal.plus(taxAmount).minus(tdsAmount);
 
             const customerMeta = customer ? {
                 name: customer.name,
@@ -329,7 +333,12 @@ export class BillingSnapshotService {
                                 }
                             ])
                         ),
-                        '__CUSTOMER_METADATA__': customerMeta
+                        '__CUSTOMER_METADATA__': customerMeta,
+                        '__TDS_METADATA__': {
+                            tdsEnabled,
+                            tdsPercentage: tdsPercentage.toString(),
+                            tdsAmount: tdsAmount.toString()
+                        }
                     },
                     result: calc.result,
                     currency: 'INR',
@@ -530,9 +539,13 @@ export class BillingSnapshotService {
             });
 
             const subtotal = calc.result;
-            const taxPercentage = order?.customer?.tax ? new Prisma.Decimal(18) : new Prisma.Decimal(0);
+            const taxPercentage = order?.customer?.tax ? new Prisma.Decimal(5) : new Prisma.Decimal(0);
             const taxAmount = subtotal.mul(taxPercentage.div(100));
-            const finalAmount = subtotal.plus(taxAmount);
+
+            const tdsEnabled = order?.customer?.tds ?? false;
+            const tdsPercentage = tdsEnabled ? new Prisma.Decimal(order?.customer?.tdsno || 2) : new Prisma.Decimal(0);
+            const tdsAmount = subtotal.mul(tdsPercentage.div(100));
+            const finalAmount = subtotal.plus(taxAmount).minus(tdsAmount);
 
             const customerMeta = order?.customer ? {
                 name: order.customer.name,
@@ -551,7 +564,12 @@ export class BillingSnapshotService {
                 {
                     ...calc.inputs,
                     '__ORDER_RESULT__': calc.result.toString(),
-                    '__CUSTOMER_METADATA__': customerMeta
+                    '__CUSTOMER_METADATA__': customerMeta,
+                    '__TDS_METADATA__': {
+                        tdsEnabled,
+                        tdsPercentage: tdsPercentage.toString(),
+                        tdsAmount: tdsAmount.toString()
+                    }
                 },
                 {
                     taxEnabled: order?.customer?.tax ?? false,
@@ -729,6 +747,9 @@ export class BillingSnapshotService {
             taxPercentage: snapshot.taxPercentage.toString(),
             taxAmount: snapshot.taxAmount.toString(),
             finalAmount: snapshot.finalAmount.toString(),
+            tdsEnabled: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsEnabled ?? false,
+            tdsPercentage: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsPercentage || "0",
+            tdsAmount: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsAmount || "0",
         };
     }
 }

@@ -1,5 +1,6 @@
 import type { CreateBillingContextDto } from "@app/contracts";
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "apps/backend/prisma/prisma.service";
 import { ContextLogger } from "../../common/logger/context.logger";
 import { generateFiscalCode } from "../../common/utils/fiscal-year.utils";
@@ -236,6 +237,9 @@ export class BillingContextService {
                         taxPercentage: snapshot.taxPercentage.toString(),
                         taxAmount: snapshot.taxAmount.toString(),
                         finalAmount: snapshot.finalAmount.toString(),
+                        tdsEnabled: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsEnabled ?? false,
+                        tdsPercentage: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsPercentage || "0",
+                        tdsAmount: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsAmount || "0",
                         createdAt: snapshot.createdAt
                     }
                     : null
@@ -430,6 +434,9 @@ export class BillingContextService {
                     taxPercentage: groupSnapshot.taxPercentage.toString(),
                     taxAmount: groupSnapshot.taxAmount.toString(),
                     finalAmount: groupSnapshot.finalAmount.toString(),
+                    tdsEnabled: (groupSnapshot.inputs as any)?.__TDS_METADATA__?.tdsEnabled ?? false,
+                    tdsPercentage: (groupSnapshot.inputs as any)?.__TDS_METADATA__?.tdsPercentage || "0",
+                    tdsAmount: (groupSnapshot.inputs as any)?.__TDS_METADATA__?.tdsAmount || "0",
 
                     createdAt: groupSnapshot.createdAt
                 }
