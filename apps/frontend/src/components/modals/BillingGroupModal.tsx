@@ -114,12 +114,7 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                 tdsAmt = String(meta.tdsAmount || '0');
             }
 
-            // Fallback for older snapshots (prioritizing customer metadata saved in the legacy snapshot)
-            if (!tdsEnabled && snapshotInputs?.__CUSTOMER_METADATA__?.tds) {
-                tdsEnabled = true;
-                tdsPerc = String(snapshotInputs.__CUSTOMER_METADATA__.tdsno || '2');
-                tdsAmt = (Number(subTotal || totalAmt) * (Number(tdsPerc) / 100)).toFixed(2);
-            }
+
 
             let finalTotal = totalAmt;
             if (tdsEnabled && tdsAmt && Number(tdsAmt) > 0) {
