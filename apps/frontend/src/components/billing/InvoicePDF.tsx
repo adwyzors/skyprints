@@ -214,7 +214,8 @@ const InvoicePDF = ({ invoiceData, invoiceDataList }: InvoicePDFProps) => {
         <Document>
             {list.map((data, index) => {
                 const totalNumber = parseFloat(data.total);
-                const roundedTotal = Math.round(totalNumber * 100) / 100;
+                const roundedTotal = Math.round(totalNumber);
+                const roundOff = (roundedTotal - totalNumber).toFixed(2);
 
                 return (
                 <Page key={index} size="A4" orientation="landscape" style={styles.page}>
@@ -296,6 +297,13 @@ const InvoicePDF = ({ invoiceData, invoiceDataList }: InvoicePDFProps) => {
                         <View style={styles.totalRow}>
                             <Text style={styles.totalLabel}>TDS ({parseFloat(data.tdsPercentage || '0').toFixed(1)}%):</Text>
                             <Text style={styles.totalValue}>-{parseFloat(data.tdsAmount || '0').toFixed(2)}</Text>
+                        </View>
+                    )}
+
+                    {parseFloat(roundOff) !== 0 && (
+                        <View style={styles.totalRow}>
+                            <Text style={styles.totalLabel}>Round Off:</Text>
+                            <Text style={styles.totalValue}>{parseFloat(roundOff) > 0 ? '+' : ''}{roundOff}</Text>
                         </View>
                     )}
 
