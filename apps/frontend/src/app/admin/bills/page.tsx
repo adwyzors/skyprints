@@ -192,6 +192,17 @@ function BillsPageContent() {
                     tdsAmt = String(meta.tdsAmount || '0');
                 }
 
+                // Mathematical fallback for TDS (when updated via script and missing __TDS_METADATA__)
+                if (!tdsEnabled && subTotal && totalAmt) {
+                    const expectedWithoutTds = Number(subTotal) + Number(taxAmt || '0');
+                    const diff = expectedWithoutTds - Number(totalAmt);
+                    if (diff > 0.01) {
+                        tdsEnabled = true;
+                        tdsAmt = diff.toFixed(2);
+                        tdsPerc = (diff / Number(subTotal) * 100).toFixed(2);
+                    }
+                }
+
 
 
                 let finalTotal = totalAmt;

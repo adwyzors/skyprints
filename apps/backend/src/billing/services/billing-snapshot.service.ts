@@ -732,6 +732,21 @@ export class BillingSnapshotService {
             throw new Error("No snapshot found");
         }
 
+        let tdsEnabled = (snapshot.inputs as any)?.__TDS_METADATA__?.tdsEnabled ?? false;
+        let tdsPercentage = (snapshot.inputs as any)?.__TDS_METADATA__?.tdsPercentage || "0";
+        let tdsAmount = (snapshot.inputs as any)?.__TDS_METADATA__?.tdsAmount || "0";
+
+        if (!tdsEnabled) {
+            const diff = snapshot.subTotalAmount.plus(snapshot.taxAmount).minus(snapshot.finalAmount);
+            if (diff.greaterThan(0.01)) {
+                tdsEnabled = true;
+                tdsAmount = diff.toFixed(2);
+                if (snapshot.subTotalAmount.greaterThan(0)) {
+                    tdsPercentage = diff.div(snapshot.subTotalAmount).mul(100).toFixed(2);
+                }
+            }
+        }
+
         return {
             billingContextId: context.id,
             type: context.type,
@@ -747,9 +762,9 @@ export class BillingSnapshotService {
             taxPercentage: snapshot.taxPercentage.toString(),
             taxAmount: snapshot.taxAmount.toString(),
             finalAmount: snapshot.finalAmount.toString(),
-            tdsEnabled: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsEnabled ?? false,
-            tdsPercentage: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsPercentage || "0",
-            tdsAmount: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsAmount || "0",
+            tdsEnabled,
+            tdsPercentage,
+            tdsAmount,
         };
     }
 }

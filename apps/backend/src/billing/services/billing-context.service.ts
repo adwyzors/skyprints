@@ -237,9 +237,30 @@ export class BillingContextService {
                         taxPercentage: snapshot.taxPercentage.toString(),
                         taxAmount: snapshot.taxAmount.toString(),
                         finalAmount: snapshot.finalAmount.toString(),
-                        tdsEnabled: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsEnabled ?? false,
-                        tdsPercentage: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsPercentage || "0",
-                        tdsAmount: (snapshot.inputs as any)?.__TDS_METADATA__?.tdsAmount || "0",
+                        tdsEnabled: (() => {
+                            const meta = (snapshot.inputs as any)?.__TDS_METADATA__;
+                            if (meta?.tdsEnabled) return true;
+                            const diff = snapshot.subTotalAmount.plus(snapshot.taxAmount).minus(snapshot.finalAmount);
+                            return diff.greaterThan(0.01);
+                        })(),
+                        tdsPercentage: (() => {
+                            const meta = (snapshot.inputs as any)?.__TDS_METADATA__;
+                            if (meta?.tdsPercentage) return String(meta.tdsPercentage);
+                            const diff = snapshot.subTotalAmount.plus(snapshot.taxAmount).minus(snapshot.finalAmount);
+                            if (diff.greaterThan(0.01) && snapshot.subTotalAmount.greaterThan(0)) {
+                                return diff.div(snapshot.subTotalAmount).mul(100).toFixed(2);
+                            }
+                            return "0";
+                        })(),
+                        tdsAmount: (() => {
+                            const meta = (snapshot.inputs as any)?.__TDS_METADATA__;
+                            if (meta?.tdsAmount) return String(meta.tdsAmount);
+                            const diff = snapshot.subTotalAmount.plus(snapshot.taxAmount).minus(snapshot.finalAmount);
+                            if (diff.greaterThan(0.01)) {
+                                return diff.toFixed(2);
+                            }
+                            return "0";
+                        })(),
                         createdAt: snapshot.createdAt
                     }
                     : null
@@ -434,10 +455,30 @@ export class BillingContextService {
                     taxPercentage: groupSnapshot.taxPercentage.toString(),
                     taxAmount: groupSnapshot.taxAmount.toString(),
                     finalAmount: groupSnapshot.finalAmount.toString(),
-                    tdsEnabled: (groupSnapshot.inputs as any)?.__TDS_METADATA__?.tdsEnabled ?? false,
-                    tdsPercentage: (groupSnapshot.inputs as any)?.__TDS_METADATA__?.tdsPercentage || "0",
-                    tdsAmount: (groupSnapshot.inputs as any)?.__TDS_METADATA__?.tdsAmount || "0",
-
+                    tdsEnabled: (() => {
+                        const meta = (groupSnapshot.inputs as any)?.__TDS_METADATA__;
+                        if (meta?.tdsEnabled) return true;
+                        const diff = groupSnapshot.subTotalAmount.plus(groupSnapshot.taxAmount).minus(groupSnapshot.finalAmount);
+                        return diff.greaterThan(0.01);
+                    })(),
+                    tdsPercentage: (() => {
+                        const meta = (groupSnapshot.inputs as any)?.__TDS_METADATA__;
+                        if (meta?.tdsPercentage) return String(meta.tdsPercentage);
+                        const diff = groupSnapshot.subTotalAmount.plus(groupSnapshot.taxAmount).minus(groupSnapshot.finalAmount);
+                        if (diff.greaterThan(0.01) && groupSnapshot.subTotalAmount.greaterThan(0)) {
+                            return diff.div(groupSnapshot.subTotalAmount).mul(100).toFixed(2);
+                        }
+                        return "0";
+                    })(),
+                    tdsAmount: (() => {
+                        const meta = (groupSnapshot.inputs as any)?.__TDS_METADATA__;
+                        if (meta?.tdsAmount) return String(meta.tdsAmount);
+                        const diff = groupSnapshot.subTotalAmount.plus(groupSnapshot.taxAmount).minus(groupSnapshot.finalAmount);
+                        if (diff.greaterThan(0.01)) {
+                            return diff.toFixed(2);
+                        }
+                        return "0";
+                    })(),
                     createdAt: groupSnapshot.createdAt
                 }
                 : null
