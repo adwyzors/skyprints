@@ -303,7 +303,7 @@ export class BillingSnapshotService {
             const taxAmount = subtotal.mul(taxPercentage.div(100));
 
             const tdsEnabled = customer?.tds ?? false;
-            const tdsPercentage = tdsEnabled ? new Prisma.Decimal(customer?.tdsno || 2) : new Prisma.Decimal(0);
+            const tdsPercentage = tdsEnabled ? new Prisma.Decimal(2) : new Prisma.Decimal(0);
             const tdsAmount = subtotal.mul(tdsPercentage.div(100));
             const finalAmount = subtotal.plus(taxAmount).minus(tdsAmount);
 
@@ -543,7 +543,7 @@ export class BillingSnapshotService {
             const taxAmount = subtotal.mul(taxPercentage.div(100));
 
             const tdsEnabled = order?.customer?.tds ?? false;
-            const tdsPercentage = tdsEnabled ? new Prisma.Decimal(order?.customer?.tdsno || 2) : new Prisma.Decimal(0);
+            const tdsPercentage = tdsEnabled ? new Prisma.Decimal(2) : new Prisma.Decimal(0);
             const tdsAmount = subtotal.mul(tdsPercentage.div(100));
             const finalAmount = subtotal.plus(taxAmount).minus(tdsAmount);
 
