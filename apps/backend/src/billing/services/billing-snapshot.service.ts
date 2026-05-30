@@ -491,24 +491,7 @@ export class BillingSnapshotService {
             );
 
         /* -------------------------------
-           2️⃣ Save DRAFT (SHORT TX)
-        ------------------------------- */
-        const { contextId, draftId } =
-            await this.prisma.transaction(async tx => {
-                const draft = await this.saveDraftTx(
-                    tx,
-                    context.id,
-                    inputs,
-                    intent,
-                    reason,
-                    createdBy,
-                );
-
-                return { contextId: context.id, draftId: draft.id };
-            });
-
-        /* -------------------------------
-           3️⃣ Calculate (NO TX)
+           2️⃣ Calculate (NO TX)
         ------------------------------- */
         const calc =
             await this.calculator.calculateForOrder(
@@ -517,13 +500,34 @@ export class BillingSnapshotService {
             );
 
         /* -------------------------------
-           4️⃣ Finalize snapshot (SHORT TX)
+           3️⃣ Create Snapshot & Finalize (SINGLE TX)
         ------------------------------- */
         const snapshot = await this.prisma.transaction(async tx => {
+            // A. Invalidate previous latest snapshot for the given intent
+            await tx.billingSnapshot.updateMany({
+                where: {
+                    billingContextId: context.id,
+                    intent,
+                    isLatest: true,
+                },
+                data: { isLatest: false },
+            });
+
+            // B. Compute next version safely
+            const { _max } = await tx.billingSnapshot.aggregate({
+                where: { billingContextId: context.id },
+                _max: { version: true },
+            });
+
+            const version = (_max.version ?? 0) + 1;
+
+            // C. Fetch order & customer info
             const order = await tx.order.findUnique({
                 where: { id: orderId },
                 select: {
                     customerId: true,
+                    estimatedAmount: true,
+                    statusCode: true,
                     customer: {
                         select: {
                             name: true,
@@ -538,16 +542,20 @@ export class BillingSnapshotService {
                 }
             });
 
+            if (!order) {
+                throw new Error(`Order ${orderId} not found during finalization`);
+            }
+
             const subtotal = calc.result;
-            const taxPercentage = order?.customer?.tax ? new Prisma.Decimal(5) : new Prisma.Decimal(0);
+            const taxPercentage = order.customer?.tax ? new Prisma.Decimal(5) : new Prisma.Decimal(0);
             const taxAmount = subtotal.mul(taxPercentage.div(100));
 
-            const tdsEnabled = order?.customer?.tds ?? false;
+            const tdsEnabled = order.customer?.tds ?? false;
             const tdsPercentage = tdsEnabled ? new Prisma.Decimal(2) : new Prisma.Decimal(0);
             const tdsAmount = subtotal.mul(tdsPercentage.div(100));
             const finalAmount = subtotal.plus(taxAmount).minus(tdsAmount);
 
-            const customerMeta = order?.customer ? {
+            const customerMeta = order.customer ? {
                 name: order.customer.name,
                 code: order.customer.code,
                 gstno: order.customer.gstno,
@@ -557,45 +565,41 @@ export class BillingSnapshotService {
                 address: order.customer.address
             } : null;
 
-            const s = await this.finalizeContextTx(
-                tx,
-                draftId,
-                calc.result,
-                {
-                    ...calc.inputs,
-                    '__ORDER_RESULT__': calc.result.toString(),
-                    '__CUSTOMER_METADATA__': customerMeta,
-                    '__TDS_METADATA__': {
-                        tdsEnabled,
-                        tdsPercentage: tdsPercentage.toString(),
-                        tdsAmount: tdsAmount.toString()
-                    }
-                },
-                {
-                    taxEnabled: order?.customer?.tax ?? false,
+            // D. Create the final snapshot directly
+            const s = await tx.billingSnapshot.create({
+                data: {
+                    billingContextId: context.id,
+                    version,
+                    isLatest: true,
+                    intent,
+                    inputs: {
+                        ...calc.inputs,
+                        '__ORDER_RESULT__': calc.result.toString(),
+                        '__CUSTOMER_METADATA__': customerMeta,
+                        '__TDS_METADATA__': {
+                            tdsEnabled,
+                            tdsPercentage: tdsPercentage.toString(),
+                            tdsAmount: tdsAmount.toString()
+                        }
+                    },
+                    result: calc.result,
+                    currency: 'INR',
+                    calculationType: CalculationType.RECALCULATED,
+                    reason,
+                    createdBy,
+                    taxEnabled: order.customer?.tax ?? false,
                     subTotalAmount: subtotal,
                     taxPercentage,
                     taxAmount,
                     finalAmount,
                 },
-                createdBy,
-            );
+            });
 
             // 🔑 HANDLE OUTSTANDING ADJUSTMENT (REDUCE ON INVOICE)
             this.logger.log(`[finalizeOrder] orderId=${orderId}, s.version=${s.version}, intent=${intent}`);
             if (s.version === 1) {
-                const order = await tx.order.findUnique({
-                    where: { id: orderId },
-                    select: { estimatedAmount: true, customerId: true, statusCode: true }
-                });
-
-                if (!order) {
-                    this.logger.error(`[finalizeOrder] Order ${orderId} not found during finalization`);
-                    return s;
-                }
-
                 this.logger.log(`finalizeOrder order.statusCode=${order.statusCode}`);
-                this.logger.log(`[OUTSTANDING] order.estimatedAmount=${order?.estimatedAmount}, customerId=${order?.customerId}`);
+                this.logger.log(`[OUTSTANDING] order.estimatedAmount=${order.estimatedAmount}, customerId=${order.customerId}`);
                 const wasAddedToOutstanding = ([
                     OrderStatus.PRODUCTION_READY,
                     OrderStatus.IN_PRODUCTION,
@@ -649,9 +653,6 @@ export class BillingSnapshotService {
                     where: { id: orderId },
                     data: { statusCode: OrderStatus.BILLED },
                 });
-
-            } else {
-                // Re-billing: No adjustment needed if we only track WIP in outstandingAmount
             }
 
             return s;

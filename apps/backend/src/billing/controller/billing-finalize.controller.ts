@@ -32,7 +32,7 @@ export class BillingController {
         return this.service.finalizeOrder(
             body.orderId,
             body.inputs,
-            BillingSnapshotIntent.DRAFT,
+            BillingSnapshotIntent.FINAL,
             body.reason,
             ctxuser.id,
         );
