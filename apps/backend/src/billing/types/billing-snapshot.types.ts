@@ -12,12 +12,12 @@ export function isOrderBillingInputs(
     
     for (const [key, val] of entries) {
         // Skip metadata keys
-        if (key === '__RESULT__' || key === '__ORDER_RESULT__' || key === '__CUSTOMER_METADATA__') continue;
+        if (key.startsWith('__')) continue;
 
         // If it's a nested object (Run ID -> Fields)
         if (val && typeof val === "object" && !Array.isArray(val)) {
             for (const [fieldKey, fieldVal] of Object.entries(val as Record<string, unknown>)) {
-                if (fieldKey === '__RESULT__') continue;
+                if (fieldKey.startsWith('__')) continue;
                 
                 // Allow numbers or numeric strings
                 if (typeof fieldVal !== "number" && typeof fieldVal !== "string") {
