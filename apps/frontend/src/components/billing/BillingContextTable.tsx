@@ -93,7 +93,7 @@ export default function BillingContextTable({ data, startIndex, onRowClick, sele
                                     <td className="px-6 py-4 text-gray-600 font-medium">
                                         <div className="flex items-center gap-2">
                                             <Calendar className="w-4 h-4 text-gray-400" />
-                                            {formatDate(context.latestSnapshot?.createdAt)}
+                                            {formatDate(context.createdAt || context.latestSnapshot?.createdAt)}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">

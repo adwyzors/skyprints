@@ -260,7 +260,7 @@ function BillingContextDetailPage() {
                     )}
                     <div className="flex items-center gap-3 mt-4 text-sm text-gray-500">
                         <Calendar className="w-4 h-4" />
-                        <span>Created: {formatDate(details.latestSnapshot?.createdAt)}</span>
+                        <span>Created: {formatDate(details.createdAt || details.latestSnapshot?.createdAt)}</span>
                     </div>
                 </div>
 

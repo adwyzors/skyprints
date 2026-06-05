@@ -213,6 +213,7 @@ export class BillingContextService {
                 ordersCount: ctx._count.orders,
                 customerNames: uniqueCustomers,
                 jobCodes: uniqueJobCodes,
+                createdAt: ctx.createdAt,
                 latestSnapshot: snapshot
                     ? {
                         id: snapshot.id,
@@ -340,6 +341,7 @@ export class BillingContextService {
             type: context.type,
             name: context.name,
             description: context.description,
+            createdAt: context.createdAt,
 
             orders: await Promise.all(context.orders.map(async ({ order }) => {
                 const groupInputs = groupSnapshot?.inputs as any;

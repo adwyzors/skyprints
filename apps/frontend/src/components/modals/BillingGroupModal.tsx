@@ -146,8 +146,8 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
 
                 billTo: details.orders[0]?.customer?.name || 'NA',
                 address: details.orders[0]?.customer?.address || 'NA',
-                date: snapshot.createdAt
-                    ? new Date(snapshot.createdAt).toLocaleDateString('en-IN', {
+                date: (details.createdAt || snapshot.createdAt)
+                    ? new Date(details.createdAt || snapshot.createdAt).toLocaleDateString('en-IN', {
                         day: '2-digit',
                         month: '2-digit',
                         year: 'numeric',
@@ -312,7 +312,7 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                             {/* Additional Meta */}
                             <div className="flex items-center gap-2 text-sm text-gray-500">
                                 <Calendar className="w-4 h-4" />
-                                <span>Created: {formatDate(details.latestSnapshot?.createdAt)}</span>
+                                <span>Created: {formatDate(details.createdAt || details.latestSnapshot?.createdAt)}</span>
                             </div>
 
                             {/* Order List */}

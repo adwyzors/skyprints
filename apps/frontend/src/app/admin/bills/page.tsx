@@ -221,8 +221,8 @@ function BillsPageContent() {
                     gstin: details.orders[0]?.customer?.gstno || 'NA',
                     billTo: details.orders[0]?.customer?.name || 'NA',
                     address: details.orders[0]?.customer?.address || 'NA',
-                    date: snapshot?.createdAt
-                        ? new Date(snapshot.createdAt).toLocaleDateString('en-IN', {
+                    date: (details.createdAt || snapshot?.createdAt)
+                        ? new Date(details.createdAt || snapshot?.createdAt || '').toLocaleDateString('en-IN', {
                             day: '2-digit', month: '2-digit', year: 'numeric',
                         })
                         : 'NA',
