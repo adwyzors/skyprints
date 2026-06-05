@@ -32,6 +32,7 @@ export interface BillingContext {
     customerNames?: string;
     jobCodes?: string;
     isTest: boolean;
+    createdAt: string;
 }
 
 export interface GetBillingContextsResponse {

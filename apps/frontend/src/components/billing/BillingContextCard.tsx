@@ -97,7 +97,7 @@ export default function BillingContextCard({ context, onClick, selected, onSelec
                 <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
                     <div className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
-                        <span>Created {formatDate(context.latestSnapshot?.createdAt)}</span>
+                        <span>Created {formatDate(context.createdAt || context.latestSnapshot?.createdAt)}</span>
                     </div>
                 </div>
             </div>
