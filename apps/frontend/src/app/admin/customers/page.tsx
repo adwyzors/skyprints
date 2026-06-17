@@ -19,16 +19,21 @@ function CustomerClientWrapper() {
         customers: [],
         total: 0,
         page: 1,
-        limit: 10, // default page size
+        limit: 10,
         totalPages: 0,
     });
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [currentLimit, setCurrentLimit] = useState(10);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    // Debounce search input
     const updateSearch = useCallback(
-        debounce((value: string) => setDebouncedSearch(value), 500),
+        debounce((value: string) => {
+            setDebouncedSearch(value);
+            setCurrentPage(1);
+        }, 500),
         [],
     );
 
@@ -37,33 +42,35 @@ function CustomerClientWrapper() {
         return () => updateSearch.cancel();
     }, [searchQuery, updateSearch]);
 
-    const fetchCustomers = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = await getCustomersWithHeaders({
-                page: customersData.page,
-                limit: customersData.limit,
-                search: debouncedSearch || undefined,
-            });
-            setCustomersData(data);
-        } catch (err) {
-            console.error('Failed to fetch customers', err);
-        } finally {
-            setLoading(false);
-        }
-    }, [customersData.page, customersData.limit, debouncedSearch]);
-
     useEffect(() => {
+        let cancelled = false;
+        async function fetchCustomers() {
+            setLoading(true);
+            try {
+                const data = await getCustomersWithHeaders({
+                    page: currentPage,
+                    limit: currentLimit,
+                    search: debouncedSearch || undefined,
+                });
+                if (!cancelled) setCustomersData(data);
+            } catch (err) {
+                console.error('Failed to fetch customers', err);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }
         fetchCustomers();
-    }, [fetchCustomers]);
+        return () => { cancelled = true; };
+    }, [currentPage, currentLimit, debouncedSearch, refreshTrigger]);
 
-    const handlePageChange = (newPage: number) => {
-        setCustomersData((prev) => ({ ...prev, page: newPage }));
-    };
+    const handlePageChange = (newPage: number) => setCurrentPage(newPage);
 
     const handlePageSizeChange = (newSize: number) => {
-        setCustomersData((prev) => ({ ...prev, limit: newSize, page: 1 }));
+        setCurrentLimit(newSize);
+        setCurrentPage(1);
     };
+
+    const refetch = useCallback(() => setRefreshTrigger(prev => prev + 1), []);
 
     return (
         <CustomerClient
@@ -72,7 +79,7 @@ function CustomerClientWrapper() {
             setSearchQuery={setSearchQuery}
             onPageChange={handlePageChange}
             onPageSizeChange={handlePageSizeChange}
-            refetch={fetchCustomers}
+            refetch={refetch}
             loading={loading}
         />
     );

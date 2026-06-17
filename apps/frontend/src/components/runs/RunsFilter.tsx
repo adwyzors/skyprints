@@ -13,7 +13,7 @@ import { getCustomers } from '@/services/customer.service';
 import { getProcessLifecycleStatuses } from '@/services/process.service';
 import { getManagers } from '@/services/user.service';
 import { X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface RunsFilterProps {
     filters: {
@@ -41,6 +41,7 @@ export default function RunsFilter({ filters, locations, onChange, onClear, onCl
     const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
     const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
     const [processes] = useState<ProcessSummary[]>(STATIC_PROCESSES);
+    const hasFetchedRef = useRef(false);
     const [statuses, setStatuses] = useState<string[]>(['PENDING', 'CONFIGURE', 'DESIGN', 'IN_PROGRESS', 'PRODUCTION_READY', 'COMPLETE']);
     const [loadingStatuses, setLoadingStatuses] = useState(false);
 
@@ -56,6 +57,8 @@ export default function RunsFilter({ filters, locations, onChange, onClear, onCl
     ];
 
     useEffect(() => {
+        if (hasFetchedRef.current) return;
+        hasFetchedRef.current = true;
         const fetchData = async () => {
             try {
                 const [custs, mgrs] = await Promise.all([

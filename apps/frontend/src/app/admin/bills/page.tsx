@@ -49,6 +49,7 @@ function BillsPageContent() {
         totalQuantity: 0,
         totalEstimatedAmount: 0
     });
+    const [currentPage, setCurrentPage] = useState(1);
 
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -65,12 +66,10 @@ function BillsPageContent() {
     const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
     const [isDownloading, setIsDownloading] = useState(false);
 
-    // Debounce search input
     const debouncedSearchUpdate = useCallback(
         debounce((value: string) => {
             setDebouncedSearch(value);
-            // Reset to page 1 when search changes
-            setData((prev) => ({ ...prev, page: 1 }));
+            setCurrentPage(1);
         }, 500),
         []
     );
@@ -81,59 +80,58 @@ function BillsPageContent() {
     }, [searchQuery, debouncedSearchUpdate]);
 
     useEffect(() => {
+        let cancelled = false;
         const fetchContexts = async () => {
             setLoading(true);
             try {
-                // Determine what isTaxEnabled to pass to the API:
-                // - Both true: pass undefined (shows both)
-                // - Only taxEnabled is true: pass true
-                // - Only taxDisabled is true: pass false
-                // - Both false: do not query API, set data to empty
                 let isTaxEnabledApiValue: boolean | undefined = undefined;
                 if (taxEnabled && !taxDisabled) {
                     isTaxEnabledApiValue = true;
                 } else if (!taxEnabled && taxDisabled) {
                     isTaxEnabledApiValue = false;
                 } else if (!taxEnabled && !taxDisabled) {
-                    setData({
-                        data: [],
-                        total: 0,
-                        page: 1,
-                        limit: pageSize,
-                        totalPages: 0,
-                        totalQuantity: 0,
-                        totalEstimatedAmount: 0
-                    });
-                    setLoading(false);
+                    if (!cancelled) {
+                        setData({
+                            data: [],
+                            total: 0,
+                            page: currentPage,
+                            limit: pageSize,
+                            totalPages: 0,
+                            totalQuantity: 0,
+                            totalEstimatedAmount: 0
+                        });
+                        setLoading(false);
+                    }
                     return;
                 }
 
                 const response = await getBillingContexts({
-                    page: data.page,
+                    page: currentPage,
                     limit: pageSize,
                     search: debouncedSearch,
                     isTest: isTest,
                     ...(isTaxEnabledApiValue !== undefined ? { isTaxEnabled: isTaxEnabledApiValue } : {}),
                 });
-                setData(response);
+                if (!cancelled) setData(response);
             } catch (error) {
                 console.error('Failed to fetch billing contexts:', error);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
         fetchContexts();
-    }, [data.page, debouncedSearch, pageSize, isTest, taxEnabled, taxDisabled]);
+        return () => { cancelled = true; };
+    }, [currentPage, debouncedSearch, pageSize, isTest, taxEnabled, taxDisabled]);
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= data.totalPages) {
-            setData((prev) => ({ ...prev, page: newPage }));
+            setCurrentPage(newPage);
         }
     };
 
     const handlePageSizeChange = (newSize: number) => {
         setPageSize(newSize);
-        setData((prev) => ({ ...prev, page: 1 })); // Reset to page 1 on size change
+        setCurrentPage(1);
     };
 
     const handleContextClick = (id: string) => {

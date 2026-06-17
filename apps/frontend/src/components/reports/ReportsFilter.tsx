@@ -5,7 +5,7 @@ import SearchableCustomerSelect from '../common/SearchableCustomerSelect';
 import SearchableProcessSelect from '../common/SearchableProcessSelect';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import { ReportsQuery } from '@/domain/model/reports.model';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getCustomers } from '@/services/customer.service';
 import { getProcesses } from '@/services/process.service';
 import { getLocations } from '@/services/location.service';
@@ -23,8 +23,11 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [processes, setProcesses] = useState<ProcessSummary[]>([]);
     const [locations, setLocations] = useState<Location[]>([]);
+    const hasFetchedRef = useRef(false);
 
     useEffect(() => {
+        if (hasFetchedRef.current) return;
+        hasFetchedRef.current = true;
         const loadFilterData = async () => {
             try {
                 const [customerData, processData, locationData] = await Promise.all([

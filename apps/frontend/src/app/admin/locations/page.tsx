@@ -25,9 +25,15 @@ function LocationClientWrapper() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [currentLimit, setCurrentLimit] = useState(10);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const updateSearch = useCallback(
-        debounce((value: string) => setDebouncedSearch(value), 500),
+        debounce((value: string) => {
+            setDebouncedSearch(value);
+            setCurrentPage(1);
+        }, 500),
         [],
     );
 
@@ -36,34 +42,36 @@ function LocationClientWrapper() {
         return () => updateSearch.cancel();
     }, [searchQuery, updateSearch]);
 
-    const fetchLocations = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = await getLocationsWithHeaders({
-                page: locationsData.page,
-                limit: locationsData.limit,
-                search: debouncedSearch || undefined,
-                isActive: undefined, // Fetch all for admin
-            });
-            setLocationsData(data);
-        } catch (err) {
-            console.error('Failed to fetch locations', err);
-        } finally {
-            setLoading(false);
-        }
-    }, [locationsData.page, locationsData.limit, debouncedSearch]);
-
     useEffect(() => {
+        let cancelled = false;
+        async function fetchLocations() {
+            setLoading(true);
+            try {
+                const data = await getLocationsWithHeaders({
+                    page: currentPage,
+                    limit: currentLimit,
+                    search: debouncedSearch || undefined,
+                    isActive: undefined,
+                });
+                if (!cancelled) setLocationsData(data);
+            } catch (err) {
+                console.error('Failed to fetch locations', err);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }
         fetchLocations();
-    }, [fetchLocations]);
+        return () => { cancelled = true; };
+    }, [currentPage, currentLimit, debouncedSearch, refreshTrigger]);
 
-    const handlePageChange = (newPage: number) => {
-        setLocationsData((prev) => ({ ...prev, page: newPage }));
-    };
+    const handlePageChange = (newPage: number) => setCurrentPage(newPage);
 
     const handlePageSizeChange = (newSize: number) => {
-        setLocationsData((prev) => ({ ...prev, limit: newSize, page: 1 }));
+        setCurrentLimit(newSize);
+        setCurrentPage(1);
     };
+
+    const refetch = useCallback(() => setRefreshTrigger(prev => prev + 1), []);
 
     return (
         <LocationClient
@@ -72,7 +80,7 @@ function LocationClientWrapper() {
             setSearchQuery={setSearchQuery}
             onPageChange={handlePageChange}
             onPageSizeChange={handlePageSizeChange}
-            refetch={fetchLocations}
+            refetch={refetch}
             loading={loading}
         />
     );

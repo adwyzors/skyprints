@@ -157,6 +157,7 @@ function RunsPageContent() {
 
     const hasInitializedRef = useRef(false);
     const isMountedRef = useRef(false);
+    const hasFetchedLocationsRef = useRef(false);
 
     const updateParams = useCallback((newParams: Record<string, string | string[] | number | null>) => {
         const next = new URLSearchParams(searchParams.toString());
@@ -241,6 +242,8 @@ function RunsPageContent() {
     }, [user, hasPermission, pathname, router]);
 
     useEffect(() => {
+        if (hasFetchedLocationsRef.current) return;
+        hasFetchedLocationsRef.current = true;
         const fetchData = async () => {
             try {
                 const locs = await getLocations();
