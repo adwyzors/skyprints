@@ -17,7 +17,7 @@ import { OrderCardData } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrderCards } from '@/services/orders.service';
 import { Box, ChevronLeft, Filter, Loader2, Plus, Search } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /* =================================================
    COMPONENT
@@ -76,8 +76,10 @@ function AdminOrdersContent() {
     });
     const [loading, setLoading] = useState(true);
     const [openCreate, setOpenCreate] = useState(false);
-    const [isMounted, setIsMounted] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    const hasInitializedRef = useRef(false);
+    const isMountedRef = useRef(false);
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -86,7 +88,9 @@ function AdminOrdersContent() {
     /* ================= EFFECTS ================= */
 
     useEffect(() => {
-        setIsMounted(true);
+        if (hasInitializedRef.current) return;
+        hasInitializedRef.current = true;
+
         const savedViewMode = localStorage.getItem('orders-view-mode');
         if (savedViewMode === 'grid' || savedViewMode === 'table') setViewMode(savedViewMode);
 
@@ -123,14 +127,16 @@ function AdminOrdersContent() {
         if (changed) {
             router.replace(`/admin/orders?${next.toString()}`);
         }
-    }, [user, hasPermission, searchParams.toString(), router]);
+
+        isMountedRef.current = true;
+    }, [user, hasPermission, router]);
 
     // Persist sidebar state
     useEffect(() => {
-        if (isMounted) {
+        if (isMountedRef.current) {
             localStorage.setItem('orders-sidebar-open', String(isSidebarOpen));
         }
-    }, [isSidebarOpen, isMounted]);
+    }, [isSidebarOpen]);
 
     const updateParams = useCallback((newParams: Record<string, string | string[] | number | null>) => {
         const next = new URLSearchParams(searchParams.toString());
@@ -175,6 +181,7 @@ function AdminOrdersContent() {
     const clearCache = () => { cacheRef[0] = {}; };
 
     useEffect(() => {
+        if (!isMountedRef.current) return;
         let cancelled = false;
         const fetchOrders = async () => {
             setLoading(true);
@@ -252,7 +259,7 @@ function AdminOrdersContent() {
 
     /* ================= SSR GUARD ================= */
 
-    if (!isMounted) {
+    if (!isMountedRef.current) {
         return null;
     }
 

@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // Enhanced Run interface to support Card View
 interface Run {
@@ -155,6 +155,9 @@ function RunsPageContent() {
     const [locations, setLocations] = useState<any[]>([]);
     const [lifecycleStatuses, setLifecycleStatuses] = useState<string[]>([]);
 
+    const hasInitializedRef = useRef(false);
+    const isMountedRef = useRef(false);
+
     const updateParams = useCallback((newParams: Record<string, string | string[] | number | null>) => {
         const next = new URLSearchParams(searchParams.toString());
         Object.entries(newParams).forEach(([key, val]) => {
@@ -184,6 +187,9 @@ function RunsPageContent() {
     };
 
     useEffect(() => {
+        if (hasInitializedRef.current) return;
+        hasInitializedRef.current = true;
+
         setIsMounted(true);
         const savedViewMode = localStorage.getItem('runs-view-mode');
         if (savedViewMode === 'grid' || savedViewMode === 'table') setViewMode(savedViewMode);
@@ -230,7 +236,9 @@ function RunsPageContent() {
 
             if (changed) router.replace(`${pathname}?${next.toString()}`);
         }
-    }, [user, hasPermission, searchParams.toString(), pathname, router]);
+
+        isMountedRef.current = true;
+    }, [user, hasPermission, pathname, router]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -265,6 +273,7 @@ function RunsPageContent() {
     }, [filters.processId]);
 
     useEffect(() => {
+        if (!isMountedRef.current) return;
         let cancelled = false;
         async function fetchRuns() {
             setLoading(true);

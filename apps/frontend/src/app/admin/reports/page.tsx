@@ -49,9 +49,10 @@ function ReportsPageContent() {
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearch = useDebounce(searchTerm, 500);
 
-    // Sync debounced search to query
+    // Sync debounced search to query; skip the no-op on initial mount when both are empty
     useEffect(() => {
-        setQuery(prev => ({ ...prev, search: debouncedSearch, page: 1 }));
+        if (!debouncedSearch && !query.search) return;
+        setQuery(prev => ({ ...prev, search: debouncedSearch || undefined, page: 1 }));
     }, [debouncedSearch]);
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
