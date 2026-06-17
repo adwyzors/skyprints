@@ -51,6 +51,7 @@ npm run lint    # next lint (no test runner configured)
 - [Auth / Keycloak — flow, security notes, things to fix](rules/auth.md)
 - [Known issues &amp; patterns to avoid](rules/known-issues.md)
 - [Vercel serverless deployment constraints](rules/deployment.md)
+- [Domain knowledge — processes, workflows, billing, fiscal sequences](rules/domain.md)
 
 ## Contracts package
 
