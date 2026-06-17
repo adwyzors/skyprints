@@ -111,12 +111,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true;
     }, [pathname, user, isAuthenticated]);
 
-    // Redirect to 403 if not authorized but authenticated
+    // Redirect to role home if not authorized for the current path
     useEffect(() => {
         if (!loading && isAuthenticated && !isAuthorized && pathname !== '/403') {
-            router.replace('/403');
+            const userRole = user?.user?.role;
+            if (userRole === 'MANAGER') {
+                router.replace('/manager/runs');
+            } else {
+                router.replace('/403');
+            }
         }
-    }, [loading, isAuthenticated, isAuthorized, pathname, router]);
+    }, [loading, isAuthenticated, isAuthorized, pathname, router, user]);
 
     // Apply user preferences (e.g., font size)
     useEffect(() => {

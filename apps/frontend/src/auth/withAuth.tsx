@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import { redirectToLogin } from "./authClient";
 import { useAuth } from "./AuthProvider";
+import { AuthUser } from "./auth.types";
 
 type WithAuthOptions = {
     permission?: string;
@@ -15,7 +16,7 @@ export function withAuth<P extends object>(
     options?: WithAuthOptions
 ) {
     const ProtectedComponent: React.FC<P> = (props) => {
-        const { isAuthenticated, hasPermission, loading } = useAuth();
+        const { isAuthenticated, hasPermission, loading, user } = useAuth();
         const pathname = usePathname();
         const router = useRouter();
 
@@ -34,7 +35,14 @@ export function withAuth<P extends object>(
             ) {
                 console.warn("[AUTH] Permission denied", options.permission);
 
-                // Try to find the first authorized tab as a fallback
+                const userRole = (user as AuthUser | null)?.user?.role;
+
+                if (userRole === 'MANAGER') {
+                    router.replace('/manager/runs');
+                    return;
+                }
+
+                // Admin: find the first authorized tab as a fallback
                 const firstAllowedTab = ADMIN_TABS.find(tab =>
                     !tab.permission || hasPermission(tab.permission as any)
                 );
@@ -45,7 +53,7 @@ export function withAuth<P extends object>(
                     router.replace("/403");
                 }
             }
-        }, [loading, isAuthenticated, pathname, router, hasPermission]);
+        }, [loading, isAuthenticated, pathname, router, hasPermission, user]);
 
         if (loading) return null;
         if (!isAuthenticated) return null;
