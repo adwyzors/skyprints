@@ -4,6 +4,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
 import RunCard from '@/components/runs/RunCard';
+import ViewRunModal from '@/components/modals/ViewRunModal';
 import { getRuns } from '@/services/run.service';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -12,6 +13,7 @@ function ManagerRunsPage() {
     const { user } = useAuth();
     const [runs, setRuns] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
     const fetchRuns = async () => {
         setLoading(true);
@@ -53,11 +55,23 @@ function ManagerRunsPage() {
                             <RunCard
                                 run={run}
                                 context="manager"
+                                onClick={() => setSelectedRunId(run.id)}
                                 onTransitionComplete={fetchRuns}
                             />
                         </div>
                     ))}
                 </div>
+            )}
+
+            {selectedRunId && (
+                <ViewRunModal
+                    runId={selectedRunId}
+                    onClose={() => setSelectedRunId(null)}
+                    onRunUpdate={() => {
+                        setSelectedRunId(null);
+                        fetchRuns();
+                    }}
+                />
             )}
         </div>
     );

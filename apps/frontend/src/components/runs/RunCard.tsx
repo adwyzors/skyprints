@@ -148,10 +148,7 @@ export default function RunCard({ run, active = true, onClick, context, onTransi
 
             {/* CARD CONTENT */}
             <div
-                onClick={onClick || (context === 'manager'
-                    ? () => router.push(`/manager/runs/${run.id}`)
-                    : () => router.push(`/admin/orders/${run.orderProcess?.order?.id}`)
-                )}
+                onClick={onClick || (() => router.push(`/admin/orders/${run.orderProcess?.order?.id}`))}
                 className="group bg-white rounded-2xl border border-gray-200 cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1 flex flex-col isolate overflow-hidden h-full"
             >
                 {/* IMAGE CAROUSEL */}
