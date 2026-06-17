@@ -10,7 +10,6 @@ import { STATIC_PROCESSES } from '@/constants/processes';
 import { Location } from '@/domain/model/location.model';
 import { ProcessSummary } from '@/domain/model/process.model';
 import { getCustomers } from '@/services/customer.service';
-import { getLocations } from '@/services/location.service';
 import { getProcessLifecycleStatuses } from '@/services/process.service';
 import { getManagers } from '@/services/user.service';
 import { X } from 'lucide-react';
@@ -26,22 +25,22 @@ interface RunsFilterProps {
         customerId: string;
         executorId: string;
         reviewerId: string;
-        processId?: string; // Add processId to filters
+        processId?: string;
         locationId?: string;
         orderStatus: string[];
         isTest: string;
     };
+    locations: Location[];
     onChange: (newFilters: any) => void;
     onClear: () => void;
-    onClose?: () => void; // Optional close handler for mobile/sidebar
+    onClose?: () => void;
 }
 
-export default function RunsFilter({ filters, onChange, onClear, onClose }: RunsFilterProps) {
+export default function RunsFilter({ filters, locations, onChange, onClear, onClose }: RunsFilterProps) {
     const { user, hasPermission } = useAuth();
     const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
     const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
-    const [processes, setProcesses] = useState<ProcessSummary[]>(STATIC_PROCESSES);
-    const [locations, setLocations] = useState<Location[]>([]);
+    const [processes] = useState<ProcessSummary[]>(STATIC_PROCESSES);
     const [statuses, setStatuses] = useState<string[]>(['PENDING', 'CONFIGURE', 'DESIGN', 'IN_PROGRESS', 'PRODUCTION_READY', 'COMPLETE']);
     const [loadingStatuses, setLoadingStatuses] = useState(false);
 
@@ -59,14 +58,12 @@ export default function RunsFilter({ filters, onChange, onClear, onClose }: Runs
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [custs, mgrs, locs] = await Promise.all([
+                const [custs, mgrs] = await Promise.all([
                     getCustomers(),
                     getManagers(),
-                    getLocations()
                 ]);
                 setCustomers(custs);
                 setManagers(mgrs);
-                setLocations(locs);
             } catch (error) {
                 console.error("Failed to fetch filter data", error);
             }

@@ -8,18 +8,21 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 export default function AppHeader() {
-    const { hasPermission: hasAuthPermission } = useAuth();
+    const { hasPermission: hasAuthPermission, user: authUser } = useAuth();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const router = useRouter();
     const [isMounted, setIsMounted] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
 
-    const [user, setUser] = useState<{ name: string; role: string; email: string } | null>(null);
-
     const [fontSize, setFontSize] = useState(90);
 
-    // Set mounted state after hydration and fetch user
+    // Derive display user from AuthProvider context — no separate fetchMe needed
+    const user = authUser?.user
+        ? { name: authUser.user.name, role: authUser.user.role, email: authUser.user.email }
+        : null;
+
+    // Set mounted state after hydration and read localStorage
     useEffect(() => {
         setIsMounted(true);
 
@@ -30,18 +33,6 @@ export default function AppHeader() {
             setFontSize(size);
             document.documentElement.style.fontSize = `${size}%`;
         }
-
-        // Import fetchMe dynamically or use the imported one if available
-        import('@/auth/authClient').then(async ({ fetchMe }) => {
-            const result = await fetchMe();
-            if (result.status === 'ok') {
-                setUser({
-                    name: result.user.user.name,
-                    role: result.user.user.role,
-                    email: result.user.user.email
-                });
-            }
-        });
     }, []);
 
     // Close dropdown when clicking outside

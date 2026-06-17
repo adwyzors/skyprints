@@ -476,6 +476,7 @@ function RunsPageContent() {
                 <div className="w-72 h-full overflow-y-auto scrollbar-hide p-3">
                     <RunsFilter
                         filters={filters}
+                        locations={locations}
                         onChange={(newFilters) => {
                             updateParams(newFilters);
                         }}
