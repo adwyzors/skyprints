@@ -15,32 +15,28 @@ import { ContextLogger } from '../../common/logger/context.logger';
  *  - Access to globals
  */
 export function evalCondition(
-    expression: string,
-    context: Record<string, unknown>,
+  expression: string,
+  context: Record<string, unknown>,
 ): boolean {
-    const logger = new ContextLogger('WorkflowConditionEvaluator');
+  const logger = new ContextLogger('WorkflowConditionEvaluator');
 
-    try {
-        const result = evaluate(expression, context);
+  try {
+    const result = evaluate(expression, context);
 
-        if (typeof result !== 'boolean') {
-            logger.warn(
-                `Condition did not return boolean: ${expression}`,
-            );
-            throw new BadRequestException(
-                'Transition condition must evaluate to boolean',
-            );
-        }
-
-        return result;
-    } catch (err) {
-        logger.error(
-            `Condition evaluation failed: ${expression}`,
-            err instanceof Error ? err.stack : undefined,
-        );
-
-        throw new BadRequestException(
-            'Invalid transition condition',
-        );
+    if (typeof result !== 'boolean') {
+      logger.warn(`Condition did not return boolean: ${expression}`);
+      throw new BadRequestException(
+        'Transition condition must evaluate to boolean',
+      );
     }
+
+    return result;
+  } catch (err) {
+    logger.error(
+      `Condition evaluation failed: ${expression}`,
+      err instanceof Error ? err.stack : undefined,
+    );
+
+    throw new BadRequestException('Invalid transition condition');
+  }
 }

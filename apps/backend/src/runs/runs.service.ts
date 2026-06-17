@@ -1,7 +1,4 @@
-import {
-    BadRequestException,
-    Injectable
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService, PrismaExecutor } from '../../prisma/prisma.service';
 import { ContextLogger } from '../common/logger/context.logger';
 import { RunFieldsValidator } from './run-fields.validator';
@@ -10,13 +7,13 @@ import { recomputeOrderEstimate } from '../orders/utils/order-estimate.util';
 import { Prisma } from '@prisma/client';
 
 const POST_PROD_STAGES = [
-    'WAITING',
-    'CUTTING/WEEDING',
-    'CURING',
-    'FUSING',
-    'QC & COUNTING',
-    'COMPLETE',
-    'BILLED',
+  'WAITING',
+  'CUTTING/WEEDING',
+  'CURING',
+  'FUSING',
+  'QC & COUNTING',
+  'COMPLETE',
+  'BILLED',
 ];
 
 /**
@@ -25,145 +22,128 @@ const POST_PROD_STAGES = [
  * Falls back to locationId if the specific field is null (backward compatibility).
  */
 export function getEffectiveLocationId(run: {
-    lifeCycleStatusCode?: string;
-    postProductionLocationId?: string | null;
-    preProductionLocationId?: string | null;
-    locationId?: string | null;
+  lifeCycleStatusCode?: string;
+  postProductionLocationId?: string | null;
+  preProductionLocationId?: string | null;
+  locationId?: string | null;
 }): string | null {
-    const status = run.lifeCycleStatusCode;
+  const status = run.lifeCycleStatusCode;
 
-    if (status && POST_PROD_STAGES.includes(status)) {
-        return run.postProductionLocationId ?? run.locationId ?? null;
-    }
+  if (status && POST_PROD_STAGES.includes(status)) {
+    return run.postProductionLocationId ?? run.locationId ?? null;
+  }
 
-    return run.preProductionLocationId ?? run.locationId ?? null;
+  return run.preProductionLocationId ?? run.locationId ?? null;
 }
 
 @Injectable()
 export class RunsService {
-    private readonly logger = new ContextLogger(RunsService.name);
+  private readonly logger = new ContextLogger(RunsService.name);
 
-    constructor(
-        private readonly prisma: PrismaService,
-        private readonly fieldValidator: RunFieldsValidator,
-        private readonly billingCalculator: BillingCalculatorService,
-    ) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly fieldValidator: RunFieldsValidator,
+    private readonly billingCalculator: BillingCalculatorService,
+  ) {}
 
-    /* ---------------- HELPERS ---------------- */
+  /* ---------------- HELPERS ---------------- */
 
-    private async validateOrderProcess(
-        orderId: string,
-        orderProcessId: string,
-    ) {
-        const orderProcess =
-            await this.prisma.orderProcess.findFirst({
-                where: {
-                    id: orderProcessId,
-                    orderId,
-                },
-            });
+  private async validateOrderProcess(orderId: string, orderProcessId: string) {
+    const orderProcess = await this.prisma.orderProcess.findFirst({
+      where: {
+        id: orderProcessId,
+        orderId,
+      },
+    });
 
-        if (!orderProcess) {
-            throw new BadRequestException(
-                'Invalid order / process combination',
-            );
-        }
-
-        return orderProcess;
+    if (!orderProcess) {
+      throw new BadRequestException('Invalid order / process combination');
     }
 
-    private async validateRun(
-        orderId: string,
-        orderProcessId: string,
-        runId: string,
-    ) {
-        const run =
-            await this.prisma.processRun.findFirst({
-                where: {
-                    id: runId,
-                    orderProcessId,
-                    orderProcess: { orderId },
-                },
-                include: {
-                    runTemplate: true,
-                    location: true,
-                },
-            });
+    return orderProcess;
+  }
 
-        if (!run) {
-            throw new BadRequestException(
-                'Run not found for given order/process',
-            );
-        }
+  private async validateRun(
+    orderId: string,
+    orderProcessId: string,
+    runId: string,
+  ) {
+    const run = await this.prisma.processRun.findFirst({
+      where: {
+        id: runId,
+        orderProcessId,
+        orderProcess: { orderId },
+      },
+      include: {
+        runTemplate: true,
+        location: true,
+      },
+    });
 
-        return run;
+    if (!run) {
+      throw new BadRequestException('Run not found for given order/process');
     }
 
-    private async getInitialRunStatus(): Promise<string> {
-        const status =
-            await this.prisma.workflowStatus.findFirst({
-                where: {
-                    workflowType: { code: 'RUN' },
-                    isInitial: true,
-                },
-            });
+    return run;
+  }
 
-        if (!status) {
-            throw new BadRequestException(
-                'Initial RUN status not configured',
-            );
-        }
+  private async getInitialRunStatus(): Promise<string> {
+    const status = await this.prisma.workflowStatus.findFirst({
+      where: {
+        workflowType: { code: 'RUN' },
+        isInitial: true,
+      },
+    });
 
-        return status.code;
+    if (!status) {
+      throw new BadRequestException('Initial RUN status not configured');
     }
 
-    /* ---------------- QUERIES ---------------- */
+    return status.code;
+  }
 
-    async list(
-        orderId: string,
-        orderProcessId: string,
-    ) {
-        await this.validateOrderProcess(
-            orderId,
-            orderProcessId,
-        );
+  /* ---------------- QUERIES ---------------- */
 
-        return this.prisma.processRun.findMany({
-            where: { orderProcessId },
-            include: {
-                runTemplate: true,
-                location: true,
-            },
-            orderBy: { runNumber: 'asc' },
-        });
-    }
+  async list(orderId: string, orderProcessId: string) {
+    await this.validateOrderProcess(orderId, orderProcessId);
 
-    async get(
-        orderId: string,
-        orderProcessId: string,
-        runId: string,
-    ) {
-        return this.validateRun(
-            orderId,
-            orderProcessId,
-            runId,
-        );
-    }
+    return this.prisma.processRun.findMany({
+      where: { orderProcessId },
+      include: {
+        runTemplate: true,
+        location: true,
+      },
+      orderBy: { runNumber: 'asc' },
+    });
+  }
 
-    /* ---------------- WRITES ---------------- */
+  async get(orderId: string, orderProcessId: string, runId: string) {
+    return this.validateRun(orderId, orderProcessId, runId);
+  }
 
-    async create(tx: PrismaExecutor, data: Prisma.ProcessRunUncheckedCreateInput, orderId: string) {
-        const run = await tx.processRun.create({ data });
-        await recomputeOrderEstimate(tx, orderId, this.billingCalculator);
-        return run;
-    }
+  /* ---------------- WRITES ---------------- */
 
-    async update(tx: PrismaExecutor, runId: string, data: Prisma.ProcessRunUncheckedUpdateInput, orderId: string) {
-        const run = await tx.processRun.update({
-            where: { id: runId },
-            data,
-        });
-        await recomputeOrderEstimate(tx, orderId, this.billingCalculator);
-        return run;
-    }
+  async create(
+    tx: PrismaExecutor,
+    data: Prisma.ProcessRunUncheckedCreateInput,
+    orderId: string,
+  ) {
+    const run = await tx.processRun.create({ data });
+    await recomputeOrderEstimate(tx, orderId, this.billingCalculator);
+    return run;
+  }
+
+  async update(
+    tx: PrismaExecutor,
+    runId: string,
+    data: Prisma.ProcessRunUncheckedUpdateInput,
+    orderId: string,
+  ) {
+    const run = await tx.processRun.update({
+      where: { id: runId },
+      data,
+    });
+    await recomputeOrderEstimate(tx, orderId, this.billingCalculator);
+    return run;
+  }
 }

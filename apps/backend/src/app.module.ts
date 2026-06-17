@@ -28,47 +28,47 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
 
 @Module({
-    imports: [ConfigModule.forRoot({
-        isGlobal: true, // VERY IMPORTANT
-        envFilePath: [
-            '.env.local',
-            '.env',
-            `apps/backend/.env.${process.env.NODE_ENV || 'local'}`,
-        ]
-    }), PrismaModule,
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true, // VERY IMPORTANT
+      envFilePath: [
+        '.env.local',
+        '.env',
+        `apps/backend/.env.${process.env.NODE_ENV || 'local'}`,
+      ],
+    }),
+    PrismaModule,
     ScheduleModule.forRoot(),
-        WorkflowModule,
-        OrdersModule,
-        RunsModule,
-        AuthModule,
-        UserModule,
-        ProcessesModule,
-        RunTemplatesModule,
-        CustomersModule,
-        LocationsModule,
-        BillingModule,
-        HealthModule,
-        AnalyticsModule,
-        JobsModule,
-        ReportsModule,
-        ImageRetentionModule,
-    ],
-    providers: [
-        AppService,
-        {
-            provide: APP_GUARD,
-            useClass: AuthGuard,          // runs FIRST
-        },
-        {
-            provide: APP_GUARD,
-            useClass: PermissionsGuard,   // runs AFTER auth
-        },
-    ],
+    WorkflowModule,
+    OrdersModule,
+    RunsModule,
+    AuthModule,
+    UserModule,
+    ProcessesModule,
+    RunTemplatesModule,
+    CustomersModule,
+    LocationsModule,
+    BillingModule,
+    HealthModule,
+    AnalyticsModule,
+    JobsModule,
+    ReportsModule,
+    ImageRetentionModule,
+  ],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard, // runs FIRST
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard, // runs AFTER auth
+    },
+  ],
 })
 export class AppModule implements NestModule {
-    configure(consumer: MiddlewareConsumer) {
-        consumer
-            .apply(RequestContextMiddleware)
-            .forRoutes('*');
-    }
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
 }

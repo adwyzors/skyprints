@@ -6,9 +6,9 @@ import { AdminProcessController } from './admin-process.controller';
 import { AdminProcessService } from './admin-process.service';
 
 @Module({
-    controllers: [AdminProcessController],
-    providers: [AdminProcessService, CloudflareService],
-    exports: [AdminProcessService],
-    imports: [OrdersModule, BillingModule]
+  controllers: [AdminProcessController],
+  providers: [AdminProcessService, CloudflareService],
+  exports: [AdminProcessService],
+  imports: [OrdersModule, BillingModule],
 })
-export class ProcessesModule { }
+export class ProcessesModule {}

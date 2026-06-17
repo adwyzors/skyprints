@@ -5,12 +5,9 @@ import { RunsService } from './runs.service';
 import { BillingModule } from '../billing/billing.module';
 
 @Module({
-    imports: [BillingModule],
-    controllers: [RunsController],
-    providers: [
-        RunsService,
-        RunFieldsValidator,
-    ],
-    exports: [RunsService],
+  imports: [BillingModule],
+  controllers: [RunsController],
+  providers: [RunsService, RunFieldsValidator],
+  exports: [RunsService],
 })
-export class RunsModule { }
+export class RunsModule {}

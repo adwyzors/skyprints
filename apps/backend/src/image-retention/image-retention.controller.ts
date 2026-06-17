@@ -1,4 +1,10 @@
-import { Controller, Post, Headers, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Headers,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ImageRetentionService } from './image-retention.service';
 import { Public } from '../auth/decorators/public.decorator';
 
@@ -8,50 +14,44 @@ import { Public } from '../auth/decorators/public.decorator';
  */
 @Controller('internal/image-retention')
 export class ImageRetentionController {
-    private readonly secret = process.env.IMAGE_RETENTION_SECRET ?? 'dev-secret';
+  private readonly secret = process.env.IMAGE_RETENTION_SECRET ?? 'dev-secret';
 
-    constructor(private readonly retentionService: ImageRetentionService) { }
+  constructor(private readonly retentionService: ImageRetentionService) {}
 
-    @Public()
-    @Post('cleanup')
-    async cleanup(
-        @Headers('authorization') authorization?: string,
-        @Headers('x-limit') limitHeader?: string,
-        @Headers('x-dry-run') dryRunHeader?: string,
-    ) {
-        const isProd = process.env.NODE_ENV === 'prod';
+  @Public()
+  @Post('cleanup')
+  async cleanup(
+    @Headers('authorization') authorization?: string,
+    @Headers('x-limit') limitHeader?: string,
+    @Headers('x-dry-run') dryRunHeader?: string,
+  ) {
+    const isProd = process.env.NODE_ENV === 'prod';
 
-        /**
-         * Vercel Cron automatically sends:
-         * Authorization: Bearer <CRON_SECRET>
-         */
-        if (isProd) {
-            const expected = `Bearer ${process.env.CRON_SECRET}`;
+    /**
+     * Vercel Cron automatically sends:
+     * Authorization: Bearer <CRON_SECRET>
+     */
+    if (isProd) {
+      const expected = `Bearer ${process.env.CRON_SECRET}`;
 
-            if (authorization !== expected) {
-                throw new BadRequestException('Invalid cron authorization');
-            }
-        }
-
-        const limit = limitHeader
-            ? parseInt(limitHeader, 10)
-            : undefined;
-
-        const dryRun =
-            dryRunHeader === 'true' ||
-            dryRunHeader === '1';
-
-        try {
-            const result = await this.retentionService.cleanup({
-                limit,
-                dryRun,
-            });
-
-            return result;
-        } catch (err) {
-            throw new InternalServerErrorException(
-                'Cleanup failed',
-            );
-        }
+      if (authorization !== expected) {
+        throw new BadRequestException('Invalid cron authorization');
+      }
     }
+
+    const limit = limitHeader ? parseInt(limitHeader, 10) : undefined;
+
+    const dryRun = dryRunHeader === 'true' || dryRunHeader === '1';
+
+    try {
+      const result = await this.retentionService.cleanup({
+        limit,
+        dryRun,
+      });
+
+      return result;
+    } catch (err) {
+      throw new InternalServerErrorException('Cleanup failed');
+    }
+  }
 }

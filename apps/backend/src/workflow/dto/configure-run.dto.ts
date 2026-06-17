@@ -1,6 +1,6 @@
-import { IsObject } from "class-validator";
+import { IsObject } from 'class-validator';
 
 export class ConfigureRunDto {
-@IsObject()
-fields: Record<string, any>;
+  @IsObject()
+  fields: Record<string, any>;
 }

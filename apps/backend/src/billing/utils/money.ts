@@ -1,5 +1,5 @@
-import Decimal from "decimal.js";
+import Decimal from 'decimal.js';
 
 export function toMoney(value: number): Decimal {
-    return new Decimal(value).toDecimalPlaces(4);
+  return new Decimal(value).toDecimalPlaces(4);
 }

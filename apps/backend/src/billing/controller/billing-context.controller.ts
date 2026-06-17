@@ -1,80 +1,96 @@
-import type { AddOrdersToBillingContextDto, CreateBillingContextDto } from "@app/contracts";
-import { Body, Controller, Delete, Get, Param, Post, Query, Res } from "@nestjs/common";
-import type { Response } from "express";
-import { BillingContextService } from "../services/billing-context.service";
+import type {
+  AddOrdersToBillingContextDto,
+  CreateBillingContextDto,
+} from '@app/contracts';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
+import type { Response } from 'express';
+import { BillingContextService } from '../services/billing-context.service';
 
-@Controller("billing/contexts")
+@Controller('billing/contexts')
 export class BillingContextController {
-    constructor(private readonly service: BillingContextService) { }
+  constructor(private readonly service: BillingContextService) {}
 
-    @Post()
-    create(@Body() dto: CreateBillingContextDto) {
-        return this.service.create(dto);
+  @Post()
+  create(@Body() dto: CreateBillingContextDto) {
+    return this.service.create(dto);
+  }
+
+  @Post(':contextId/orders')
+  addOrders(
+    @Param('contextId') contextId: string,
+    @Body() dto: AddOrdersToBillingContextDto,
+  ) {
+    return this.service.addOrders(contextId, dto.orderIds);
+  }
+
+  @Post(':contextId/orders/:orderId')
+  addOrder(
+    @Param('contextId') contextId: string,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.service.addOrders(contextId, [orderId]);
+  }
+
+  @Delete(':contextId/orders/:orderId')
+  removeOrder(
+    @Param('contextId') contextId: string,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.service.removeOrder(contextId, orderId);
+  }
+
+  @Get()
+  async getAll(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('search') search?: string,
+    @Query('isTest') isTest?: string,
+    @Query('isTaxEnabled') isTaxEnabled?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
+    const result = await this.service.getAllContexts(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 12,
+      search || '',
+      isTest === 'true',
+      isTaxEnabled === 'true'
+        ? true
+        : isTaxEnabled === 'false'
+          ? false
+          : undefined,
+    );
+
+    // Set pagination metadata in headers
+    if (res) {
+      res.setHeader('x-page', result.meta.page.toString());
+      res.setHeader('x-limit', result.meta.limit.toString());
+      res.setHeader('x-total-count', result.meta.total.toString());
+      res.setHeader('x-total-pages', result.meta.totalPages.toString());
+      res.setHeader(
+        'x-total-quantity',
+        (result.meta as any).totalQuantity.toString(),
+      );
+      res.setHeader(
+        'x-total-estimated-amount',
+        (result.meta as any).totalEstimatedAmount.toString(),
+      );
     }
 
-    @Post(":contextId/orders")
-    addOrders(
-        @Param("contextId") contextId: string,
-        @Body() dto: AddOrdersToBillingContextDto
-    ) {
-        return this.service.addOrders(
-            contextId,
-            dto.orderIds
-        );
-    }
+    // Return only the data
+    return result.res;
+  }
 
-    @Post(":contextId/orders/:orderId")
-    addOrder(
-        @Param("contextId") contextId: string,
-        @Param("orderId") orderId: string
-    ) {
-        return this.service.addOrders(
-            contextId,
-            [orderId]
-        );
-    }
-
-    @Delete(":contextId/orders/:orderId")
-    removeOrder(
-        @Param("contextId") contextId: string,
-        @Param("orderId") orderId: string
-    ) {
-        return this.service.removeOrder(contextId, orderId);
-    }
-
-    @Get()
-    async getAll(
-        @Query('page') page?: number,
-        @Query('limit') limit?: number,
-        @Query('search') search?: string,
-        @Query('isTest') isTest?: string,
-        @Query('isTaxEnabled') isTaxEnabled?: string,
-        @Res({ passthrough: true }) res?: Response
-    ) {
-        const result = await this.service.getAllContexts(
-            page ? Number(page) : 1,
-            limit ? Number(limit) : 12,
-            search || "",
-            isTest === 'true',
-            isTaxEnabled === 'true' ? true : isTaxEnabled === 'false' ? false : undefined
-        );
-
-        // Set pagination metadata in headers
-        if (res) {
-            res.setHeader('x-page', result.meta.page.toString());
-            res.setHeader('x-limit', result.meta.limit.toString());
-            res.setHeader('x-total-count', result.meta.total.toString());
-            res.setHeader('x-total-pages', result.meta.totalPages.toString());
-            res.setHeader('x-total-quantity', (result.meta as any).totalQuantity.toString());
-            res.setHeader('x-total-estimated-amount', (result.meta as any).totalEstimatedAmount.toString());
-        }
-
-        // Return only the data
-        return result.res;
-    }
-
-    @Get(":contextId")
-    getById(@Param("contextId") contextId: string) {
-        return this.service.getContextById(contextId);
-    }
+  @Get(':contextId')
+  getById(@Param('contextId') contextId: string) {
+    return this.service.getContextById(contextId);
+  }
 }

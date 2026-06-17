@@ -1,37 +1,29 @@
 import type { CreateRunTemplateDto } from '@app/contracts';
 import { RunTemplateDetailDto, RunTemplateSummaryDto } from '@app/contracts';
-import {
-    Body,
-    Controller,
-    Get,
-    Param,
-    Post
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { toRunTemplateDetail } from '../mappers/run-template.mapper';
 import { RunTemplatesService } from './run-templates.service';
 import { ContextLogger } from '../common/logger/context.logger';
 
 @Controller('/runs/templates')
 export class RunTemplatesController {
-    private readonly logger = new ContextLogger(RunTemplatesController.name);
+  private readonly logger = new ContextLogger(RunTemplatesController.name);
 
-    constructor(
-        private readonly service: RunTemplatesService,
-    ) { }
+  constructor(private readonly service: RunTemplatesService) {}
 
-    @Post()
-    create(@Body() dto: CreateRunTemplateDto) {
-        return this.service.create(dto);
-    }
+  @Post()
+  create(@Body() dto: CreateRunTemplateDto) {
+    return this.service.create(dto);
+  }
 
-    @Get()
-    async list(): Promise<RunTemplateSummaryDto[]> {
-        return this.service.list();
-    }
+  @Get()
+  async list(): Promise<RunTemplateSummaryDto[]> {
+    return this.service.list();
+  }
 
-    @Get(':id')
-    async get(@Param('id') id: string): Promise<RunTemplateDetailDto> {
-        const template = await this.service.get(id);
-        return toRunTemplateDetail(template);
-    }
+  @Get(':id')
+  async get(@Param('id') id: string): Promise<RunTemplateDetailDto> {
+    const template = await this.service.get(id);
+    return toRunTemplateDetail(template);
+  }
 }

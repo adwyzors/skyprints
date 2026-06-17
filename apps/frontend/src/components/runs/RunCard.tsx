@@ -1,20 +1,23 @@
 'use client';
 
-import { Activity, CheckCircle, ChevronRight, Clock, FileText, IndianRupee, MapPin, Package, User, Users } from 'lucide-react';
+import { Activity, CheckCircle, ChevronRight, Clock, FileText, IndianRupee, Loader2, MapPin, Package, User, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { getRunById, transitionLifeCycle } from '@/services/run.service';
 
-// Define the Run type locally or import if available
 interface RunCardProps {
-    run: any; // Using any to match the flexible data structure
+    run: any;
     active?: boolean;
     onClick?: () => void;
+    context?: 'admin' | 'manager';
+    onTransitionComplete?: () => void;
 }
 
-export default function RunCard({ run, active = true, onClick }: RunCardProps) {
+export default function RunCard({ run, active = true, onClick, context, onTransitionComplete }: RunCardProps) {
     const router = useRouter();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
+    const [isTransitioning, setIsTransitioning] = useState(false);
 
     if (!run) return null;
 
@@ -145,7 +148,10 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
 
             {/* CARD CONTENT */}
             <div
-                onClick={onClick || (() => router.push(`/admin/orders/${run.orderProcess?.order?.id}`))}
+                onClick={onClick || (context === 'manager'
+                    ? () => router.push(`/manager/runs/${run.id}`)
+                    : () => router.push(`/admin/orders/${run.orderProcess?.order?.id}`)
+                )}
                 className="group bg-white rounded-2xl border border-gray-200 cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1 flex flex-col isolate overflow-hidden h-full"
             >
                 {/* IMAGE CAROUSEL */}
@@ -258,6 +264,39 @@ export default function RunCard({ run, active = true, onClick }: RunCardProps) {
                             </div>
                         )}
                     </div>
+
+                    {context === 'manager' && (
+                        <button
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                setIsTransitioning(true);
+                                try {
+                                    const detail = await getRunById(run.id);
+                                    const lifecycle: Array<{ code: string }> = detail.lifecycle ?? [];
+                                    const prodIdx = lifecycle.findIndex(s => s.code === 'PRODUCTION');
+                                    const nextStage = prodIdx >= 0 && prodIdx < lifecycle.length - 1
+                                        ? lifecycle[prodIdx + 1].code
+                                        : null;
+                                    if (!nextStage) throw new Error('No next stage found');
+                                    await transitionLifeCycle('', detail.orderProcessId, run.id, { statusCode: nextStage });
+                                    onTransitionComplete?.();
+                                } catch {
+                                    // silently fail — manager can navigate to detail page to retry
+                                } finally {
+                                    setIsTransitioning(false);
+                                }
+                            }}
+                            disabled={isTransitioning}
+                            className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-xs font-semibold transition-colors"
+                        >
+                            {isTransitioning ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <CheckCircle className="w-3.5 h-3.5" />
+                            )}
+                            {isTransitioning ? 'Advancing…' : 'Mark PRODUCTION Complete'}
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

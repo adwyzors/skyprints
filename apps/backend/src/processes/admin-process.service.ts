@@ -1,19 +1,20 @@
 import {
-    ConfigureProcessRunDto,
-    CreateProcessDto,
-    LifeCycleStatusDto,
-    ProcessRunListItemDto,
-    RunTemplateField
+  ConfigureProcessRunDto,
+  CreateProcessDto,
+  LifeCycleStatusDto,
+  ProcessRunListItemDto,
+  RunTemplateField,
 } from '@app/contracts';
 import {
-    BadRequestException,
-    Injectable,
-    NotFoundException
+  BadRequestException,
+  Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { OrderStatus, Prisma, ProcessRunStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CloudflareService } from '../common/cloudflare.service';
 import { ContextLogger } from '../common/logger/context.logger';
+import { RequestContextStore } from '../common/context/request-context.store';
 import { ProcessRunsQueryDto } from '../dto/process-runs.query.dto';
 import { toProcessSummary } from '../mappers/process.mapper';
 import { OrdersService } from '../orders/orders.service';
@@ -22,1339 +23,1400 @@ import { recomputeOrderEstimate } from '../orders/utils/order-estimate.util';
 
 @Injectable()
 export class AdminProcessService {
-    private readonly logger = new ContextLogger(AdminProcessService.name);
-    private static readonly SYSTEM_FIELDS = new Set<string>([
-        'images',
-    ]);
+  private readonly logger = new ContextLogger(AdminProcessService.name);
+  private static readonly SYSTEM_FIELDS = new Set<string>(['images']);
 
-    private static readonly SUMMARY_FIELDS = new Set<string>([
-        'Total Amount',
-        'Total Mtr',
-        'Total Quantity',
-        'Total Pieces',
-        'Total Stitches',
-        'Estimated Amount',
-        'End Rate',
-        'Actual Total',
-        'Quantity',
-    ]);
+  private static readonly SUMMARY_FIELDS = new Set<string>([
+    'Total Amount',
+    'Total Mtr',
+    'Total Quantity',
+    'Total Pieces',
+    'Total Stitches',
+    'Estimated Amount',
+    'End Rate',
+    'Actual Total',
+    'Quantity',
+  ]);
 
+  async getLifeCycleStatusesByProcess(
+    processId: string,
+  ): Promise<LifeCycleStatusDto[]> {
+    // 1️⃣ Get all lifecycle workflow type IDs used by this process
+    const runDefs = await this.prisma.processRunDefinition.findMany({
+      where: {
+        OR: [{ processId }, { process: { name: processId } }],
+      },
+      select: {
+        runTemplate: {
+          select: {
+            lifecycleWorkflowTypeId: true,
+          },
+        },
+      },
+    });
 
-    async getLifeCycleStatusesByProcess(processId: string): Promise<LifeCycleStatusDto[]> {
-        // 1️⃣ Get all lifecycle workflow type IDs used by this process
-        const runDefs = await this.prisma.processRunDefinition.findMany({
-            where: {
-                OR: [
-                    { processId },
-                    { process: { name: processId } }
-                ]
+    const workflowTypeIds = [
+      ...new Set(runDefs.map((d) => d.runTemplate.lifecycleWorkflowTypeId)),
+    ];
+
+    if (workflowTypeIds.length === 0) {
+      if (processId !== 'Embellishment' && processId !== 'Embellish') {
+        return await this.getLifeCycleStatusesByProcess('Embellishment');
+      }
+      return [];
+    }
+
+    // 2️⃣ Fetch lifecycle statuses
+    const statuses = await this.prisma.workflowStatus.findMany({
+      where: {
+        workflowTypeId: { in: workflowTypeIds },
+      },
+      select: {
+        id: true,
+        code: true,
+      },
+    });
+
+    if (statuses.length === 0 && processId !== 'Embellishment') {
+      return await this.getLifeCycleStatusesByProcess('Embellishment');
+    }
+
+    return statuses;
+  }
+
+  private static readonly SYSTEM_FIELD_VALIDATORS: Record<
+    string,
+    (value: any) => any
+  > = {
+    images: (v: any) => {
+      if (v == null) return undefined; // ignore if absent
+
+      // normalize single URL → array
+      if (typeof v === 'string') {
+        return [v];
+      }
+
+      if (Array.isArray(v) && v.every((i) => typeof i === 'string')) {
+        return v;
+      }
+
+      return null; // invalid
+    },
+  };
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly orderService: OrdersService,
+    private readonly cloudflare: CloudflareService,
+    private readonly billingCalculator: BillingCalculatorService,
+  ) {}
+
+  /* =========================================================
+   * PROCESS CRUD
+   * ========================================================= */
+
+  async create(dto: CreateProcessDto) {
+    this.logger.log(`[PROCESS][CREATE] name=${dto.name}`);
+
+    return this.prisma.transaction(async (tx) => {
+      const process = await tx.process.create({
+        data: {
+          name: dto.name,
+          description: dto.description,
+          isEnabled: dto.isEnabled,
+        },
+      });
+
+      await tx.processRunDefinition.createMany({
+        data: dto.runs.map((r) => ({
+          processId: process.id,
+          runTemplateId: r.runTemplateId,
+          displayName: r.displayName,
+          sortOrder: r.sortOrder,
+        })),
+      });
+
+      this.logger.log(`[PROCESS][CREATED] processId=${process.id}`);
+      return process;
+    });
+  }
+
+  async getById(id: string) {
+    const process = await this.prisma.process.findUnique({
+      where: { id, isEnabled: true },
+      include: { runDefs: true },
+    });
+    if (!process) throw new BadRequestException('Process not found');
+    return process;
+  }
+
+  async getAll() {
+    const processes = await this.prisma.process.findMany({
+      include: { runDefs: true },
+      where: { isEnabled: true },
+      orderBy: { name: 'asc' },
+    });
+    return processes.map(toProcessSummary);
+  }
+
+  private priorityWhere(
+    priorities: string | string[],
+  ): Prisma.OrderProcessWhereInput {
+    // Normalize to array
+    const priorityList = (
+      typeof priorities === 'string' ? priorities.split(',') : priorities
+    ) as Array<'HIGH' | 'MEDIUM' | 'LOW'>;
+
+    if (priorityList.length === 0) return {};
+
+    const conditions: Prisma.OrderProcessWhereInput[] = [];
+
+    if (priorityList.includes('HIGH')) {
+      conditions.push({ remainingRuns: { lt: 5 } });
+    }
+
+    if (priorityList.includes('MEDIUM')) {
+      conditions.push({ remainingRuns: { gte: 5, lt: 10 } });
+    }
+
+    if (priorityList.includes('LOW')) {
+      conditions.push({ remainingRuns: { gte: 10 } });
+    }
+
+    if (conditions.length === 1) {
+      return conditions[0];
+    }
+
+    return { OR: conditions };
+  }
+
+  async getAllRuns(query: ProcessRunsQueryDto) {
+    // MANAGER scoping: enforce executor-only view, PRODUCTION stage, IN_PRODUCTION orders
+    const ctx = RequestContextStore.getStore();
+    if (ctx?.user?.id) {
+      const caller = await this.prisma.user.findUnique({
+        where: { id: ctx.user.id },
+        select: { role: true },
+      });
+      if (caller?.role === 'MANAGER') {
+        query.executorUserId = ctx.user.id;
+        query.assignedUserId = undefined;
+        query.lifeCycleStatusCode = 'PRODUCTION';
+        query.orderStatus = 'IN_PRODUCTION';
+      }
+    }
+
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      status,
+      customerId,
+      executorUserId,
+      reviewerUserId,
+      lifeCycleStatusCode,
+      priority,
+      createdFrom,
+      createdTo,
+      processId,
+      orderStatus,
+    } = query;
+
+    const skip = (page - 1) * limit;
+
+    /* ==========================
+     * ORDER WHERE
+     * ========================== */
+    const orderWhere: Prisma.OrderWhereInput = {
+      ...(customerId && { customerId }),
+      deletedAt: null,
+      // Filter by order status
+      ...(orderStatus && {
+        statusCode: { in: orderStatus.split(',') as any[] },
+      }),
+      isTest: query.isTest ?? false,
+    };
+
+    /* ==========================
+     * ORDER PROCESS WHERE
+     * ========================== */
+    // Note: priority filter here uses the "absolute remaining" logic from priorityWhere,
+    // while the sort uses "percentage" logic from resolvePriority.
+    const orderProcessWhere: Prisma.OrderProcessWhereInput = {
+      ...(priority && this.priorityWhere(priority)),
+      ...(Object.keys(orderWhere).length > 0 && {
+        order: orderWhere,
+      }),
+    };
+
+    /* ==========================
+     * PROCESS RUN WHERE
+     * ========================== */
+    const combinedAnd: Prisma.ProcessRunWhereInput[] = [];
+
+    // 1. Process Filter
+    if (processId) {
+      const pidList = Array.isArray(processId) ? processId : [processId];
+      const dtfNames = ['DTF', 'Direct to Film (DTF)'];
+      if (pidList.some((p) => dtfNames.includes(p))) {
+        dtfNames.forEach((n) => {
+          if (!pidList.includes(n)) pidList.push(n);
+        });
+      }
+      combinedAnd.push({
+        OR: [
+          { orderProcess: { process: { name: { in: pidList } } } },
+          { orderProcess: { processId: { in: pidList } } },
+          ...pidList.map((p) => ({
+            orderProcess: {
+              process: { name: { in: ['Embellish', 'Embellishment'] } },
             },
-            select: {
-                runTemplate: {
-                    select: {
-                        lifecycleWorkflowTypeId: true,
+            fields: { path: ['Process Name'], equals: p },
+          })),
+        ],
+      });
+    }
+
+    // 2. Lifecycle Status Filter
+    if (lifeCycleStatusCode) {
+      const list = lifeCycleStatusCode
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (list.length > 0) {
+        const expanded = [...list];
+        list.forEach((s) => {
+          const variants = [
+            s,
+            s.toUpperCase(),
+            s.toLowerCase(),
+            s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(),
+          ];
+          variants.forEach((v) => {
+            if (!expanded.includes(v)) expanded.push(v);
+          });
+        });
+        if (
+          expanded.some(
+            (e) =>
+              e.toUpperCase() === 'QC & COUNTING' ||
+              e.toUpperCase() === 'QC&COUNTING',
+          )
+        ) {
+          [
+            'QC & Counting',
+            'QC & COUNTING',
+            'QC&Counting',
+            'QC&COUNTING',
+          ].forEach((v) => {
+            if (!expanded.includes(v)) expanded.push(v);
+          });
+        }
+        combinedAnd.push({ lifeCycleStatusCode: { in: expanded } });
+      }
+    } else if (!status) {
+      combinedAnd.push({
+        lifeCycleStatusCode: { notIn: ['COMPLETE', 'BILLED'] },
+      });
+    }
+
+    // 3. Search Filter
+    if (search) {
+      combinedAnd.push({
+        OR: [
+          {
+            orderProcess: {
+              order: { code: { contains: search, mode: 'insensitive' } },
+            },
+          },
+          {
+            orderProcess: {
+              order: {
+                customer: { name: { contains: search, mode: 'insensitive' } },
+              },
+            },
+          },
+          { runTemplate: { name: { contains: search, mode: 'insensitive' } } },
+          { lifeCycleStatusCode: { contains: search, mode: 'insensitive' } },
+          { location: { name: { contains: search, mode: 'insensitive' } } },
+          ...Object.values(ProcessRunStatus)
+            .filter((s) => s.toLowerCase().includes(search.toLowerCase()))
+            .map((s) => ({ statusCode: s })),
+          ...Object.values(OrderStatus)
+            .filter((s) => s.toLowerCase().includes(search.toLowerCase()))
+            .map((s) => ({ orderProcess: { order: { statusCode: s } } })),
+        ],
+      });
+    }
+
+    // 4. Run Status Filter
+    if (status) {
+      combinedAnd.push({
+        statusCode: { in: status.split(',') as ProcessRunStatus[] },
+      });
+    }
+
+    // 5. Assigned User Filter
+    if (query.assignedUserId) {
+      combinedAnd.push({
+        OR: [
+          { executorId: query.assignedUserId },
+          { reviewerId: query.assignedUserId },
+        ],
+      });
+    }
+
+    // Top-level property logic (these usually don't clash as they are unique fields)
+    const where: Prisma.ProcessRunWhereInput = {
+      AND: combinedAnd,
+      ...(executorUserId && { executorId: executorUserId }),
+      ...(reviewerUserId && { reviewerId: reviewerUserId }),
+      ...(query.locationId && {
+        OR: [
+          { locationId: query.locationId },
+          { preProductionLocationId: query.locationId },
+          { postProductionLocationId: query.locationId },
+        ],
+      }),
+      ...(createdFrom || createdTo
+        ? {
+            createdAt: {
+              ...(createdFrom && { gte: new Date(createdFrom) }),
+              ...(createdTo && { lte: new Date(createdTo) }),
+            },
+          }
+        : {}),
+      ...(Object.keys(orderProcessWhere).length > 0 && {
+        orderProcess: orderProcessWhere,
+      }),
+    };
+
+    /* ==========================
+     * 1. FETCH METADATA FOR SORTING
+     * ========================== */
+    const total = await this.prisma.processRun.count({ where });
+
+    // If we are just filtering/searching and relying on default sort (createdAt)
+    // we could optimize, but user requested PRIORITY sort specifically as primary.
+    // We fetch minimal data to sort in memory.
+    const allCandidates = await this.prisma.processRun.findMany({
+      where,
+      select: {
+        id: true,
+        statusCode: true,
+        createdAt: true,
+        fields: true,
+        orderProcess: {
+          select: {
+            lifecycleCompletedRuns: true,
+            totalRuns: true,
+            order: {
+              select: {
+                id: true,
+                quantity: true,
+                totalProcesses: true,
+                billingContexts: {
+                  orderBy: { createdAt: 'desc' },
+                  take: 5, // Fetch a few to find the finalized one
+                  select: {
+                    billingContext: {
+                      select: {
+                        type: true,
+                        snapshots: {
+                          where: { intent: 'FINAL' },
+                          orderBy: { version: 'desc' },
+                          take: 1,
+                          select: { result: true, inputs: true },
+                        },
+                      },
                     },
+                  },
                 },
+              },
             },
+          },
+        },
+      },
+    });
+
+    /* ==========================
+     * 2. IN-MEMORY SORT
+     * ========================== */
+    const getPriorityRank = (
+      completed: number,
+      total: number,
+      status: string,
+    ) => {
+      if (status === 'CONFIGURE') return 2; // LOW
+      if (total === 0) return 2; // LOW
+      const ratio = 1 - completed / total;
+      if (ratio < 0.3 || total - completed < 2) return 0; // HIGH
+      if (ratio < 0.75) return 1; // MEDIUM
+      return 2; // LOW
+    };
+
+    allCandidates.sort((a, b) => {
+      const rankA = getPriorityRank(
+        a.orderProcess.lifecycleCompletedRuns,
+        a.orderProcess.totalRuns,
+        a.statusCode,
+      );
+      const rankB = getPriorityRank(
+        b.orderProcess.lifecycleCompletedRuns,
+        b.orderProcess.totalRuns,
+        b.statusCode,
+      );
+
+      if (rankA !== rankB) {
+        return rankA - rankB; // 0 (HIGH) -> 1 (MED) -> 2 (LOW)
+      }
+
+      // Tie-breaker: CreatedAt Descending (Newest first)
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+
+    /* ==========================
+     * 3. PAGINATE & FETCH FULL DATA
+     * ========================== */
+    const slicedCandidates = allCandidates.slice(skip, skip + limit);
+    const slicedIds = slicedCandidates.map((c) => c.id);
+
+    let runs: any[] = [];
+    if (slicedIds.length > 0) {
+      const unsortedRuns = await this.prisma.processRun.findMany({
+        where: { id: { in: slicedIds } },
+        select: {
+          id: true,
+          runNumber: true,
+          statusCode: true,
+          lifeCycleStatusCode: true,
+          comments: true,
+          fields: true,
+          createdAt: true,
+          preProductionLocationId: true,
+          postProductionLocationId: true,
+          runTemplate: {
+            select: { name: true },
+          },
+          lifecycleHistories: {
+            orderBy: { createdAt: 'desc' },
+          },
+          executor: {
+            select: { name: true },
+          },
+          reviewer: {
+            select: { name: true },
+          },
+          orderProcess: {
+            select: {
+              // name: true, // REMOVED: Name is on Process, not OrderProcess
+              process: {
+                select: { name: true },
+              },
+              totalRuns: true,
+              lifecycleCompletedRuns: true,
+              remainingRuns: true,
+              order: {
+                select: {
+                  id: true,
+                  code: true,
+                  quantity: true,
+                  images: true,
+                  useOrderImageForRuns: true,
+                  customer: { select: { name: true } },
+                  billingContexts: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 5,
+                    select: {
+                      billingContext: {
+                        select: {
+                          type: true,
+                          snapshots: {
+                            where: { intent: 'FINAL' },
+                            orderBy: { version: 'desc' },
+                            take: 1,
+                            select: { result: true, inputs: true },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Re-sort to match the slicedCandidates order
+      const runMap = new Map<string, any>(
+        unsortedRuns.map((r) => [String(r.id), r]),
+      );
+      runs = slicedIds.map((id) => runMap.get(String(id))).filter(Boolean);
+    }
+
+    /* ==========================
+     * MAP → DTO
+     * ========================== */
+    const data: ProcessRunListItemDto[] = runs.map((run) => {
+      // Pick only used fields
+      const relevantFields: Record<string, any> = {};
+      let displayProcessName = run.orderProcess.process.name;
+
+      if (run.fields) {
+        const f = run.fields;
+        const orderSnapshot = run.orderProcess.order;
+
+        const runImages =
+          f.images && f.images.length > 0
+            ? f.images
+            : orderSnapshot.useOrderImageForRuns
+              ? orderSnapshot.images
+              : [];
+
+        relevantFields['images'] = runImages;
+        if (f['Quantity']) relevantFields['Quantity'] = f['Quantity'];
+        if (f['Estimated Amount'])
+          relevantFields['Estimated Amount'] = f['Estimated Amount'];
+
+        // Override name for Embellishment if "Process Name" field exists
+        if (displayProcessName === 'Embellishment' && f['Process Name']) {
+          displayProcessName = f['Process Name'];
+        }
+      }
+
+      // Extract billing amount from the most relevant finalized context
+      const ctxOrder = run.orderProcess.order;
+      const finalizedContextOrder = ctxOrder.billingContexts?.find(
+        (bc: any) => bc.billingContext?.snapshots?.length > 0,
+      );
+      const bCtx = finalizedContextOrder?.billingContext;
+      const snapshot = bCtx?.snapshots?.[0];
+      let amount = snapshot?.result;
+
+      // 🔑 IF Group Context, the order's specific amount is inside the inputs
+      if (bCtx?.type === 'GROUP' && snapshot?.inputs) {
+        const orderData = snapshot.inputs[ctxOrder.id];
+        if (orderData && orderData['__ORDER_RESULT__']) {
+          amount = orderData['__ORDER_RESULT__'];
+        }
+      }
+
+      return {
+        ...run,
+        fields: relevantFields,
+        // Exclude createdAt and orderProcess stats from payload
+        // but keep structure required by DTO (which is now optional)
+        orderProcess: {
+          name: displayProcessName,
+          order: {
+            ...run.orderProcess.order,
+            billingContexts: undefined, // Create a cleaner response
+            amount: amount ? Number(amount) : undefined,
+          },
+        },
+        createdAt: undefined, // remove from JSON
+        priority: this.resolvePriority(
+          run.orderProcess.remainingRuns,
+          run.orderProcess.lifecycleCompletedRuns,
+          run.orderProcess.totalRuns,
+          run.statusCode,
+        ),
+      };
+    });
+
+    return {
+      data,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        totalEstimatedAmount: allCandidates.reduce((sum, run) => {
+          const fields = (run.fields as any) || {};
+          let runValue = 0;
+
+          // 1. Try "Estimated Amount" field
+          const amt = fields['Estimated Amount'];
+          if (amt !== undefined && amt !== null) {
+            const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
+            const val = parseFloat(cleanAmt);
+            if (!isNaN(val)) runValue = val;
+          }
+
+          // 2. Fallback to Billing Context
+          if (runValue <= 0) {
+            const order = run.orderProcess.order;
+            const billingResult =
+              order.billingContexts?.[0]?.billingContext?.snapshots?.[0]
+                ?.result;
+            if (billingResult) {
+              const orderVal = Number(billingResult);
+              const processCount = order.totalProcesses || 1;
+              runValue = orderVal / processCount;
+            }
+          }
+
+          return sum + runValue;
+        }, 0),
+        totalQuantity: allCandidates.reduce((sum, run) => {
+          const fields = (run.fields as any) || {};
+          const qty = fields['Quantity'] || run.orderProcess.order.quantity;
+          return sum + (Number(qty) || 0);
+        }, 0),
+      },
+    };
+  }
+
+  private resolvePriority(
+    remainingRuns: number,
+    completedRuns: number,
+    totalRuns: number,
+    statusCode?: string,
+  ): 'HIGH' | 'MEDIUM' | 'LOW' {
+    if (statusCode === 'CONFIGURE') return 'LOW';
+    if (totalRuns === 0) return 'LOW';
+    if (1 - completedRuns / totalRuns < 0.3 || totalRuns - completedRuns < 2)
+      return 'HIGH';
+    if (1 - completedRuns / totalRuns < 0.75) return 'MEDIUM';
+    return 'LOW';
+  }
+
+  private isJsonObject(value: Prisma.JsonValue): value is Prisma.JsonObject {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private extractImages(fields: Prisma.JsonValue): string[] {
+    if (!this.isJsonObject(fields)) return [];
+
+    const images = fields['images'];
+    return Array.isArray(images)
+      ? images.filter((v): v is string => typeof v === 'string')
+      : [];
+  }
+
+  async configure(
+    orderProcessId: string,
+    processRunId: string,
+    dto: ConfigureProcessRunDto,
+  ) {
+    return this.prisma.transaction(async (tx) => {
+      /* =====================================================
+       * LOAD RUN + TEMPLATE (UNCHANGED)
+       * ===================================================== */
+      const run = await tx.processRun.findFirst({
+        where: { id: processRunId, orderProcessId },
+        select: {
+          id: true,
+          fields: true,
+          configuredAt: true,
+          statusCode: true,
+          orderProcessId: true,
+          orderProcess: {
+            select: {
+              order: {
+                select: {
+                  id: true,
+                  customerId: true,
+                },
+              },
+            },
+          },
+          runTemplate: {
+            select: { fields: true },
+          },
+        },
+      });
+
+      if (!run) {
+        throw new BadRequestException('Invalid process run');
+      }
+      /* =====================================================
+       * FIELD VALIDATION (UNCHANGED)
+       * ===================================================== */
+      const normalizedFields = this.validateAndNormalizeFields(
+        run.runTemplate.fields as RunTemplateField[],
+        dto.fields,
+      );
+
+      /* =====================================================
+       * CREDIT LIMIT CHECK (NEW REQUIREMENT)
+       * ===================================================== */
+      const orderId = run.orderProcess.order.id;
+      const customerId = run.orderProcess.order.customerId;
+
+      // Fetch all other runs for this order to calculate the potential new total
+      const otherRuns = await tx.processRun.findMany({
+        where: {
+          orderProcess: { orderId },
+          id: { not: processRunId },
+        },
+        select: { fields: true },
+      });
+
+      let otherTotal = 0;
+      for (const r of otherRuns) {
+        const f = (r.fields as Record<string, any>) || {};
+        const val = f['Estimated Amount'] ?? f['estimated_amount'] ?? 0;
+        otherTotal += Number(val);
+      }
+
+      // New estimate for this specific run from the normalized fields
+      const newRunEstimate =
+        normalizedFields['Estimated Amount'] ??
+        normalizedFields['estimated_amount'] ??
+        0;
+      const potentialOrderTotal = otherTotal + Number(newRunEstimate);
+
+      this.logger.debug(
+        `[CREDIT_CHECK] orderId=${orderId} currentOtherTotal=${otherTotal} newRunEstimate=${newRunEstimate} potentialTotal=${potentialOrderTotal}`,
+      );
+
+      // Validate against customer credit limit
+      await this.orderService.validateCreditLimit(
+        tx,
+        customerId,
+        potentialOrderTotal,
+        orderId,
+      );
+
+      /* =====================================================
+       * EXECUTOR / REVIEWER VALIDATION (UNCHANGED)
+       * ===================================================== */
+      if (dto.executorId || dto.reviewerId) {
+        const userIds = Array.from(
+          new Set([dto.executorId, dto.reviewerId].filter(Boolean)),
+        ) as string[];
+
+        const users = await tx.user.findMany({
+          where: {
+            id: { in: userIds },
+            deletedAt: null,
+            isActive: true,
+          },
+          select: { id: true },
         });
 
-        const workflowTypeIds = [
-            ...new Set(
-                runDefs.map(
-                    (d) => d.runTemplate.lifecycleWorkflowTypeId,
-                ),
-            ),
-        ];
-
-        if (workflowTypeIds.length === 0) {
-            if (processId !== 'Embellishment' && processId !== 'Embellish') {
-                return await this.getLifeCycleStatusesByProcess('Embellishment');
-            }
-            return [];
+        if (users.length !== userIds.length) {
+          throw new BadRequestException('Invalid executor or reviewer');
         }
+      }
 
-        // 2️⃣ Fetch lifecycle statuses
-        const statuses = await this.prisma.workflowStatus.findMany({
-            where: {
-                workflowTypeId: { in: workflowTypeIds },
+      /* =====================================================
+       * IMAGES (PRESERVE OLD LOGIC + ADD RECONFIG)
+       * ===================================================== */
+      const uploadedUrls = dto.images ?? [];
+
+      if (uploadedUrls.length > 2) {
+        throw new BadRequestException('Maximum 2 images allowed');
+      }
+
+      if (uploadedUrls.some((url) => !this.cloudflare.isValidImageUrl(url))) {
+        throw new BadRequestException('Invalid image URLs provided');
+      }
+
+      const existingImages = this.isJsonObject(run.fields)
+        ? this.getStringArray(run.fields['images'])
+        : [];
+
+      // ⭐ replace only if new images provided
+      const finalImages =
+        uploadedUrls.length > 0 ? uploadedUrls : existingImages;
+
+      /* =====================================================
+       * MERGE FIELDS (SAME SHAPE AS OLD)
+       * ===================================================== */
+      const mergedFields: Prisma.JsonObject = {
+        ...(this.isJsonObject(run.fields) ? run.fields : {}),
+        ...normalizedFields,
+        images: finalImages,
+      };
+
+      /* =====================================================
+       * UPDATE RUN (SPLIT FIRST-TIME VS RECONFIG)
+       * ===================================================== */
+      await tx.processRun.update({
+        where: { id: run.id },
+        data: {
+          fields: mergedFields,
+          statusCode: ProcessRunStatus.COMPLETE,
+          ...(dto.executorId !== undefined && { executorId: dto.executorId }),
+          ...(dto.reviewerId !== undefined && { reviewerId: dto.reviewerId }),
+          ...(dto.locationId !== undefined && { locationId: dto.locationId }),
+          ...(dto.preProductionLocationId !== undefined && {
+            preProductionLocationId: dto.preProductionLocationId,
+          }),
+          ...(dto.postProductionLocationId !== undefined && {
+            postProductionLocationId: dto.postProductionLocationId,
+          }),
+          ...(dto.comments !== undefined && { comments: dto.comments }),
+          ...(run.configuredAt
+            ? {}
+            : {
+                configuredAt: new Date(), // ⭐ first time only
+                statusCode: ProcessRunStatus.COMPLETE,
+              }),
+        },
+      });
+
+      // Recompute estimate after configuration
+      const runWithOrder = await tx.processRun.findUnique({
+        where: { id: run.id },
+        select: { orderProcess: { select: { orderId: true } } },
+      });
+      if (runWithOrder) {
+        await recomputeOrderEstimate(
+          tx,
+          runWithOrder.orderProcess.orderId,
+          this.billingCalculator,
+        );
+      }
+
+      /* =====================================================
+       * PROCESS COUNTERS (FIRST TIME ONLY)
+       * ===================================================== */
+      if (!run.configuredAt) {
+        await tx.orderProcess.update({
+          where: { id: run.orderProcessId },
+          data: {
+            configCompletedRuns: { increment: 1 },
+            remainingRuns: { decrement: 1 },
+          },
+        });
+      }
+
+      /* =====================================================
+       * IMAGE CLEANUP (ONLY IF REPLACED)
+       * ===================================================== */
+      if (uploadedUrls.length > 0 && existingImages.length > 0) {
+        const toDelete = existingImages.filter(
+          (img) => !uploadedUrls.includes(img),
+        );
+
+        if (toDelete.length) {
+          await this.cloudflare.deleteFiles(toDelete);
+        }
+      }
+
+      return { success: true };
+    });
+  }
+
+  private getStringArray(value: unknown): string[] {
+    return Array.isArray(value)
+      ? value.filter((v): v is string => typeof v === 'string')
+      : [];
+  }
+
+  async deleteRunImage(
+    orderProcessId: string,
+    processRunId: string,
+    imageUrl: string,
+  ) {
+    const run = await this.prisma.processRun.findFirst({
+      where: {
+        id: processRunId,
+        orderProcessId,
+      },
+      select: {
+        id: true,
+        fields: true,
+      },
+    });
+
+    if (!run) {
+      throw new NotFoundException('Process run not found');
+    }
+
+    const images = (run.fields as any)?.images ?? [];
+
+    if (!images.includes(imageUrl)) {
+      throw new BadRequestException('Image not linked to this process run');
+    }
+
+    // 1️⃣ Delete from Cloudflare R2
+    await this.cloudflare.deleteFileByUrl(imageUrl);
+
+    // 2️⃣ Remove from DB
+    const updatedImages = images.filter((url: string) => url !== imageUrl);
+
+    await this.prisma.processRun.update({
+      where: { id: run.id },
+      data: {
+        fields: {
+          ...(run.fields as Record<string, any>),
+          images: updatedImages,
+        },
+      },
+    });
+
+    this.logger.log(`[RUN_IMAGE_DELETED] run=${run.id}`);
+
+    return {
+      processRunId: run.id,
+      deletedImage: imageUrl,
+      remainingImages: updatedImages.length,
+    };
+  }
+
+  async uploadRunImages(processRunId: string, files: Express.Multer.File[]) {
+    if (!files.length) {
+      throw new BadRequestException('No images uploaded');
+    }
+
+    if (files.length > 2) {
+      throw new BadRequestException('Maximum 2 images allowed');
+    }
+
+    const run = await this.prisma.processRun.findUnique({
+      where: { id: processRunId },
+      select: {
+        id: true,
+        fields: true,
+        orderProcess: {
+          select: { orderId: true },
+        },
+      },
+    });
+
+    if (!run) {
+      throw new NotFoundException('Process run not found');
+    }
+
+    const buffers = files.map((f) => f.buffer);
+    const filenames = files.map((f) => f.originalname);
+
+    this.logger.log(`[RUN_IMAGES][UPLOAD] run=${run.id} count=${files.length}`);
+
+    const urls = await this.cloudflare.uploadFiles(
+      buffers,
+      filenames,
+      `orders/${run.orderProcess.orderId}/runs/${run.id}`,
+    );
+
+    const existingImages = (run.fields as any)?.images ?? [];
+
+    const updatedFields = {
+      ...(run.fields as Record<string, any>),
+      images: [...existingImages, ...urls].slice(0, 2),
+    };
+
+    await this.prisma.processRun.update({
+      where: { id: run.id },
+      data: { fields: updatedFields },
+    });
+
+    return {
+      processRunId: run.id,
+      uploadedImages: urls,
+      totalImages: updatedFields.images.length,
+    };
+  }
+
+  /* =========================================================
+   * RUN DETAIL
+   * ========================================================= */
+
+  async getRunById(id: string): Promise<any> {
+    const run = await this.prisma.processRun.findUnique({
+      where: { id },
+      include: {
+        runTemplate: {
+          include: {
+            lifecycleWorkflowType: {
+              include: {
+                statuses: {
+                  orderBy: { createdAt: 'asc' },
+                  select: {
+                    code: true,
+                    isInitial: true,
+                    isTerminal: true,
+                  },
+                },
+              },
             },
-            select: {
+          },
+        },
+        lifecycleHistories: {
+          orderBy: { createdAt: 'desc' },
+        },
+        executor: {
+          select: { id: true, name: true },
+        },
+        reviewer: {
+          select: { id: true, name: true },
+        },
+        orderProcess: {
+          include: {
+            process: {
+              select: { name: true },
+            },
+            order: {
+              select: {
                 id: true,
                 code: true,
-            },
-        });
-
-        if (statuses.length === 0 && processId !== 'Embellishment') {
-            return await this.getLifeCycleStatusesByProcess('Embellishment');
-        }
-
-        return statuses;
-    }
-
-    private static readonly SYSTEM_FIELD_VALIDATORS: Record<
-        string,
-        (value: any) => any
-    > = {
-            images: (v: any) => {
-                if (v == null) return undefined; // ignore if absent
-
-                // normalize single URL → array
-                if (typeof v === 'string') {
-                    return [v];
-                }
-
-                if (Array.isArray(v) && v.every(i => typeof i === 'string')) {
-                    return v;
-                }
-
-                return null; // invalid
-            },
-        };
-
-
-
-    constructor(private readonly prisma: PrismaService,
-        private readonly orderService: OrdersService,
-        private readonly cloudflare: CloudflareService,
-        private readonly billingCalculator: BillingCalculatorService,
-    ) { }
-
-    /* =========================================================
-     * PROCESS CRUD
-     * ========================================================= */
-
-    async create(dto: CreateProcessDto) {
-        this.logger.log(`[PROCESS][CREATE] name=${dto.name}`);
-
-        return this.prisma.transaction(async tx => {
-            const process = await tx.process.create({
-                data: {
-                    name: dto.name,
-                    description: dto.description,
-                    isEnabled: dto.isEnabled,
-                },
-            });
-
-            await tx.processRunDefinition.createMany({
-                data: dto.runs.map(r => ({
-                    processId: process.id,
-                    runTemplateId: r.runTemplateId,
-                    displayName: r.displayName,
-                    sortOrder: r.sortOrder,
-                })),
-            });
-
-            this.logger.log(`[PROCESS][CREATED] processId=${process.id}`);
-            return process;
-        });
-    }
-
-    async getById(id: string) {
-        const process = await this.prisma.process.findUnique({
-            where: { id, isEnabled: true },
-            include: { runDefs: true },
-        });
-        if (!process) throw new BadRequestException('Process not found');
-        return process;
-    }
-
-    async getAll() {
-        const processes = await this.prisma.process.findMany({
-            include: { runDefs: true },
-            where: { isEnabled: true },
-            orderBy: { name: 'asc' },
-        });
-        return processes.map(toProcessSummary);
-    }
-
-    private priorityWhere(priorities: string | string[]): Prisma.OrderProcessWhereInput {
-        // Normalize to array
-        const priorityList = (typeof priorities === 'string' ? priorities.split(',') : priorities) as Array<'HIGH' | 'MEDIUM' | 'LOW'>;
-
-        if (priorityList.length === 0) return {};
-
-        const conditions: Prisma.OrderProcessWhereInput[] = [];
-
-        if (priorityList.includes('HIGH')) {
-            conditions.push({ remainingRuns: { lt: 5 } });
-        }
-
-        if (priorityList.includes('MEDIUM')) {
-            conditions.push({ remainingRuns: { gte: 5, lt: 10 } });
-        }
-
-        if (priorityList.includes('LOW')) {
-            conditions.push({ remainingRuns: { gte: 10 } });
-        }
-
-        if (conditions.length === 1) {
-            return conditions[0];
-        }
-
-        return { OR: conditions };
-    }
-
-
-    async getAllRuns(query: ProcessRunsQueryDto) {
-        const {
-            page = 1,
-            limit = 20,
-            search,
-            status,
-            customerId,
-            executorUserId,
-            reviewerUserId,
-            lifeCycleStatusCode,
-            priority,
-            createdFrom,
-            createdTo,
-            processId,
-            orderStatus,
-        } = query;
-
-        const skip = (page - 1) * limit;
-
-        /* ==========================
-         * ORDER WHERE
-         * ========================== */
-        const orderWhere: Prisma.OrderWhereInput = {
-            ...(customerId && { customerId }),
-            deletedAt: null,
-            // Filter by order status
-            ...(orderStatus && { statusCode: { in: orderStatus.split(',') as any[] } }),
-            isTest: query.isTest ?? false,
-        };
-
-        /* ==========================
-         * ORDER PROCESS WHERE
-         * ========================== */
-        // Note: priority filter here uses the "absolute remaining" logic from priorityWhere, 
-        // while the sort uses "percentage" logic from resolvePriority.
-        const orderProcessWhere: Prisma.OrderProcessWhereInput = {
-            ...(priority && this.priorityWhere(priority)),
-            ...(Object.keys(orderWhere).length > 0 && {
-                order: orderWhere,
-            }),
-        };
-
-        /* ==========================
-         * PROCESS RUN WHERE
-         * ========================== */
-        const combinedAnd: Prisma.ProcessRunWhereInput[] = [];
-
-        // 1. Process Filter
-        if (processId) {
-            const pidList = Array.isArray(processId) ? processId : [processId];
-            const dtfNames = ['DTF', 'Direct to Film (DTF)'];
-            if (pidList.some(p => dtfNames.includes(p))) {
-                dtfNames.forEach(n => { if (!pidList.includes(n)) pidList.push(n); });
-            }
-            combinedAnd.push({
-                OR: [
-                    { orderProcess: { process: { name: { in: pidList } } } },
-                    { orderProcess: { processId: { in: pidList } } },
-                    ...pidList.map(p => ({
-                        orderProcess: { process: { name: { in: ['Embellish', 'Embellishment'] } } },
-                        fields: { path: ['Process Name'], equals: p }
-                    }))
-                ]
-            });
-        }
-
-        // 2. Lifecycle Status Filter
-        if (lifeCycleStatusCode) {
-            const list = lifeCycleStatusCode.split(',').map(s => s.trim()).filter(Boolean);
-            if (list.length > 0) {
-                const expanded = [...list];
-                list.forEach(s => {
-                    const variants = [s, s.toUpperCase(), s.toLowerCase(), s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()];
-                    variants.forEach(v => { if (!expanded.includes(v)) expanded.push(v); });
-                });
-                if (expanded.some(e => e.toUpperCase() === 'QC & COUNTING' || e.toUpperCase() === 'QC&COUNTING')) {
-                    ['QC & Counting', 'QC & COUNTING', 'QC&Counting', 'QC&COUNTING'].forEach(v => { if (!expanded.includes(v)) expanded.push(v); });
-                }
-                combinedAnd.push({ lifeCycleStatusCode: { in: expanded } });
-            }
-        } else if (!status) {
-            combinedAnd.push({ lifeCycleStatusCode: { notIn: ['COMPLETE', 'BILLED'] } });
-        }
-
-        // 3. Search Filter
-        if (search) {
-            combinedAnd.push({
-                OR: [
-                    { orderProcess: { order: { code: { contains: search, mode: 'insensitive' } } } },
-                    { orderProcess: { order: { customer: { name: { contains: search, mode: 'insensitive' } } } } },
-                    { runTemplate: { name: { contains: search, mode: 'insensitive' } } },
-                    { lifeCycleStatusCode: { contains: search, mode: 'insensitive' } },
-                    { location: { name: { contains: search, mode: 'insensitive' } } },
-                    ...Object.values(ProcessRunStatus)
-                        .filter(s => s.toLowerCase().includes(search.toLowerCase()))
-                        .map(s => ({ statusCode: s })),
-                    ...Object.values(OrderStatus)
-                        .filter(s => s.toLowerCase().includes(search.toLowerCase()))
-                        .map(s => ({ orderProcess: { order: { statusCode: s } } })),
-                ]
-            });
-        }
-
-        // 4. Run Status Filter
-        if (status) {
-            combinedAnd.push({ statusCode: { in: status.split(',') as ProcessRunStatus[] } });
-        }
-
-        // 5. Assigned User Filter
-        if (query.assignedUserId) {
-            combinedAnd.push({
-                OR: [
-                    { executorId: query.assignedUserId },
-                    { reviewerId: query.assignedUserId },
-                ]
-            });
-        }
-
-        // Top-level property logic (these usually don't clash as they are unique fields)
-        const where: Prisma.ProcessRunWhereInput = {
-            AND: combinedAnd,
-            ...(executorUserId && { executorId: executorUserId }),
-            ...(reviewerUserId && { reviewerId: reviewerUserId }),
-            ...(query.locationId && {
-                OR: [
-                    { locationId: query.locationId },
-                    { preProductionLocationId: query.locationId },
-                    { postProductionLocationId: query.locationId },
-                ]
-            }),
-            ...(createdFrom || createdTo ? {
-                createdAt: {
-                    ...(createdFrom && { gte: new Date(createdFrom) }),
-                    ...(createdTo && { lte: new Date(createdTo) }),
-                }
-            } : {}),
-            ...(Object.keys(orderProcessWhere).length > 0 && {
-                orderProcess: orderProcessWhere,
-            }),
-        };
-
-        /* ==========================
-         * 1. FETCH METADATA FOR SORTING
-         * ========================== */
-        const total = await this.prisma.processRun.count({ where });
-
-        // If we are just filtering/searching and relying on default sort (createdAt) 
-        // we could optimize, but user requested PRIORITY sort specifically as primary.
-        // We fetch minimal data to sort in memory.
-        const allCandidates = await this.prisma.processRun.findMany({
-            where,
-            select: {
-                id: true,
                 statusCode: true,
-                createdAt: true,
-                fields: true,
-                orderProcess: {
-                    select: {
-                        lifecycleCompletedRuns: true,
-                        totalRuns: true,
-                        order: {
-                            select: {
-                                id: true,
-                                quantity: true,
-                                totalProcesses: true,
-                                billingContexts: {
-                                    orderBy: { createdAt: 'desc' },
-                                    take: 5, // Fetch a few to find the finalized one
-                                    select: {
-                                        billingContext: {
-                                            select: {
-                                                type: true,
-                                                snapshots: {
-                                                    where: { intent: 'FINAL' },
-                                                    orderBy: { version: 'desc' },
-                                                    take: 1,
-                                                    select: { result: true, inputs: true }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                },
+                images: true,
+                useOrderImageForRuns: true,
+                customer: { select: { name: true } },
+              },
             },
-        });
+          },
+        },
+      },
+    });
 
-        /* ==========================
-         * 2. IN-MEMORY SORT
-         * ========================== */
-        const getPriorityRank = (completed: number, total: number, status: string) => {
-            if (status === 'CONFIGURE') return 2; // LOW
-            if (total === 0) return 2; // LOW
-            const ratio = 1 - (completed / total);
-            if (ratio < 0.3 || total - completed < 2) return 0; // HIGH
-            if (ratio < 0.75) return 1; // MEDIUM
-            return 2; // LOW
-        };
+    if (!run) throw new NotFoundException('Process run not found');
 
-        allCandidates.sort((a, b) => {
-            const rankA = getPriorityRank(a.orderProcess.lifecycleCompletedRuns, a.orderProcess.totalRuns, a.statusCode);
-            const rankB = getPriorityRank(b.orderProcess.lifecycleCompletedRuns, b.orderProcess.totalRuns, b.statusCode);
+    let displayProcessName = run.orderProcess.process.name;
+    if (run.fields) {
+      const f = run.fields as any;
+      if (displayProcessName === 'Embellishment' && f['Process Name']) {
+        displayProcessName = f['Process Name'];
+      }
+    }
 
-            if (rankA !== rankB) {
-                return rankA - rankB; // 0 (HIGH) -> 1 (MED) -> 2 (LOW)
-            }
+    return {
+      ...run,
+      createdAt: run.createdAt.toISOString(),
+      priority: this.resolvePriority(
+        run.orderProcess.remainingRuns,
+        run.orderProcess.lifecycleCompletedRuns,
+        run.orderProcess.totalRuns,
+        run.statusCode,
+      ),
+      displayName: run.displayName,
+      configStatus: run.statusCode,
+      lifecycle: this.buildLifecycleProgress(
+        run.runTemplate.lifecycleWorkflowType.statuses,
+        run.lifeCycleStatusCode,
+        run.lifecycleHistories,
+      ),
+      lifecycleHistory: (run.lifecycleHistories || []).map((h: any) => ({
+        statusCode: h.statusCode,
+        expectedDate: h.expectedDate?.toISOString() || null,
+        completedAt: h.completedAt?.toISOString() || null,
+        createdAt: h.createdAt.toISOString(),
+      })),
+      fields: {
+        ...((run.fields as Record<string, any>) || {}),
+        images:
+          (run.fields as any)?.images?.length > 0
+            ? (run.fields as any).images
+            : run.orderProcess.order.useOrderImageForRuns
+              ? run.orderProcess.order.images
+              : [],
+      },
+      templateFields: run.runTemplate.fields as any[], // Typing bypass
+      // Ensure orderProcess matches DTO
+      orderProcess: {
+        name: displayProcessName,
+        totalRuns: run.orderProcess.totalRuns,
+        lifecycleCompletedRuns: run.orderProcess.lifecycleCompletedRuns,
+        remainingRuns: run.orderProcess.remainingRuns,
+        order: run.orderProcess.order,
+      },
+    };
+  }
 
-            // Tie-breaker: CreatedAt Descending (Newest first)
-            return b.createdAt.getTime() - a.createdAt.getTime();
-        });
+  private buildLifecycleProgress(
+    statuses: { code: string; isTerminal: boolean }[],
+    currentCode: string,
+    histories: any[] = [],
+  ) {
+    let reachedCurrent = false;
 
-        /* ==========================
-         * 3. PAGINATE & FETCH FULL DATA
-         * ========================== */
-        const slicedCandidates = allCandidates.slice(skip, skip + limit);
-        const slicedIds = slicedCandidates.map(c => c.id);
+    return statuses.map((s) => {
+      const history = histories.find((h) => h.statusCode === s.code);
 
-        let runs: any[] = [];
-        if (slicedIds.length > 0) {
-            const unsortedRuns = await this.prisma.processRun.findMany({
-                where: { id: { in: slicedIds } },
-                select: {
-                    id: true,
-                    runNumber: true,
-                    statusCode: true,
-                    lifeCycleStatusCode: true,
-                    comments: true,
-                    fields: true,
-                    createdAt: true,
-                    preProductionLocationId: true,
-                    postProductionLocationId: true,
-                    runTemplate: {
-                        select: { name: true },
-                    },
-                    lifecycleHistories: {
-                        orderBy: { createdAt: 'desc' },
-                    },
-                    executor: {
-                        select: { name: true },
-                    },
-                    reviewer: {
-                        select: { name: true },
-                    },
-                    orderProcess: {
-                        select: {
-                            // name: true, // REMOVED: Name is on Process, not OrderProcess
-                            process: {
-                                select: { name: true },
-                            },
-                            totalRuns: true,
-                            lifecycleCompletedRuns: true,
-                            remainingRuns: true,
-                            order: {
-                                select: {
-                                    id: true,
-                                    code: true,
-                                    quantity: true,
-                                    images: true,
-                                    useOrderImageForRuns: true,
-                                    customer: { select: { name: true } },
-                                    billingContexts: {
-                                        orderBy: { createdAt: 'desc' },
-                                        take: 5,
-                                        select: {
-                                            billingContext: {
-                                                select: {
-                                                    type: true,
-                                                    snapshots: {
-                                                        where: { intent: 'FINAL' },
-                                                        orderBy: { version: 'desc' },
-                                                        take: 1,
-                                                        select: { result: true, inputs: true }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                            },
-                        },
-                    },
-                },
-            });
-
-            // Re-sort to match the slicedCandidates order
-            const runMap = new Map<string, any>(unsortedRuns.map(r => [String(r.id), r]));
-            runs = slicedIds.map(id => runMap.get(String(id))).filter(Boolean);
-        }
-
-        /* ==========================
-         * MAP → DTO
-         * ========================== */
-        const data: ProcessRunListItemDto[] = runs.map((run) => {
-            // Pick only used fields
-            let relevantFields: Record<string, any> = {};
-            let displayProcessName = run.orderProcess.process.name;
-
-            if (run.fields) {
-                const f = run.fields as any;
-                const orderSnapshot = run.orderProcess.order;
-
-                const runImages = (f.images && f.images.length > 0)
-                    ? f.images
-                    : (orderSnapshot.useOrderImageForRuns ? orderSnapshot.images : []);
-
-                relevantFields['images'] = runImages;
-                if (f['Quantity']) relevantFields['Quantity'] = f['Quantity'];
-                if (f['Estimated Amount']) relevantFields['Estimated Amount'] = f['Estimated Amount'];
-
-                // Override name for Embellishment if "Process Name" field exists
-                if (displayProcessName === 'Embellishment' && f['Process Name']) {
-                    displayProcessName = f['Process Name'];
-                }
-            }
-
-
-            // Extract billing amount from the most relevant finalized context
-            const ctxOrder = run.orderProcess.order as any;
-            const finalizedContextOrder = ctxOrder.billingContexts?.find((bc: any) => bc.billingContext?.snapshots?.length > 0);
-            const bCtx = finalizedContextOrder?.billingContext;
-            const snapshot = bCtx?.snapshots?.[0];
-            let amount = snapshot?.result;
-
-            // 🔑 IF Group Context, the order's specific amount is inside the inputs
-            if (bCtx?.type === 'GROUP' && snapshot?.inputs) {
-                const orderData = (snapshot.inputs as any)[ctxOrder.id];
-                if (orderData && orderData['__ORDER_RESULT__']) {
-                    amount = orderData['__ORDER_RESULT__'];
-                }
-            }
-
-            return {
-                ...run,
-                fields: relevantFields,
-                // Exclude createdAt and orderProcess stats from payload
-                // but keep structure required by DTO (which is now optional)
-                orderProcess: {
-                    name: displayProcessName,
-                    order: {
-                        ...run.orderProcess.order,
-                        billingContexts: undefined, // Create a cleaner response
-                        amount: amount ? Number(amount) : undefined
-                    },
-                },
-                createdAt: undefined, // remove from JSON
-                priority: this.resolvePriority(
-                    run.orderProcess.remainingRuns,
-                    run.orderProcess.lifecycleCompletedRuns,
-                    run.orderProcess.totalRuns,
-                    run.statusCode
-                ),
-            };
-        });
-
+      if (s.code === currentCode) {
+        reachedCurrent = true;
         return {
-            data,
-            meta: {
-                page,
-                limit,
-                total,
-                totalPages: Math.ceil(total / limit),
-                totalEstimatedAmount: allCandidates.reduce((sum, run) => {
-                    const fields = (run.fields as any) || {};
-                    let runValue = 0;
-
-                    // 1. Try "Estimated Amount" field
-                    const amt = fields['Estimated Amount'];
-                    if (amt !== undefined && amt !== null) {
-                        const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
-                        const val = parseFloat(cleanAmt);
-                        if (!isNaN(val)) runValue = val;
-                    }
-
-                    // 2. Fallback to Billing Context
-                    if (runValue <= 0) {
-                        const order = run.orderProcess.order;
-                        const billingResult = order.billingContexts?.[0]?.billingContext?.snapshots?.[0]?.result;
-                        if (billingResult) {
-                            const orderVal = Number(billingResult);
-                            const processCount = order.totalProcesses || 1;
-                            runValue = orderVal / processCount;
-                        }
-                    }
-
-                    return sum + runValue;
-                }, 0),
-                totalQuantity: allCandidates.reduce((sum, run) => {
-                    const fields = (run.fields as any) || {};
-                    const qty = fields['Quantity'] || run.orderProcess.order.quantity;
-                    return sum + (Number(qty) || 0);
-                }, 0),
-            },
+          code: s.code,
+          completed: s.isTerminal,
+          expectedDate: history?.expectedDate?.toISOString() || null,
+          completedAt: history?.completedAt?.toISOString() || null,
         };
-    }
+      }
 
-    private resolvePriority(remainingRuns: number, completedRuns: number, totalRuns: number, statusCode?: string): 'HIGH' | 'MEDIUM' | 'LOW' {
-        if (statusCode === 'CONFIGURE') return 'LOW';
-        if (totalRuns === 0) return 'LOW';
-        if (1 - (completedRuns / totalRuns) < 0.3 || totalRuns - completedRuns < 2) return 'HIGH';
-        if (1 - (completedRuns / totalRuns) < 0.75) return 'MEDIUM';
-        return 'LOW';
-    }
+      return {
+        code: s.code,
+        completed: !reachedCurrent,
+        expectedDate: history?.expectedDate?.toISOString() || null,
+        completedAt: history?.completedAt?.toISOString() || null,
+      };
+    });
+  }
 
-    private isJsonObject(
-        value: Prisma.JsonValue,
-    ): value is Prisma.JsonObject {
-        return typeof value === 'object' && value !== null && !Array.isArray(value);
-    }
+  /* =========================================================
+   * RUN LIFECYCLE TRANSITION
+   * ========================================================= */
 
-    private extractImages(
-        fields: Prisma.JsonValue,
-    ): string[] {
-        if (!this.isJsonObject(fields)) return [];
+  async transition(
+    orderProcessId: string,
+    processRunId: string,
+    targetStatusCode: string,
+    expectedDate?: string,
+  ) {
+    this.logger.log(
+      `[LIFECYCLE][START] orderProcess=${orderProcessId} run=${processRunId} → ${targetStatusCode}`,
+    );
 
-        const images = fields['images'];
-        return Array.isArray(images)
-            ? images.filter((v): v is string => typeof v === 'string')
-            : [];
-    }
+    return this.prisma.transaction(async (tx) => {
+      /* =====================================================
+       * 1️⃣ LOAD RUN (MINIMAL)
+       * ===================================================== */
+      const run = await tx.processRun.findFirst({
+        where: { id: processRunId, orderProcessId },
+        select: {
+          id: true,
+          orderProcessId: true,
+          lifeCycleStatusCode: true,
+          runTemplateId: true,
+        },
+      });
 
-    async configure(
-        orderProcessId: string,
-        processRunId: string,
-        dto: ConfigureProcessRunDto,
-    ) {
-        return this.prisma.transaction(async tx => {
+      if (!run) {
+        throw new BadRequestException('Invalid process run');
+      }
 
-            /* =====================================================
-             * LOAD RUN + TEMPLATE (UNCHANGED)
-             * ===================================================== */
-            const run = await tx.processRun.findFirst({
-                where: { id: processRunId, orderProcessId },
-                select: {
-                    id: true,
-                    fields: true,
-                    configuredAt: true,
-                    statusCode: true,
-                    orderProcessId: true,
-                    orderProcess: {
-                        select: {
-                            order: {
-                                select: {
-                                    id: true,
-                                    customerId: true,
-                                },
-                            },
-                        },
-                    },
-                    runTemplate: {
-                        select: { fields: true },
-                    },
-                },
-            });
+      /* =====================================================
+       * 2️⃣ LOAD WORKFLOW ID
+       * ===================================================== */
+      const template = await tx.runTemplate.findUnique({
+        where: { id: run.runTemplateId },
+        select: { lifecycleWorkflowTypeId: true },
+      });
 
-            if (!run) {
-                throw new BadRequestException('Invalid process run');
-            }
-            /* =====================================================
-             * FIELD VALIDATION (UNCHANGED)
-             * ===================================================== */
-            const normalizedFields = this.validateAndNormalizeFields(
-                run.runTemplate.fields as RunTemplateField[],
-                dto.fields,
-            );
+      if (!template) {
+        throw new BadRequestException('RunTemplate missing');
+      }
 
-            /* =====================================================
-             * CREDIT LIMIT CHECK (NEW REQUIREMENT)
-             * ===================================================== */
-            const orderId = run.orderProcess.order.id;
-            const customerId = run.orderProcess.order.customerId;
+      /* =====================================================
+       * 3️⃣ LOAD BOTH CURRENT + TARGET STATUSES
+       * ===================================================== */
+      const statuses = await tx.workflowStatus.findMany({
+        where: {
+          workflowTypeId: template.lifecycleWorkflowTypeId,
+          code: {
+            in: [run.lifeCycleStatusCode, targetStatusCode],
+          },
+        },
+        select: {
+          id: true,
+          code: true,
+          isTerminal: true,
+        },
+      });
 
-            // Fetch all other runs for this order to calculate the potential new total
-            const otherRuns = await tx.processRun.findMany({
-                where: {
-                    orderProcess: { orderId },
-                    id: { not: processRunId }
-                },
-                select: { fields: true }
-            });
+      const current = statuses.find((s) => s.code === run.lifeCycleStatusCode);
 
-            let otherTotal = 0;
-            for (const r of otherRuns) {
-                const f = (r.fields as Record<string, any>) || {};
-                const val = f['Estimated Amount'] ?? f['estimated_amount'] ?? 0;
-                otherTotal += Number(val);
-            }
+      if (!current) {
+        throw new BadRequestException('Invalid current lifecycle state');
+      }
 
-            // New estimate for this specific run from the normalized fields
-            const newRunEstimate = normalizedFields['Estimated Amount'] ?? normalizedFields['estimated_amount'] ?? 0;
-            const potentialOrderTotal = otherTotal + Number(newRunEstimate);
+      if (current.isTerminal) {
+        throw new BadRequestException('Run already in terminal state');
+      }
 
-            this.logger.debug(`[CREDIT_CHECK] orderId=${orderId} currentOtherTotal=${otherTotal} newRunEstimate=${newRunEstimate} potentialTotal=${potentialOrderTotal}`);
+      const target = statuses.find((s) => s.code === targetStatusCode);
 
-            // Validate against customer credit limit
-            await this.orderService.validateCreditLimit(tx, customerId, potentialOrderTotal, orderId);
+      if (!target) {
+        throw new BadRequestException('Invalid target lifecycle state');
+      }
 
-            /* =====================================================
-             * EXECUTOR / REVIEWER VALIDATION (UNCHANGED)
-             * ===================================================== */
-            if (dto.executorId || dto.reviewerId) {
-                const userIds = Array.from(
-                    new Set([dto.executorId, dto.reviewerId].filter(Boolean)),
-                ) as string[];
+      /* =====================================================
+       * 4️⃣ UPDATE RUN STATUS AND HISTORY
+       * ===================================================== */
+      const transitionDate = expectedDate ? new Date(expectedDate) : new Date();
 
-                const users = await tx.user.findMany({
-                    where: {
-                        id: { in: userIds },
-                        deletedAt: null,
-                        isActive: true,
-                    },
-                    select: { id: true },
-                });
+      await tx.processRun.update({
+        where: { id: run.id },
+        data: { lifeCycleStatusCode: target.code },
+      });
 
-                if (users.length !== userIds.length) {
-                    throw new BadRequestException('Invalid executor or reviewer');
-                }
-            }
+      // Mark previous state as completed
+      await tx.processRunLifecycleHistory.updateMany({
+        where: {
+          processRunId: run.id,
+          statusCode: current.code,
+          completedAt: null,
+        },
+        data: {
+          completedAt: transitionDate,
+        },
+      });
 
-            /* =====================================================
-             * IMAGES (PRESERVE OLD LOGIC + ADD RECONFIG)
-             * ===================================================== */
-            const uploadedUrls = dto.images ?? [];
+      // Create new state history
+      await tx.processRunLifecycleHistory.create({
+        data: {
+          processRunId: run.id,
+          statusCode: target.code,
+          expectedDate: expectedDate ? transitionDate : null,
+          completedAt: target.isTerminal ? transitionDate : null,
+        },
+      });
 
-            if (uploadedUrls.length > 2) {
-                throw new BadRequestException('Maximum 2 images allowed');
-            }
+      /* =====================================================
+       * 5️⃣ EARLY EXIT IF NOT TERMINAL
+       * ===================================================== */
+      if (!target.isTerminal) {
+        return { success: true, status: target.code };
+      }
 
-            if (uploadedUrls.some(url => !this.cloudflare.isValidImageUrl(url))) {
-                throw new BadRequestException('Invalid image URLs provided');
-            }
+      /* =====================================================
+       * 6️⃣ TERMINAL HANDLING
+       * ===================================================== */
+      const updatedOrderProcess = await tx.orderProcess.update({
+        where: { id: run.orderProcessId },
+        data: { lifecycleCompletedRuns: { increment: 1 } },
+        select: {
+          id: true,
+          orderId: true,
+          totalRuns: true,
+          lifecycleCompletedRuns: true,
+        },
+      });
 
-            const existingImages = this.isJsonObject(run.fields)
-                ? this.getStringArray(run.fields['images'])
-                : [];
+      const finalized = await tx.orderProcess.updateMany({
+        where: {
+          id: updatedOrderProcess.id,
+          lifecycleCompletedRuns: updatedOrderProcess.totalRuns,
+          lifecycleCompletedAt: null,
+        },
+        data: { lifecycleCompletedAt: transitionDate },
+      });
 
-
-            // ⭐ replace only if new images provided
-            const finalImages =
-                uploadedUrls.length > 0 ? uploadedUrls : existingImages;
-
-            /* =====================================================
-             * MERGE FIELDS (SAME SHAPE AS OLD)
-             * ===================================================== */
-            const mergedFields: Prisma.JsonObject = {
-                ...(this.isJsonObject(run.fields) ? run.fields : {}),
-                ...normalizedFields,
-                images: finalImages,
-            };
-
-            /* =====================================================
-             * UPDATE RUN (SPLIT FIRST-TIME VS RECONFIG)
-             * ===================================================== */
-            await tx.processRun.update({
-                where: { id: run.id },
-                data: {
-                    fields: mergedFields,
-                    statusCode: ProcessRunStatus.COMPLETE,
-                    ...(dto.executorId !== undefined && { executorId: dto.executorId }),
-                    ...(dto.reviewerId !== undefined && { reviewerId: dto.reviewerId }),
-                    ...(dto.locationId !== undefined && { locationId: dto.locationId }),
-                    ...(dto.preProductionLocationId !== undefined && { preProductionLocationId: dto.preProductionLocationId }),
-                    ...(dto.postProductionLocationId !== undefined && { postProductionLocationId: dto.postProductionLocationId }),
-                    ...(dto.comments !== undefined && { comments: dto.comments }),
-                    ...(run.configuredAt
-                        ? {}
-                        : {
-                            configuredAt: new Date(),           // ⭐ first time only
-                            statusCode: ProcessRunStatus.COMPLETE,
-                        }),
-                },
-            });
-
-            // Recompute estimate after configuration
-            const runWithOrder = await tx.processRun.findUnique({
-                where: { id: run.id },
-                select: { orderProcess: { select: { orderId: true } } }
-            });
-            if (runWithOrder) {
-                await recomputeOrderEstimate(tx, runWithOrder.orderProcess.orderId, this.billingCalculator);
-            }
-
-            /* =====================================================
-             * PROCESS COUNTERS (FIRST TIME ONLY)
-             * ===================================================== */
-            if (!run.configuredAt) {
-                await tx.orderProcess.update({
-                    where: { id: run.orderProcessId },
-                    data: {
-                        configCompletedRuns: { increment: 1 },
-                        remainingRuns: { decrement: 1 },
-                    },
-                });
-            }
-
-            /* =====================================================
-             * IMAGE CLEANUP (ONLY IF REPLACED)
-             * ===================================================== */
-            if (uploadedUrls.length > 0 && existingImages.length > 0) {
-                const toDelete = existingImages.filter(
-                    img => !uploadedUrls.includes(img),
-                );
-
-                if (toDelete.length) {
-                    await this.cloudflare.deleteFiles(toDelete);
-                }
-            }
-
-            return { success: true };
-        });
-    }
-
-
-    private getStringArray(value: unknown): string[] {
-        return Array.isArray(value)
-            ? value.filter((v): v is string => typeof v === 'string')
-            : [];
-    }
-
-
-    async deleteRunImage(
-        orderProcessId: string,
-        processRunId: string,
-        imageUrl: string,
-    ) {
-        const run = await this.prisma.processRun.findFirst({
-            where: {
-                id: processRunId,
-                orderProcessId,
-            },
-            select: {
-                id: true,
-                fields: true,
-            },
+      if (finalized.count === 1) {
+        const updatedOrder = await tx.order.update({
+          where: { id: updatedOrderProcess.orderId },
+          data: { completedProcesses: { increment: 1 } },
+          select: {
+            id: true,
+            totalProcesses: true,
+            completedProcesses: true,
+          },
         });
 
-        if (!run) {
-            throw new NotFoundException('Process run not found');
+        if (updatedOrder.completedProcesses === updatedOrder.totalProcesses) {
+          await tx.order.update({
+            where: { id: updatedOrder.id },
+            data: { statusCode: OrderStatus.COMPLETE },
+          });
+        }
+      }
+
+      // Recompute estimate after status change
+      await recomputeOrderEstimate(
+        tx,
+        updatedOrderProcess.orderId,
+        this.billingCalculator,
+      );
+
+      return { success: true, status: target.code };
+    });
+  }
+
+  /* =========================================================
+   * FIELD VALIDATION
+   * ========================================================= */
+
+  private validateAndNormalizeFields(
+    templateFields: RunTemplateField[],
+    inputFields: Record<string, any>,
+  ): Record<string, any> {
+    const templateMap = new Map(templateFields.map((f) => [f.key, f]));
+
+    const normalized: Record<string, any> = {};
+
+    /* =====================================================
+     * 1️⃣ Required field validation (template-owned)
+     * ===================================================== */
+    for (const field of templateFields) {
+      if (field.required && !(field.key in inputFields)) {
+        throw new BadRequestException(`Missing field ${field.key}`);
+      }
+    }
+
+    /* =====================================================
+     * 2️⃣ Input validation & normalization
+     * ===================================================== */
+    for (const [key, value] of Object.entries(inputFields)) {
+      /* -----------------------------------------------
+       * SYSTEM FIELDS (images, attachments, etc.)
+       * ----------------------------------------------- */
+      const systemValidator = AdminProcessService.SYSTEM_FIELD_VALIDATORS[key];
+      if (systemValidator) {
+        const normalizedValue = systemValidator(value);
+
+        if (normalizedValue === null) {
+          throw new BadRequestException(
+            `Invalid value for system field ${key}`,
+          );
         }
 
-        const images = (run.fields as any)?.images ?? [];
+        if (normalizedValue !== undefined) {
+          normalized[key] = normalizedValue;
+        }
 
-        if (!images.includes(imageUrl)) {
+        continue;
+      }
+
+      /* -----------------------------------------------
+       * TEMPLATE FIELDS
+       * ----------------------------------------------- */
+      const expected = templateMap.get(key);
+
+      if (!expected) {
+        // Allow standard summary fields even if not in template
+        if (AdminProcessService.SUMMARY_FIELDS.has(key)) {
+          normalized[key] = value;
+          continue;
+        }
+
+        throw new BadRequestException(`Unknown field ${key}`);
+      }
+
+      switch (expected.type) {
+        case 'string':
+          if (value !== null && typeof value === 'string') {
+            normalized[key] = value;
+            break;
+          } else if (value !== null && typeof value === 'object') {
+            normalized[key] = JSON.stringify(value);
+            break;
+          }
+
+          throw new BadRequestException(
+            `Invalid type for ${key}, expected string`,
+          );
+          break;
+
+        case 'number':
+          if (typeof value !== 'number') {
             throw new BadRequestException(
-                'Image not linked to this process run',
+              `Invalid type for ${key}, expected number`,
             );
-        }
+          }
+          normalized[key] = value;
+          break;
 
-        // 1️⃣ Delete from Cloudflare R2
-        await this.cloudflare.deleteFileByUrl(imageUrl);
-
-        // 2️⃣ Remove from DB
-        const updatedImages = images.filter(
-            (url: string) => url !== imageUrl,
-        );
-
-        await this.prisma.processRun.update({
-            where: { id: run.id },
-            data: {
-                fields: {
-                    ...(run.fields as Record<string, any>),
-                    images: updatedImages,
-                },
-            },
-        });
-
-        this.logger.log(
-            `[RUN_IMAGE_DELETED] run=${run.id}`,
-        );
-
-        return {
-            processRunId: run.id,
-            deletedImage: imageUrl,
-            remainingImages: updatedImages.length,
-        };
-    }
-
-
-    async uploadRunImages(
-        processRunId: string,
-        files: Express.Multer.File[],
-    ) {
-        if (!files.length) {
-            throw new BadRequestException('No images uploaded');
-        }
-
-        if (files.length > 2) {
-            throw new BadRequestException('Maximum 2 images allowed');
-        }
-
-        const run = await this.prisma.processRun.findUnique({
-            where: { id: processRunId },
-            select: {
-                id: true,
-                fields: true,
-                orderProcess: {
-                    select: { orderId: true },
-                },
-            },
-        });
-
-        if (!run) {
-            throw new NotFoundException('Process run not found');
-        }
-
-        const buffers = files.map(f => f.buffer);
-        const filenames = files.map(f => f.originalname);
-
-        this.logger.log(
-            `[RUN_IMAGES][UPLOAD] run=${run.id} count=${files.length}`,
-        );
-
-        const urls = await this.cloudflare.uploadFiles(
-            buffers,
-            filenames,
-            `orders/${run.orderProcess.orderId}/runs/${run.id}`,
-        );
-
-        const existingImages =
-            (run.fields as any)?.images ?? [];
-
-        const updatedFields = {
-            ...(run.fields as Record<string, any>),
-            images: [...existingImages, ...urls].slice(0, 2),
-        };
-
-        await this.prisma.processRun.update({
-            where: { id: run.id },
-            data: { fields: updatedFields },
-        });
-
-        return {
-            processRunId: run.id,
-            uploadedImages: urls,
-            totalImages: updatedFields.images.length,
-        };
-    }
-
-    /* =========================================================
-     * RUN DETAIL
-     * ========================================================= */
-
-    async getRunById(id: string): Promise<any> {
-        const run = await this.prisma.processRun.findUnique({
-            where: { id },
-            include: {
-                runTemplate: {
-                    include: {
-                        lifecycleWorkflowType: {
-                            include: {
-                                statuses: {
-                                    orderBy: { createdAt: 'asc' },
-                                    select: {
-                                        code: true,
-                                        isInitial: true,
-                                        isTerminal: true,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-                lifecycleHistories: {
-                    orderBy: { createdAt: 'desc' },
-                },
-                executor: {
-                    select: { id: true, name: true },
-                },
-                reviewer: {
-                    select: { id: true, name: true },
-                },
-                orderProcess: {
-                    include: {
-                        process: {
-                            select: { name: true },
-                        },
-                        order: {
-                            select: {
-                                id: true,
-                                code: true,
-                                statusCode: true,
-                                images: true,
-                                useOrderImageForRuns: true,
-                                customer: { select: { name: true } },
-                            },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (!run) throw new NotFoundException('Process run not found');
-
-        let displayProcessName = run.orderProcess.process.name;
-        if (run.fields) {
-            const f = run.fields as any;
-            if (displayProcessName === 'Embellishment' && f['Process Name']) {
-                displayProcessName = f['Process Name'];
-            }
-        }
-
-        return {
-            ...run,
-            createdAt: run.createdAt.toISOString(),
-            priority: this.resolvePriority(
-                run.orderProcess.remainingRuns,
-                run.orderProcess.lifecycleCompletedRuns,
-                run.orderProcess.totalRuns,
-                run.statusCode,
-            ),
-            displayName: run.displayName,
-            configStatus: run.statusCode,
-            lifecycle: this.buildLifecycleProgress(
-                run.runTemplate.lifecycleWorkflowType.statuses,
-                run.lifeCycleStatusCode,
-                run.lifecycleHistories,
-            ),
-            lifecycleHistory: (run.lifecycleHistories || []).map((h: any) => ({
-                statusCode: h.statusCode,
-                expectedDate: h.expectedDate?.toISOString() || null,
-                completedAt: h.completedAt?.toISOString() || null,
-                createdAt: h.createdAt.toISOString(),
-            })),
-            fields: {
-                ...(run.fields as Record<string, any> || {}),
-                images: ((run.fields as any)?.images?.length > 0)
-                    ? (run.fields as any).images
-                    : (run.orderProcess.order.useOrderImageForRuns ? run.orderProcess.order.images : []),
-            },
-            templateFields: run.runTemplate.fields as any[], // Typing bypass
-            // Ensure orderProcess matches DTO
-            orderProcess: {
-                name: displayProcessName,
-                totalRuns: run.orderProcess.totalRuns,
-                lifecycleCompletedRuns: run.orderProcess.lifecycleCompletedRuns,
-                remainingRuns: run.orderProcess.remainingRuns,
-                order: run.orderProcess.order,
-            },
-        };
-    }
-
-    private buildLifecycleProgress(
-        statuses: { code: string; isTerminal: boolean }[],
-        currentCode: string,
-        histories: any[] = [],
-    ) {
-        let reachedCurrent = false;
-
-        return statuses.map(s => {
-            const history = histories.find(h => h.statusCode === s.code);
-
-            if (s.code === currentCode) {
-                reachedCurrent = true;
-                return {
-                    code: s.code,
-                    completed: s.isTerminal,
-                    expectedDate: history?.expectedDate?.toISOString() || null,
-                    completedAt: history?.completedAt?.toISOString() || null,
-                };
-            }
-
-            return {
-                code: s.code,
-                completed: !reachedCurrent,
-                expectedDate: history?.expectedDate?.toISOString() || null,
-                completedAt: history?.completedAt?.toISOString() || null,
-            };
-        });
-    }
-
-    /* =========================================================
-     * RUN LIFECYCLE TRANSITION
-     * ========================================================= */
-
-    async transition(
-        orderProcessId: string,
-        processRunId: string,
-        targetStatusCode: string,
-        expectedDate?: string,
-    ) {
-        this.logger.log(
-            `[LIFECYCLE][START] orderProcess=${orderProcessId} run=${processRunId} → ${targetStatusCode}`,
-        );
-
-        return this.prisma.transaction(async tx => {
-
-            /* =====================================================
-             * 1️⃣ LOAD RUN (MINIMAL)
-             * ===================================================== */
-            const run = await tx.processRun.findFirst({
-                where: { id: processRunId, orderProcessId },
-                select: {
-                    id: true,
-                    orderProcessId: true,
-                    lifeCycleStatusCode: true,
-                    runTemplateId: true,
-                },
-            });
-
-            if (!run) {
-                throw new BadRequestException('Invalid process run');
-            }
-
-            /* =====================================================
-             * 2️⃣ LOAD WORKFLOW ID
-             * ===================================================== */
-            const template = await tx.runTemplate.findUnique({
-                where: { id: run.runTemplateId },
-                select: { lifecycleWorkflowTypeId: true },
-            });
-
-            if (!template) {
-                throw new BadRequestException('RunTemplate missing');
-            }
-
-            /* =====================================================
-             * 3️⃣ LOAD BOTH CURRENT + TARGET STATUSES
-             * ===================================================== */
-            const statuses = await tx.workflowStatus.findMany({
-                where: {
-                    workflowTypeId: template.lifecycleWorkflowTypeId,
-                    code: {
-                        in: [
-                            run.lifeCycleStatusCode,
-                            targetStatusCode,
-                        ],
-                    },
-                },
-                select: {
-                    id: true,
-                    code: true,
-                    isTerminal: true,
-                },
-            });
-
-            const current = statuses.find(
-                s => s.code === run.lifeCycleStatusCode,
+        case 'boolean':
+          if (typeof value !== 'boolean') {
+            throw new BadRequestException(
+              `Invalid type for ${key}, expected boolean`,
             );
+          }
+          normalized[key] = value;
+          break;
 
-            if (!current) {
-                throw new BadRequestException('Invalid current lifecycle state');
-            }
-
-            if (current.isTerminal) {
-                throw new BadRequestException('Run already in terminal state');
-            }
-
-            const target = statuses.find(
-                s => s.code === targetStatusCode,
-            );
-
-            if (!target) {
-                throw new BadRequestException('Invalid target lifecycle state');
-            }
-
-            /* =====================================================
-             * 4️⃣ UPDATE RUN STATUS AND HISTORY
-             * ===================================================== */
-            const transitionDate = expectedDate ? new Date(expectedDate) : new Date();
-
-            await tx.processRun.update({
-                where: { id: run.id },
-                data: { lifeCycleStatusCode: target.code },
-            });
-
-            // Mark previous state as completed
-            await tx.processRunLifecycleHistory.updateMany({
-                where: {
-                    processRunId: run.id,
-                    statusCode: current.code,
-                    completedAt: null,
-                },
-                data: {
-                    completedAt: transitionDate,
-                }
-            });
-
-            // Create new state history
-            await tx.processRunLifecycleHistory.create({
-                data: {
-                    processRunId: run.id,
-                    statusCode: target.code,
-                    expectedDate: expectedDate ? transitionDate : null,
-                    completedAt: target.isTerminal ? transitionDate : null,
-                }
-            });
-
-            /* =====================================================
-             * 5️⃣ EARLY EXIT IF NOT TERMINAL
-             * ===================================================== */
-            if (!target.isTerminal) {
-                return { success: true, status: target.code };
-            }
-
-            /* =====================================================
-             * 6️⃣ TERMINAL HANDLING
-             * ===================================================== */
-            const updatedOrderProcess = await tx.orderProcess.update({
-                where: { id: run.orderProcessId },
-                data: { lifecycleCompletedRuns: { increment: 1 } },
-                select: {
-                    id: true,
-                    orderId: true,
-                    totalRuns: true,
-                    lifecycleCompletedRuns: true,
-                },
-            });
-
-            const finalized = await tx.orderProcess.updateMany({
-                where: {
-                    id: updatedOrderProcess.id,
-                    lifecycleCompletedRuns: updatedOrderProcess.totalRuns,
-                    lifecycleCompletedAt: null,
-                },
-                data: { lifecycleCompletedAt: transitionDate },
-            });
-
-            if (finalized.count === 1) {
-                const updatedOrder = await tx.order.update({
-                    where: { id: updatedOrderProcess.orderId },
-                    data: { completedProcesses: { increment: 1 } },
-                    select: {
-                        id: true,
-                        totalProcesses: true,
-                        completedProcesses: true,
-                    },
-                });
-
-                if (updatedOrder.completedProcesses === updatedOrder.totalProcesses) {
-                    await tx.order.update({
-                        where: { id: updatedOrder.id },
-                        data: { statusCode: OrderStatus.COMPLETE },
-                    });
-                }
-            }
-
-            // Recompute estimate after status change
-            await recomputeOrderEstimate(tx, updatedOrderProcess.orderId, this.billingCalculator);
-
-            return { success: true, status: target.code };
-        });
+        default:
+          throw new BadRequestException(
+            `Unsupported field type ${expected.type} for ${key}`,
+          );
+      }
     }
 
-
-
-
-
-
-    /* =========================================================
-     * FIELD VALIDATION
-     * ========================================================= */
-
-    private validateAndNormalizeFields(
-        templateFields: RunTemplateField[],
-        inputFields: Record<string, any>,
-    ): Record<string, any> {
-        const templateMap = new Map(
-            templateFields.map(f => [f.key, f]),
-        );
-
-        const normalized: Record<string, any> = {};
-
-        /* =====================================================
-         * 1️⃣ Required field validation (template-owned)
-         * ===================================================== */
-        for (const field of templateFields) {
-            if (field.required && !(field.key in inputFields)) {
-                throw new BadRequestException(
-                    `Missing field ${field.key}`,
-                );
-            }
-        }
-
-        /* =====================================================
-         * 2️⃣ Input validation & normalization
-         * ===================================================== */
-        for (const [key, value] of Object.entries(inputFields)) {
-
-            /* -----------------------------------------------
-             * SYSTEM FIELDS (images, attachments, etc.)
-             * ----------------------------------------------- */
-            const systemValidator =
-                AdminProcessService.SYSTEM_FIELD_VALIDATORS[key];
-            if (systemValidator) {
-                const normalizedValue = systemValidator(value);
-
-                if (normalizedValue === null) {
-                    throw new BadRequestException(
-                        `Invalid value for system field ${key}`,
-                    );
-                }
-
-                if (normalizedValue !== undefined) {
-                    normalized[key] = normalizedValue;
-                }
-
-                continue;
-            }
-
-            /* -----------------------------------------------
-             * TEMPLATE FIELDS
-             * ----------------------------------------------- */
-            const expected = templateMap.get(key);
-
-            if (!expected) {
-                // Allow standard summary fields even if not in template
-                if (AdminProcessService.SUMMARY_FIELDS.has(key)) {
-                    normalized[key] = value;
-                    continue;
-                }
-
-                throw new BadRequestException(
-                    `Unknown field ${key}`,
-                );
-            }
-
-            switch (expected.type) {
-                case 'string':
-                    if (value !== null && typeof value === 'string') {
-                        normalized[key] = value;
-                        break;
-                    } else if (
-                        value !== null &&
-                        typeof value === 'object'
-                    ) {
-                        normalized[key] = JSON.stringify(value);
-                        break;
-                    }
-
-                    throw new BadRequestException(
-                        `Invalid type for ${key}, expected string`,
-                    );
-                    break;
-
-                case 'number':
-                    if (typeof value !== 'number') {
-                        throw new BadRequestException(
-                            `Invalid type for ${key}, expected number`,
-                        );
-                    }
-                    normalized[key] = value;
-                    break;
-
-                case 'boolean':
-                    if (typeof value !== 'boolean') {
-                        throw new BadRequestException(
-                            `Invalid type for ${key}, expected boolean`,
-                        );
-                    }
-                    normalized[key] = value;
-                    break;
-
-                default:
-                    throw new BadRequestException(
-                        `Unsupported field type ${expected.type} for ${key}`,
-                    );
-            }
-        }
-
-        return normalized;
-    }
+    return normalized;
+  }
 }

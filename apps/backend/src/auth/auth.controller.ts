@@ -1,11 +1,11 @@
 import {
-    Controller,
-    Get,
-    Post,
-    Query,
-    Req,
-    Res,
-    UnauthorizedException
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  Res,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ContextLogger } from '../common/logger/context.logger';
@@ -14,139 +14,128 @@ import { Public } from './decorators/public.decorator';
 import { KeycloakService } from './keycloak/keycloak.service';
 @Controller('auth')
 export class AuthController {
-    private readonly logger = new ContextLogger(AuthController.name);
+  private readonly logger = new ContextLogger(AuthController.name);
 
-    constructor(
-        private readonly auth: AuthService,
-        private readonly keycloak: KeycloakService,
-    ) { }
+  constructor(
+    private readonly auth: AuthService,
+    private readonly keycloak: KeycloakService,
+  ) {}
 
-    @Get('login')
-    @Public()
-    login(
-        @Query('redirectTo') redirectTo = '/',
-        @Req() req: Request,
-        @Res({ passthrough: true }) res: Response,
-    ) {
-        this.logger.log(
-            `Login requested from ${req.ip}, redirectTo=${redirectTo}`,
-        );
+  @Get('login')
+  @Public()
+  login(
+    @Query('redirectTo') redirectTo = '/',
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.logger.log(`Login requested from ${req.ip}, redirectTo=${redirectTo}`);
 
-        const state = Buffer.from(
-            JSON.stringify({ redirectTo }),
-        ).toString('base64');
+    const state = Buffer.from(JSON.stringify({ redirectTo })).toString(
+      'base64',
+    );
 
-        const url = this.keycloak.getLoginUrl(state);
-        res.redirect(url);
-        return;
+    const url = this.keycloak.getLoginUrl(state);
+    res.redirect(url);
+    return;
+  }
+
+  @Get('callback')
+  @Public()
+  async callback(
+    @Query('code') code: string,
+    @Query('state') state: string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.logger.log('OAuth callback received from Keycloak');
+
+    const tokens = await this.keycloak.exchangeCode(code);
+    this.logger.log('Authorization code successfully exchanged');
+
+    this.auth.setAuthCookies(res, tokens, req);
+
+    let redirectTo = '/';
+    if (state) {
+      try {
+        redirectTo = JSON.parse(
+          Buffer.from(state, 'base64').toString(),
+        ).redirectTo;
+      } catch {
+        this.logger.warn('Invalid OAuth state parameter');
+      }
     }
 
-    @Get('callback')
-    @Public()
-    async callback(
-        @Query('code') code: string,
-        @Query('state') state: string,
-        @Req() req: Request,
-        @Res({ passthrough: true }) res: Response,
-    ) {
-        this.logger.log('OAuth callback received from Keycloak');
+    this.logger.log(`Login completed, redirecting to frontend: ${redirectTo}`);
+    res.redirect(`${process.env.FRONT_END_BASE_URL}${redirectTo}`);
+    return;
+  }
 
-        const tokens = await this.keycloak.exchangeCode(code);
-        this.logger.log('Authorization code successfully exchanged');
+  @Post('refresh')
+  @Public()
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const hasRefreshToken = !!req.cookies?.REFRESH_TOKEN;
 
-        this.auth.setAuthCookies(res, tokens, req);
+    this.logger.log(
+      `Refresh requested (refreshTokenPresent=${hasRefreshToken})`,
+    );
 
-        let redirectTo = '/';
-        if (state) {
-            try {
-                redirectTo = JSON.parse(
-                    Buffer.from(state, 'base64').toString(),
-                ).redirectTo;
-            } catch {
-                this.logger.warn('Invalid OAuth state parameter');
-            }
-        }
-
-        this.logger.log(`Login completed, redirecting to frontend: ${redirectTo}`);
-        res.redirect(
-            `${process.env.FRONT_END_BASE_URL}${redirectTo}`,
-        );
-        return;
+    if (!hasRefreshToken) {
+      this.logger.warn('Refresh denied: no refresh token cookie');
+      throw new UnauthorizedException();
     }
 
-    @Post('refresh')
-    @Public()
-    async refresh(
-        @Req() req: Request,
-        @Res({ passthrough: true }) res: Response,
-    ) {
-        const hasRefreshToken = !!req.cookies?.REFRESH_TOKEN;
+    const tokens = await this.keycloak.refresh(req.cookies.REFRESH_TOKEN);
+    this.logger.log('Access token refreshed successfully');
 
-        this.logger.log(
-            `Refresh requested (refreshTokenPresent=${hasRefreshToken})`,
-        );
+    this.auth.setAccessCookie(res, tokens.access_token, req);
+    return { ok: true };
+  }
 
-        if (!hasRefreshToken) {
-            this.logger.warn('Refresh denied: no refresh token cookie');
-            throw new UnauthorizedException();
-        }
+  @Post('logout')
+  @Public()
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    this.logger.log('Logout requested');
 
-        const tokens = await this.keycloak.refresh(req.cookies.REFRESH_TOKEN);
-        this.logger.log('Access token refreshed successfully');
+    const hasRefreshToken = !!req.cookies?.REFRESH_TOKEN;
+    this.logger.log(`Refresh token present during logout: ${hasRefreshToken}`);
 
-        this.auth.setAccessCookie(res, tokens.access_token, req);
-        return { ok: true };
+    if (hasRefreshToken) {
+      try {
+        await this.keycloak.keycloakLogout(req.cookies.REFRESH_TOKEN);
+        this.logger.log('Keycloak SSO session terminated');
+      } catch (err) {
+        this.logger.warn('Keycloak logout failed (continuing app logout)');
+      }
     }
 
-    @Post('logout')
-    @Public()
-    async logout(
-        @Req() req: Request,
-        @Res({ passthrough: true }) res: Response,
-    ) {
-        this.logger.log('Logout requested');
+    this.auth.clearCookies(res, req);
+    this.logger.log('Application auth cookies cleared');
 
-        const hasRefreshToken = !!req.cookies?.REFRESH_TOKEN;
-        this.logger.log(
-            `Refresh token present during logout: ${hasRefreshToken}`,
-        );
+    return { success: true };
+  }
 
-        if (hasRefreshToken) {
-            try {
-                await this.keycloak.keycloakLogout(req.cookies.REFRESH_TOKEN);
-                this.logger.log('Keycloak SSO session terminated');
-            } catch (err) {
-                this.logger.warn('Keycloak logout failed (continuing app logout)');
-            }
-        }
+  @Get('me')
+  async me(@Req() req: any) {
+    const authUser = req.user;
 
-        this.auth.clearCookies(res, req);
-        this.logger.log('Application auth cookies cleared');
-
-        return { success: true };
+    if (!authUser?.id) {
+      throw new UnauthorizedException('Unauthenticated');
     }
 
-    @Get('me')
-    async me(@Req() req: any) {
-        const authUser = req.user;
+    this.logger.log(`[ME] authUserId=${authUser.id}`);
 
-        if (!authUser?.id) {
-            throw new UnauthorizedException('Unauthenticated');
-        }
+    return this.auth.getMe(authUser);
+  }
 
-        this.logger.log(
-            `[ME] authUserId=${authUser.id}`,
-        );
-
-        return this.auth.getMe(authUser);
+  @Post('preferences')
+  async updatePreferences(@Req() req: any) {
+    const authUser = req.user;
+    if (!authUser?.id) {
+      throw new UnauthorizedException('Unauthenticated');
     }
-
-    @Post('preferences')
-    async updatePreferences(@Req() req: any) {
-        const authUser = req.user;
-        if (!authUser?.id) {
-            throw new UnauthorizedException('Unauthenticated');
-        }
-        return this.auth.updatePreferences(authUser.id, req.body);
-    }
+    return this.auth.updatePreferences(authUser.id, req.body);
+  }
 }

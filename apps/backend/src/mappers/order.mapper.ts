@@ -1,117 +1,120 @@
 import { OrderSummaryDto } from '@app/contracts';
 
 export function toOrderSummary(order: any): OrderSummaryDto {
-    return {
-        id: order.id,
-        quantity: order.quantity,
-        status: order.statusCode,
-        createdAt: order.createdAt.toISOString(),
-        code: order.code,
-        jobCode: order.jobCode,
-        images: order.images || [],
-        useOrderImageForRuns: order.useOrderImageForRuns || false,
-        isTest: order.isTest || false,
-        totalProcesses: order.totalProcesses,
-        completedProcesses: order.completedProcesses,
+  return {
+    id: order.id,
+    quantity: order.quantity,
+    status: order.statusCode,
+    createdAt: order.createdAt.toISOString(),
+    code: order.code,
+    jobCode: order.jobCode,
+    images: order.images || [],
+    useOrderImageForRuns: order.useOrderImageForRuns || false,
+    isTest: order.isTest || false,
+    totalProcesses: order.totalProcesses,
+    completedProcesses: order.completedProcesses,
 
-        // ✅ CREATED / ASSIGNED USER
-        createdBy: order.createdBy
+    // ✅ CREATED / ASSIGNED USER
+    createdBy: order.createdBy
+      ? {
+          id: order.createdBy.id,
+          name: order.createdBy.name,
+        }
+      : null,
+
+    customer: {
+      id: order.customer.id,
+      code: order.customer.code,
+      name: order.customer.name,
+    },
+
+    processes: order.processes.map((op: any) => ({
+      id: op.id,
+      name: op.process.name,
+      processId: op.process.id,
+      status: op.statusCode,
+
+      totalRuns: op.totalRuns,
+      completedRuns: op.lifecycleCompletedRuns,
+
+      runs: op.runs.map((run: any) => {
+        const runFields = run.fields || {};
+        const runImages =
+          runFields.images && runFields.images.length > 0
+            ? runFields.images
+            : order.useOrderImageForRuns
+              ? order.images
+              : [];
+
+        return {
+          id: run.id,
+          runNumber: run.runNumber,
+          displayName: run.displayName,
+          comments: run.comments,
+
+          configStatus: run.statusCode,
+          lifecycleStatus: run.lifeCycleStatusCode,
+
+          executor: run.executor
             ? {
-                id: order.createdBy.id,
-                name: order.createdBy.name,
-            }
+                id: run.executor.id,
+                name: run.executor.name,
+              }
             : null,
 
-        customer: {
-            id: order.customer.id,
-            code: order.customer.code,
-            name: order.customer.name,
-        },
+          reviewer: run.reviewer
+            ? {
+                id: run.reviewer.id,
+                name: run.reviewer.name,
+              }
+            : null,
 
-        processes: order.processes.map((op: any) => ({
-            id: op.id,
-            name: op.process.name,
-            processId: op.process.id,
-            status: op.statusCode,
+          location: run.location
+            ? {
+                id: run.location.id,
+                name: run.location.name,
+                code: run.location.code,
+              }
+            : null,
 
-            totalRuns: op.totalRuns,
-            completedRuns: op.lifecycleCompletedRuns,
+          preProductionLocation: run.preProductionLocation
+            ? {
+                id: run.preProductionLocation.id,
+                name: run.preProductionLocation.name,
+                code: run.preProductionLocation.code,
+              }
+            : null,
 
-            runs: op.runs.map((run: any) => {
-                const runFields = run.fields || {};
-                const runImages = (runFields.images && runFields.images.length > 0)
-                    ? runFields.images
-                    : (order.useOrderImageForRuns ? order.images : []);
+          postProductionLocation: run.postProductionLocation
+            ? {
+                id: run.postProductionLocation.id,
+                name: run.postProductionLocation.name,
+                code: run.postProductionLocation.code,
+              }
+            : null,
 
-                return {
-                    id: run.id,
-                    runNumber: run.runNumber,
-                    displayName: run.displayName,
-                    comments: run.comments,
+          lifecycle: buildLifecycleProgress(
+            run.runTemplate.lifecycleWorkflowType.statuses,
+            run.lifeCycleStatusCode,
+            run.lifecycleHistories,
+          ),
+          lifecycleHistory: (run.lifecycleHistories || []).map((h: any) => ({
+            statusCode: h.statusCode,
+            expectedDate: h.expectedDate?.toISOString() || null,
+            completedAt: h.completedAt?.toISOString() || null,
+            createdAt: h.createdAt.toISOString(),
+          })),
 
-                    configStatus: run.statusCode,
-                    lifecycleStatus: run.lifeCycleStatusCode,
-
-                    executor: run.executor
-                        ? {
-                            id: run.executor.id,
-                            name: run.executor.name,
-                        }
-                        : null,
-
-                    reviewer: run.reviewer
-                        ? {
-                            id: run.reviewer.id,
-                            name: run.reviewer.name,
-                        }
-                        : null,
-
-                    location: run.location
-                        ? {
-                            id: run.location.id,
-                            name: run.location.name,
-                            code: run.location.code,
-                        }
-                        : null,
-
-                    preProductionLocation: run.preProductionLocation
-                        ? {
-                            id: run.preProductionLocation.id,
-                            name: run.preProductionLocation.name,
-                            code: run.preProductionLocation.code,
-                        }
-                        : null,
-
-                    postProductionLocation: run.postProductionLocation
-                        ? {
-                            id: run.postProductionLocation.id,
-                            name: run.postProductionLocation.name,
-                            code: run.postProductionLocation.code,
-                        }
-                        : null,
-
-                    lifecycle: buildLifecycleProgress(
-                        run.runTemplate.lifecycleWorkflowType.statuses,
-                        run.lifeCycleStatusCode,
-                        run.lifecycleHistories,
-                    ),
-                    lifecycleHistory: (run.lifecycleHistories || []).map((h: any) => ({
-                        statusCode: h.statusCode,
-                        expectedDate: h.expectedDate?.toISOString() || null,
-                        completedAt: h.completedAt?.toISOString() || null,
-                        createdAt: h.createdAt.toISOString(),
-                    })),
-
-                    values: {
-                        ...runFields,
-                        images: runImages,
-                    },
-                    fields: run.runTemplate.fields,
-                    billingFormula: run.runTemplate.billingFormula,
-                };
-            }),
-        })),
-    };
+          values: {
+            ...runFields,
+            images: runImages,
+          },
+          fields: run.runTemplate.fields,
+          billingFormula: run.runTemplate.billingFormula,
+        };
+      }),
+    })),
+  };
 }
 
 /* =========================================================
@@ -119,36 +122,36 @@ export function toOrderSummary(order: any): OrderSummaryDto {
  * ========================================================= */
 
 type LifecycleStatus = {
-    code: string;
-    isInitial: boolean;
-    isTerminal: boolean;
+  code: string;
+  isInitial: boolean;
+  isTerminal: boolean;
 };
 
 function buildLifecycleProgress(
-    statuses: LifecycleStatus[],
-    currentCode: string,
-    histories: any[] = [],
+  statuses: LifecycleStatus[],
+  currentCode: string,
+  histories: any[] = [],
 ) {
-    let reachedCurrent = false;
+  let reachedCurrent = false;
 
-    return statuses.map(s => {
-        const history = histories.find(h => h.statusCode === s.code);
-        
-        if (s.code === currentCode) {
-            reachedCurrent = true;
-            return {
-                code: s.code,
-                completed: s.isTerminal,
-                expectedDate: history?.expectedDate?.toISOString() || null,
-                completedAt: history?.completedAt?.toISOString() || null,
-            };
-        }
+  return statuses.map((s) => {
+    const history = histories.find((h) => h.statusCode === s.code);
 
-        return {
-            code: s.code,
-            completed: !reachedCurrent,
-            expectedDate: history?.expectedDate?.toISOString() || null,
-            completedAt: history?.completedAt?.toISOString() || null,
-        };
-    });
+    if (s.code === currentCode) {
+      reachedCurrent = true;
+      return {
+        code: s.code,
+        completed: s.isTerminal,
+        expectedDate: history?.expectedDate?.toISOString() || null,
+        completedAt: history?.completedAt?.toISOString() || null,
+      };
+    }
+
+    return {
+      code: s.code,
+      completed: !reachedCurrent,
+      expectedDate: history?.expectedDate?.toISOString() || null,
+      completedAt: history?.completedAt?.toISOString() || null,
+    };
+  });
 }

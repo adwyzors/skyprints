@@ -1,16 +1,14 @@
-import { parse } from "mathjs";
+import { parse } from 'mathjs';
 
-export function extractFormulaVariables(
-    formula: string
-): Set<string> {
-    const vars = new Set<string>();
+export function extractFormulaVariables(formula: string): Set<string> {
+  const vars = new Set<string>();
 
-    const ast = parse(formula);
-    ast.traverse((node: any) => {
-        if (node.isSymbolNode) {
-            vars.add(node.name);
-        }
-    });
+  const ast = parse(formula);
+  ast.traverse((node: any) => {
+    if (node.isSymbolNode) {
+      vars.add(node.name);
+    }
+  });
 
-    return vars;
+  return vars;
 }

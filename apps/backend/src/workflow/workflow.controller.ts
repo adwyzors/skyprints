@@ -4,9 +4,7 @@ import { TransitionDto } from './dto/transition.dto';
 
 @Controller('workflow')
 export class WorkflowController {
-  constructor(
-    private readonly service: WorkflowService,
-  ) {}
+  constructor(private readonly service: WorkflowService) {}
 
   @Post(':entityType/:entityId/transition')
   async transition(

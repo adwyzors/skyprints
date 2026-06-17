@@ -14,13 +14,10 @@ function ManagerRunsPage() {
     const [loading, setLoading] = useState(true);
 
     const fetchRuns = async () => {
-        if (!user?.id) return;
         setLoading(true);
         try {
-            // Fetch runs where user is Assigned (Executor OR Reviewer)
-            const res = await getRuns({
-                assignedUserId: user.id
-            });
+            // Server enforces MANAGER scoping: executor-only, PRODUCTION stage, IN_PRODUCTION orders
+            const res = await getRuns({});
             setRuns(res.runs);
         } catch (error) {
             console.error(error);
@@ -30,7 +27,7 @@ function ManagerRunsPage() {
     };
 
     useEffect(() => {
-        fetchRuns();
+        if (user?.id) fetchRuns();
     }, [user?.id]);
 
     if (loading) {
@@ -43,17 +40,21 @@ function ManagerRunsPage() {
 
     return (
         <div className="py-6">
-            <h1 className="text-xl font-bold mb-6">My Assigned Runs</h1>
+            <h1 className="text-xl font-bold mb-6">My Production Runs</h1>
 
             {runs.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
-                    <p className="text-gray-500">No runs assigned to you.</p>
+                    <p className="text-gray-500">No runs at PRODUCTION stage assigned to you.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {runs.map((run) => (
-                        <div key={run.id} className="h-[300px]">
-                            <RunCard run={run} />
+                        <div key={run.id} className="h-[340px]">
+                            <RunCard
+                                run={run}
+                                context="manager"
+                                onTransitionComplete={fetchRuns}
+                            />
                         </div>
                     ))}
                 </div>
