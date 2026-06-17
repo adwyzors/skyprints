@@ -2,17 +2,17 @@
 
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
-import ViewRunModal from '@/components/modals/ViewRunModal';
+import ManagerRunModal from '@/components/modals/ManagerRunModal';
 import { useRouter } from 'next/navigation';
 
 function ManagerRunDetailPage({ params }: { params: { runId: string } }) {
     const router = useRouter();
 
     return (
-        <ViewRunModal
+        <ManagerRunModal
             runId={params.runId}
             onClose={() => router.push('/manager/runs')}
-            onRunUpdate={() => router.push('/manager/runs')}
+            onTransitionComplete={() => router.push('/manager/runs')}
         />
     );
 }

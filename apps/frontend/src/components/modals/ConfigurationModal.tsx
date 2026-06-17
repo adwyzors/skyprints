@@ -15,6 +15,7 @@ interface ConfigurationModalProps {
     customerName: string;
     onClose: () => void;
     readOnly?: boolean;
+    inline?: boolean;
 }
 
 export default function ConfigurationModal({
@@ -23,7 +24,8 @@ export default function ConfigurationModal({
     orderCode,
     customerName,
     onClose,
-    readOnly
+    readOnly,
+    inline,
 }: ConfigurationModalProps) {
     const printRef = useRef<HTMLDivElement>(null);
 
@@ -730,10 +732,117 @@ export default function ConfigurationModal({
         );
     };
 
+    const printButton = (
+        <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print PDF
+        </button>
+    );
+
+    const contentBody = (
+        <div className="p-6 overflow-y-auto flex-1" ref={printRef}>
+            {renderItemsTable()}
+            {renderRunSummary()}
+
+            {gridRows.length > 0 && (
+                <div className="border border-gray-300 rounded overflow-hidden mb-6">
+                    <table className="w-full border-collapse text-sm">
+                        <tbody>
+                            {gridRows.map((row, rowIndex) => (
+                                <tr key={`row-${rowIndex}`} className="border-b last:border-0 border-gray-300">
+                                    <td className="w-1/2 p-0 border-r border-gray-300">
+                                        <div className="flex h-full">
+                                            <div className="w-[140px] bg-gray-50 p-3 font-semibold text-gray-600 border-r border-gray-300 whitespace-nowrap">
+                                                {row.left.label}
+                                            </div>
+                                            <div className="flex-1 p-3 text-gray-800 bg-white min-h-[44px] flex items-center">
+                                                {row.left.value ?? '-'}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="w-1/2 p-0">
+                                        {row.right ? (
+                                            <div className="flex h-full">
+                                                <div className="w-[140px] bg-gray-50 p-3 font-semibold text-gray-600 border-r border-gray-300 whitespace-nowrap">
+                                                    {row.right.label}
+                                                </div>
+                                                <div className="flex-1 p-3 text-gray-800 bg-white min-h-[44px] flex items-center">
+                                                    {row.right.value ?? '-'}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex h-full bg-white"></div>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {run.values?.images && Array.isArray(run.values.images) && run.values.images.length > 0 && (
+                <div className="mt-6 border-t border-gray-200 pt-6">
+                    <h4 className="font-bold text-gray-800 mb-4">Reference Images</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                        {run.values.images.map((imgUrl: string, index: number) => (
+                            <div key={index} className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                                <img
+                                    src={imgUrl}
+                                    alt={`Reference ${index + 1}`}
+                                    className="w-full h-auto object-contain max-h-[300px]"
+                                    loading="lazy"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {run.comments && (
+                <div className="mt-6 border-t border-gray-200 pt-6">
+                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Run Comments</h3>
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900 whitespace-pre-wrap leading-relaxed shadow-inner">
+                        {run.comments}
+                    </div>
+                </div>
+            )}
+
+            {!hasTableData && gridEntries.length === 0 && (!run.values?.images || run.values.images.length === 0) && (
+                <div className="text-center py-8 text-gray-500">
+                    No configuration data available for this run.
+                </div>
+            )}
+        </div>
+    );
+
+    if (inline) {
+        return (
+            <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-800">
+                            Run {run.runNumber} Configuration
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                            {processName} • {customerName}
+                        </p>
+                    </div>
+                    {printButton}
+                </div>
+                {contentBody}
+            </div>
+        );
+    }
+
     return (
         <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-                {/* Modal Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
                     <div>
                         <h3 className="text-lg font-bold text-gray-800">
@@ -744,15 +853,7 @@ export default function ConfigurationModal({
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={handlePrint}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                            </svg>
-                            Print PDF
-                        </button>
+                        {printButton}
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
@@ -763,92 +864,7 @@ export default function ConfigurationModal({
                         </button>
                     </div>
                 </div>
-
-                <div className="p-6 overflow-y-auto flex-1" ref={printRef}>
-                    {/* Render items table if available */}
-                    {renderItemsTable()}
-
-                    {/* Run Summary Grid */}
-                    {renderRunSummary()}
-
-                    {/* Regular fields table in 2-column tabular format */}
-                    {gridRows.length > 0 && (
-                        <div className="border border-gray-300 rounded overflow-hidden mb-6">
-                            <table className="w-full border-collapse text-sm">
-                                <tbody>
-                                    {gridRows.map((row, rowIndex) => (
-                                        <tr key={`row-${rowIndex}`} className="border-b last:border-0 border-gray-300">
-                                            {/* Left item */}
-                                            <td className="w-1/2 p-0 border-r border-gray-300">
-                                                <div className="flex h-full">
-                                                    <div className="w-[140px] bg-gray-50 p-3 font-semibold text-gray-600 border-r border-gray-300 whitespace-nowrap">
-                                                        {row.left.label}
-                                                    </div>
-                                                    <div className="flex-1 p-3 text-gray-800 bg-white min-h-[44px] flex items-center">
-                                                        {row.left.value ?? '-'}
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            {/* Right item */}
-                                            <td className="w-1/2 p-0">
-                                                {row.right ? (
-                                                    <div className="flex h-full">
-                                                        <div className="w-[140px] bg-gray-50 p-3 font-semibold text-gray-600 border-r border-gray-300 whitespace-nowrap">
-                                                            {row.right.label}
-                                                        </div>
-                                                        <div className="flex-1 p-3 text-gray-800 bg-white min-h-[44px] flex items-center">
-                                                            {row.right.value ?? '-'}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex h-full bg-white"></div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* IMAGES SECTION */}
-                    {run.values?.images && Array.isArray(run.values.images) && run.values.images.length > 0 && (
-                        <div className="mt-6 border-t border-gray-200 pt-6">
-                            <h4 className="font-bold text-gray-800 mb-4">Reference Images</h4>
-                            <div className="grid grid-cols-2 gap-4">
-                                {run.values.images.map((imgUrl: string, index: number) => (
-                                    <div key={index} className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-                                        <img
-                                            src={imgUrl}
-                                            alt={`Reference ${index + 1}`}
-                                            className="w-full h-auto object-contain max-h-[300px]"
-                                            loading="lazy"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* COMMENTS SECTION */}
-                    {run.comments && (
-                        <div className="mt-6 border-t border-gray-200 pt-6">
-                            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Run Comments</h3>
-                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900 whitespace-pre-wrap leading-relaxed shadow-inner">
-                                {run.comments}
-                            </div>
-                        </div>
-                    )}
-
-                    {!hasTableData && gridEntries.length === 0 && (!run.values?.images || run.values.images.length === 0) && (
-                        <div className="text-center py-8 text-gray-500">
-                            No configuration data available for this run.
-                        </div>
-                    )}
-                </div>
-
-                {/* Modal Footer */}
+                {contentBody}
                 <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
                     <button
                         onClick={onClose}

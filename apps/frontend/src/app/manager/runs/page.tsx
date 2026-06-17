@@ -4,7 +4,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
 import RunCard from '@/components/runs/RunCard';
-import ViewRunModal from '@/components/modals/ViewRunModal';
+import ManagerRunModal from '@/components/modals/ManagerRunModal';
 import { getRuns } from '@/services/run.service';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -64,10 +64,10 @@ function ManagerRunsPage() {
             )}
 
             {selectedRunId && (
-                <ViewRunModal
+                <ManagerRunModal
                     runId={selectedRunId}
                     onClose={() => setSelectedRunId(null)}
-                    onRunUpdate={() => {
+                    onTransitionComplete={() => {
                         setSelectedRunId(null);
                         fetchRuns();
                     }}
