@@ -880,7 +880,7 @@ export default function ScreenPrintingConfig({
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                             <SearchableManagerSelect
                                 label="Executor"
                                 users={managers}
@@ -894,7 +894,7 @@ export default function ScreenPrintingConfig({
                                 onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                             <SearchableLocationSelect
                                 label="Pre-Prod Location"
                                 locations={locations}

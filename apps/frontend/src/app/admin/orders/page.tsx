@@ -303,7 +303,7 @@ function AdminOrdersContent() {
                         </button>
 
                         <div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                 <h1 className="text-2xl font-bold tracking-tight text-gray-900">Production Orders</h1>
                                 <div className="flex items-center gap-2">
                                     <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-bold rounded-full border border-green-200 whitespace-nowrap">

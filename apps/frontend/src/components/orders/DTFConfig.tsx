@@ -576,7 +576,7 @@ export default function DTFConfig({
                     {/* 2. TOP SECTION */}
                     {mode === 'edit' && (
                         <>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <SearchableManagerSelect
                                     label="Executor"
                                     users={managers}

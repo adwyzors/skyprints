@@ -505,7 +505,7 @@ export default function PositiveConfig({
 
                 {mode === 'edit' && (
                     <div className="bg-white border border-gray-200 rounded p-4 space-y-4">
-                        <div className="grid grid-cols-2 gap-4 mb-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
                             <SearchableManagerSelect
                                 label="Executor"
                                 users={managers}
@@ -619,7 +619,7 @@ export default function PositiveConfig({
                     />
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label className="text-xs text-gray-500 block">Particulars</label>
                         {mode === 'edit' ? (
