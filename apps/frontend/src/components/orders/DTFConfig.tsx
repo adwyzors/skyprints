@@ -166,6 +166,8 @@ export default function DTFConfig({
         isJobDifference: false,
         pcs: 0,
         customPcs: 0,
+        fusingRate: 5,
+        fusingSheets: 2,
         rate: 0,
         items: [],
     };
@@ -269,6 +271,8 @@ export default function DTFConfig({
                     isJobDifference: values.isJobDifference || false,
                     pcs: values.pcs || 0,
                     customPcs: values.customPcs || 0,
+                    fusingRate: values.fusingRate ?? 5,
+                    fusingSheets: values.fusingSheets ?? 2,
                     rate: values.rate || 0,
                     items:
                         existingItems.length > 0
@@ -357,7 +361,9 @@ export default function DTFConfig({
         let actualFusingCost = 0;
         if (form.isFusing) {
             const fusingPcs = form.isJobDifference ? form.customPcs || 0 : form.pcs || 0;
-            actualFusingCost = 5 * 2 * fusingPcs;
+            const fusingRate = form.fusingRate ?? 5;
+            const fusingSheets = form.fusingSheets ?? 2;
+            actualFusingCost = fusingRate * fusingSheets * fusingPcs;
         }
 
         // "Actual Total"
@@ -693,6 +699,41 @@ export default function DTFConfig({
                             )}
                         </div>
 
+                        {data.isFusing && (
+                            <div className="flex gap-3">
+                                <div className="flex-1">
+                                    <label className="text-xs font-semibold text-gray-700 block mb-1">Fusing Rate</label>
+                                    {mode === 'edit' ? (
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            className="w-full border p-1 rounded text-sm"
+                                            value={data.fusingRate ?? 5}
+                                            onChange={(e) => updateField('fusingRate', parseFloat(e.target.value) || 0)}
+                                        />
+                                    ) : (
+                                        <div className="text-sm border-b pb-1">{data.fusingRate ?? 5}</div>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-xs font-semibold text-gray-700 block mb-1">Sheets/Garment</label>
+                                    {mode === 'edit' ? (
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            className="w-full border p-1 rounded text-sm"
+                                            value={data.fusingSheets ?? 2}
+                                            onChange={(e) => updateField('fusingSheets', parseFloat(e.target.value) || 0)}
+                                        />
+                                    ) : (
+                                        <div className="text-sm border-b pb-1">{data.fusingSheets ?? 2}</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                         {data.isFusing && data.isJobDifference && (
                             <div>
                                 <label className="text-xs font-semibold text-blue-700 block mb-1">Custom PCS</label>
@@ -932,7 +973,7 @@ export default function DTFConfig({
                                     {totals.actualFusingCost.toFixed(2)}
                                 </div>
                                 <div className="text-[10px] text-blue-400">
-                                    {data.isJobDifference ? '5 x 2 x Custom PCS' : '5 x 2 x PCS'}
+                                    {`${data.fusingRate ?? 5} x ${data.fusingSheets ?? 2} x ${data.isJobDifference ? 'Custom PCS' : 'PCS'}`}
                                 </div>
                             </div>
                         )}

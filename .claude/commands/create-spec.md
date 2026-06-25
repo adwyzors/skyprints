@@ -48,7 +48,23 @@ Read these before writing the spec:
 - The backend module(s) most relevant to the feature
 - The frontend page(s) most relevant to the feature
 
-## Step 6 — Write the spec
+## Step 6 — Grill the feature design
+
+Before writing the spec, run the **grill-me** skill to interrogate the feature design.
+
+Use the codebase research from Step 5 as context. The grilling session must surface:
+
+- Edge cases in the proposed workflow (what happens when data is missing, partial, or in an
+  unexpected state?)
+- Conflicts with existing domain rules (status transitions, billing invariants, permission model)
+- Scope creep or hidden dependencies not mentioned by the user
+- Serverless / Vercel constraints that could block the approach
+- Anything that would force a breaking change to a live endpoint
+
+After the grilling session is complete and all questions are answered, proceed to Step 7.
+Do **not** skip the grilling — even for "simple" features.
+
+## Step 7 — Write the spec
 
 Generate a spec with this exact structure:
 
@@ -123,12 +139,12 @@ A testable checklist. Each item must be verifiable by running the app or checkin
 
 ---
 
-## Step 7 — Save the spec
+## Step 8 — Save the spec
 
 Save to: `.claude/specs/<feature_slug>.md`
 Create the `.claude/specs/` directory if it does not exist.
 
-## Step 8 — Report to the user
+## Step 9 — Report to the user
 
 Print this summary:
 

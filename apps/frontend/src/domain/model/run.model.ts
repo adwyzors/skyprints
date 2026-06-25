@@ -102,6 +102,8 @@ export interface DTFRunValues {
     isJobDifference: boolean;
     pcs: number;
     customPcs?: number;
+    fusingRate?: number;
+    fusingSheets?: number;
     rate: number;
     items: DTFItem[];
     images?: string[];
