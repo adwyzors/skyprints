@@ -14,7 +14,8 @@ import {
     FastForward,
     FileText,
     RotateCcw,
-    Settings
+    Settings,
+    X
 } from 'lucide-react';
 import ConfigurationModal from './ConfigurationModal';
 
@@ -179,6 +180,11 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
     };
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [mobilePanelTab, setMobilePanelTab] = useState<'details' | 'runs'>('details');
+
+    useEffect(() => {
+        setMobilePanelTab('details');
+    }, [orderId]);
 
     // Function to update lifecycle status locally after successful transition
     const updateLifecycleStatus = (processId: string, runId: string, newStatus: string) => {
@@ -395,10 +401,31 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
        ================================================= */
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-6xl h-[85vh] rounded-2xl flex overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center sm:p-4">
+            <div className="bg-white w-full h-full sm:max-w-6xl sm:h-[85vh] sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+                {/* MOBILE TAB BAR */}
+                <div className="sm:hidden flex items-center border-b border-gray-200 bg-white flex-shrink-0">
+                    <button
+                        onClick={() => setMobilePanelTab('details')}
+                        className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${mobilePanelTab === 'details' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                    >
+                        Details
+                    </button>
+                    <button
+                        onClick={() => setMobilePanelTab('runs')}
+                        className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${mobilePanelTab === 'runs' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                    >
+                        Runs
+                    </button>
+                    <button onClick={onClose} disabled={updating} className="px-4 py-3 text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* PANELS */}
+                <div className="flex-1 flex overflow-hidden">
                 {/* LEFT — ORDER DETAILS */}
-                <div className="w-1/3 border-r border-gray-200 p-6 flex flex-col h-full">
+                <div className={`${mobilePanelTab === 'details' ? 'flex' : 'hidden sm:flex'} w-full sm:w-1/3 border-r border-gray-200 p-6 flex-col h-full`}>
                     <div className="flex-1 overflow-y-auto min-h-0">
                         <div className="flex items-center gap-20 mb-2">
                             <div
@@ -603,7 +630,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                 </div>
 
                 {/* RIGHT — EXECUTION */}
-                <div className="flex-1 p-6 overflow-y-auto">
+                <div className={`${mobilePanelTab === 'runs' ? 'flex flex-col' : 'hidden sm:flex sm:flex-col'} flex-1 p-6 overflow-y-auto`}>
                     {/* NOT READY */}
                     {order.status === 'CONFIGURE' && (
                         <div className="flex flex-col items-center justify-center h-full">
@@ -932,6 +959,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                             </div>
                         ))}
                 </div>
+                </div>{/* /PANELS */}
             </div>
 
             {/* CONFIGURATION MODAL */}

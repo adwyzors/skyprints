@@ -32,6 +32,11 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
     const [error, setError] = useState<string | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [mobilePanelTab, setMobilePanelTab] = useState<'summary' | 'billing'>('summary');
+
+    useEffect(() => {
+        setMobilePanelTab('summary');
+    }, [orderId]);
 
     // Fetch order details when modal opens
     useEffect(() => {
@@ -212,10 +217,31 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
     }
 
     return (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-7xl h-[90vh] rounded-2xl flex overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center sm:p-4">
+            <div className="bg-white w-full h-full sm:max-w-7xl sm:h-[90vh] sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+                {/* MOBILE TAB BAR */}
+                <div className="sm:hidden flex items-center border-b border-gray-200 bg-white flex-shrink-0">
+                    <button
+                        onClick={() => setMobilePanelTab('summary')}
+                        className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${mobilePanelTab === 'summary' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                    >
+                        Summary
+                    </button>
+                    <button
+                        onClick={() => setMobilePanelTab('billing')}
+                        className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${mobilePanelTab === 'billing' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                    >
+                        Billing
+                    </button>
+                    <button onClick={onClose} disabled={submitting} className="px-4 py-3 text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* PANELS */}
+                <div className="flex-1 flex overflow-hidden">
                 {/* LEFT — ORDER SUMMARY */}
-                <div className="w-96 shrink-0 border-r border-gray-200 bg-gradient-to-b from-gray-50 to-white p-6 flex flex-col">
+                <div className={`${mobilePanelTab === 'summary' ? 'flex' : 'hidden sm:flex'} w-full sm:w-96 shrink-0 border-r border-gray-200 bg-gradient-to-b from-gray-50 to-white p-6 flex-col`}>
                     <div className="flex-1 overflow-y-auto">
                         <div className="flex items-center justify-between mb-6">
                             <div>
@@ -338,20 +364,10 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                         )}
                     </div>
 
-                    {/* Close Button Mobile - hidden on desktop as we have X top right */}
-                    <div className="md:hidden pt-4 border-t border-gray-200 mt-4">
-                        <button
-                            onClick={onClose}
-                            disabled={submitting}
-                            className="w-full border border-gray-300 px-4 py-2.5 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
-                        >
-                            Cancel
-                        </button>
-                    </div>
                 </div>
 
                 {/* RIGHT — BILLING DETAILS */}
-                <div className="flex-1 min-w-0 flex flex-col h-full bg-white">
+                <div className={`${mobilePanelTab === 'billing' ? 'flex' : 'hidden sm:flex'} flex-1 min-w-0 flex-col h-full bg-white`}>
                     {/* SCROLLABLE CONTENT */}
                     <div className="flex-1 overflow-y-auto p-6">
                         <div className="flex items-center justify-between mb-6">
@@ -729,6 +745,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                         </div>
                     </div>
                 </div>
+                </div>{/* /PANELS */}
             </div>
 
             {order && (

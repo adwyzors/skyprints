@@ -401,7 +401,7 @@ function DashboardClientContent() {
                                     </div>
                                 )}
 
-                                <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
+                                <div className="flex flex-wrap items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-100">
                                     {PERIODS.map((p) => (
                                         <button
                                             key={p.value}

@@ -8,6 +8,7 @@ import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import ReportsFilter from '@/components/reports/ReportsFilter';
 import { BilledOrderReportResponse, BilledOrderReportRow, ReportsQuery } from '@/domain/model/reports.model';
 import { getBilledOrdersReport, getExportUrl } from '@/services/reports.service';
+import FilterDrawer from '@/components/layout/FilterDrawer';
 import {
     ChevronRight,
     Download,
@@ -113,46 +114,41 @@ function ReportsPageContent() {
     return (
         <div className="flex h-full bg-gray-50/50 overflow-hidden">
             {/* SIDEBAR FILTERS */}
-            <div
-                className={`
-                flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto scrollbar-hide transition-all duration-300 ease-in-out
-                ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full'}
-            `}
-            >
-                <div className="w-72 h-full">
-                    <ReportsFilter
-                        onClose={() => setIsSidebarOpen(false)}
-                        query={query}
-                        onQueryChange={(newFilters) => {
-                            setQuery(prev => ({ ...prev, ...newFilters, page: 1 }));
-                        }}
-                    />
-                </div>
-            </div>
+            <FilterDrawer open={isSidebarOpen} onClose={() => setIsSidebarOpen(false)}>
+                <ReportsFilter
+                    onClose={() => setIsSidebarOpen(false)}
+                    query={query}
+                    onQueryChange={(newFilters) => {
+                        setQuery(prev => ({ ...prev, ...newFilters, page: 1 }));
+                    }}
+                />
+            </FilterDrawer>
 
             {/* MAIN CONTENT */}
             <div className="flex-1 flex flex-col w-full relative overflow-hidden">
                 {/* Header */}
-                <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-20 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        {!isSidebarOpen && (
-                            <button
-                                onClick={() => setIsSidebarOpen(true)}
-                                className="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
-                            >
-                                <Filter className="w-5 h-5" />
-                            </button>
-                        )}
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Reports</h1>
-                            <p className="text-sm text-gray-500">Billed orders breakdown by process</p>
+                <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-4">
+                            {!isSidebarOpen && (
+                                <button
+                                    onClick={() => setIsSidebarOpen(true)}
+                                    className="p-2 bg-white border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
+                                >
+                                    <Filter className="w-5 h-5" />
+                                </button>
+                            )}
+                            <div>
+                                <h1 className="text-2xl font-bold tracking-tight text-gray-900">Reports</h1>
+                                <p className="text-sm text-gray-500">Billed orders breakdown by process</p>
+                            </div>
                         </div>
-                        <div className="hidden lg:flex items-center relative ml-4">
+                        <div className="flex items-center relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <input
                                 type="text"
                                 placeholder="Search description, order code..."
-                                className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64 transition-all"
+                                className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full sm:w-64 transition-all"
                                 defaultValue={query.search}
                                 onChange={(e) => handleSearch(e.target.value)}
                             />
@@ -183,7 +179,7 @@ function ReportsPageContent() {
 
                 {/* Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto scrollbar-hide">
-                    <div className="p-4 md:p-6 space-y-6">
+                    <div className="p-4 md:p-6 space-y-6 pb-24 md:pb-6">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
                                 <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />

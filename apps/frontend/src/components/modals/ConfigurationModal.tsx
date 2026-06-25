@@ -841,8 +841,8 @@ export default function ConfigurationModal({
     }
 
     return (
-        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center sm:p-4">
+            <div className="bg-white w-full h-full sm:max-w-4xl sm:rounded-xl sm:max-h-[90vh] shadow-2xl overflow-hidden flex flex-col">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
                     <div>
                         <h3 className="text-lg font-bold text-gray-800">

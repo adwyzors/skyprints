@@ -13,6 +13,7 @@ import InvoicePDF from '@/components/billing/InvoicePDF';
 import { pdf } from '@react-pdf/renderer';
 import { getBillingContextById, getBillingContexts } from '@/services/billing.service';
 import debounce from 'lodash/debounce';
+import FilterDrawer from '@/components/layout/FilterDrawer';
 import { ChevronLeft, Download, FileText, Filter, Loader2, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from 'react';
@@ -269,46 +270,39 @@ function BillsPageContent() {
     return (
         <div className="flex h-full bg-gray-50/50 overflow-hidden scrollbar-hide">
             {/* LEFT SIDEBAR FILTERS */}
-            <div
-                className={`
-                flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto scrollbar-hide transition-all duration-300 ease-in-out
-                ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
-            `}
-            >
-                <div className="w-72 h-full">
-                    <BillsFilter 
-                        onClose={() => setIsSidebarOpen(false)} 
-                        isTest={isTest}
-                        onIsTestChange={(val) => {
-                            setIsTest(val);
-                            setData((prev) => ({ ...prev, page: 1 }));
-                            const params = new URLSearchParams(searchParams.toString());
-                            if (val) params.set('isTest', 'true');
-                            else params.delete('isTest');
-                            params.set('page', '1');
-                            router.push(`/admin/bills?${params.toString()}`);
-                        }}
-                        taxEnabled={taxEnabled}
-                        onTaxEnabledChange={(val) => {
-                            setTaxEnabled(val);
-                            setData((prev) => ({ ...prev, page: 1 }));
-                            const params = new URLSearchParams(searchParams.toString());
-                            params.set('taxEnabled', String(val));
-                            params.set('page', '1');
-                            router.push(`/admin/bills?${params.toString()}`);
-                        }}
-                        taxDisabled={taxDisabled}
-                        onTaxDisabledChange={(val) => {
-                            setTaxDisabled(val);
-                            setData((prev) => ({ ...prev, page: 1 }));
-                            const params = new URLSearchParams(searchParams.toString());
-                            params.set('taxDisabled', String(val));
-                            params.set('page', '1');
-                            router.push(`/admin/bills?${params.toString()}`);
-                        }}
-                    />
-                </div>
-            </div>
+            <FilterDrawer open={isSidebarOpen} onClose={() => setIsSidebarOpen(false)}>
+                <BillsFilter
+                    onClose={() => setIsSidebarOpen(false)}
+                    isTest={isTest}
+                    onIsTestChange={(val) => {
+                        setIsTest(val);
+                        setData((prev) => ({ ...prev, page: 1 }));
+                        const params = new URLSearchParams(searchParams.toString());
+                        if (val) params.set('isTest', 'true');
+                        else params.delete('isTest');
+                        params.set('page', '1');
+                        router.push(`/admin/bills?${params.toString()}`);
+                    }}
+                    taxEnabled={taxEnabled}
+                    onTaxEnabledChange={(val) => {
+                        setTaxEnabled(val);
+                        setData((prev) => ({ ...prev, page: 1 }));
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.set('taxEnabled', String(val));
+                        params.set('page', '1');
+                        router.push(`/admin/bills?${params.toString()}`);
+                    }}
+                    taxDisabled={taxDisabled}
+                    onTaxDisabledChange={(val) => {
+                        setTaxDisabled(val);
+                        setData((prev) => ({ ...prev, page: 1 }));
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.set('taxDisabled', String(val));
+                        params.set('page', '1');
+                        router.push(`/admin/bills?${params.toString()}`);
+                    }}
+                />
+            </FilterDrawer>
 
             {/* MAIN CONTENT AREA */}
             <div className="flex-1 flex flex-col w-full relative overflow-hidden">
@@ -369,7 +363,7 @@ function BillsPageContent() {
 
                 {/* Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto scrollbar-hide">
-                    <div className="p-4 md:p-6 space-y-6">
+                    <div className="p-4 md:p-6 space-y-6 pb-24 md:pb-6">
                         {/* Results Summary */}
                         <div className="flex items-center justify-between">
                             <p className="text-sm text-gray-600">

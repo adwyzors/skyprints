@@ -134,8 +134,8 @@ export default function CompletedOrderModal({ orderId, onClose }: Props) {
     }
 
     return (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-6xl h-[90vh] rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center sm:p-4">
+            <div className="bg-white w-full h-full sm:max-w-6xl sm:h-[90vh] sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl">
                 {/* HEADER */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
                     <div>

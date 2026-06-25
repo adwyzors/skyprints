@@ -33,6 +33,11 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
         new Date().toISOString().split('T')[0]
     );
     const [updatingComments, setUpdatingComments] = useState(false);
+    const [mobilePanelTab, setMobilePanelTab] = useState<'info' | 'timeline'>('info');
+
+    useEffect(() => {
+        setMobilePanelTab('info');
+    }, [runId]);
     const { user, hasPermission } = useAuth();
     const hasFetchedRef = useRef(false);
 
@@ -258,11 +263,31 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
 
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-5xl h-[80vh] rounded-2xl flex overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center sm:p-4 backdrop-blur-sm">
+            <div className="bg-white w-full h-full sm:max-w-5xl sm:h-[80vh] sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                {/* MOBILE TAB BAR */}
+                <div className="sm:hidden flex items-center border-b border-gray-200 bg-white flex-shrink-0">
+                    <button
+                        onClick={() => setMobilePanelTab('info')}
+                        className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${mobilePanelTab === 'info' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                    >
+                        Info
+                    </button>
+                    <button
+                        onClick={() => setMobilePanelTab('timeline')}
+                        className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${mobilePanelTab === 'timeline' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                    >
+                        Timeline
+                    </button>
+                    <button onClick={onClose} className="px-4 py-3 text-gray-500 hover:text-gray-700 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
 
+                {/* PANELS */}
+                <div className="flex-1 flex overflow-hidden">
                 {/* LEFT SIDE - DETAILS */}
-                <div className="w-1/3 border-r border-gray-200 bg-gray-50/50 p-6 flex flex-col h-full">
+                <div className={`${mobilePanelTab === 'info' ? 'flex' : 'hidden sm:flex'} w-full sm:w-1/3 border-r border-gray-200 bg-gray-50/50 p-6 flex-col h-full`}>
                     <div className="flex-1 overflow-y-auto min-h-0">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-2">
@@ -445,7 +470,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                 </div>
 
                 {/* RIGHT SIDE - TIMELINE OR CONFIGURE ACTION */}
-                <div className="flex-1 p-8 overflow-y-auto bg-white">
+                <div className={`${mobilePanelTab === 'timeline' ? 'flex flex-col' : 'hidden sm:flex sm:flex-col'} flex-1 p-8 overflow-y-auto bg-white`}>
                     {statusCode === 'CONFIGURE' && run.configStatus !== 'COMPLETE' ? (
                         <div className="max-w-3xl mx-auto">
                             <RunConfigForm
@@ -611,6 +636,7 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                         </div>
                     )}
                 </div>
+                </div>{/* /PANELS */}
             </div>
 
             {/* NESTED CONFIG MODAL */}

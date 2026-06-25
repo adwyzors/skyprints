@@ -9,6 +9,7 @@ import OrderCard from '@/components/orders/OrderCard';
 import { Order } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrders } from '@/services/orders.service';
 import debounce from 'lodash/debounce';
+import FilterDrawer from '@/components/layout/FilterDrawer';
 import { Calendar, CheckCircle, ChevronLeft, Filter, Loader2, Search } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
@@ -183,13 +184,8 @@ function BillingContent() {
     return (
         <div className="flex bg-gray-50/50">
             {/* LEFT SIDEBAR FILTERS */}
-            <div
-                className={`
-                flex-shrink-0 bg-white border-r border-gray-200 min-h-screen overflow-hidden transition-all duration-300 ease-in-out
-                ${isSidebarOpen ? 'w-72 opacity-100 translate-x-0' : 'w-0 opacity-0 -translate-x-full lg:w-0 lg:opacity-0'}
-            `}
-            >
-                <div className="w-72 h-full p-3  top-32">
+            <FilterDrawer open={isSidebarOpen} onClose={() => setIsSidebarOpen(false)}>
+                <div className="p-3">
                     <BillingFilter
                         filters={filters}
                         onChange={(newFilters) => {
@@ -208,7 +204,7 @@ function BillingContent() {
                         onClose={() => setIsSidebarOpen(false)}
                     />
                 </div>
-            </div>
+            </FilterDrawer>
 
             {/* MAIN CONTENT AREA */}
             <div className="flex-1 flex flex-col w-full relative">
@@ -267,7 +263,7 @@ function BillingContent() {
                 </div>
 
                 {/* CONTENT */}
-                <div className="p-4">
+                <div className="p-4 pb-24 md:pb-6">
                     {/* Results Summary */}
                     <div className="flex items-center justify-between mb-6">
                         <p className="text-sm text-gray-600">

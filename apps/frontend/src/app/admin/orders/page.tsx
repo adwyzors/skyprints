@@ -15,6 +15,7 @@ import OrderTableRow from '@/components/orders/OrderTableRow';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import { OrderCardData } from '@/domain/model/order.model';
 import { GetOrdersParams, getOrderCards } from '@/services/orders.service';
+import FilterDrawer from '@/components/layout/FilterDrawer';
 import { Box, ChevronLeft, Filter, Loader2, Plus, Search } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -267,14 +268,9 @@ function AdminOrdersContent() {
 
     return (
         <div className="flex bg-gray-50/50 min-h-full scrollbar-hide">
-            {/* LEFT SIDEBAR FILTERS - STICKY to MAIN SCROLL */}
-            <div
-                className={`
-                relative h-[calc(100vh-56px)] flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto scrollbar-hide transition-all duration-300 ease-in-out z-40
-                ${isSidebarOpen ? 'w-72 opacity-100' : 'w-0 opacity-0 pointer-events-none'}
-            `}
-            >
-                <div className="w-72 p-3">
+            {/* LEFT SIDEBAR FILTERS */}
+            <FilterDrawer open={isSidebarOpen} onClose={() => setIsSidebarOpen(false)}>
+                <div className="p-3">
                     <OrdersFilter
                         filters={filters}
                         onChange={(newFilters) => {
@@ -284,7 +280,7 @@ function AdminOrdersContent() {
                         onClose={() => setIsSidebarOpen(false)}
                     />
                 </div>
-            </div>
+            </FilterDrawer>
 
             {/* MAIN CONTENT AREA */}
             <div className="flex-1 flex flex-col w-full relative min-w-0">

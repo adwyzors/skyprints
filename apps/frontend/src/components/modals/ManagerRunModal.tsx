@@ -15,7 +15,12 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
     const [run, setRun] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [transitioning, setTransitioning] = useState(false);
+    const [mobilePanelTab, setMobilePanelTab] = useState<'progress' | 'config'>('progress');
     const hasFetchedRef = useRef(false);
+
+    useEffect(() => {
+        setMobilePanelTab('progress');
+    }, [runId]);
 
     useEffect(() => {
         if (hasFetchedRef.current) return;
@@ -73,11 +78,31 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
     const currentStepCode = run.lifecycleStatus || run.lifeCycleStatusCode;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-5xl h-[90vh] rounded-2xl flex overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center sm:p-4 backdrop-blur-sm">
+            <div className="bg-white w-full h-full sm:max-w-5xl sm:h-[90vh] sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                {/* MOBILE TAB BAR */}
+                <div className="sm:hidden flex items-center border-b border-gray-200 bg-white flex-shrink-0">
+                    <button
+                        onClick={() => setMobilePanelTab('progress')}
+                        className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${mobilePanelTab === 'progress' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                    >
+                        Progress
+                    </button>
+                    <button
+                        onClick={() => setMobilePanelTab('config')}
+                        className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${mobilePanelTab === 'config' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500'}`}
+                    >
+                        Config
+                    </button>
+                    <button onClick={onClose} className="px-4 py-3 text-gray-500 hover:text-gray-700 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
 
+                {/* PANELS */}
+                <div className="flex-1 flex overflow-hidden">
                 {/* LEFT PANEL — lifecycle only */}
-                <div className="w-72 flex-shrink-0 border-r border-gray-200 bg-gray-50/50 flex flex-col h-full">
+                <div className={`${mobilePanelTab === 'progress' ? 'flex' : 'hidden sm:flex'} w-full sm:w-72 flex-shrink-0 border-r border-gray-200 bg-gray-50/50 flex-col h-full`}>
                     <div className="flex items-start justify-between px-5 pt-5 pb-4 flex-shrink-0">
                         <div>
                             <h2 className="text-lg font-bold text-gray-800">Run #{run.runNumber}</h2>
@@ -169,7 +194,7 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
                 </div>
 
                 {/* RIGHT PANEL — configuration content */}
-                <div className="flex-1 overflow-hidden flex flex-col min-w-0">
+                <div className={`${mobilePanelTab === 'config' ? 'flex' : 'hidden sm:flex'} flex-1 overflow-hidden flex-col min-w-0`}>
                     <ConfigurationModal
                         inline
                         run={{
@@ -184,6 +209,7 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
                         readOnly
                     />
                 </div>
+                </div>{/* /PANELS */}
             </div>
         </div>
     );

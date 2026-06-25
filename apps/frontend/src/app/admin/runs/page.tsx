@@ -14,6 +14,7 @@ import { STATIC_PROCESSES } from '@/constants/processes';
 import { getLocations } from '@/services/location.service';
 import { getProcessLifecycleStatuses } from '@/services/process.service';
 import { getRuns } from '@/services/run.service';
+import FilterDrawer from '@/components/layout/FilterDrawer';
 import {
     Activity,
     ArrowDown,
@@ -471,12 +472,9 @@ function RunsPageContent() {
 
     return (
         <div className="flex bg-gray-50/50 min-h-full scrollbar-hide">
-            {/* LEFT SIDEBAR FILTERS - STICKY to MAIN SCROLL */}
-            <div className={`
-                relative h-[calc(100vh-56px)] flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 ease-in-out z-40
-                ${isSidebarOpen ? 'w-72 opacity-100' : 'w-0 opacity-0 pointer-events-none'}
-            `}>
-                <div className="w-72 h-full overflow-y-auto scrollbar-hide p-3">
+            {/* LEFT SIDEBAR FILTERS */}
+            <FilterDrawer open={isSidebarOpen} onClose={() => setIsSidebarOpen(false)}>
+                <div className="p-3">
                     <RunsFilter
                         filters={filters}
                         locations={locations}
@@ -487,7 +485,7 @@ function RunsPageContent() {
                         onClose={() => setIsSidebarOpen(false)}
                     />
                 </div>
-            </div>
+            </FilterDrawer>
 
             {/* MAIN CONTENT AREA */}
             <div className="flex-1 flex flex-col w-full min-w-0">
