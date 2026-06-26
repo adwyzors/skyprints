@@ -894,14 +894,6 @@ export class OrdersService {
           order.statusCode === OrderStatus.PRODUCTION_READY &&
           dto.customerId === undefined
         ) {
-          const amount = new Prisma.Decimal(
-            (dto.quantity
-              ? (order as any).estimatedAmount
-              : (order as any).estimatedAmount
-            ).toString(),
-          );
-          // Wait, I need to be careful with estimates here.
-          // To be safe, I'll just reload the order's estimated amount.
           const currentOrder = await tx.order.findUnique({
             where: { id: orderId },
             select: { estimatedAmount: true, customerId: true },
