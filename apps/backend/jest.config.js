@@ -16,4 +16,8 @@ module.exports = {
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
+  reporters: [
+    'default',
+    ['jest-html-reporters', { publicPath: '../test-report', filename: 'index.html', openReport: false }],
+  ],
 };
