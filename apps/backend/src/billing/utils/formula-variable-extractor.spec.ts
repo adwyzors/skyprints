@@ -37,4 +37,10 @@ describe('extractFormulaVariables', () => {
     expect(vars).toContain('new_rate');
     expect(vars).toContain('layout_amount');
   });
+
+  it('returns an empty set for an empty formula string (mathjs parse does not throw)', () => {
+    // mathjs parse('') returns an empty BlockNode — no symbol nodes are traversed
+    const vars = extractFormulaVariables('');
+    expect(vars.size).toBe(0);
+  });
 });

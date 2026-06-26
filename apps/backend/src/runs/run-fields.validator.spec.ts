@@ -121,4 +121,28 @@ describe('RunFieldsValidator', () => {
   it('passes with empty template fields list', () => {
     expect(() => validator.validate([], { anything: 'value' })).not.toThrow();
   });
+
+  describe('edge inputs that bypass current validation', () => {
+    it('NaN passes the number type check (typeof NaN === "number") — known gap', () => {
+      // NaN silently enters billing formula evaluation; guard should use Number.isFinite()
+      expect(() =>
+        validator.validate([{ key: 'quantity', type: 'number' }], { quantity: NaN }),
+      ).not.toThrow();
+    });
+
+    it('Infinity passes when no max constraint is set — known gap', () => {
+      expect(() =>
+        validator.validate([{ key: 'quantity', type: 'number' }], { quantity: Infinity }),
+      ).not.toThrow();
+    });
+
+    it('null for a required string field throws a type error, not a required-field error', () => {
+      // null !== undefined so the required check passes; typeof null !== 'string' triggers type check
+      expect(() =>
+        validator.validate([{ key: 'label', type: 'string', required: true }], {
+          label: null as any,
+        }),
+      ).toThrow("Field 'label' must be string");
+    });
+  });
 });

@@ -29,4 +29,23 @@ describe('toMoney', () => {
     const result = toMoney(0.1 + 0.2);
     expect(result.toFixed(4)).toBe('0.3000');
   });
+
+  describe('non-finite inputs', () => {
+    it('passes Infinity through as a non-finite Decimal (caller must guard before arithmetic)', () => {
+      // Decimal.js accepts Infinity — it does NOT throw; billing callers must reject before summing
+      const result = toMoney(Infinity);
+      expect(result.isFinite()).toBe(false);
+    });
+
+    it('passes NaN through as a Decimal NaN (caller must guard before arithmetic)', () => {
+      // Decimal.js accepts NaN — it does NOT throw
+      const result = toMoney(NaN);
+      expect(result.isNaN()).toBe(true);
+    });
+
+    it('handles Number.MAX_SAFE_INTEGER without precision loss', () => {
+      const result = toMoney(Number.MAX_SAFE_INTEGER);
+      expect(result.toNumber()).toBe(Number.MAX_SAFE_INTEGER);
+    });
+  });
 });

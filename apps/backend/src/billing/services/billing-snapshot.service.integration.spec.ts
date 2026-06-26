@@ -406,5 +406,90 @@ describe('BillingSnapshotService (integration)', () => {
       expect(result.billingContextId).toBe(context!.id);
       expect(result.isLatest).toBe(true);
     });
+
+    it('throws when the billing context does not exist', async () => {
+      await expect(
+        service.getLatestSnapshot({ billingContextId: '00000000-0000-0000-0000-000000000099' }),
+      ).rejects.toThrow('Billing context not found');
+    });
+
+    it('throws when the context exists but has no snapshots', async () => {
+      const ctx = await testPrisma.billingContext.create({
+        data: { type: 'ORDER', name: 'NO_SNAP_CTX' },
+      });
+
+      await expect(service.getLatestSnapshot({ billingContextId: ctx.id })).rejects.toThrow(
+        'No snapshot found',
+      );
+    });
+  });
+
+  // ── outstanding amount adjustments ────────────────────────────────────────
+
+  describe('customer outstanding amount adjustments', () => {
+    it('adds the full actual amount to customer outstanding on first finalization (CONFIGURE order)', async () => {
+      const { orderId, customerId } = await buildScaffold(testPrisma, {
+        suffix: 'OUT_CONF',
+        runFields: { new_rate: 50 }, // 100 * 50 = 5000
+        quantity: 100,
+      });
+
+      await service.finalizeOrder(orderId, {}, BillingSnapshotIntent.FINAL);
+
+      const customer = await testPrisma.customer.findUnique({ where: { id: customerId } });
+      expect(Number(customer!.outstandingAmount)).toBe(5000);
+
+      const order = await testPrisma.order.findUnique({ where: { id: orderId } });
+      expect(order!.statusCode).toBe('BILLED');
+    });
+
+    it('adjusts outstanding by the positive difference when actual > estimate (PRODUCTION_READY order)', async () => {
+      const { orderId, customerId } = await buildScaffold(testPrisma, {
+        suffix: 'OUT_ADJ',
+        runFields: { new_rate: 50 }, // actual = 100 * 50 = 5000
+        quantity: 100,
+      });
+
+      // Simulate the order already in PRODUCTION_READY with estimatedAmount=4000
+      // and customer already carrying 4000 in outstandingAmount
+      await testPrisma.customer.update({
+        where: { id: customerId },
+        data: { outstandingAmount: 4000 },
+      });
+      await testPrisma.order.update({
+        where: { id: orderId },
+        data: { statusCode: 'PRODUCTION_READY' as any, estimatedAmount: 4000 },
+      });
+
+      await service.finalizeOrder(orderId, {}, BillingSnapshotIntent.FINAL);
+
+      // actual=5000, estimate=4000 → adjustment=+1000 → 4000+1000=5000
+      const customer = await testPrisma.customer.findUnique({ where: { id: customerId } });
+      expect(Number(customer!.outstandingAmount)).toBe(5000);
+    });
+
+    it('clamps the decrement to current balance to prevent a negative outstanding amount', async () => {
+      const { orderId, customerId } = await buildScaffold(testPrisma, {
+        suffix: 'OUT_FLOOR',
+        runFields: { new_rate: 30 }, // actual = 100 * 30 = 3000
+        quantity: 100,
+      });
+
+      // Customer only has 500 in outstanding despite the estimate being 5000
+      await testPrisma.customer.update({
+        where: { id: customerId },
+        data: { outstandingAmount: 500 },
+      });
+      await testPrisma.order.update({
+        where: { id: orderId },
+        data: { statusCode: 'PRODUCTION_READY' as any, estimatedAmount: 5000 },
+      });
+
+      await service.finalizeOrder(orderId, {}, BillingSnapshotIntent.FINAL);
+
+      // actual=3000, estimate=5000 → adjustment=-2000 → decrement=min(500,2000)=500 → 0
+      const customer = await testPrisma.customer.findUnique({ where: { id: customerId } });
+      expect(Number(customer!.outstandingAmount)).toBe(0);
+    });
   });
 });

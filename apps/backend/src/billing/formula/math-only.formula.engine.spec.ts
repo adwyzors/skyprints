@@ -51,4 +51,28 @@ describe('MathOnlyFormulaEngine', () => {
       expect(() => engine.evaluate('pcs * new_rate', { pcs: 100 })).toThrow();
     });
   });
+
+  describe('edge cases', () => {
+    it('returns Infinity for division by zero — does not throw (caller must guard before Decimal)', () => {
+      // mathjs evaluates 10/0 as Infinity; passing Infinity into new Decimal() will throw downstream
+      const result = engine.evaluate('quantity / pcs', { quantity: 10, pcs: 0 });
+      expect(result).toBe(Infinity);
+    });
+
+    it('produces a negative result for a negative quantity', () => {
+      expect(engine.evaluate('quantity * new_rate', { quantity: -5, new_rate: 50 })).toBe(-250);
+    });
+
+    it('does not throw for an empty expression string — returns undefined (caller must validate)', () => {
+      // mathjs evaluate('') silently returns undefined rather than throwing
+      const result = engine.evaluate('', {});
+      expect(result).toBeUndefined();
+    });
+
+    it('returns a boolean when the expression is a comparison (caller must reject non-numeric results)', () => {
+      // mathjs allows comparison expressions; billing callers should validate the result type
+      const result = engine.evaluate('qty > 0', { qty: 5 });
+      expect(result).toBe(true);
+    });
+  });
 });

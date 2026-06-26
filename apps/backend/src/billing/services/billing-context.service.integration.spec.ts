@@ -294,5 +294,79 @@ describe('BillingContextService (integration)', () => {
       expect(page1.meta.total).toBeGreaterThanOrEqual(3);
       expect(page1.meta.totalPages).toBeGreaterThanOrEqual(2);
     });
+
+    it('filters by name search (case-insensitive)', async () => {
+      // Create a context via Prisma directly so we control the name
+      await testPrisma.billingContext.create({
+        data: { type: 'GROUP', name: 'UNIQUE_FIND_ME_XYZ', isTest: true },
+      });
+
+      const result = await contextService.getAllContexts(1, 12, 'find_me_xyz', true);
+      expect(result.res.data.length).toBe(1);
+      expect(result.res.data[0].name).toBe('UNIQUE_FIND_ME_XYZ');
+    });
+
+    it('returns empty array and meta.total=0 when no contexts match the search', async () => {
+      const result = await contextService.getAllContexts(1, 12, 'NOMATCH_ZZZZ99', true);
+      expect(result.res.data).toEqual([]);
+      expect(result.meta.total).toBe(0);
+    });
+
+    it('returns empty array for a page number beyond total results', async () => {
+      await testPrisma.billingContext.create({
+        data: { type: 'GROUP', name: 'PAGE_BEYOND_CTX', isTest: true },
+      });
+
+      const result = await contextService.getAllContexts(999, 12, '', true);
+      expect(result.res.data).toEqual([]);
+    });
+  });
+
+  // ── getContextById ────────────────────────────────────────────────────────
+
+  describe('getContextById', () => {
+    it('returns context with correct shape for an empty GROUP context', async () => {
+      const ctx = await testPrisma.billingContext.create({
+        data: { type: 'GROUP', name: 'GCB_TEST_CTX', isTest: true },
+      });
+
+      const result = await contextService.getContextById(ctx.id);
+
+      expect(result.id).toBe(ctx.id);
+      expect(result.type).toBe('GROUP');
+      expect(result.name).toBe('GCB_TEST_CTX');
+      expect(result.orders).toEqual([]);
+      expect(result.latestSnapshot).toBeNull();
+    });
+
+    it('throws BadRequestException for a non-existent context id', async () => {
+      await expect(
+        contextService.getContextById('00000000-0000-0000-0000-000000000099'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ── removeOrder ───────────────────────────────────────────────────────────
+
+  describe('removeOrder', () => {
+    it('deletes the billingContextOrder link between context and order', async () => {
+      const customer = await seedCustomer(testPrisma, { code: 'RO_CUST', name: 'RO Customer' });
+      const user = await seedUser(testPrisma, { email: 'ro@test.com' });
+      const order = await seedOrder(testPrisma, { customerId: customer.id, createdById: user.id });
+      const ctx = await testPrisma.billingContext.create({
+        data: {
+          type: 'ORDER',
+          name: 'RO_CTX',
+          orders: { create: { orderId: order.id } },
+        },
+      });
+
+      await contextService.removeOrder(ctx.id, order.id);
+
+      const link = await testPrisma.billingContextOrder.findFirst({
+        where: { billingContextId: ctx.id, orderId: order.id },
+      });
+      expect(link).toBeNull();
+    });
   });
 });

@@ -207,4 +207,103 @@ describe('BillingCalculatorService (integration)', () => {
     };
     expect(service.calculateRun(mockRun, 100)).toBe(0);
   });
+
+  // ── calculateForOrder edge cases ─────────────────────────────────────────
+
+  it('calculateForOrder returns Decimal(0) and empty inputs for an order with no runs', async () => {
+    const cust = await seedCustomer(testPrisma, { code: 'BC_EMP', name: 'BC Empty Customer' });
+    const usr = await seedUser(testPrisma, { email: 'bc_emp@test.com', name: 'BC Empty User' });
+    const emptyOrder = await seedOrder(testPrisma, {
+      customerId: cust.id,
+      createdById: usr.id,
+      quantity: 50,
+      isTest: true,
+      code: `BC_EMPTY_ORD_${Date.now()}`,
+    });
+
+    const { result, inputs } = await service.calculateForOrder(emptyOrder.id);
+
+    expect(result.toNumber()).toBe(0);
+    expect(Object.keys(inputs)).toHaveLength(0);
+  });
+
+  it('calculateForOrder sums amounts across multiple runs on the same OrderProcess', async () => {
+    const { wf: cfg } = await seedSimpleWorkflow(
+      testPrisma,
+      'BC_CFG_MR',
+      ['CONFIGURE', 'COMPLETE'],
+      [['CONFIGURE', 'COMPLETE']],
+    );
+    const { wf: lc } = await seedSimpleWorkflow(
+      testPrisma,
+      'BC_LC_MR',
+      ['DESIGN', 'COMPLETE'],
+      [['DESIGN', 'COMPLETE']],
+    );
+    const tpl = await testPrisma.runTemplate.create({
+      data: {
+        name: 'BC MR Template',
+        billingFormula: 'quantity * new_rate',
+        fields: [],
+        configWorkflowTypeId: cfg.id,
+        lifecycleWorkflowTypeId: lc.id,
+      },
+    });
+    const cust = await seedCustomer(testPrisma, { code: 'BC_MR_C', name: 'BC MR Customer' });
+    const usr = await seedUser(testPrisma, { email: 'bc_mr@test.com', name: 'BC MR User' });
+    const mrOrder = await seedOrder(testPrisma, {
+      customerId: cust.id,
+      createdById: usr.id,
+      quantity: 100,
+      isTest: true,
+      code: `BC_MR_ORD_${Date.now()}`,
+    });
+    const proc = await testPrisma.process.create({ data: { name: 'BC MR Process', isEnabled: true } });
+    const op = await testPrisma.orderProcess.create({
+      data: { orderId: mrOrder.id, processId: proc.id, statusCode: 'CONFIGURE' },
+    });
+    await testPrisma.processRun.create({
+      data: {
+        orderProcessId: op.id,
+        runTemplateId: tpl.id,
+        runNumber: 1,
+        displayName: 'MR Run 1',
+        configWorkflowTypeId: cfg.id,
+        lifecycleWorkflowTypeId: lc.id,
+        statusCode: 'CONFIGURE',
+        lifeCycleStatusCode: 'DESIGN',
+        fields: { new_rate: 30 }, // 100 * 30 = 3000
+      },
+    });
+    await testPrisma.processRun.create({
+      data: {
+        orderProcessId: op.id,
+        runTemplateId: tpl.id,
+        runNumber: 2,
+        displayName: 'MR Run 2',
+        configWorkflowTypeId: cfg.id,
+        lifecycleWorkflowTypeId: lc.id,
+        statusCode: 'CONFIGURE',
+        lifeCycleStatusCode: 'DESIGN',
+        fields: { new_rate: 20 }, // 100 * 20 = 2000
+      },
+    });
+
+    const { result } = await service.calculateForOrder(mrOrder.id);
+
+    expect(result.toNumber()).toBe(5000); // 3000 + 2000
+  });
+
+  // ── calculateForGroupFromSnapshots ───────────────────────────────────────
+
+  it('calculateForGroupFromSnapshots aggregates result across orders using snapshot inputs', async () => {
+    // Uses the orderId/runId seeded in beforeAll: quantity=100, formula=quantity*new_rate
+    const groupResult = await service.calculateForGroupFromSnapshots([
+      { orderId, inputs: { [runId]: { new_rate: 50 } } },
+    ]);
+
+    expect(groupResult.result.toNumber()).toBe(5000); // 100 * 50
+    expect(groupResult.perOrderCalculations).toHaveProperty(orderId);
+    expect(groupResult.perOrderCalculations[orderId].result.toNumber()).toBe(5000);
+  });
 });

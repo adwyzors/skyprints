@@ -54,4 +54,16 @@ describe('FormulaCompiler', () => {
       }
     });
   });
+
+  describe('edge inputs', () => {
+    it('empty string compiles to empty string', () => {
+      // Callers must guard against passing an empty compiled formula to the engine
+      expect(compiler.compile('')).toBe('');
+    });
+
+    it('formula composed entirely of disallowed chars compiles to empty string', () => {
+      // e.g. ";;;" strips to "" — the engine will throw; caller must validate before evaluating
+      expect(compiler.compile(';;;')).toBe('');
+    });
+  });
 });
