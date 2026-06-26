@@ -39,6 +39,7 @@ export function getEffectiveLocationId(run: {
 @Injectable()
 export class RunsService {
   private readonly logger = new ContextLogger(RunsService.name);
+  private cachedInitialRunStatus: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -87,7 +88,10 @@ export class RunsService {
     return run;
   }
 
+  // B5: cache result — workflowStatus doesn't change at runtime
   private async getInitialRunStatus(): Promise<string> {
+    if (this.cachedInitialRunStatus) return this.cachedInitialRunStatus;
+
     const status = await this.prisma.workflowStatus.findFirst({
       where: {
         workflowType: { code: 'RUN' },
@@ -99,6 +103,7 @@ export class RunsService {
       throw new BadRequestException('Initial RUN status not configured');
     }
 
+    this.cachedInitialRunStatus = status.code;
     return status.code;
   }
 

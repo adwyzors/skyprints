@@ -1,3 +1,5 @@
+
+
 # Known Issues & Patterns to Avoid
 
 This is a living list of problems found during analysis. Fix these incrementally. **Do not fix while doing unrelated work** — keep changes scoped.
@@ -45,6 +47,7 @@ Queries `workflowStatus` table on each invocation. This doesn't change at runtim
 ```typescript
 const wasLifecycleComplete = run.lifeCycleStatusCode === 'COMPLETE';
 ```
+
 Lifecycle status codes come from the workflow engine — `'COMPLETE'` may not be the terminal code for all workflow types. Should check `isTerminal` on the `WorkflowStatus` instead.
 
 ## Frontend

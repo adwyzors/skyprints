@@ -1,7 +1,7 @@
 export interface AuthUser {
     id: string;
     alternateEmail?: string;
-    roles: string[];
+    permissions: string[]; // B7: was roles — renamed to match backend response key
     user: {
         id: string;
         email: string;
@@ -13,5 +13,4 @@ export interface AuthUser {
         location?: any;
         preferences?: any;
     };
-    permissions?: string[];
 }

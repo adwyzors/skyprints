@@ -1,6 +1,28 @@
 import { z } from 'zod';
 
 /**
+ * User preferences — strict schema to prevent arbitrary key injection (B8)
+ */
+export const UpdatePreferencesSchema = z
+  .object({
+    showRevenue: z.boolean().optional(),
+    showOrders: z.boolean().optional(),
+    showUnits: z.boolean().optional(),
+    showHubs: z.boolean().optional(),
+    showPulse: z.boolean().optional(),
+    showChart: z.boolean().optional(),
+    showPerformance: z.boolean().optional(),
+    showProcesses: z.boolean().optional(),
+    showCustomers: z.boolean().optional(),
+    showWorkload: z.boolean().optional(),
+    showMatrix: z.boolean().optional(),
+    fontSize: z.enum(['sm', 'base', 'lg']).optional(),
+  })
+  .strict();
+
+export type UpdatePreferencesDto = z.infer<typeof UpdatePreferencesSchema>;
+
+/**
  * Create / Sync user
  */
 export const SyncUserSchema = z.object({

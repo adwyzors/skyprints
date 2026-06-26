@@ -74,13 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loadUser();
     }, [pathname, requiresAuth, router]);
 
-    const hasPermission = useMemo(() => (permission: string) => !!user?.roles?.includes(permission), [user]);
+    const hasPermission = useMemo(() => (permission: string) => !!user?.permissions?.includes(permission), [user]);
 
     const hasAnyPermission = useMemo(() => (permissions: string[]) =>
-        permissions.some((p) => user?.roles?.includes(p)), [user]);
+        permissions.some((p) => user?.permissions?.includes(p)), [user]);
 
     const hasAllPermissions = useMemo(() => (permissions: string[]) =>
-        permissions.every((p) => user?.roles?.includes(p)), [user]);
+        permissions.every((p) => user?.permissions?.includes(p)), [user]);
 
     const refresh = useMemo(() => async () => {
         if (!requiresAuth) return;

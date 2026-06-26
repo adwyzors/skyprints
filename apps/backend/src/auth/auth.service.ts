@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
+import { UpdatePreferencesSchema } from '@app/contracts';
 import { PrismaService } from 'apps/backend/prisma/prisma.service';
 import type { Request, Response } from 'express';
 import { ContextLogger } from '../common/logger/context.logger';
@@ -79,12 +84,19 @@ export class AuthService {
     return {
       id: authUser.id,
       alternateEmail: authUser.email,
-      roles: authUser.permissions ?? [],
+      permissions: authUser.permissions ?? [], // B7: renamed from roles to match field semantics
       user,
     };
   }
 
-  async updatePreferences(userId: string, preferences: any) {
+  // B8: validate body against contract schema to prevent arbitrary key injection
+  async updatePreferences(userId: string, body: unknown) {
+    const parsed = UpdatePreferencesSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException('Invalid preferences');
+    }
+    const preferences = parsed.data;
+
     // Merge with existing preferences to avoid dropping other settings if partial updates are sent
     const currentUser = await this.prisma.user.findUnique({
       where: { id: userId },

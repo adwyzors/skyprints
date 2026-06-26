@@ -21,8 +21,6 @@ import { toOrderSummary } from '../mappers/order.mapper';
 import { BillingCalculatorService } from '../billing/services/billing-calculator.service';
 import { recomputeOrderEstimate } from './utils/order-estimate.util';
 
-const SYSTEM_USER_ID = 'a98afcd6-e0d9-4948-afb8-11fb4d18185a';
-
 @Injectable()
 export class OrdersService {
   private readonly logger = new ContextLogger(OrdersService.name);
@@ -82,45 +80,31 @@ export class OrdersService {
     }
   }
 
-  /* ========================== QUERY ========================== */
-  async getAll(query: OrdersQueryDto) {
-    const {
-      page = 1,
-      limit = 12,
-      status,
-      customerId,
-      search,
-      fromDate,
-      toDate,
-    } = query;
+  /* ========================== HELPERS ========================== */
 
-    const skip = (page - 1) * limit;
+  // B1: Shared where-clause builder for getAll and getOrderCards
+  // B6: Includes OR across locationId, preProductionLocationId, postProductionLocationId
+  private buildOrderWhere(query: OrdersQueryDto): {
+    where: Prisma.OrderWhereInput;
+  } {
+    const { status, customerId, search, fromDate, toDate } = query;
 
-    /* ==========================
-     * DATE NORMALIZATION
-     * ========================== */
     let from: Date | undefined;
     let to: Date | undefined;
 
     if (fromDate) {
       from = new Date(fromDate);
-      if (isNaN(from.getTime())) {
+      if (isNaN(from.getTime()))
         throw new BadRequestException('Invalid fromDate');
-      }
       from.setHours(0, 0, 0, 0);
     }
 
     if (toDate) {
       to = new Date(toDate);
-      if (isNaN(to.getTime())) {
-        throw new BadRequestException('Invalid toDate');
-      }
+      if (isNaN(to.getTime())) throw new BadRequestException('Invalid toDate');
       to.setHours(23, 59, 59, 999);
     }
 
-    /* ==========================
-     * STATUS NORMALIZATION (FIXED)
-     * ========================== */
     const statusCodes: OrderStatus[] | undefined = status
       ? status
           .split(',')
@@ -134,9 +118,6 @@ export class OrdersService {
       throw new BadRequestException('Invalid status value');
     }
 
-    /* ==========================
-     * WHERE CLAUSE
-     * ========================== */
     const where: Prisma.OrderWhereInput = {
       deletedAt: null,
       isTest: query.isTest !== undefined ? Boolean(query.isTest) : false,
@@ -169,7 +150,6 @@ export class OrdersService {
               },
             },
           },
-          // Enable searching by status code partial match
           (() => {
             const matchingStatuses = Object.values(OrderStatus).filter((s) =>
               s.toLowerCase().includes(search.toLowerCase()),
@@ -190,12 +170,17 @@ export class OrdersService {
         },
       }),
 
+      // B6: check all three location fields so pre/post-production locations are included
       ...(query.locationId && {
         processes: {
           some: {
             runs: {
               some: {
-                locationId: query.locationId,
+                OR: [
+                  { locationId: query.locationId },
+                  { preProductionLocationId: query.locationId },
+                  { postProductionLocationId: query.locationId },
+                ],
               },
             },
           },
@@ -203,109 +188,146 @@ export class OrdersService {
       }),
     };
 
-    const [total, orders, totalsAgg, allRuns] = await this.prisma.transaction([
-      this.prisma.order.count({ where }),
+    return { where };
+  }
 
-      this.prisma.order.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
+  // B3: createMany + batch lifecycle history instead of per-run create loop
+  private async createRunsBatch(
+    tx: any,
+    runsToCreate: Prisma.ProcessRunCreateManyInput[],
+  ): Promise<void> {
+    if (!runsToCreate.length) return;
 
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+    await tx.processRun.createMany({ data: runsToCreate });
 
-          customer: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-            },
-          },
+    const runsNeedingHistory = runsToCreate.filter(
+      (r) => r.lifeCycleStatusCode,
+    );
+    if (!runsNeedingHistory.length) return;
 
-          processes: {
-            include: {
-              process: {
-                select: {
-                  id: true,
-                  name: true,
-                },
+    // Find back created runs using the deterministic orderProcessId + runNumber key
+    const created = await tx.processRun.findMany({
+      where: {
+        OR: runsNeedingHistory.map((r) => ({
+          orderProcessId: r.orderProcessId,
+          runNumber: r.runNumber,
+        })),
+      },
+      select: { id: true, lifeCycleStatusCode: true },
+    });
+
+    if (created.length) {
+      await tx.processRunLifecycleHistory.createMany({
+        data: created.map((run: any) => ({
+          processRunId: run.id,
+          statusCode: run.lifeCycleStatusCode,
+          expectedDate: new Date(),
+        })),
+      });
+    }
+  }
+
+  /* ========================== QUERY ========================== */
+
+  // B1: extracted where builder; B2: aggregate estimatedAmount instead of fetching all run fields
+  async getAll(query: OrdersQueryDto) {
+    const { page = 1, limit = 12 } = query;
+    const skip = (page - 1) * limit;
+    const { where } = this.buildOrderWhere(query);
+
+    const [total, orders, totalsAgg, estimatedAgg] =
+      await this.prisma.transaction([
+        this.prisma.order.count({ where }),
+
+        this.prisma.order.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+
+          include: {
+            createdBy: {
+              select: {
+                id: true,
+                name: true,
               },
-              runs: {
-                orderBy: { runNumber: 'asc' },
-                include: {
-                  runTemplate: {
-                    select: {
-                      id: true,
-                      name: true,
-                      billingFormula: true,
-                      fields: true,
-                      lifecycleWorkflowType: {
-                        include: {
-                          statuses: {
-                            orderBy: { createdAt: 'asc' },
-                            select: {
-                              code: true,
-                              isInitial: true,
-                              isTerminal: true,
+            },
+
+            customer: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+              },
+            },
+
+            processes: {
+              include: {
+                process: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+                runs: {
+                  orderBy: { runNumber: 'asc' },
+                  include: {
+                    runTemplate: {
+                      select: {
+                        id: true,
+                        name: true,
+                        billingFormula: true,
+                        fields: true,
+                        lifecycleWorkflowType: {
+                          include: {
+                            statuses: {
+                              orderBy: { createdAt: 'asc' },
+                              select: {
+                                code: true,
+                                isInitial: true,
+                                isTerminal: true,
+                              },
                             },
                           },
                         },
                       },
                     },
-                  },
-                  lifecycleHistories: {
-                    orderBy: { createdAt: 'desc' },
-                  },
-                  executor: {
-                    select: { id: true, name: true },
-                  },
-                  reviewer: {
-                    select: { id: true, name: true },
-                  },
-                  location: {
-                    select: { id: true, name: true, code: true },
-                  },
-                  preProductionLocation: {
-                    select: { id: true, name: true, code: true },
-                  },
-                  postProductionLocation: {
-                    select: { id: true, name: true, code: true },
+                    lifecycleHistories: {
+                      orderBy: { createdAt: 'desc' },
+                    },
+                    executor: {
+                      select: { id: true, name: true },
+                    },
+                    reviewer: {
+                      select: { id: true, name: true },
+                    },
+                    location: {
+                      select: { id: true, name: true, code: true },
+                    },
+                    preProductionLocation: {
+                      select: { id: true, name: true, code: true },
+                    },
+                    postProductionLocation: {
+                      select: { id: true, name: true, code: true },
+                    },
                   },
                 },
               },
             },
           },
-        },
-      }),
+        }),
 
-      this.prisma.order.aggregate({
-        where,
-        _sum: { quantity: true },
-      }),
+        this.prisma.order.aggregate({
+          where,
+          _sum: { quantity: true },
+        }),
 
-      this.prisma.processRun.findMany({
-        where: {
-          orderProcess: {
-            order: where,
-          },
-        },
-        select: { fields: true },
-      }),
-    ]);
-
-    const totalEstimatedAmount = allRuns.reduce((sum, run) => {
-      const amt = (run.fields as any)?.['Estimated Amount'];
-      if (amt === undefined || amt === null) return sum;
-      const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
-      const val = parseFloat(cleanAmt);
-      return sum + (isNaN(val) ? 0 : val);
-    }, 0);
+        // B2: use stored estimatedAmount instead of fetching all run fields
+        this.prisma.order.aggregate({
+          where,
+          _sum: { estimatedAmount: true },
+        }),
+      ]);
 
     return {
       data: orders.map(toOrderSummary),
@@ -315,187 +337,63 @@ export class OrdersService {
         total,
         totalPages: Math.ceil(total / limit),
         totalQuantity: totalsAgg._sum.quantity || 0,
-        totalEstimatedAmount,
+        totalEstimatedAmount: Number(estimatedAgg._sum.estimatedAmount ?? 0),
       },
     };
   }
 
+  // B1: extracted where builder; B2: aggregate estimatedAmount instead of fetching all run fields
   async getOrderCards(query: OrdersQueryDto) {
-    const {
-      page = 1,
-      limit = 12,
-      status,
-      customerId,
-      search,
-      fromDate,
-      toDate,
-    } = query;
-
+    const { page = 1, limit = 12 } = query;
     const skip = (page - 1) * limit;
+    const { where } = this.buildOrderWhere(query);
 
-    /* ==========================
-     * DATE NORMALIZATION
-     * ========================== */
-    let from: Date | undefined;
-    let to: Date | undefined;
+    const [total, orders, totalsAgg, estimatedAgg] =
+      await this.prisma.transaction([
+        this.prisma.order.count({ where }),
 
-    if (fromDate) {
-      from = new Date(fromDate);
-      if (isNaN(from.getTime())) {
-        throw new BadRequestException('Invalid fromDate');
-      }
-      from.setHours(0, 0, 0, 0);
-    }
+        this.prisma.order.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: 'desc' },
 
-    if (toDate) {
-      to = new Date(toDate);
-      if (isNaN(to.getTime())) {
-        throw new BadRequestException('Invalid toDate');
-      }
-      to.setHours(23, 59, 59, 999);
-    }
+          select: {
+            id: true,
+            code: true,
+            quantity: true,
+            statusCode: true,
+            jobCode: true,
+            createdAt: true,
+            images: true,
 
-    /* ==========================
-     * STATUS NORMALIZATION (FIXED)
-     * ========================== */
-    const statusCodes: OrderStatus[] | undefined = status
-      ? status
-          .split(',')
-          .map((s) => s.trim())
-          .filter((s): s is OrderStatus =>
-            Object.values(OrderStatus).includes(s as OrderStatus),
-          )
-      : undefined;
-
-    if (status && !statusCodes?.length) {
-      throw new BadRequestException('Invalid status value');
-    }
-
-    /* ==========================
-     * WHERE CLAUSE
-     * ========================== */
-    const where: Prisma.OrderWhereInput = {
-      deletedAt: null,
-      isTest: query.isTest !== undefined ? Boolean(query.isTest) : false,
-
-      ...(statusCodes?.length && {
-        statusCode: { in: statusCodes },
-      }),
-
-      ...(customerId && { customerId }),
-
-      ...(search && {
-        OR: [
-          {
-            code: {
-              contains: search,
-              mode: 'insensitive' as Prisma.QueryMode,
-            },
-          },
-          {
-            jobCode: {
-              contains: search,
-              mode: 'insensitive' as Prisma.QueryMode,
-            },
-          },
-          {
             customer: {
-              name: {
-                contains: search,
-                mode: 'insensitive' as Prisma.QueryMode,
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+
+            processes: {
+              select: {
+                totalRuns: true,
               },
             },
           },
-          // Enable searching by status code partial match
-          (() => {
-            const matchingStatuses = Object.values(OrderStatus).filter((s) =>
-              s.toLowerCase().includes(search.toLowerCase()),
-            );
-            return matchingStatuses.length > 0
-              ? {
-                  statusCode: { in: matchingStatuses },
-                }
-              : {};
-          })(),
-        ].filter((condition) => Object.keys(condition).length > 0),
-      }),
+        }),
 
-      ...((from || to) && {
-        createdAt: {
-          ...(from && { gte: from }),
-          ...(to && { lte: to }),
-        },
-      }),
+        this.prisma.order.aggregate({
+          where,
+          _sum: { quantity: true },
+        }),
 
-      ...(query.locationId && {
-        processes: {
-          some: {
-            runs: {
-              some: {
-                locationId: query.locationId,
-              },
-            },
-          },
-        },
-      }),
-    };
-
-    const [total, orders, totalsAgg, allRuns] = await this.prisma.transaction([
-      this.prisma.order.count({ where }),
-
-      this.prisma.order.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-
-        select: {
-          id: true,
-          code: true,
-          quantity: true,
-          statusCode: true,
-          jobCode: true,
-          createdAt: true,
-          images: true,
-
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
-
-          processes: {
-            select: {
-              totalRuns: true,
-            },
-          },
-        },
-      }),
-
-      this.prisma.order.aggregate({
-        where,
-        _sum: { quantity: true },
-      }),
-
-      this.prisma.processRun.findMany({
-        where: {
-          orderProcess: {
-            order: where,
-          },
-        },
-        select: { fields: true },
-      }),
-    ]);
-
-    const totalEstimatedAmount = allRuns.reduce((sum, run) => {
-      const amt = (run.fields as any)?.['Estimated Amount'];
-      if (amt === undefined || amt === null) return sum;
-      const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
-      const val = parseFloat(cleanAmt);
-      return sum + (isNaN(val) ? 0 : val);
-    }, 0);
+        // B2: use stored estimatedAmount instead of fetching all run fields
+        this.prisma.order.aggregate({
+          where,
+          _sum: { estimatedAmount: true },
+        }),
+      ]);
 
     const mappedOrders = orders.map((order) => ({
       id: order.id,
@@ -517,7 +415,7 @@ export class OrdersService {
         total,
         totalPages: Math.ceil(total / limit),
         totalQuantity: totalsAgg._sum.quantity || 0,
-        totalEstimatedAmount,
+        totalEstimatedAmount: Number(estimatedAgg._sum.estimatedAmount ?? 0),
       },
     };
   }
@@ -751,13 +649,7 @@ export class OrdersService {
           for (let batch = 0; batch < count; batch++) {
             for (const def of process.runDefs) {
               const statuses = def.runTemplate.lifecycleWorkflowType.statuses;
-              let initialStatus = '';
-
-              if (statuses.length === 0) {
-                initialStatus = '';
-              } else {
-                initialStatus = statuses[0].code;
-              }
+              const initialStatus = statuses.length > 0 ? statuses[0].code : '';
 
               runsToCreate.push({
                 orderProcessId,
@@ -775,20 +667,9 @@ export class OrdersService {
           }
         }
 
+        // B3: batch createMany + lifecycle history instead of per-run create loop
         if (runsToCreate.length) {
-          for (const runData of runsToCreate) {
-            const run = await tx.processRun.create({ data: runData });
-            if (run.lifeCycleStatusCode) {
-              await tx.processRunLifecycleHistory.create({
-                data: {
-                  processRunId: run.id,
-                  statusCode: run.lifeCycleStatusCode,
-                  expectedDate: new Date(),
-                },
-              });
-            }
-          }
-          // Recompute estimate after creation
+          await this.createRunsBatch(tx, runsToCreate);
           await recomputeOrderEstimate(tx, orderId, this.billingCalculator);
         }
 
@@ -930,19 +811,9 @@ export class OrdersService {
         }
       }
 
+      // B3: batch createMany + lifecycle history instead of per-run create loop
       if (runsToCreate.length) {
-        for (const runData of runsToCreate) {
-          const run = await tx.processRun.create({ data: runData });
-          if (run.lifeCycleStatusCode) {
-            await tx.processRunLifecycleHistory.create({
-              data: {
-                processRunId: run.id,
-                statusCode: run.lifeCycleStatusCode,
-                expectedDate: new Date(),
-              },
-            });
-          }
-        }
+        await this.createRunsBatch(tx, runsToCreate);
       }
 
       this.logger.log(
@@ -1181,19 +1052,9 @@ export class OrdersService {
         }
       }
 
+      // B3: batch createMany + lifecycle history instead of per-run create loop
       if (runsToCreate.length) {
-        for (const runData of runsToCreate) {
-          const run = await tx.processRun.create({ data: runData });
-          if (run.lifeCycleStatusCode) {
-            await tx.processRunLifecycleHistory.create({
-              data: {
-                processRunId: run.id,
-                statusCode: run.lifeCycleStatusCode,
-                expectedDate: new Date(),
-              },
-            });
-          }
-        }
+        await this.createRunsBatch(tx, runsToCreate);
       }
 
       /* =====================================================
@@ -1412,22 +1273,62 @@ export class OrdersService {
     return { success: true };
   }
 
+  // B9: handle outstandingAmount adjustment for billed orders on bulk delete
   async deleteBulk(orderIds: string[]) {
     if (!orderIds.length) return { success: true, count: 0 };
 
-    const result = await this.prisma.order.updateMany({
-      where: {
-        id: { in: orderIds },
-        deletedAt: null, // Only delete active orders
-      },
-      data: { deletedAt: new Date() },
+    return this.prisma.transaction(async (tx) => {
+      const orders = await tx.order.findMany({
+        where: { id: { in: orderIds }, deletedAt: null },
+        select: {
+          id: true,
+          statusCode: true,
+          estimatedAmount: true,
+          customerId: true,
+        },
+      });
+
+      const billableStatuses = new Set<OrderStatus>([
+        OrderStatus.PRODUCTION_READY,
+        OrderStatus.IN_PRODUCTION,
+        OrderStatus.COMPLETE,
+      ]);
+
+      const customerDecrements = new Map<string, Prisma.Decimal>();
+      for (const order of orders) {
+        if (
+          billableStatuses.has(order.statusCode) &&
+          !order.estimatedAmount.isZero()
+        ) {
+          const current =
+            customerDecrements.get(order.customerId) ?? new Prisma.Decimal(0);
+          customerDecrements.set(
+            order.customerId,
+            current.add(order.estimatedAmount),
+          );
+        }
+      }
+
+      const result = await tx.order.updateMany({
+        where: { id: { in: orderIds }, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
+
+      await Promise.all(
+        [...customerDecrements.entries()].map(([customerId, amount]) =>
+          tx.customer.update({
+            where: { id: customerId },
+            data: { outstandingAmount: { decrement: amount } },
+          }),
+        ),
+      );
+
+      this.logger.log(
+        `[ORDER][BULK_DELETE] count=${result.count} ids=${orderIds.join(',')}`,
+      );
+
+      return { success: true, count: result.count };
     });
-
-    this.logger.log(
-      `[ORDER][BULK_DELETE] count=${result.count} ids=${orderIds.join(',')}`,
-    );
-
-    return { success: true, count: result.count };
   }
 
   /* ========================== IMAGE UPLOAD ========================== */
@@ -1575,7 +1476,7 @@ export class OrdersService {
 
       let nextRunNumber = (maxRun?.runNumber ?? 0) + 1;
 
-      const runsToCreateData: any[] = [];
+      const runsToCreateData: Prisma.ProcessRunCreateManyInput[] = [];
 
       for (let i = 0; i < count; i++) {
         const currentTotalRuns =
@@ -1601,23 +1502,11 @@ export class OrdersService {
         }
       }
 
-      let totalNewRuns = 0;
+      // B3: batch createMany + lifecycle history instead of per-run create loop
       if (runsToCreateData.length > 0) {
-        for (const runData of runsToCreateData) {
-          const run = await tx.processRun.create({ data: runData });
-          totalNewRuns++;
-
-          if (run.lifeCycleStatusCode) {
-            await tx.processRunLifecycleHistory.create({
-              data: {
-                processRunId: run.id,
-                statusCode: run.lifeCycleStatusCode,
-                expectedDate: new Date(),
-              },
-            });
-          }
-        }
+        await this.createRunsBatch(tx, runsToCreateData);
       }
+      const totalNewRuns = runsToCreateData.length;
 
       // Update stats
       await tx.orderProcess.update({
@@ -1659,8 +1548,20 @@ export class OrdersService {
         throw new NotFoundException('Order process not found');
       }
 
+      // B10: include workflow statuses to check isTerminal instead of hardcoded 'COMPLETE'
       const run = await tx.processRun.findFirst({
         where: { id: runId, orderProcessId: orderProcess.id },
+        include: {
+          runTemplate: {
+            select: {
+              lifecycleWorkflowType: {
+                select: {
+                  statuses: { select: { code: true, isTerminal: true } },
+                },
+              },
+            },
+          },
+        },
       });
 
       if (!run) {
@@ -1678,8 +1579,6 @@ export class OrdersService {
           await this.cloudflare.deleteFiles(values.images);
         } catch (error) {
           this.logger.error(`Failed to delete images for run ${runId}`, error);
-          // Continue with run deletion even if image deletion fails (or should we throw?)
-          // Best effort is typically preferred for cleanup
         }
       }
 
@@ -1689,13 +1588,21 @@ export class OrdersService {
 
       // Update stats
       const wasConfigComplete = run.statusCode === ProcessRunStatus.COMPLETE;
-      const wasLifecycleComplete = run.lifeCycleStatusCode === 'COMPLETE'; // Assuming string check, or check terminal status
+
+      // B10: use isTerminal from workflow definition instead of hardcoded string
+      const terminalCodes = new Set(
+        (run as any).runTemplate?.lifecycleWorkflowType?.statuses
+          .filter((s: any) => s.isTerminal)
+          .map((s: any) => s.code) ?? [],
+      );
+      const wasLifecycleComplete =
+        !!run.lifeCycleStatusCode && terminalCodes.has(run.lifeCycleStatusCode);
 
       await tx.orderProcess.update({
         where: { id: orderProcess.id },
         data: {
           totalRuns: { decrement: 1 },
-          remainingRuns: { decrement: 1 }, // Assuming it was remaining
+          remainingRuns: { decrement: 1 },
           ...(wasConfigComplete && { configCompletedRuns: { decrement: 1 } }),
           ...(wasLifecycleComplete && {
             lifecycleCompletedRuns: { decrement: 1 },
