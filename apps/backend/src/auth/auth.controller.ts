@@ -49,11 +49,7 @@ export class AuthController {
   ) {
     this.logger.log('OAuth callback received from Keycloak');
 
-    const tokens = await this.keycloak.exchangeCode(code);
-    this.logger.log('Authorization code successfully exchanged');
-
-    this.auth.setAuthCookies(res, tokens, req);
-
+    // Decode redirectTo early — needed for both success and fallback paths.
     let redirectTo = '/';
     if (state) {
       try {
@@ -63,6 +59,25 @@ export class AuthController {
       } catch {
         this.logger.warn('Invalid OAuth state parameter');
       }
+    }
+
+    try {
+      const tokens = await this.keycloak.exchangeCode(code);
+      this.logger.log('Authorization code successfully exchanged');
+      this.auth.setAuthCookies(res, tokens, req);
+    } catch (err: any) {
+      // Codes are single-use. On Vercel, the serverless function can be invoked
+      // twice for the same request (cold-start replay), or the user reloads the
+      // callback URL from browser history. In both cases the second attempt gets
+      // invalid_grant. Redirect to the frontend — if the first exchange already
+      // set a session the user lands normally; otherwise AuthProvider re-initiates
+      // the Keycloak flow transparently.
+      const errorCode = err?.response?.data?.error ?? 'unknown';
+      this.logger.warn(
+        `Code exchange failed (${errorCode}) — redirecting to frontend for re-auth`,
+      );
+      res.redirect(`${process.env.FRONT_END_BASE_URL}${redirectTo}`);
+      return;
     }
 
     this.logger.log(`Login completed, redirecting to frontend: ${redirectTo}`);
