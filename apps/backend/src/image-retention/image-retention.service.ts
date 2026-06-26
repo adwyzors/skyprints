@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, ProcessRun } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { CloudflareService } from '../common/cloudflare.service';
@@ -8,10 +8,7 @@ import { CloudflareService } from '../common/cloudflare.service';
 export class ImageRetentionService {
   private readonly logger = new Logger(ImageRetentionService.name);
 
-  /**
-   * Prevent overlapping executions
-   */
-  private cleaning = false;
+  private readonly CLEANUP_LOCK_KEY = 819273645;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -19,14 +16,16 @@ export class ImageRetentionService {
   ) {}
 
   async cleanup({ limit, dryRun }: { limit?: number; dryRun?: boolean }) {
-    if (this.cleaning) {
+    const [{ lock_acquired }] = await this.prisma.client.$queryRaw<
+      [{ lock_acquired: boolean }]
+    >`SELECT pg_try_advisory_lock(${this.CLEANUP_LOCK_KEY}) AS lock_acquired`;
+
+    if (!lock_acquired) {
       return {
         success: false,
         message: 'Cleanup already running',
       };
     }
-
-    this.cleaning = true;
 
     const start = Date.now();
 
@@ -41,13 +40,14 @@ export class ImageRetentionService {
       /**
        * STEP 1
        *
-       * Fetch MORE candidate orders than needed.
+       * Fetch ALL candidate orders older than 30 days.
        *
-       * Why?
-       * Many old billed orders may already be cleaned.
+       * No take() cap here — the work limit is enforced in STEP 2
+       * (eligibleOrders stops filling once it reaches batchSize).
        *
-       * So we fetch extra candidates,
-       * then filter only orders that still have images.
+       * A cap here would permanently exclude newer orders once the
+       * candidate pool exceeds it, because already-cleaned orders
+       * (images: []) still match the WHERE clause and consume slots.
        */
       const candidateOrders = await this.prisma.order.findMany({
         where: {
@@ -68,45 +68,28 @@ export class ImageRetentionService {
         orderBy: {
           createdAt: 'asc',
         },
-        take: batchSize * 3,
       });
 
       /**
        * STEP 2
        *
-       * Keep ONLY orders
-       * that still contain images somewhere.
+       * Keep ONLY orders that still contain images somewhere.
        *
-       * IMPORTANT:
-       * - order images may be empty
-       * - runs may still contain images
+       * Single batched query for run-image check — avoids N+1.
+       * Orders without order-level images are collected first, then
+       * one findMany resolves which of them have runs with images.
        */
-      const eligibleOrders: typeof candidateOrders = [];
+      const ordersWithoutImages = candidateOrders.filter(
+        (o) => !Array.isArray(o.images) || o.images.length === 0,
+      );
 
-      for (const order of candidateOrders) {
-        const hasOrderImages =
-          Array.isArray(order.images) && order.images.length > 0;
+      const orderIdsWithRunImages = new Set<string>();
 
-        /**
-         * Order itself contains images
-         */
-        if (hasOrderImages) {
-          eligibleOrders.push(order);
-
-          if (eligibleOrders.length >= batchSize) {
-            break;
-          }
-
-          continue;
-        }
-
-        /**
-         * Check runs only if order has no images
-         */
-        const runWithImages = await this.prisma.processRun.findFirst({
+      if (ordersWithoutImages.length > 0) {
+        const runsWithImages = await this.prisma.processRun.findMany({
           where: {
             orderProcess: {
-              orderId: order.id,
+              orderId: { in: ordersWithoutImages.map((o) => o.id) },
             },
             fields: {
               path: ['images'],
@@ -114,11 +97,23 @@ export class ImageRetentionService {
             },
           },
           select: {
-            id: true,
+            orderProcess: { select: { orderId: true } },
           },
         });
 
-        if (runWithImages) {
+        for (const run of runsWithImages) {
+          orderIdsWithRunImages.add(run.orderProcess.orderId);
+        }
+      }
+
+      const eligibleOrders: typeof candidateOrders = [];
+
+      for (const order of candidateOrders) {
+        const hasImages =
+          (Array.isArray(order.images) && order.images.length > 0) ||
+          orderIdsWithRunImages.has(order.id);
+
+        if (hasImages) {
           eligibleOrders.push(order);
 
           if (eligibleOrders.length >= batchSize) {
@@ -232,6 +227,9 @@ export class ImageRetentionService {
 
       /**
        * Other orders
+       *
+       * Only fetch orders that actually share at least one URL with
+       * our candidate set — avoids loading every order in the system.
        */
       const otherOrders = await this.prisma.order.findMany({
         where: {
@@ -239,6 +237,7 @@ export class ImageRetentionService {
             notIn: orderIds,
           },
           deletedAt: null,
+          images: { hasSome: allUrls },
         },
         select: {
           images: true,
@@ -255,6 +254,9 @@ export class ImageRetentionService {
 
       /**
        * Other runs
+       *
+       * Only fetch runs that have an images field at all — skips the
+       * majority of runs which never had images uploaded.
        */
       const otherRuns = await this.prisma.processRun.findMany({
         where: {
@@ -262,6 +264,10 @@ export class ImageRetentionService {
             orderId: {
               notIn: orderIds,
             },
+          },
+          fields: {
+            path: ['images'],
+            not: Prisma.JsonNull,
           },
         },
         select: {
@@ -450,7 +456,8 @@ export class ImageRetentionService {
 
       throw error;
     } finally {
-      this.cleaning = false;
+      await this.prisma.client
+        .$executeRaw`SELECT pg_advisory_unlock(${this.CLEANUP_LOCK_KEY})`;
     }
   }
 
