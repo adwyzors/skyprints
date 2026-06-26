@@ -1,6 +1,7 @@
 import {
     Calendar,
-    ChevronDown,
+    CheckCircle,
+    ChevronRight,
     Edit,
     Eye,
     FileText,
@@ -9,7 +10,6 @@ import {
     Loader2,
     MapPin,
     Package,
-    Palette,
     Plus,
     Ruler,
     Trash2,
@@ -567,62 +567,62 @@ export default function SpangleConfig({
             {localOrder.processes.map(p => (
                 <div key={p.id} className="space-y-3">
                     {p.runs.map(run => (
-                        <div key={run.id} className="border border-gray-200 rounded-lg overflow-hidden mb-4">
-                            <div className={`w-full bg-gray-50 p-4 flex justify-between cursor-pointer ${run.configStatus === 'COMPLETE' ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-amber-500'}`} onClick={() => toggleRunOpen(run)}>
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-2 rounded-lg ${run.configStatus === 'COMPLETE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                                        <Palette className="w-5 h-5" />
+                        <div key={run.id} className="mb-4">
+                            {!openRunId || openRunId !== run.id ? (
+                                <div
+                                    onClick={() => toggleRunOpen(run)}
+                                    className={`p-3 border rounded cursor-pointer flex justify-between items-center ${run.configStatus === 'COMPLETE' ? 'bg-green-50 border-green-200 hover:bg-green-100' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${run.configStatus === 'COMPLETE' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                                        <span className="font-medium text-sm">Run {run.runNumber}</span>
+                                        {run.configStatus === 'COMPLETE' && (
+                                            <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                                                <CheckCircle className="w-3 h-3" /> Configured
+                                            </span>
+                                        )}
+                                        {run.preProductionLocation && (
+                                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
+                                                <MapPin className="w-3 h-3" />
+                                                PRE: {run.preProductionLocation.code}
+                                            </span>
+                                        )}
+                                        {run.postProductionLocation && (
+                                            <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
+                                                <MapPin className="w-3 h-3" />
+                                                POST: {run.postProductionLocation.code}
+                                            </span>
+                                        )}
                                     </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-semibold text-gray-900">Run {run.runNumber}</h3>
-                                            {run.preProductionLocation && (
-                                                <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
-                                                    <MapPin className="w-3 h-3" />
-                                                    PRE: {run.preProductionLocation.code}
-                                                </span>
-                                            )}
-                                            {run.postProductionLocation && (
-                                                <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Post-Production Location">
-                                                    <MapPin className="w-3 h-3" />
-                                                    POST: {run.postProductionLocation.code}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-xs text-gray-500">{run.configStatus === 'COMPLETE' ? 'Configured' : 'Pending'} • {run.lifecycleStatus}</div>
+                                    <div className="flex items-center gap-1">
+                                        {run.configStatus === 'COMPLETE' ? (
+                                            <div className="p-1"><Eye className="w-4 h-4 text-gray-500" /></div>
+                                        ) : (
+                                            <div className="p-1"><Edit className="w-4 h-4 text-gray-500" /></div>
+                                        )}
+                                        {hasPermission(Permission.RUNS_DELETE) && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteRun(p.id, run.id);
+                                                }}
+                                                disabled={isDeletingRun === run.id}
+                                                className="p-1 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                                                title="Delete Run"
+                                            >
+                                                {isDeletingRun === run.id ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                        )}
+                                        <ChevronRight className="w-4 h-4 text-gray-400" />
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    {run.configStatus === 'COMPLETE' ? (
-                                        <div className="p-1">
-                                            <Eye className="w-4 h-4 text-gray-500" />
-                                        </div>
-                                    ) : (
-                                        <div className="p-1">
-                                            <Edit className="w-4 h-4 text-gray-500" />
-                                        </div>
-                                    )}
-                                    {hasPermission(Permission.RUNS_DELETE) && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteRun(p.id, run.id);
-                                            }}
-                                            disabled={isDeletingRun === run.id}
-                                            className="p-1 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
-                                            title="Delete Run"
-                                        >
-                                            {isDeletingRun === run.id ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                            ) : (
-                                                <Trash2 className="w-4 h-4" />
-                                            )}
-                                        </button>
-                                    )}
-                                    <ChevronDown className={`w-5 h-5 text-gray-400 transform ${openRunId === run.id ? 'rotate-180' : ''}`} />
-                                </div>
-                            </div>
-                            {openRunId === run.id && <div className="p-4 bg-white border-t">{renderRun(p, run)}</div>}
+                            ) : (
+                                renderRun(p, run)
+                            )}
                         </div>
                     ))}
                     <div className="flex gap-2">
@@ -630,7 +630,7 @@ export default function SpangleConfig({
                             <button
                                 onClick={() => handleAddRun(p.id)}
                                 disabled={isAddingRun}
-                                className="flex-1 py-1 border-2 border-dashed border-gray-300 rounded text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 text-sm font-medium flex items-center justify-center gap-2"
+                                className="flex-1 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
                             >
                                 {isAddingRun ? <Loader2 className="animate-spin w-4 h-4" /> : <Plus className="w-4 h-4" />}
                                 Add Configuration Run
@@ -640,7 +640,7 @@ export default function SpangleConfig({
                         {p.runs.length === 0 && (
                             <button
                                 onClick={() => handleDeleteProcess(p.id)}
-                                className="flex-1 py-1 border-2 border-dashed border-red-300 rounded-lg text-red-500 hover:border-red-500 hover:text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                                className="flex-1 py-2 border-2 border-dashed border-red-300 rounded-lg text-red-500 hover:border-red-500 hover:text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
                             >
                                 <Trash2 className="w-4 h-4" />
                                 Delete Process

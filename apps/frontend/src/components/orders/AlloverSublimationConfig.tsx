@@ -1029,7 +1029,7 @@ export default function AlloverSublimationConfig({
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 )}
-                                                <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${openRunId === run.id ? 'rotate-90' : ''}`} />
+                                                <ChevronRight className="w-4 h-4 text-gray-400" />
                                             </div>
                                         </div>
                                     </div>
