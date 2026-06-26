@@ -351,9 +351,15 @@ export class AdminProcessService {
 
     // 4. Run Status Filter
     if (status) {
-      combinedAnd.push({
-        statusCode: { in: status.split(',') as ProcessRunStatus[] },
-      });
+      const validRunStatuses = status
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s): s is ProcessRunStatus =>
+          Object.values(ProcessRunStatus).includes(s as ProcessRunStatus),
+        );
+      if (validRunStatuses.length > 0) {
+        combinedAnd.push({ statusCode: { in: validRunStatuses } });
+      }
     }
 
     // 5. Assigned User Filter
