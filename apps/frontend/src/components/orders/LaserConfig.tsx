@@ -580,7 +580,8 @@ export default function LaserConfig({
                                 </div>
                             </div>
 
-                            <table className="w-full text-sm border-collapse border border-gray-200">
+                            <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse border border-gray-200 min-w-max">
                                 <thead className="bg-gray-50">
                                     <tr>
                                         <th className="border p-2 text-left">Design sizes</th>
@@ -614,6 +615,7 @@ export default function LaserConfig({
                                     </tr>
                                 </tfoot>
                             </table>
+                            </div>
 
                             {/* Images View */}
                             {savedImages.length > 0 && (
@@ -801,7 +803,8 @@ export default function LaserConfig({
 
                         {/* Items Table */}
                         <div className="border rounded overflow-hidden">
-                            <table className="w-full text-sm">
+                            <div className="overflow-x-auto">
+                            <table className="w-full text-sm min-w-max">
                                 <thead className="bg-gray-100">
                                     <tr>
                                         <th className="p-2 text-left">Design sizes</th>
@@ -877,6 +880,7 @@ export default function LaserConfig({
                                     </tr>
                                 </tfoot>
                             </table>
+                            </div>
                             <button
                                 onClick={addItem}
                                 className="w-full p-2 bg-gray-50 hover:bg-gray-100 text-blue-600 flex items-center justify-center gap-2 border-t text-sm font-medium transition-colors"

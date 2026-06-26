@@ -769,7 +769,7 @@ export default function DTFConfig({
 
                         {expandedLayouts && (
                             <div className="p-3 bg-white overflow-x-auto">
-                                <table className="w-full text-xs">
+                                <table className="w-full text-xs min-w-max">
                                     <thead>
                                         <tr className="bg-gray-50 border-b text-gray-600">
                                             <th className="p-2 text-center w-8">#</th>

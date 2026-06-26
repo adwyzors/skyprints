@@ -610,7 +610,8 @@ export default function AlloverSublimationConfig({
                                 </div>
                             </div>
 
-                            <table className="w-full text-sm border-collapse border border-gray-200">
+                            <div className="overflow-x-auto">
+                            <table className="w-full text-sm border-collapse border border-gray-200 min-w-max">
                                 <thead className="bg-gray-50">
                                     <tr>
                                         <th className="border p-2 text-left">Design</th>
@@ -646,6 +647,7 @@ export default function AlloverSublimationConfig({
                                     </tr>
                                 </tfoot>
                             </table>
+                            </div>
 
                             {/* Images View */}
                             {savedImages.length > 0 && (
@@ -858,7 +860,8 @@ export default function AlloverSublimationConfig({
 
                         {/* Items Table */}
                         <div className="border rounded overflow-hidden">
-                            <table className="w-full text-sm">
+                            <div className="overflow-x-auto">
+                            <table className="w-full text-sm min-w-max">
                                 <thead className="bg-gray-100">
                                     <tr>
                                         <th className="p-2 text-left">Design</th>
@@ -918,6 +921,7 @@ export default function AlloverSublimationConfig({
                                     ))}
                                 </tbody>
                             </table>
+                            </div>
                             <div className="p-2 bg-gray-50 border-t">
                                 <button
                                     onClick={addItem}

@@ -591,7 +591,7 @@ export default function DiamondConfig({
 
                     {/* TABLE */}
                     <div className="overflow-x-auto border rounded">
-                        <table className="w-full text-sm">
+                        <table className="w-full text-sm min-w-max">
                             <thead className="bg-gray-100 text-xs">
                                 <tr>
                                     <th className="p-2 text-left">Design Sizes</th>
