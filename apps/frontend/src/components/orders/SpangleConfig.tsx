@@ -397,7 +397,7 @@ export default function SpangleConfig({
         const isViewMode = isConfigured && !isEditing;
 
         return (
-            <div className="bg-gray-50 border border-gray-300 rounded p-3">
+            <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
                 <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-blue-500' : 'bg-green-500'}`} />
@@ -436,7 +436,7 @@ export default function SpangleConfig({
                     {!isViewMode && <button onClick={() => { setOpenRunId(null); setEditingRunId(null); }}><X className="w-4 h-4 text-gray-500" /></button>}
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded p-4 space-y-6">
+                <div className="bg-white border border-gray-200 rounded p-3 sm:p-4 space-y-6">
                     {/* Manager Selection (Only in Edit Mode) */}
                     {!isViewMode && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

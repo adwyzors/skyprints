@@ -672,7 +672,7 @@ export default function EmbellishmentConfig({
         if (mode === 'view') {
             // Show READ-ONLY view for configured runs
             return (
-                <div className="bg-gray-50 border border-gray-300 rounded p-3">
+                <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
                     <div className="mb-4">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -873,7 +873,7 @@ export default function EmbellishmentConfig({
             };
 
             return (
-                <div className="bg-gray-50 border border-gray-300 rounded p-3">
+                <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
                     <div className="mb-4">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">

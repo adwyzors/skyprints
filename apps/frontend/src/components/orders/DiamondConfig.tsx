@@ -480,7 +480,7 @@ export default function DiamondConfig({
         const totals = getTotals(parseItems(data.items as DiamondItem[]));
 
         return (
-            <div className="bg-gray-50 border border-gray-300 rounded p-3">
+            <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
                 <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${mode === 'edit' ? 'bg-blue-500' : 'bg-green-500'}`} />
@@ -524,7 +524,7 @@ export default function DiamondConfig({
                 </div>
 
                 {/* FIELDS */}
-                <div className="bg-white border border-gray-200 rounded p-4 space-y-4">
+                <div className="bg-white border border-gray-200 rounded p-3 sm:p-4 space-y-4">
                     {/* Locations Read Only */}
                     {mode === 'view' && (run.location || run.preProductionLocation || run.postProductionLocation) && (
                         <div className="mb-2 text-xs flex flex-wrap gap-3 text-gray-600">

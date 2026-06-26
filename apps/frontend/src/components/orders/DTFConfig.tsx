@@ -520,7 +520,7 @@ export default function DTFConfig({
         const savedImages = (mode === 'view' ? data.images || [] : []) as string[];
 
         return (
-            <div className="bg-gray-50 border border-gray-300 rounded p-3">
+            <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
                 <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div
@@ -572,7 +572,7 @@ export default function DTFConfig({
                     )}
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded p-4 space-y-6">
+                <div className="bg-white border border-gray-200 rounded p-3 sm:p-4 space-y-6">
                     {/* 2. TOP SECTION */}
                     {mode === 'edit' && (
                         <>

@@ -256,16 +256,16 @@ function OrderConfigPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <div className="flex items-center gap-3 mb-2">
+                            <div className="flex items-center gap-3 mb-2 min-w-0">
                                 <button
                                     onClick={() => router.push('/admin/orders')}
-                                    className="inline-flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                                    className="inline-flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                                 >
                                     <ArrowLeft className="w-4 h-4" />
                                     <span className="hidden sm:inline">Back to Orders</span>
                                 </button>
-                                <div className="h-6 w-px bg-gray-300 hidden md:block" />
-                                <h1 className="text-2xl font-bold text-gray-800">{order.code}</h1>
+                                <div className="h-6 w-px bg-gray-300 hidden md:block flex-shrink-0" />
+                                <h1 className="text-xl sm:text-2xl font-bold text-gray-800 min-w-0 truncate">{order.code}</h1>
                                 {hasPermission(Permission.ORDERS_UPDATE) && (
                                     <button
                                         onClick={() => setIsEditModalOpen(true)}
@@ -397,7 +397,7 @@ function OrderConfigPage() {
                             {order.processes.map((process) => (
                                 <div
                                     key={process.id}
-                                    className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6"
+                                    className="bg-white rounded-2xl shadow-sm border border-gray-200 p-3 md:p-6"
                                 >
                                     <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100">
                                         <div className="w-2 h-2 bg-blue-500 rounded-full" />

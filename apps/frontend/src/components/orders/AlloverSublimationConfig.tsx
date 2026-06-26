@@ -549,7 +549,7 @@ export default function AlloverSublimationConfig({
             const savedImages = (values.images as string[]) || [];
 
             return (
-                <div className="bg-gray-50 border border-gray-300 rounded p-3">
+                <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
                     <div className="mb-4">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -590,7 +590,7 @@ export default function AlloverSublimationConfig({
                         </div>
 
                         {/* Read-Only View */}
-                        <div className="bg-white border border-gray-200 rounded p-4 space-y-4">
+                        <div className="bg-white border border-gray-200 rounded p-3 sm:p-4 space-y-4">
                             <div className="grid grid-cols-4 gap-4">
                                 <div>
                                     <label className="text-xs text-gray-500">Particulars</label>
@@ -712,7 +712,7 @@ export default function AlloverSublimationConfig({
         const currentPreviews = imagePreviews[run.id] || [];
 
         return (
-            <div className="bg-gray-50 border border-gray-300 rounded p-3">
+            <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
                 <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -762,7 +762,7 @@ export default function AlloverSublimationConfig({
                     </div>
 
                     {/* Edit Form */}
-                    <div className="bg-white border border-gray-200 rounded p-4 space-y-4">
+                    <div className="bg-white border border-gray-200 rounded p-3 sm:p-4 space-y-4">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                             <div>
                                 <label className="block text-xs font-medium text-gray-700">Particulars</label>

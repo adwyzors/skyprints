@@ -507,7 +507,7 @@ function RunsPageContent() {
                             {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5 font-bold" />}
                         </button>
                         <div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                 <h1 className="text-2xl font-bold tracking-tight text-gray-900">Run Activity</h1>
                                 <div className="flex items-center gap-2">
                                     <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-bold rounded-full border border-green-200 whitespace-nowrap">
@@ -552,7 +552,7 @@ function RunsPageContent() {
                         {!hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING) && (
                             <div className="flex items-center gap-3 text-gray-400">
                                 <span className="text-[10px] font-bold uppercase tracking-widest">Status:</span>
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2">
                                     {[
                                         { value: 'CONFIGURE', label: 'To Configure' },
                                         { value: 'PRODUCTION_READY', label: 'Ready' },

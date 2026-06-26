@@ -512,7 +512,7 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
             : data.columnHeaders;
 
         return (
-            <div className="bg-gray-50 border border-gray-300 rounded p-3">
+            <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
                 <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${mode === 'edit' ? 'bg-blue-500' : 'bg-green-500'}`} />
@@ -551,7 +551,7 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                     {mode === 'edit' && <button onClick={() => { setOpenRunId(null); setEditingRunId(null); }}><X className="w-4 h-4 text-gray-500" /></button>}
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded p-4 space-y-6">
+                <div className="bg-white border border-gray-200 rounded p-3 sm:p-4 space-y-6">
                     {/* 1. TOP SECTION (EXECUTOR + RATE) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                         <SearchableManagerSelect
