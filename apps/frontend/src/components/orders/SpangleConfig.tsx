@@ -473,7 +473,15 @@ export default function SpangleConfig({
                     <div className="border border-gray-300 rounded overflow-hidden bg-white">
                         {pairs.map((pair, rowIndex) => (
                             <div key={rowIndex} className="grid grid-cols-4 border-b last:border-b-0 divide-x divide-gray-300">
-                                {pair.map((fieldConfig: any) => {
+                                {pair.map((fieldConfig: any, colIndex) => {
+                                    if (!fieldConfig) {
+                                        return (
+                                            <React.Fragment key={`empty-${colIndex}`}>
+                                                <div className="bg-gray-50 p-1.5"></div>
+                                                <div className="p-1.5 bg-white"></div>
+                                            </React.Fragment>
+                                        );
+                                    }
                                     const field = fieldConfig.key;
                                     const type = fieldConfig.type || 'string';
                                     const isNumber = type === 'number';
@@ -504,12 +512,6 @@ export default function SpangleConfig({
                                         </React.Fragment>
                                     );
                                 })}
-                                {pair.length === 1 && (
-                                    <>
-                                        <div className="bg-gray-50 p-1.5"></div>
-                                        <div className="p-1.5 bg-white"></div>
-                                    </>
-                                )}
                             </div>
                         ))}
                     </div>
