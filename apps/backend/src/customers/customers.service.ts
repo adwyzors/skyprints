@@ -231,7 +231,7 @@ export class CustomersService {
     errors: string[];
   }> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(Buffer.from(buffer));
+    await workbook.xlsx.load(new Uint8Array(buffer));
 
     const worksheet = workbook.getWorksheet('Customers');
     if (!worksheet) {
@@ -265,7 +265,9 @@ export class CustomersService {
       if (rowNumber === 1) return; // skip header
 
       const id = String(row.getCell(idCol).value || '').trim();
-      if (!id || id.length < 10) return; // skip empty/note rows
+      // Skip empty rows or rows that don't contain a valid UUID (e.g. the note row at the bottom)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!id || !uuidRegex.test(id)) return;
 
       const rawOutstanding = row.getCell(outstandingCol).value;
       const rawCredit = row.getCell(creditLimitCol).value;
