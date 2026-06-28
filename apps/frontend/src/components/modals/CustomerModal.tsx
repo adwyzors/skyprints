@@ -3,8 +3,8 @@
 import { Customer } from '@/domain/model/customer.model';
 import { createCustomer, updateCustomer } from '@/services/customer.service';
 import { CreateCustomerDto } from '@app/contracts';
-import { Loader2, Users, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ClipboardPaste, Loader2, Users, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 interface CustomerModalProps {
     isOpen: boolean;
@@ -12,6 +12,22 @@ interface CustomerModalProps {
     onSuccess: () => void;
     customer?: Customer; // If provided, we are in edit mode
 }
+
+// The order fields are filled from a pasted Excel row (left → right)
+const PASTE_FIELD_ORDER: (keyof CreateCustomerDto)[] = [
+    'code', 'name', 'email', 'phone', 'address', 'gstno', 'creditLimit', 'outstandingAmount'
+];
+
+const PASTE_FIELD_LABELS: Record<string, string> = {
+    code: 'Code',
+    name: 'Name',
+    email: 'Email',
+    phone: 'Phone',
+    address: 'Address',
+    gstno: 'GST No',
+    creditLimit: 'Credit Limit',
+    outstandingAmount: 'Outstanding',
+};
 
 export default function CustomerModal({
     isOpen,
@@ -36,6 +52,8 @@ export default function CustomerModal({
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [pasteSuccess, setPasteSuccess] = useState<string | null>(null);
+    const pasteToastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Initialize form data when customer prop changes
     useEffect(() => {
@@ -70,6 +88,7 @@ export default function CustomerModal({
             });
         }
         setError(null);
+        setPasteSuccess(null);
     }, [customer, isOpen]);
 
     if (!isOpen) return null;
@@ -81,6 +100,62 @@ export default function CustomerModal({
             [name]: type === 'checkbox' ? checked : type === 'number' ? (value === '' ? 0 : Number(value)) : value
         }));
     };
+
+    // ─── Paste-to-Fill ────────────────────────────────────────────────────────
+    const handlePaste = (e: React.ClipboardEvent<HTMLFormElement>) => {
+        // Only intercept when the target is NOT an individual input/textarea
+        // (so normal typing/paste in a focused field still works)
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+        const text = e.clipboardData.getData('text');
+        if (!text.includes('\t') && !text.includes('\n')) return; // Not TSV — ignore
+
+        e.preventDefault();
+
+        // Take the first row only
+        const firstRow = text.split('\n')[0].replace(/\r$/, '');
+        const columns = firstRow.split('\t');
+
+        if (columns.length === 0) return;
+
+        const updates: Partial<CreateCustomerDto> = {};
+        let filled = 0;
+
+        columns.forEach((rawValue, idx) => {
+            const fieldKey = PASTE_FIELD_ORDER[idx];
+            if (!fieldKey) return;
+
+            const value = rawValue.trim();
+            if (value === '') return;
+
+            const numericFields: (keyof CreateCustomerDto)[] = ['creditLimit', 'outstandingAmount'];
+            if (numericFields.includes(fieldKey)) {
+                const num = Number(value.replace(/,/g, '')); // strip commas (e.g. "1,00,000")
+                if (!isNaN(num)) {
+                    (updates as any)[fieldKey] = num;
+                    filled++;
+                }
+            } else {
+                (updates as any)[fieldKey] = value;
+                filled++;
+            }
+        });
+
+        if (filled === 0) return;
+
+        setFormData(prev => ({ ...prev, ...updates }));
+
+        const fieldNames = Object.keys(updates)
+            .map(k => PASTE_FIELD_LABELS[k] ?? k)
+            .join(', ');
+
+        // Clear any existing toast timer
+        if (pasteToastRef.current) clearTimeout(pasteToastRef.current);
+        setPasteSuccess(`✓ Filled ${filled} field${filled > 1 ? 's' : ''}: ${fieldNames}`);
+        pasteToastRef.current = setTimeout(() => setPasteSuccess(null), 3500);
+    };
+    // ─────────────────────────────────────────────────────────────────────────
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -143,7 +218,35 @@ export default function CustomerModal({
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-5 space-y-3">
+                {/* Paste-to-fill hint */}
+                <div className="px-5 pt-3">
+                    <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg">
+                        <ClipboardPaste className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0">
+                            <p className="text-xs font-semibold text-blue-700">Paste to Fill</p>
+                            <p className="text-[10px] text-blue-500 leading-relaxed mt-0.5">
+                                Copy a row from Excel &amp; press <kbd className="bg-blue-100 px-1 py-0.5 rounded font-mono text-[9px]">Ctrl+V</kbd> anywhere on this form (not inside a field)
+                            </p>
+                            <p className="text-[10px] text-blue-400 mt-1 font-mono truncate">
+                                {PASTE_FIELD_ORDER.map(k => PASTE_FIELD_LABELS[k]).join(' → ')}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Paste success toast */}
+                    {pasteSuccess && (
+                        <div className="mt-2 flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <p className="text-xs text-green-700 font-medium">{pasteSuccess}</p>
+                        </div>
+                    )}
+                </div>
+
+                <form onSubmit={handleSubmit} onPaste={handlePaste} className="p-5 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <label className="text-xs font-medium text-gray-700">Code <span className="text-red-500">*</span></label>

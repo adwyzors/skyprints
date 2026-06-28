@@ -2,6 +2,7 @@
 
 import {
     Calendar,
+    ClipboardPaste,
     FileText,
     Grid,
     Hash,
@@ -15,7 +16,7 @@ import {
     User,
     X
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { apiRequest } from "@/services/api.service";
 import { configureRun } from '@/services/run.service';
@@ -160,6 +161,8 @@ export default function RunConfigForm({
     onCancel
 }: RunConfigFormProps) {
     const [values, setValues] = useState<Record<string, any>>(initialValues || {});
+    const [pasteSuccess, setPasteSuccess] = useState<string | null>(null);
+    const pasteToastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Merge initial values with empty strings for all fields to ensure controlled inputs
     useEffect(() => {
         const merged = { ...values };
@@ -405,8 +408,48 @@ export default function RunConfigForm({
     const relevantFields = fieldDefinitions.filter(f => !['New Rate', 'New Amount'].includes(f.key));
     const pairs = groupFieldsIntoPairs(relevantFields);
 
+    // ─── Paste-to-Fill ───────────────────────────────────────────────────────
+    // Fields that accept paste input (skip read-only Estimated Amount)
+    const pastableFields = relevantFields.filter(f => f.key !== 'Estimated Amount');
+
+    const handlePasteToFill = (e: React.ClipboardEvent<HTMLDivElement>) => {
+        // Only intercept when the target is NOT an individual input/textarea
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+        const text = e.clipboardData.getData('text');
+        if (!text.includes('\t') && !text.includes('\n')) return; // Not TSV — ignore
+
+        e.preventDefault();
+
+        // Take the first row only
+        const firstRow = text.split('\n')[0].replace(/\r$/, '');
+        const columns = firstRow.split('\t');
+        if (columns.length === 0) return;
+
+        const filledNames: string[] = [];
+
+        columns.forEach((rawValue, idx) => {
+            const fieldDef = pastableFields[idx];
+            if (!fieldDef) return;
+
+            const value = rawValue.trim();
+            if (value === '') return;
+
+            updateField(fieldDef.key, value);
+            filledNames.push(prettyLabel(fieldDef.key));
+        });
+
+        if (filledNames.length === 0) return;
+
+        if (pasteToastRef.current) clearTimeout(pasteToastRef.current);
+        setPasteSuccess(`✓ Filled ${filledNames.length} field${filledNames.length > 1 ? 's' : ''}: ${filledNames.join(', ')}`);
+        pasteToastRef.current = setTimeout(() => setPasteSuccess(null), 3500);
+    };
+    // ─────────────────────────────────────────────────────────────────────────
+
     return (
-        <div className="bg-gray-50 border boyrder-gray-300 rounded p-4">
+        <div className="bg-gray-50 border boyrder-gray-300 rounded p-4" onPaste={handlePasteToFill}>
             <div className="mb-4">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -448,6 +491,39 @@ export default function RunConfigForm({
                         required
                     />
                 </div>
+
+                {/* Paste-to-fill hint */}
+                <div className="mb-3 flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg">
+                    <ClipboardPaste className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-blue-700">
+                            Paste to Fill
+                            <span className="ml-1.5 text-[10px] font-normal text-blue-500">
+                                Copy a row from Excel &amp; press <kbd className="bg-blue-100 px-1 py-0.5 rounded font-mono text-[9px]">Ctrl+V</kbd> anywhere outside a field
+                            </span>
+                        </p>
+                        <p className="text-[10px] text-blue-400 mt-0.5 font-mono leading-relaxed truncate">
+                            {pastableFields.map((f, i) => (
+                                <span key={f.key}>
+                                    {i > 0 && <span className="mx-1 opacity-50">→</span>}
+                                    <span className="text-blue-500">{prettyLabel(f.key)}</span>
+                                </span>
+                            ))}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Paste success toast */}
+                {pasteSuccess && (
+                    <div className="mb-3 flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
+                        <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                        <p className="text-xs text-green-700 font-medium">{pasteSuccess}</p>
+                    </div>
+                )}
 
                 <div className="border border-gray-300 rounded overflow-hidden bg-white">
                     {pairs.map((pair, rowIndex) => (
