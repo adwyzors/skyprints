@@ -367,6 +367,16 @@ export default function DiamondConfig({
     const saveRun = async (processId: string, runId: string) => {
         if (!editForm) return;
 
+        const process = localOrder.processes.find(p => p.id === processId);
+        const run = process?.runs.find(r => r.id === runId);
+        const preLoc = preProdLocations[runId] ?? run?.preProductionLocation?.id;
+        const postLoc = postProdLocations[runId] ?? run?.postProductionLocation?.id;
+
+        if (!preLoc || !postLoc) {
+            alert('Please select both Pre-Prod and Post-Prod locations.');
+            return;
+        }
+
         if (!editForm.particulars) {
             alert('Particulars is required');
             return;
@@ -565,12 +575,14 @@ export default function DiamondConfig({
                                     locations={locations}
                                     valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
                                     onChange={(id: string) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                    required
                                 />
                                 <SearchableLocationSelect
                                     label="Post-Prod Location"
                                     locations={locations}
                                     valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
-                                    onChange={(id: string) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                    onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                    required
                                 />
                             </div>
                         </>

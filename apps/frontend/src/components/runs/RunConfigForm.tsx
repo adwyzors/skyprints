@@ -306,6 +306,11 @@ export default function RunConfigForm({
             return;
         }
 
+        if (!preProductionLocationId || !postProductionLocationId) {
+            alert('Please select both Production and Post-Production locations.');
+            return;
+        }
+
         setIsSaving(true);
         setError(null);
 
@@ -426,6 +431,7 @@ export default function RunConfigForm({
                         valueId={preProductionLocationId}
                         onChange={setPreProductionLocationId}
                         placeholder="Select pre-production location..."
+                        required
                     />
                     <SearchableLocationSelect
                         label="Post-Production Location"
@@ -433,6 +439,7 @@ export default function RunConfigForm({
                         valueId={postProductionLocationId}
                         onChange={setPostProductionLocationId}
                         placeholder="Select post-production location..."
+                        required
                     />
                 </div>
 

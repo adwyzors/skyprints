@@ -459,6 +459,13 @@ export default function ScreenPrintingConfig({
         const run = process?.runs.find((r) => r.id === runId);
         if (!process || !run) return;
 
+        const preLoc = preProdLocations[run.id] ?? run.preProductionLocation?.id;
+        const postLoc = postProdLocations[run.id] ?? run.postProductionLocation?.id;
+        if (!preLoc || !postLoc) {
+            alert('Please select both Pre-Prod and Post-Prod locations.');
+            return;
+        }
+
         if (!areAllFieldsFilled(run)) {
             alert('Please fill all required fields before saving.');
             return;
@@ -900,12 +907,14 @@ export default function ScreenPrintingConfig({
                                 locations={locations}
                                 valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
                                 onChange={(id) => setPreProdLocations((prev) => ({ ...prev, [run.id]: id }))}
+                                required
                             />
                             <SearchableLocationSelect
                                 label="Post-Prod Location"
                                 locations={locations}
                                 valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
                                 onChange={(id) => setPostProdLocations((prev) => ({ ...prev, [run.id]: id }))}
+                                required
                             />
                         </div>
 

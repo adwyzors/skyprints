@@ -317,6 +317,25 @@ export default function SpangleConfig({
     const saveRun = async (processId: string, runId: string) => {
         if (!editForm) return;
 
+        let currentPreProdLocationId: string | undefined;
+        let currentPostProdLocationId: string | undefined;
+        for (const p of localOrder.processes) {
+            const r = p.runs.find(run => run.id === runId);
+            if (r) {
+                currentPreProdLocationId = r.preProductionLocation?.id;
+                currentPostProdLocationId = r.postProductionLocation?.id;
+                break;
+            }
+        }
+
+        const preLoc = preProdLocations[runId] ?? currentPreProdLocationId;
+        const postLoc = postProdLocations[runId] ?? currentPostProdLocationId;
+
+        if (!preLoc || !postLoc) {
+            alert('Please select both Pre-Prod and Post-Prod locations.');
+            return;
+        }
+
         const totals = getTotals(editForm.items);
 
         // Validation
@@ -507,12 +526,14 @@ export default function SpangleConfig({
                                     locations={locations}
                                     valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
                                     onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                    required
                                 />
                                 <SearchableLocationSelect
                                     label="Post-Prod Location"
                                     locations={locations}
                                     valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
                                     onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                    required
                                 />
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
