@@ -624,6 +624,13 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                                             <th className="px-3 py-2 text-right">Q1-Q4</th>
                                                                                             <th className="px-3 py-2 text-right">Sum</th>
                                                                                         </>
+                                                                                    ) : process.name === 'Spangle' ? (
+                                                                                        <>
+                                                                                            <th className="px-3 py-2 text-right">Qty</th>
+                                                                                            <th className="px-3 py-2 text-right">Dot/CD</th>
+                                                                                            <th className="px-3 py-2 text-right">Dots Req</th>
+                                                                                            <th className="px-3 py-2 text-right">Rate</th>
+                                                                                        </>
                                                                                     ) : (
                                                                                         <>
                                                                                             <th className="px-3 py-2 text-right">
@@ -640,7 +647,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                             <tbody className="divide-y divide-gray-200">
                                                                                 {items.map((item: any, idx: number) => (
                                                                                     <tr key={idx} className="hover:bg-white transition-colors">
-                                                                                        <td className="px-3 py-2 text-gray-700">
+                                                                                        <td className="px-3 py-2 text-gray-700 font-medium">
                                                                                             {item.particulars || item.design || item.designSizes || item.description || item.fileSizes || '-'}
                                                                                         </td>
                                                                                         {process.name === 'Sublimation' ? (
@@ -651,6 +658,13 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                                                     {Array.isArray(item.quantities) ? item.quantities.join('|') : '-'}
                                                                                                 </td>
                                                                                                 <td className="px-3 py-2 text-right text-gray-600">{item.sum || item.quantity || 0}</td>
+                                                                                            </>
+                                                                                        ) : process.name === 'Spangle' ? (
+                                                                                            <>
+                                                                                                <td className="px-3 py-2 text-right text-gray-600">{item.quantity || 0}</td>
+                                                                                                <td className="px-3 py-2 text-right text-gray-600">{item.dotSize || '-'}/{item.cd || '-'}</td>
+                                                                                                <td className="px-3 py-2 text-right text-gray-600">{item.dotsReq || 0}</td>
+                                                                                                <td className="px-3 py-2 text-right text-gray-600">₹{Number(item.rate || 0).toFixed(2)}</td>
                                                                                             </>
                                                                                         ) : (
                                                                                             <>

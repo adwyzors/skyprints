@@ -230,6 +230,7 @@ export default function ConfigurationModal({
     const isDTF = normalizedProcess.includes('dtf') || normalizedProcess.includes('direct to film');
     const isPlotter = normalizedProcess.includes('plotter');
     const isSublimation = normalizedProcess.includes('sublimation');
+    const isSpangle = normalizedProcess.includes('spangle');
 
     // Fields to exclude from regular grid as they're handled specifically or by tableRendering
     const tableFields = new Set([
@@ -572,6 +573,64 @@ export default function ConfigurationModal({
                 </div>
             );
         }
+        if (isSpangle) {
+            const spangleItems = items as any[];
+            const totalQty = spangleItems.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
+            const totalAmt = spangleItems.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+            const avgRate = totalQty > 0 ? totalAmt / totalQty : 0;
+
+            return (
+                <div className="mb-6 text-black">
+                    {renderSharedHeader()}
+                    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-gray-100 border-b text-gray-600 uppercase text-[10px] font-bold tracking-wider">
+                                    <th className="p-3 text-center w-12 border-r border-gray-200">#</th>
+                                    <th className="p-3 text-left border-r border-gray-200">Design Sizes</th>
+                                    <th className="p-3 text-center border-r border-gray-200 font-bold">Qty</th>
+                                    <th className="p-3 text-center border-r border-gray-200">Dot Size</th>
+                                    <th className="p-3 text-center border-r border-gray-200">CD</th>
+                                    <th className="p-3 text-center border-r border-gray-200">Dots Req</th>
+                                    <th className="p-3 text-right bg-blue-50/50 border-r border-gray-200 font-medium">Rate</th>
+                                    <th className="p-3 text-right bg-blue-50 text-blue-800 font-bold">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white">
+                                {spangleItems.map((item, idx) => (
+                                    <tr key={idx} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
+                                        <td className="p-3 text-center text-gray-400 font-mono border-r border-gray-200">{idx + 1}</td>
+                                        <td className="p-3 border-r border-gray-200 font-medium text-gray-800">{item.design || '-'}</td>
+                                        <td className="p-3 text-center border-r border-gray-200 font-bold text-gray-900">{item.quantity || 0}</td>
+                                        <td className="p-3 text-center border-r border-gray-200 text-gray-500">{item.dotSize || '-'}</td>
+                                        <td className="p-3 text-center border-r border-gray-200 text-gray-500">{item.cd || '-'}</td>
+                                        <td className="p-3 text-center border-r border-gray-200 text-gray-500">{item.dotsReq || 0}</td>
+                                        <td className="p-3 text-right border-r border-gray-200 text-blue-600 font-medium">₹{Number(item.rate || 0).toFixed(2)}</td>
+                                        <td className="p-3 text-right bg-blue-50/20 font-bold text-blue-700">₹{Number(item.amount || 0).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-gray-50 font-bold text-gray-800 border-t-2 border-gray-200">
+                                <tr>
+                                    <td colSpan={2} className="p-3 text-right uppercase text-[10px] tracking-widest text-gray-500 font-bold">Totals:</td>
+                                    <td className="p-3 text-center text-lg">{totalQty}</td>
+                                    <td className="border-r border-gray-200"></td>
+                                    <td className="p-3 text-center text-gray-500 font-medium text-[10px] italic">In meters</td>
+                                    <td className="border-r border-gray-200"></td>
+                                    <td className="p-3 text-right border-r border-gray-200">
+                                        <span className="text-[10px] text-gray-400 uppercase block mb-0.5">Rate</span>
+                                        ₹{avgRate.toFixed(2)}
+                                    </td>
+                                    <td className="p-3 text-right text-base text-blue-900 bg-blue-50/30 font-mono">
+                                        ₹{totalAmt.toFixed(2)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
 
         // Detect which fields are present in the first item
         const firstItem = items[0] || {};
@@ -699,6 +758,10 @@ export default function ConfigurationModal({
             { label: 'Total Mtrs', key: 'totalMeters', suffix: ' m' },
             { label: 'Total Qty', key: 'totalQuantity' },
             { label: 'Total Amount', key: 'totalAmount', prefix: '₹', highlight: true },
+            // Spangle
+            { label: 'Total Qty', key: 'quantity' },
+            { label: 'Avg Rate', key: 'rate', prefix: '₹' },
+            { label: 'Total Amount', key: 'amount', prefix: '₹', highlight: true },
         ];
 
         const activeFields = summaryFields.filter(f => run.values?.[f.key] !== undefined && run.values?.[f.key] !== null);
