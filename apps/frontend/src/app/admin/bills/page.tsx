@@ -12,6 +12,7 @@ import { GetBillingContextsResponse } from '@/domain/model/billing.model';
 import InvoicePDF from '@/components/billing/InvoicePDF';
 import { pdf } from '@react-pdf/renderer';
 import { getBillingContextById, getBillingContexts } from '@/services/billing.service';
+import { getRunBillingMetrics } from '@/services/billing-calculator';
 import debounce from 'lodash/debounce';
 import FilterDrawer from '@/components/layout/FilterDrawer';
 import { ChevronLeft, Download, FileText, Filter, Loader2, Search, X } from 'lucide-react';
@@ -226,15 +227,28 @@ function BillsPageContent() {
                         })
                         : 'NA',
                     billNumber: details.name,
-                    items: details.orders.map((order, index) => ({
-                        srNo: index + 1,
-                        orderCode: order.code,
-                        jobCode: order.jobCode || '',
-                        quantity: order.quantity,
-                        rate: order.billing?.result && order.quantity > 0
-                                ? (Number(order.billing.result) / order.quantity).toFixed(2) : '0.00',
-                        amount: order.billing?.result || '0',
-                    })),
+                    items: details.orders.map((order, index) => {
+                        let actualQty = 0;
+                        order.processes?.forEach((process: any) => {
+                            process.runs?.forEach((run: any) => {
+                                const metrics = getRunBillingMetrics(run, process.name, order.quantity);
+                                if (metrics.quantity > actualQty) {
+                                    actualQty = metrics.quantity;
+                                }
+                            });
+                        });
+                        const billingQty = actualQty > 0 ? actualQty : order.quantity;
+
+                        return {
+                            srNo: index + 1,
+                            orderCode: order.code,
+                            jobCode: order.jobCode || '',
+                            quantity: billingQty,
+                            rate: order.billing?.result && billingQty > 0
+                                    ? (Number(order.billing.result) / billingQty).toFixed(2) : '0.00',
+                            amount: order.billing?.result || '0',
+                        };
+                    }),
                     subtotal: subTotal,
                     taxPercentage: snapshot?.taxPercentage || '0',
                     taxAmount: taxAmt,

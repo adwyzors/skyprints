@@ -12,6 +12,7 @@ import {
 import { useEffect, useState } from 'react';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import RunCommentEditor from './RunCommentEditor';
+import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -42,6 +43,7 @@ export default function PositiveConfig({
     const [openRunId, setOpenRunId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
     const [isAddingRun, setIsAddingRun] = useState(false);
     const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
     const [editingRunId, setEditingRunId] = useState<string | null>(null);
@@ -357,6 +359,16 @@ export default function PositiveConfig({
     const saveRun = async (processId: string, runId: string) => {
         if (!editForm) return;
 
+        const process = localOrder.processes.find(p => p.id === processId);
+        const run = process?.runs.find(r => r.id === runId);
+        const preLoc = preProdLocations[runId] ?? run?.preProductionLocation?.id;
+        const postLoc = postProdLocations[runId] ?? run?.postProductionLocation?.id;
+
+        if (!preLoc || !postLoc) {
+            alert('Please select both Pre-Prod and Post-Prod locations.');
+            return;
+        }
+
         if (!editForm.particulars) {
             alert('Particulars is required');
             return;
@@ -444,7 +456,13 @@ export default function PositiveConfig({
                 throw new Error('Save failed');
             }
         } catch (err: any) {
-            setError(err.message || 'Save failed');
+            console.error(err);
+            const msg = err.message || 'Save failed';
+            if (msg.toLowerCase().includes('credit limit')) {
+                setCreditLimitError(msg);
+            } else {
+                setError(msg);
+            }
         } finally {
             setIsSaving(null);
         }
@@ -523,12 +541,14 @@ export default function PositiveConfig({
                                 locations={locations}
                                 valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
                                 onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                required
                             />
                             <SearchableLocationSelect
                                 label="Post-Prod Location"
                                 locations={locations}
                                 valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
                                 onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                required
                             />
                         </div>
                     </div>
@@ -729,6 +749,11 @@ export default function PositiveConfig({
     return (
         <div className="space-y-4">
             {error && <div className="p-3 bg-red-50 text-red-600 rounded text-sm border border-red-200">{error}</div>}
+            <CreditLimitErrorDialog
+                isOpen={!!creditLimitError}
+                onClose={() => setCreditLimitError(null)}
+                message={creditLimitError || undefined}
+            />
             {localOrder.processes.map(process => (
                 <div key={process.id} className="space-y-2">
                     {process.runs.map(run => (

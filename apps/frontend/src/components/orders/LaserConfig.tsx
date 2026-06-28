@@ -23,6 +23,7 @@ import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import RunCommentEditor from './RunCommentEditor';
 
@@ -47,6 +48,7 @@ export default function LaserConfig({
     const [openRunId, setOpenRunId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
     const [isAddingRun, setIsAddingRun] = useState(false);
     const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
     const [editingRunId, setEditingRunId] = useState<string | null>(null);
@@ -406,6 +408,16 @@ export default function LaserConfig({
     const saveRun = async (processId: string, runId: string) => {
         if (!editForm) return;
 
+        const process = localOrder.processes.find(p => p.id === processId);
+        const run = process?.runs.find(r => r.id === runId);
+        const preLoc = preProdLocations[runId] ?? run?.preProductionLocation?.id;
+        const postLoc = postProdLocations[runId] ?? run?.postProductionLocation?.id;
+
+        if (!preLoc || !postLoc) {
+            alert('Please select both Pre-Prod and Post-Prod locations.');
+            return;
+        }
+
         // Validation
         if (!editForm.particulars) {
             alert('Please fill field Particulars');
@@ -505,7 +517,12 @@ export default function LaserConfig({
 
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Failed to save');
+            const msg = err.message || 'Failed to save';
+            if (msg.toLowerCase().includes('credit limit')) {
+                setCreditLimitError(msg);
+            } else {
+                setError(msg);
+            }
         } finally {
             setIsSaving(null);
         }
@@ -724,12 +741,14 @@ export default function LaserConfig({
                             locations={locations}
                             valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
                             onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                            required
                         />
                         <SearchableLocationSelect
                             label="Post-Prod Location"
                             locations={locations}
                             valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
                             onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                            required
                         />
                     </div>
 
@@ -934,6 +953,12 @@ export default function LaserConfig({
                     {error}
                 </div>
             )}
+
+            <CreditLimitErrorDialog
+                isOpen={!!creditLimitError}
+                onClose={() => setCreditLimitError(null)}
+                message={creditLimitError || undefined}
+            />
 
             {localOrder.processes.map(process => (
                 <div key={process.id} className="space-y-4">

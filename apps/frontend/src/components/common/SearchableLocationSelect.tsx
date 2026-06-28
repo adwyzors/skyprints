@@ -10,6 +10,7 @@ interface SearchableLocationSelectProps {
   locations: Location[];
   placeholder?: string;
   className?: string;
+  required?: boolean;
 }
 
 export default function SearchableLocationSelect({
@@ -18,7 +19,8 @@ export default function SearchableLocationSelect({
   onChange,
   locations,
   placeholder,
-  className
+  className,
+  required
 }: SearchableLocationSelectProps) {
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -53,7 +55,10 @@ export default function SearchableLocationSelect({
 
   return (
     <div className={`relative ${className || ''}`}>
-      <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
+      <label className="text-xs font-medium text-gray-700 block mb-1">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
       <input
         type="text"
         value={search}

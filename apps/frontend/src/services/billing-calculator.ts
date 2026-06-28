@@ -65,7 +65,8 @@ export const getRunBillingMetrics = (
         }
 
         // Attempt to find total amount from typical keys
-        amount = Number(values['estimated_amount']) ||
+        amount = Number(values['amount']) ||
+            Number(values['estimated_amount']) ||
             Number(values['total_amount']) ||
             Number(values['totalAmount']) ||
             Number(values['Estimated Amount']) ||
@@ -130,7 +131,7 @@ export const getRunBillingMetrics = (
                 break;
             case 'Spangle':
                 quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['Quantity']) || Number(values['quantity']) || Number(values['pcs']) || orderQuantity || 0;
-                amount = Number(values['Estimated Amount']) || Number(values['estimated_amount']) || Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['totalAmount']) || 0;
+                amount = Number(values['amount']) || Number(values['Estimated Amount']) || Number(values['estimated_amount']) || Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['totalAmount']) || 0;
                 break;
             default:
                 quantity = Number(values['Total Quantity']) || Number(values['totalQuantity']) || Number(values['total_quantity']) || Number(values['Quantity']) || Number(values['quantity']) || Number(values['pcs']) || orderQuantity || 0;

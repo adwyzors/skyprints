@@ -533,6 +533,13 @@ function BillingContextDetailPage() {
                                                                                                         <th className="px-2 py-1 text-right">Q1-Q4</th>
                                                                                                         <th className="px-2 py-1 text-right">Sum</th>
                                                                                                     </>
+                                                                                                ) : process.name === 'Spangle' ? (
+                                                                                                    <>
+                                                                                                        <th className="px-2 py-1 text-right">Qty</th>
+                                                                                                        <th className="px-2 py-1 text-right">Dot/CD</th>
+                                                                                                        <th className="px-2 py-1 text-right">Dots Req</th>
+                                                                                                        <th className="px-2 py-1 text-right">Rate</th>
+                                                                                                    </>
                                                                                                 ) : (
                                                                                                     <>
                                                                                                         <th className="px-2 py-1 text-right">
@@ -549,8 +556,9 @@ function BillingContextDetailPage() {
                                                                                         <tbody className="divide-y divide-gray-100">
                                                                                             {items.map((item: any, idx: number) => (
                                                                                                 <tr key={idx}>
-                                                                                                    <td className="px-2 py-1 text-gray-600">
+                                                                                                    <td className="px-2 py-1 text-gray-600 font-medium">
                                                                                                         {item.particulars || item.design || item.designSizes || item.description || item.fileSizes || '-'}
+                                                                                                        {/* Particulars (e.g. Design sizes) */}
                                                                                                     </td>
                                                                                                     {process.name === 'Sublimation' ? (
                                                                                                         <>
@@ -560,6 +568,13 @@ function BillingContextDetailPage() {
                                                                                                                 {Array.isArray(item.quantities) ? item.quantities.join('|') : '-'}
                                                                                                             </td>
                                                                                                             <td className="px-2 py-1 text-right text-gray-600">{item.sum || item.quantity || 0}</td>
+                                                                                                        </>
+                                                                                                    ) : process.name === 'Spangle' ? (
+                                                                                                        <>
+                                                                                                            <td className="px-2 py-1 text-right text-gray-600">{item.quantity || 0}</td>
+                                                                                                            <td className="px-2 py-1 text-right text-gray-600">{item.dotSize || '-'}/{item.cd || '-'}</td>
+                                                                                                            <td className="px-2 py-1 text-right text-gray-600">{item.dotsReq || 0}</td>
+                                                                                                            <td className="px-2 py-1 text-right text-gray-600">₹{Number(item.rate || 0).toFixed(2)}</td>
                                                                                                         </>
                                                                                                     ) : (
                                                                                                         <>

@@ -438,6 +438,9 @@ function AdminOrdersContent() {
                                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">
                                                     Status
                                                 </th>
+                                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                                    Actions
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-50">

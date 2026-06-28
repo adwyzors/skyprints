@@ -54,6 +54,31 @@ export async function logout(): Promise<void> {
     }
 }
 
+async function handleResponseError(response: Response): Promise<never> {
+    const text = await response.text();
+    let errorMessage = `API Error ${response.status}: ${text}`;
+    try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === 'object') {
+            if (typeof parsed.message === 'string') {
+                errorMessage = parsed.message;
+            } else if (Array.isArray(parsed.message)) {
+                errorMessage = parsed.message.join(', ');
+            } else if (typeof parsed.error === 'string') {
+                errorMessage = parsed.error;
+            }
+        }
+    } catch {
+        // Ignore parse error
+    }
+
+    if (errorMessage === 'Credit limit reached' || errorMessage.includes('Credit limit reached')) {
+        errorMessage = 'Credit limit exceeded for this customer.';
+    }
+
+    throw new Error(errorMessage);
+}
+
 /**
  * Main API request helper
  */
@@ -89,8 +114,7 @@ export async function apiRequest<T>(
     }
 
     if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`API Error ${response.status}: ${text}`);
+        return handleResponseError(response);
     }
 
     return response.json() as Promise<T>;
@@ -129,8 +153,7 @@ export async function apiRequestWithHeaders<T>(
     }
 
     if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`API Error ${response.status}: ${text}`);
+        return handleResponseError(response);
     }
 
     const data = await response.json() as T;

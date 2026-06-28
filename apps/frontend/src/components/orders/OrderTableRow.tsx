@@ -1,7 +1,10 @@
 'use client';
 
 import { OrderCardData } from '@/domain/model/order.model';
-import { CheckCircle, Clock, Settings } from 'lucide-react';
+import { CheckCircle, Clock, Settings, Trash } from 'lucide-react';
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
+import { apiRequest } from '@/services/api.service';
 
 interface OrderTableRowProps {
     order: OrderCardData;
@@ -12,6 +15,7 @@ interface OrderTableRowProps {
 }
 
 export default function OrderTableRow({ order, index, onClick, selected = false, onSelect }: OrderTableRowProps) {
+    const { hasPermission } = useAuth();
     if (!order) return null;
 
     const getStatusConfig = (status: string) => {
@@ -101,6 +105,30 @@ export default function OrderTableRow({ order, index, onClick, selected = false,
                     {statusConfig.icon}
                     {statusConfig.label}
                 </span>
+            </td>
+            <td className="px-6 py-4 text-right">
+                {hasPermission(Permission.ORDERS_DELETE) && (
+                    <button
+                        onClick={async (e) => {
+                            e.stopPropagation();
+                            if (confirm('Are you sure you want to delete this order?')) {
+                                try {
+                                    await apiRequest(`/orders/${order.id}`, {
+                                        method: 'DELETE',
+                                    });
+                                    window.location.reload();
+                                } catch (err: any) {
+                                    console.error('Failed to delete order', err);
+                                    alert(`Failed to delete order: ${err.message}`);
+                                }
+                            }
+                        }}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                        title="Delete Order"
+                    >
+                        <Trash className="w-4 h-4 text-red-500" />
+                    </button>
+                )}
             </td>
         </tr>
     );
