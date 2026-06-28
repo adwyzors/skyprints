@@ -13,7 +13,7 @@ import { CustomersRepository } from './customers.repository';
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly repo: CustomersRepository) {}
+  constructor(private readonly repo: CustomersRepository) { }
 
   async create(dto: CreateCustomerDto) {
     const code = dto.code.trim().toUpperCase();
@@ -231,7 +231,9 @@ export class CustomersService {
     errors: string[];
   }> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(new Uint8Array(buffer));
+
+    // FIX: Pass the buffer directly since it's already a Buffer type
+    await workbook.xlsx.load(buffer as any);
 
     const worksheet = workbook.getWorksheet('Customers');
     if (!worksheet) {
