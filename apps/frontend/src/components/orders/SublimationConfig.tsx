@@ -1,5 +1,6 @@
 import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
 import SearchableManagerSelect from '@/components/common/SearchableManagerSelect';
+import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 import { AlertCircle, CheckCircle, ChevronRight, Edit, Eye, FileText, Loader2, MapPin, Palette, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -33,6 +34,7 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
     const [localOrder, setLocalOrder] = useState<Order>(order);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
 
     // Run Operations State
     const [isAddingRun, setIsAddingRun] = useState(false);
@@ -467,7 +469,13 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                 throw new Error('Save failed');
             }
         } catch (err: any) {
-            setError(err.message || 'Save failed');
+            console.error(err);
+            const msg = err.message || 'Save failed';
+            if (msg.toLowerCase().includes('credit limit')) {
+                setCreditLimitError(msg);
+            } else {
+                setError(msg);
+            }
         } finally {
             setIsSaving(null);
         }
@@ -763,6 +771,12 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                     <AlertCircle className="w-4 h-4" /> {error}
                 </div>
             )}
+
+            <CreditLimitErrorDialog
+                isOpen={!!creditLimitError}
+                onClose={() => setCreditLimitError(null)}
+                message={creditLimitError || undefined}
+            />
 
             {localOrder.processes.map(process => (
                 <div key={process.id} className="space-y-3">

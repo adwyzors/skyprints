@@ -23,6 +23,7 @@ import {
 import React, { useEffect, useState } from 'react';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import SearchableManagerSelect from '../common/SearchableManagerSelect';
+import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -77,6 +78,7 @@ export default function EmbellishmentConfig({
     const [openRunId, setOpenRunId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
     const [isAddingRun, setIsAddingRun] = useState(false);
     const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
     const [editingRunId, setEditingRunId] = useState<string | null>(null);
@@ -652,9 +654,14 @@ export default function EmbellishmentConfig({
             } else {
                 throw new Error('Failed to save configuration');
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            setError(err instanceof Error ? err.message : 'Failed to save configuration');
+            const msg = err instanceof Error ? err.message : 'Failed to save configuration';
+            if (msg.toLowerCase().includes('credit limit')) {
+                setCreditLimitError(msg);
+            } else {
+                setError(msg);
+            }
         } finally {
             setIsSaving(null);
         }
@@ -1168,6 +1175,12 @@ export default function EmbellishmentConfig({
                     </div>
                 </div>
             )}
+
+            <CreditLimitErrorDialog
+                isOpen={!!creditLimitError}
+                onClose={() => setCreditLimitError(null)}
+                message={creditLimitError || undefined}
+            />
 
             {/* RUN CARDS - COMPACT VIEW */}
             <div className="space-y-6">

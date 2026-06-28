@@ -23,6 +23,7 @@ import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import SearchableManagerSelect from '../common/SearchableManagerSelect';
+import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 import RunCommentEditor from './RunCommentEditor';
 
 interface AlloverSublimationConfigProps {
@@ -46,6 +47,7 @@ export default function AlloverSublimationConfig({
     const [openRunId, setOpenRunId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
     const [isAddingRun, setIsAddingRun] = useState(false);
     const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
     const [editingRunId, setEditingRunId] = useState<string | null>(null);
@@ -535,7 +537,12 @@ export default function AlloverSublimationConfig({
 
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Failed to save');
+            const msg = err.message || 'Failed to save';
+            if (msg.toLowerCase().includes('credit limit')) {
+                setCreditLimitError(msg);
+            } else {
+                setError(msg);
+            }
         } finally {
             setIsSaving(null);
         }
@@ -997,6 +1004,12 @@ export default function AlloverSublimationConfig({
                     <AlertCircle className="w-4 h-4" /> {error}
                 </div>
             )}
+
+            <CreditLimitErrorDialog
+                isOpen={!!creditLimitError}
+                onClose={() => setCreditLimitError(null)}
+                message={creditLimitError || undefined}
+            />
 
             <div className="space-y-6">
                 {localOrder.processes.map((process) => (

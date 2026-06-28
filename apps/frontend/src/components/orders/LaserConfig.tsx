@@ -23,6 +23,7 @@ import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import RunCommentEditor from './RunCommentEditor';
 
@@ -47,6 +48,7 @@ export default function LaserConfig({
     const [openRunId, setOpenRunId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
     const [isAddingRun, setIsAddingRun] = useState(false);
     const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
     const [editingRunId, setEditingRunId] = useState<string | null>(null);
@@ -515,7 +517,12 @@ export default function LaserConfig({
 
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Failed to save');
+            const msg = err.message || 'Failed to save';
+            if (msg.toLowerCase().includes('credit limit')) {
+                setCreditLimitError(msg);
+            } else {
+                setError(msg);
+            }
         } finally {
             setIsSaving(null);
         }
@@ -946,6 +953,12 @@ export default function LaserConfig({
                     {error}
                 </div>
             )}
+
+            <CreditLimitErrorDialog
+                isOpen={!!creditLimitError}
+                onClose={() => setCreditLimitError(null)}
+                message={creditLimitError || undefined}
+            />
 
             {localOrder.processes.map(process => (
                 <div key={process.id} className="space-y-4">

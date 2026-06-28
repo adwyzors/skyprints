@@ -19,6 +19,7 @@ import React, { useEffect, useState } from 'react';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import RunCommentEditor from './RunCommentEditor';
+import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -108,6 +109,7 @@ export default function SpangleConfig({
     const [localOrder, setLocalOrder] = useState<Order>(order);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
 
     // Run Operations State
     const [isAddingRun, setIsAddingRun] = useState(false);
@@ -427,7 +429,13 @@ export default function SpangleConfig({
             }
 
         } catch (err: any) {
-            setError(err.message || 'Save failed');
+            console.error(err);
+            const msg = err.message || 'Save failed';
+            if (msg.toLowerCase().includes('credit limit')) {
+                setCreditLimitError(msg);
+            } else {
+                setError(msg);
+            }
         } finally {
             setIsSaving(null);
         }
@@ -809,6 +817,11 @@ export default function SpangleConfig({
     return (
         <div className="space-y-4">
             {error && <div className="p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>}
+            <CreditLimitErrorDialog
+                isOpen={!!creditLimitError}
+                onClose={() => setCreditLimitError(null)}
+                message={creditLimitError || undefined}
+            />
             {localOrder.processes.map(p => (
                 <div key={p.id} className="space-y-3">
                     {p.runs.map(run => (

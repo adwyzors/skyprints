@@ -23,6 +23,7 @@ import { getManagers, User as ManagerUser } from '@/services/user.service';
 import { getLocations } from '@/services/location.service';
 import { Location } from '@/domain/model/location.model';
 import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
+import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 
 interface RunConfigFormProps {
     runId: string;
@@ -200,6 +201,7 @@ export default function RunConfigForm({
     const [postProductionLocationId, setPostProductionLocationId] = useState<string>(initialPostProductionLocationId);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
 
     useEffect(() => {
         getManagers().then(setManagers).catch(console.error);
@@ -377,7 +379,11 @@ export default function RunConfigForm({
             }
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Failed to save');
+            if (err.message.toLowerCase().includes('credit limit')) {
+                setCreditLimitError(err.message);
+            } else {
+                setError(err.message || 'Failed to save');
+            }
         } finally {
             setIsSaving(false);
         }
@@ -631,6 +637,11 @@ export default function RunConfigForm({
                     </div>
                 )}
 
+                <CreditLimitErrorDialog
+                    isOpen={!!creditLimitError}
+                    onClose={() => setCreditLimitError(null)}
+                    message={creditLimitError || undefined}
+                />
             </div>
         </div>
     );

@@ -22,6 +22,7 @@ import { User as ManagerUser } from '@/services/user.service';
 import RunCommentEditor from './RunCommentEditor';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import SearchableManagerSelect from '../common/SearchableManagerSelect';
+import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 
 interface DiamondConfigProps {
     order: Order;
@@ -42,6 +43,7 @@ export default function DiamondConfig({
     const [openRunId, setOpenRunId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
     const [isAddingRun, setIsAddingRun] = useState(false);
     const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
     const [editingRunId, setEditingRunId] = useState<string | null>(null);
@@ -468,7 +470,13 @@ export default function DiamondConfig({
                 throw new Error('Save failed');
             }
         } catch (err: any) {
-            setError(err.message || 'Save failed');
+            console.error(err);
+            const msg = err.message || 'Save failed';
+            if (msg.toLowerCase().includes('credit limit')) {
+                setCreditLimitError(msg);
+            } else {
+                setError(msg);
+            }
         } finally {
             setIsSaving(null);
         }
@@ -786,6 +794,12 @@ export default function DiamondConfig({
 
     return (
         <div className="space-y-4">
+            {error && <div className="p-3 bg-red-50 text-red-600 rounded text-sm border border-red-200">{error}</div>}
+            <CreditLimitErrorDialog
+                isOpen={!!creditLimitError}
+                onClose={() => setCreditLimitError(null)}
+                message={creditLimitError || undefined}
+            />
             {localOrder.processes.map(process => (
                 <div key={process.id}>
                     {process.runs.map(run => (
