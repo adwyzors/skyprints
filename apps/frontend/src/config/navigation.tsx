@@ -7,6 +7,7 @@ import {
     FileText,
     MapPin,
     Package,
+    UserCog,
     Users
 } from 'lucide-react';
 import React from "react";
@@ -82,5 +83,12 @@ export const ADMIN_TABS: NavTab[] = [
         icon: <MapPin className="w-4 h-4" />,
         badge: null,
         permission: Permission.LOCATIONS_VIEW,
+    },
+    {
+        label: 'Users',
+        path: '/admin/users',
+        icon: <UserCog className="w-4 h-4" />,
+        badge: null,
+        permission: Permission.USERS_VIEW,
     },
 ];

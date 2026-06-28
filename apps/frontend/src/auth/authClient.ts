@@ -59,8 +59,10 @@ async function refreshToken(): Promise<boolean> {
 export function redirectToLogin(redirectTo: string) {
     log("Redirecting to login", redirectTo);
 
-    window.location.href =
-        `${API}/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
+    const isInternal = process.env.NEXT_PUBLIC_INTERNAL_AUTH_ENABLED === 'true';
+    window.location.href = isInternal
+        ? `/login?redirectTo=${encodeURIComponent(redirectTo)}`
+        : `${API}/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
 }
 
 export async function logout() {

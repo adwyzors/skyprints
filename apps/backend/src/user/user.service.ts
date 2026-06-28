@@ -21,25 +21,34 @@ export class UserService {
   async syncUser(dto: SyncUserDto) {
     const now = new Date();
 
-    const user = await this.prisma.user.upsert({
+    // email no longer has @unique — use findFirst (partial unique index covers active users only)
+    const existing = await this.prisma.user.findFirst({
       where: { email: dto.email },
-      update: {
-        name: dto.name,
-        role: dto.role,
-        isActive: true,
-        deletedAt: null,
-        updatedAt: now,
-      },
-      create: {
-        id: dto.id,
-        email: dto.email,
-        name: dto.name,
-        role: dto.role,
-        isActive: true,
-        createdAt: now,
-        updatedAt: now,
-      },
     });
+
+    const user = existing
+      ? await this.prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            name: dto.name,
+            role: dto.role,
+            isActive: true,
+            deletedAt: null,
+            updatedAt: now,
+          },
+        })
+      : await this.prisma.user.create({
+          data: {
+            id: dto.id,
+            email: dto.email,
+            name: dto.name,
+            role: dto.role,
+            isActive: true,
+            createdAt: now,
+            updatedAt: now,
+          },
+        });
+
     this.log.log(`User synced email=${user.email}`);
     return user;
   }
@@ -49,18 +58,18 @@ export class UserService {
     ============================ */
 
   async softDeleteByEmail(email: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findFirst({ where: { email } });
 
     if (!user || user.deletedAt) {
       throw new NotFoundException('User not found or already deleted');
     }
 
     await this.prisma.user.update({
-      where: { email },
+      where: { id: user.id },
       data: {
         isActive: false,
         deletedAt: new Date(),
-        locationId: null, // 🔥 detach location
+        locationId: null,
       },
     });
 
@@ -72,7 +81,7 @@ export class UserService {
     ============================ */
 
   async assignLocation(dto: AssignLocationDto) {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findFirst({
       where: { email: dto.email },
     });
 
@@ -83,7 +92,7 @@ export class UserService {
     // Unassign location
     if (dto.locationCode === null) {
       await this.prisma.user.update({
-        where: { email: dto.email },
+        where: { id: user.id },
         data: { locationId: null },
       });
 
@@ -100,7 +109,7 @@ export class UserService {
     }
 
     await this.prisma.user.update({
-      where: { email: dto.email },
+      where: { id: user.id },
       data: { locationId: location.id },
     });
 

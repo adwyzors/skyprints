@@ -1,12 +1,14 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { InternalJwtAuthGuard } from './internal-jwt-auth.guard';
+import { KeycloakJwtAuthGuard } from './keycloak-jwt-auth.guard';
 import { PublicAuthGuard } from './public-auth.guard';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly publicGuard: PublicAuthGuard,
-    private readonly jwtGuard: JwtAuthGuard,
+    private readonly keycloakGuard: KeycloakJwtAuthGuard,
+    private readonly internalGuard: InternalJwtAuthGuard,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -14,6 +16,9 @@ export class AuthGuard implements CanActivate {
       return true;
     }
 
-    return this.jwtGuard.canActivate(ctx);
+    const useInternal = process.env.INTERNAL_AUTH_ENABLED === 'true';
+    return useInternal
+      ? this.internalGuard.canActivate(ctx)
+      : this.keycloakGuard.canActivate(ctx);
   }
 }

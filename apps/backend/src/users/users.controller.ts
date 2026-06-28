@@ -1,0 +1,102 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Req,
+} from '@nestjs/common';
+import {
+  CreateUserSchema,
+  ResetPasswordSchema,
+  UpdatePermissionsSchema,
+  UpdateUserSchema,
+} from '@app/contracts';
+import { Permissions } from '../auth/decorators/permissions.decorator';
+import { UsersService } from './users.service';
+
+@Controller('users')
+export class UsersController {
+  constructor(private readonly service: UsersService) {}
+
+  @Get()
+  @Permissions('users:view')
+  list() {
+    return this.service.list();
+  }
+
+  @Get('me')
+  me(@Req() req: any) {
+    return this.service.findMe(req.user.id);
+  }
+
+  @Get(':id')
+  @Permissions('users:view')
+  findById(@Param('id') id: string) {
+    return this.service.findById(id);
+  }
+
+  @Post()
+  @Permissions('users:create')
+  async create(@Body() body: unknown) {
+    const parsed = CreateUserSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    return this.service.create(parsed.data);
+  }
+
+  @Patch(':id')
+  @Permissions('users:update')
+  async update(@Param('id') id: string, @Body() body: unknown) {
+    const parsed = UpdateUserSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    return this.service.update(id, parsed.data);
+  }
+
+  @Patch(':id/permissions')
+  @Permissions('users:update')
+  @HttpCode(204)
+  async updatePermissions(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: any,
+  ) {
+    const parsed = UpdatePermissionsSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    await this.service.updatePermissions(req.user.id, id, parsed.data);
+  }
+
+  @Delete(':id')
+  @Permissions('users:delete')
+  @HttpCode(204)
+  async softDelete(@Param('id') id: string) {
+    await this.service.softDelete(id);
+  }
+
+  @Post(':id/revoke-session')
+  @Permissions('users:update')
+  @HttpCode(204)
+  async revokeSession(@Param('id') id: string, @Req() req: any) {
+    await this.service.revokeSession(req.user.id, id);
+  }
+
+  @Post(':id/reset-password')
+  @Permissions('users:update')
+  @HttpCode(204)
+  async resetPassword(@Param('id') id: string, @Body() body: unknown) {
+    const parsed = ResetPasswordSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    await this.service.resetPassword(id, parsed.data);
+  }
+}

@@ -13,7 +13,7 @@ datasource db {
 
 model User {
   id       String  @id @default(uuid())
-  email    String  @unique
+  email    String
   name     String
   isActive Boolean @default(true)
 
@@ -31,10 +31,30 @@ model User {
   executedProcessRuns ProcessRun[] @relation("ProcessRunExecutor")
   reviewedProcessRuns ProcessRun[] @relation("ProcessRunReviewer")
 
+  login Login?
+
   @@index([locationId])
-  @@index([email])
   @@index([role, isActive, deletedAt])
   @@index([name, isActive, deletedAt])
+}
+
+model Login {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  passwordHash String
+  permissions  String[]
+  tokenVersion Int      @default(0)
+  isActive     Boolean  @default(true)
+
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int       @default(0)
+  lastFailedLoginAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 ///////////////////////////////

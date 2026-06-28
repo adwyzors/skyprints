@@ -92,6 +92,10 @@ export class PrismaService {
         return prisma.processRun;
     }
 
+    get login() {
+        return prisma.login;
+    }
+
     get location() {
         return prisma.location;
     }

@@ -3,9 +3,15 @@ import { PrismaClient } from '@prisma/client';
 // Safety guard: refuse to wipe data on non-test DB URLs
 function assertTestDatabase(): void {
   const url = process.env.DATABASE_URL ?? '';
-  if (url.includes('supabase.com') || url.includes('digitalocean') || url.includes('neon.tech')) {
+  if (
+    url.includes('supabase.com') ||
+    url.includes('digitalocean') ||
+    url.includes('neon.tech')
+  ) {
     const isTestUrl =
-      url.includes('_test') || url.includes('test_') || url.includes('/skyprints_test');
+      url.includes('_test') ||
+      url.includes('test_') ||
+      url.includes('/skyprints_test');
     if (!isTestUrl) {
       throw new Error(
         'cleanDatabase() refused: DATABASE_URL looks like a production/shared DB. ' +

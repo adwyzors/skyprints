@@ -26,3 +26,9 @@ export * from './location.contract';
 export * from './location.read.contract';
 export * from './user.contract';
 
+export * from './password.schema';
+export * from './create-user.contract';
+export * from './update-user.contract';
+export * from './update-permissions.contract';
+export * from './reset-password.contract';
+

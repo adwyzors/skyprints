@@ -1,6 +1,8 @@
 import {
+  Body,
   Controller,
   Get,
+  HttpCode,
   Post,
   Query,
   Req,
@@ -12,6 +14,15 @@ import { ContextLogger } from '../common/logger/context.logger';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { KeycloakService } from './keycloak/keycloak.service';
+
+interface LoginBody {
+  email: string;
+  password: string;
+}
+
+const safeRedirect = (path: string): string =>
+  path.startsWith('/') && !path.startsWith('//') ? path : '/';
+
 @Controller('auth')
 export class AuthController {
   private readonly logger = new ContextLogger(AuthController.name);
@@ -20,6 +31,12 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly keycloak: KeycloakService,
   ) {}
+
+  @Get('health')
+  @Public()
+  health() {
+    return { status: 'ok', timestamp: new Date().toISOString() };
+  }
 
   @Get('login')
   @Public()
@@ -30,7 +47,17 @@ export class AuthController {
   ) {
     this.logger.log(`Login requested from ${req.ip}, redirectTo=${redirectTo}`);
 
-    const state = Buffer.from(JSON.stringify({ redirectTo })).toString(
+    // Store nonce in short-lived cookie to prevent CSRF on callback
+    const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    res.cookie('OAUTH_NONCE', nonce, {
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE !== 'false',
+      sameSite: 'lax',
+      maxAge: 10 * 60 * 1000,
+      path: '/',
+    });
+
+    const state = Buffer.from(JSON.stringify({ redirectTo, nonce })).toString(
       'base64',
     );
 
@@ -49,29 +76,35 @@ export class AuthController {
   ) {
     this.logger.log('OAuth callback received from Keycloak');
 
-    // Decode redirectTo early — needed for both success and fallback paths.
     let redirectTo = '/';
+    let nonce: string | undefined;
+
     if (state) {
       try {
-        redirectTo = JSON.parse(
-          Buffer.from(state, 'base64').toString(),
-        ).redirectTo;
+        const parsed = JSON.parse(Buffer.from(state, 'base64').toString());
+        redirectTo = safeRedirect(parsed.redirectTo ?? '/');
+        nonce = parsed.nonce;
       } catch {
         this.logger.warn('Invalid OAuth state parameter');
       }
     }
+
+    // Verify CSRF nonce
+    const cookieNonce = req.cookies?.OAUTH_NONCE;
+    if (!cookieNonce || cookieNonce !== nonce) {
+      this.logger.warn('OAuth CSRF nonce mismatch — aborting callback');
+      res.clearCookie('OAUTH_NONCE');
+      res.redirect(`${process.env.FRONT_END_BASE_URL}/`);
+      return;
+    }
+
+    res.clearCookie('OAUTH_NONCE');
 
     try {
       const tokens = await this.keycloak.exchangeCode(code);
       this.logger.log('Authorization code successfully exchanged');
       this.auth.setAuthCookies(res, tokens, req);
     } catch (err: any) {
-      // Codes are single-use. On Vercel, the serverless function can be invoked
-      // twice for the same request (cold-start replay), or the user reloads the
-      // callback URL from browser history. In both cases the second attempt gets
-      // invalid_grant. Redirect to the frontend — if the first exchange already
-      // set a session the user lands normally; otherwise AuthProvider re-initiates
-      // the Keycloak flow transparently.
       const errorCode = err?.response?.data?.error ?? 'unknown';
       this.logger.warn(
         `Code exchange failed (${errorCode}) — redirecting to frontend for re-auth`,
@@ -83,6 +116,24 @@ export class AuthController {
     this.logger.log(`Login completed, redirecting to frontend: ${redirectTo}`);
     res.redirect(`${process.env.FRONT_END_BASE_URL}${redirectTo}`);
     return;
+  }
+
+  @Post('login')
+  @Public()
+  @HttpCode(200)
+  async internalLogin(
+    @Body() body: LoginBody,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { email, password } = body ?? {};
+
+    if (!email || !password) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    await this.auth.login(email, password, res, req);
+    return { ok: true };
   }
 
   @Post('refresh')
@@ -102,10 +153,16 @@ export class AuthController {
       throw new UnauthorizedException();
     }
 
-    const tokens = await this.keycloak.refresh(req.cookies.REFRESH_TOKEN);
-    this.logger.log('Access token refreshed successfully');
+    const useInternal = process.env.INTERNAL_AUTH_ENABLED === 'true';
 
-    this.auth.setAccessCookie(res, tokens.access_token, req);
+    if (useInternal) {
+      await this.auth.refreshInternal(req.cookies.REFRESH_TOKEN, res, req);
+    } else {
+      const tokens = await this.keycloak.refresh(req.cookies.REFRESH_TOKEN);
+      this.logger.log('Access token refreshed successfully via Keycloak');
+      this.auth.setAccessCookie(res, tokens.access_token, req);
+    }
+
     return { ok: true };
   }
 
@@ -114,20 +171,33 @@ export class AuthController {
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     this.logger.log('Logout requested');
 
-    const hasRefreshToken = !!req.cookies?.REFRESH_TOKEN;
-    this.logger.log(`Refresh token present during logout: ${hasRefreshToken}`);
+    const useInternal = process.env.INTERNAL_AUTH_ENABLED === 'true';
 
-    if (hasRefreshToken) {
-      try {
-        await this.keycloak.keycloakLogout(req.cookies.REFRESH_TOKEN);
-        this.logger.log('Keycloak SSO session terminated');
-      } catch (err) {
-        this.logger.warn('Keycloak logout failed (continuing app logout)');
+    if (useInternal) {
+      const authUser = (req as any).user;
+      if (authUser?.id) {
+        await this.auth.logoutInternal(authUser.id, res, req);
+      } else {
+        this.auth.clearCookies(res, req);
       }
-    }
+    } else {
+      const hasRefreshToken = !!req.cookies?.REFRESH_TOKEN;
+      this.logger.log(
+        `Refresh token present during logout: ${hasRefreshToken}`,
+      );
 
-    this.auth.clearCookies(res, req);
-    this.logger.log('Application auth cookies cleared');
+      if (hasRefreshToken) {
+        try {
+          await this.keycloak.keycloakLogout(req.cookies.REFRESH_TOKEN);
+          this.logger.log('Keycloak SSO session terminated');
+        } catch {
+          this.logger.warn('Keycloak logout failed (continuing app logout)');
+        }
+      }
+
+      this.auth.clearCookies(res, req);
+      this.logger.log('Application auth cookies cleared');
+    }
 
     return { success: true };
   }

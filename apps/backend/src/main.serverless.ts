@@ -7,6 +7,12 @@ import { PaginationInterceptor } from './common/interceptors/pagination-meta.int
 let cachedApp: any;
 
 export async function createApp() {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error(
+      'JWT_SECRET env var is missing or too short (min 32 chars). App cannot start.',
+    );
+  }
+
   if (cachedApp) {
     return cachedApp;
   }

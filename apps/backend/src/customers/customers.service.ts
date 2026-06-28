@@ -13,7 +13,7 @@ import { CustomersRepository } from './customers.repository';
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly repo: CustomersRepository) { }
+  constructor(private readonly repo: CustomersRepository) {}
 
   async create(dto: CreateCustomerDto) {
     const code = dto.code.trim().toUpperCase();
@@ -260,7 +260,11 @@ export class CustomersService {
       );
     }
 
-    const updates: { id: string; outstandingAmount: number; creditLimit: number }[] = [];
+    const updates: {
+      id: string;
+      outstandingAmount: number;
+      creditLimit: number;
+    }[] = [];
     const errors: string[] = [];
 
     worksheet.eachRow((row, rowNumber) => {
@@ -268,13 +272,16 @@ export class CustomersService {
 
       const id = String(row.getCell(idCol).value || '').trim();
       // Skip empty rows or rows that don't contain a valid UUID (e.g. the note row at the bottom)
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!id || !uuidRegex.test(id)) return;
 
       const rawOutstanding = row.getCell(outstandingCol).value;
       const rawCredit = row.getCell(creditLimitCol).value;
 
-      const outstandingAmount = parseFloat(String(rawOutstanding ?? '').replace(/,/g, ''));
+      const outstandingAmount = parseFloat(
+        String(rawOutstanding ?? '').replace(/,/g, ''),
+      );
       const creditLimit = parseFloat(String(rawCredit ?? '').replace(/,/g, ''));
 
       if (isNaN(outstandingAmount) || isNaN(creditLimit)) {

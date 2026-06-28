@@ -6,6 +6,12 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { PaginationInterceptor } from './common/interceptors/pagination-meta.interceptor';
 
 async function bootstrap() {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error(
+      'JWT_SECRET env var is missing or too short (min 32 chars). App cannot start.',
+    );
+  }
+
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api/v1');

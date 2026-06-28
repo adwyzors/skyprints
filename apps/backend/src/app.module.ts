@@ -26,6 +26,7 @@ import { WorkflowModule } from './workflow/workflow.module';
 
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { ReportsModule } from './reports/reports.module';
     JobsModule,
     ReportsModule,
     ImageRetentionModule,
+    UsersModule,
   ],
   providers: [
     AppService,

@@ -1,10 +1,11 @@
-// src/health/health.controller.ts
 import { Controller, Get } from '@nestjs/common';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('health')
 export class HealthController {
   @Get()
+  @Public()
   health() {
-    return { status: 'ok' };
+    return { status: 'ok', timestamp: new Date().toISOString() };
   }
 }
