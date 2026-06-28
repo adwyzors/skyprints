@@ -157,26 +157,33 @@ export class CustomersService {
       { header: 'Credit Limit', key: 'creditLimit', width: 16 },
     ];
 
-    // Style the header row
+    // Bold header, default Excel colors
     const headerRow = worksheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF2563EB' },
-    };
-    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-    headerRow.height = 22;
+    headerRow.font = { bold: true };
+    headerRow.height = 18;
 
-    // Add data rows
+    // Add data rows — explicitly cast Prisma Decimal to Number so ExcelJS
+    // writes proper numeric cells instead of quoted strings
     customers.forEach((customer, index) => {
+      const outstandingAmount = Number(customer.outstandingAmount);
+      const creditLimit = Number(customer.creditLimit);
+
       const row = worksheet.addRow({
         id: customer.id,
         name: customer.name,
         code: customer.code,
-        outstandingAmount: customer.outstandingAmount,
-        creditLimit: customer.creditLimit,
+        outstandingAmount,
+        creditLimit,
       });
+
+      // Explicitly set cell type to number (belt-and-suspenders)
+      const outCell = row.getCell('outstandingAmount');
+      outCell.value = outstandingAmount;
+      outCell.numFmt = '#,##0.00';
+
+      const creditCell = row.getCell('creditLimit');
+      creditCell.value = creditLimit;
+      creditCell.numFmt = '#,##0.00';
 
       // Alternate row background
       if (index % 2 === 1) {
@@ -186,10 +193,6 @@ export class CustomersService {
           fgColor: { argb: 'FFF0F7FF' },
         };
       }
-
-      // Format numeric cells
-      row.getCell('outstandingAmount').numFmt = '#,##0.00';
-      row.getCell('creditLimit').numFmt = '#,##0.00';
     });
 
     // Freeze the header row
@@ -228,7 +231,7 @@ export class CustomersService {
     errors: string[];
   }> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
+    await workbook.xlsx.load(Buffer.from(buffer));
 
     const worksheet = workbook.getWorksheet('Customers');
     if (!worksheet) {
