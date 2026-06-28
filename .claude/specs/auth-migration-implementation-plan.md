@@ -37,6 +37,7 @@ npx prisma migrate dev --name add_login_table
 ```
 
 Then **manually edit** the generated migration file to add:
+
 ```sql
 DROP INDEX IF EXISTS "User_email_key";
 CREATE UNIQUE INDEX "User_email_active_unique" ON "User" (email) WHERE "deletedAt" IS NULL;
@@ -47,6 +48,7 @@ Then: `npx prisma generate`
 ### 1.3 — Startup validation
 
 Add to `src/main.ts` and `src/main.serverless.ts` (both files):
+
 ```typescript
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
   throw new Error('JWT_SECRET env var is missing or too short (min 32 chars). App cannot start.');
@@ -118,6 +120,7 @@ Register `JwtModule`, `InternalJwtService`, `InternalJwtAuthGuard`. Keep Keycloa
 ### 1.14 — Create `users/` module
 
 In order:
+
 1. `users/users.service.ts` — all CRUD + self-modification guards
 2. `users/users.controller.ts` — all endpoints including `GET /users/me`
 3. `users/users.module.ts`
@@ -213,11 +216,13 @@ Verify: all active users have Login records with correct permissions.
 ### 2.2 — Flip flags (UAT → then production)
 
 **UAT first:**
+
 1. Set `INTERNAL_AUTH_ENABLED=true` in UAT env
 2. Set `NEXT_PUBLIC_INTERNAL_AUTH_ENABLED=true` in Vercel (UAT environment)
 3. Run full Phase 1 manual verification on UAT
 
 **Production (after ≥1 week UAT validation):**
+
 1. Set `INTERNAL_AUTH_ENABLED=true` in production env
 2. Set `NEXT_PUBLIC_INTERNAL_AUTH_ENABLED=true` in Vercel (production)
 
@@ -318,6 +323,7 @@ Create `apps/backend/ecosystem.config.js` (see spec).
 ### 3.6 — Add `vercel-build` script
 
 In `apps/backend/package.json`:
+
 ```json
 "vercel-build": "prisma generate && prisma migrate deploy && nest build"
 ```

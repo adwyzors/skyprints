@@ -46,7 +46,7 @@ export class AuthService {
   }
 
   async login(
-    email: string,
+    identifier: string,
     password: string,
     res: Response,
     req: Request,
@@ -57,27 +57,38 @@ export class AuthService {
       );
     }
 
-    // 1. Find user by email (non-deleted only)
-    const user = await this.prisma.user.findFirst({
-      where: { email, deletedAt: null },
+    // 1. Look up login record by username first, then fall back to user email
+    let loginRecord = await this.prisma.login.findFirst({
+      where: {
+        username: identifier,
+        user: { deletedAt: null },
+      },
+      include: { user: true },
     });
-    if (!user) {
+
+    if (!loginRecord) {
+      const user = await this.prisma.user.findFirst({
+        where: { email: identifier, deletedAt: null },
+      });
+      if (user) {
+        loginRecord = await this.prisma.login.findUnique({
+          where: { userId: user.id },
+          include: { user: true },
+        }) as any;
+      }
+    }
+
+    if (!loginRecord) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    const user = loginRecord.user;
 
     // 2. Check User.isActive
     if (!user.isActive) {
       throw new UnauthorizedException(
         'Account disabled. Contact administrator.',
       );
-    }
-
-    // 3. Find Login record
-    const loginRecord = await this.prisma.login.findUnique({
-      where: { userId: user.id },
-    });
-    if (!loginRecord) {
-      throw new UnauthorizedException('Invalid credentials');
     }
 
     // 4. Check Login.isActive

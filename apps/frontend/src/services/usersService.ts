@@ -10,6 +10,7 @@ export interface UserListItem {
   location: { id: string; code: string; name: string } | null;
   createdAt: string;
   login: {
+    username: string | null;
     permissions: string[];
     isActive: boolean;
     lastLoginAt: string | null;
@@ -35,6 +36,7 @@ export interface UserMe {
 export interface CreateUserPayload {
   name: string;
   email: string;
+  username?: string;
   role: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER';
   locationId?: string;
   password: string;
@@ -46,6 +48,7 @@ export interface UpdateUserPayload {
   role?: 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER';
   locationId?: string | null;
   isActive?: boolean;
+  username?: string | null;
 }
 
 export interface UpdatePermissionsPayload {

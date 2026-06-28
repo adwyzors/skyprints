@@ -46,6 +46,7 @@ model Login {
   permissions  String[]
   tokenVersion Int      @default(0)
   isActive     Boolean  @default(true)
+  username     String?  @unique
 
   lastLoginAt         DateTime?
   failedLoginAttempts Int       @default(0)

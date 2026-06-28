@@ -8,7 +8,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 function LoginForm() {
   const searchParams = useSearchParams();
 
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -27,7 +27,7 @@ function LoginForm() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
 
       if (!res.ok) {
@@ -35,7 +35,7 @@ function LoginForm() {
         const msg =
           typeof body?.message === 'string'
             ? body.message
-            : 'Invalid email or password';
+            : 'Invalid username or password';
         setError(msg);
         return;
       }
@@ -63,18 +63,19 @@ function LoginForm() {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email */}
+          {/* Username */}
           <div>
-            <label htmlFor="email" className="block text-sm text-gray-500 mb-1">
-              Email
+            <label htmlFor="username" className="block text-sm text-gray-500 mb-1">
+              Username
             </label>
             <input
-              id="email"
-              type="email"
-              autoComplete="email"
+              id="username"
+              type="text"
+              autoComplete="username"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Email, username, or mobile"
               className="w-full bg-[#f0f2fa] rounded-lg px-4 py-2.5 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-indigo-400 border-0"
             />
           </div>

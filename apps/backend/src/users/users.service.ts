@@ -39,6 +39,7 @@ export class UsersService {
         createdAt: true,
         login: {
           select: {
+            username: true,
             permissions: true,
             isActive: true,
             lastLoginAt: true,
@@ -151,6 +152,7 @@ export class UsersService {
             userId: user.id,
             passwordHash,
             permissions,
+            ...(dto.username ? { username: dto.username } : {}),
           },
         });
 
@@ -161,10 +163,13 @@ export class UsersService {
       return result;
     } catch (err: any) {
       // Partial unique index violation: active user with same email already exists
-      if (
-        err?.code === 'P2002' ||
-        err?.message?.includes('User_email_active_unique')
-      ) {
+      if (err?.code === 'P2002') {
+        if (err?.meta?.target?.includes('username') || err?.message?.includes('Login_username_key')) {
+          throw new ConflictException('Username already in use');
+        }
+        throw new ConflictException('Email already in use');
+      }
+      if (err?.message?.includes('User_email_active_unique')) {
         throw new ConflictException('Email already in use');
       }
       throw err;
@@ -191,7 +196,7 @@ export class UsersService {
       }
     }
 
-    return this.prisma.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name }),
@@ -200,6 +205,22 @@ export class UsersService {
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       },
     });
+
+    if (dto.username !== undefined) {
+      try {
+        await this.prisma.login.update({
+          where: { userId: id },
+          data: { username: dto.username ?? null },
+        });
+      } catch (err: any) {
+        if (err?.code === 'P2002') {
+          throw new ConflictException('Username already in use');
+        }
+        throw err;
+      }
+    }
+
+    return updatedUser;
   }
 
   async updatePermissions(

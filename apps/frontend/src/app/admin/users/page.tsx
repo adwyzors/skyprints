@@ -137,14 +137,14 @@ interface CreateUserModalProps {
 
 function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserModalProps) {
   const [form, setForm] = useState<CreateUserPayload>({
-    name: '', email: '', role: 'MANAGER', password: '',
+    name: '', email: '', username: '', role: 'MANAGER', password: '',
     permissions: [...ROLE_PERMISSIONS.MANAGER],
   });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setForm({ name: '', email: '', role: 'MANAGER', password: '', permissions: [...ROLE_PERMISSIONS.MANAGER] });
+      setForm({ name: '', email: '', username: '', role: 'MANAGER', password: '', permissions: [...ROLE_PERMISSIONS.MANAGER] });
     }
   }, [isOpen]);
 
@@ -168,7 +168,7 @@ function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserMo
     e.preventDefault();
     setSubmitting(true);
     try {
-      await createUser({ ...form, locationId: form.locationId || undefined });
+      await createUser({ ...form, locationId: form.locationId || undefined, username: form.username || undefined });
       onSuccess();
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to create user');
@@ -211,6 +211,16 @@ function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserMo
                   onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
                   className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-700">
+                Username <span className="text-gray-400 font-normal">(optional — for login; accepts email, mobile, or any unique string)</span>
+              </label>
+              <input type="text" value={form.username ?? ''}
+                onChange={e => setForm(p => ({ ...p, username: e.target.value || undefined }))}
+                placeholder="e.g. john_doe, 9876543210, or leave blank to use email"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -308,7 +318,7 @@ function EditUserModal({ isOpen, user, locations, onClose, onSuccess }: EditUser
 
   useEffect(() => {
     if (user && isOpen) {
-      setForm({ name: user.name, role: user.role as UpdateUserPayload['role'], locationId: user.locationId, isActive: user.isActive });
+      setForm({ name: user.name, role: user.role as UpdateUserPayload['role'], locationId: user.locationId, isActive: user.isActive, username: user.login?.username ?? '' });
     }
   }, [user, isOpen]);
 
@@ -318,7 +328,8 @@ function EditUserModal({ isOpen, user, locations, onClose, onSuccess }: EditUser
     e.preventDefault();
     setSubmitting(true);
     try {
-      await updateUser(user.id, form);
+      const payload: UpdateUserPayload = { ...form, username: form.username || null };
+      await updateUser(user.id, payload);
       onSuccess();
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to update user');
@@ -349,6 +360,14 @@ function EditUserModal({ isOpen, user, locations, onClose, onSuccess }: EditUser
             <label className="text-xs font-medium text-gray-700">Name</label>
             <input type="text" value={form.name ?? ''}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-700">Username <span className="text-gray-400 font-normal">(login identifier — email, mobile, or unique string)</span></label>
+            <input type="text" value={form.username ?? ''}
+              onChange={e => setForm(p => ({ ...p, username: e.target.value || null }))}
+              placeholder="Leave blank to keep unchanged"
               className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 

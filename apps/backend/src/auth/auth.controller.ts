@@ -16,7 +16,7 @@ import { Public } from './decorators/public.decorator';
 import { KeycloakService } from './keycloak/keycloak.service';
 
 interface LoginBody {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -126,13 +126,13 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { email, password } = body ?? {};
+    const { username, password } = body ?? {};
 
-    if (!email || !password) {
+    if (!username || !password) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    await this.auth.login(email, password, res, req);
+    await this.auth.login(username, password, res, req);
     return { ok: true };
   }
 
