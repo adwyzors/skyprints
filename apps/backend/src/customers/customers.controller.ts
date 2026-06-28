@@ -14,13 +14,44 @@ import {
   Patch,
   Post,
   Query,
+  Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
+import * as multer from 'multer';
 
 import { CustomersService } from './customers.service';
 
 @Controller('customers')
 export class CustomersController {
   constructor(private readonly service: CustomersService) {}
+
+  /* =========================
+   * Export Customers to Excel
+   * ========================= */
+  @Get('export')
+  async exportCustomers(@Res() res: Response) {
+    return this.service.exportToExcel(res);
+  }
+
+  /* =========================
+   * Import Customers from Excel
+   * ========================= */
+  @Post('import')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
+    }),
+  )
+  async importCustomers(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      return { error: 'No file uploaded.' };
+    }
+    return this.service.importFromExcel(file.buffer);
+  }
 
   /* =========================
    * Create Customer

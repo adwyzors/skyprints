@@ -3,9 +3,9 @@ import { Permission } from '@/auth/permissions';
 import Pagination from '@/components/common/Pagination';
 import CustomerModal from '@/components/modals/CustomerModal';
 import { Customer } from '@/domain/model/customer.model';
-import { deleteCustomer, deleteCustomers } from '@/services/customer.service';
-import { Loader2, Plus, Search, Trash2, Users } from 'lucide-react';
-import { useState } from 'react';
+import { deleteCustomer, deleteCustomers, downloadCustomersExcel, uploadCustomersExcel } from '@/services/customer.service';
+import { Download, Loader2, Plus, Search, Trash2, Upload, Users } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 interface CustomerClientProps {
     customersData: {
@@ -37,6 +37,10 @@ export default function CustomerClient({
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>(undefined);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadResult, setUploadResult] = useState<{ updated: number; skipped: number; errors: string[] } | null>(null);
+    const uploadInputRef = useRef<HTMLInputElement>(null);
 
     const canCreate = hasPermission(Permission.CUSTOMERS_CREATE);
     const canUpdate = hasPermission(Permission.CUSTOMERS_UPDATE);
@@ -105,6 +109,41 @@ export default function CustomerClient({
         }
     };
 
+    const handleDownloadExcel = async () => {
+        setIsDownloading(true);
+        try {
+            await downloadCustomersExcel();
+        } catch (err: any) {
+            alert(err.message || 'Failed to download Excel file');
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+    const handleUploadClick = () => {
+        setUploadResult(null);
+        uploadInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        // Reset so same file can be uploaded again
+        e.target.value = '';
+
+        setIsUploading(true);
+        setUploadResult(null);
+        try {
+            const result = await uploadCustomersExcel(file);
+            setUploadResult(result);
+            refetch();
+        } catch (err: any) {
+            alert(err.message || 'Failed to upload Excel file');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     return (
         <div className="bg-gray-50/50 min-h-full">
             {/* HEAD & TOOLBAR - STICKY */}
@@ -143,6 +182,37 @@ export default function CustomerClient({
                         </button>
                     )}
 
+                    {/* DOWNLOAD EXCEL */}
+                    <button
+                        id="download-customers-excel"
+                        onClick={handleDownloadExcel}
+                        disabled={isDownloading}
+                        title="Download customers as Excel"
+                        className="flex items-center gap-2 px-3 py-2 bg-emerald-50 text-emerald-700 font-medium rounded-lg hover:bg-emerald-100 transition-all border border-emerald-200 text-sm disabled:opacity-60"
+                    >
+                        {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        <span className="hidden sm:inline">Export</span>
+                    </button>
+
+                    {/* UPLOAD EXCEL */}
+                    <input
+                        ref={uploadInputRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        className="hidden"
+                        onChange={handleFileChange}
+                    />
+                    <button
+                        id="upload-customers-excel"
+                        onClick={handleUploadClick}
+                        disabled={isUploading}
+                        title="Upload Excel to update credit limit & outstanding amount"
+                        className="flex items-center gap-2 px-3 py-2 bg-violet-50 text-violet-700 font-medium rounded-lg hover:bg-violet-100 transition-all border border-violet-200 text-sm disabled:opacity-60"
+                    >
+                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        <span className="hidden sm:inline">Import</span>
+                    </button>
+
                     {/* SEARCH */}
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -165,6 +235,37 @@ export default function CustomerClient({
                     )}
                 </div>
             </div>
+
+            {/* UPLOAD RESULT BANNER */}
+            {uploadResult && (
+                <div className={`mx-4 mt-3 px-4 py-3 rounded-xl border text-sm flex items-start gap-3 ${
+                    uploadResult.errors.length > 0
+                        ? 'bg-amber-50 border-amber-200 text-amber-800'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                }`}>
+                    <div className="flex-1">
+                        <p className="font-semibold">
+                            Import complete: {uploadResult.updated} updated, {uploadResult.skipped} skipped
+                        </p>
+                        {uploadResult.errors.length > 0 && (
+                            <ul className="mt-1 list-disc list-inside text-xs space-y-0.5 text-amber-700">
+                                {uploadResult.errors.slice(0, 5).map((e, i) => (
+                                    <li key={i}>{e}</li>
+                                ))}
+                                {uploadResult.errors.length > 5 && (
+                                    <li>...and {uploadResult.errors.length - 5} more errors</li>
+                                )}
+                            </ul>
+                        )}
+                    </div>
+                    <button
+                        onClick={() => setUploadResult(null)}
+                        className="text-gray-400 hover:text-gray-600 font-bold text-base leading-none mt-0.5"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
 
             {/* CONTENT AREA */}
             <div className="p-4">

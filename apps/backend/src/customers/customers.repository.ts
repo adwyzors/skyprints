@@ -26,6 +26,7 @@ export class CustomersRepository {
     where?: Prisma.CustomerWhereInput;
     skip?: number;
     take?: number;
+    orderBy?: Prisma.CustomerOrderByWithRelationInput;
   }) {
     return this.prisma.customer.findMany({
       where: {
@@ -34,7 +35,7 @@ export class CustomersRepository {
       },
       skip: params.skip,
       take: params.take,
-      orderBy: { createdAt: 'desc' },
+      orderBy: params.orderBy ?? { createdAt: 'desc' },
     });
   }
 
