@@ -24,7 +24,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
-import { ProcessRun, SpangleRunValues } from '@/domain/model/run.model';
+import { ProcessRun } from '@/domain/model/run.model';
 import { addRunToProcess, deleteProcessFromOrder, deleteRunFromProcess } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
@@ -37,25 +37,64 @@ interface SpangleConfigProps {
     onRefresh?: () => Promise<void>;
 }
 
-// Default fields if not provided by backend
-const SPANGLE_FIELDS = [
-    { key: 'design', label: 'Design', type: 'string', required: true },
-    { key: 'quantity', label: 'Quantity', type: 'number', required: true },
-    { key: 'dotSize', label: 'Dot Size', type: 'number', required: true },
-    { key: 'cd', label: 'CD', type: 'number', required: true },
-    { key: 'dotsReq', label: 'Dots Req', type: 'number', required: true },
-    { key: 'rate', label: 'Rate', type: 'number', required: false }, // Calced
-    { key: 'amount', label: 'Amount', type: 'number', required: false } // Calced
-];
+interface SpangleItem {
+    design: string;
+    quantity: number;
+    dotSize: number;
+    cd: number;
+    dotsReq: number;
+    rate: number;
+    amount: number;
+}
 
-const getFieldIcon = (fieldName: string) => {
-    const lowerField = fieldName.toLowerCase();
-    if (lowerField.includes('date')) return <Calendar className="w-3 h-3" />;
-    if (lowerField.includes('quantity')) return <Package className="w-3 h-3" />;
-    if (lowerField.includes('rate') || lowerField.includes('amount')) return <IndianRupee className="w-3 h-3" />;
-    if (lowerField.includes('design')) return <FileText className="w-3 h-3" />;
-    if (lowerField.includes('size')) return <Ruler className="w-3 h-3" />;
-    return <Grid className="w-3 h-3" />;
+interface SpangleRunValues {
+    quantity: number;
+    rate: number;
+    amount: number;
+    items: SpangleItem[] | string;
+    images?: string[];
+}
+
+function parseItems(items: unknown): SpangleItem[] {
+    if (Array.isArray(items)) {
+        return items;
+    }
+
+    if (typeof items === 'string') {
+        try {
+            const parsed = JSON.parse(items);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+
+    return [];
+}
+
+const getTotals = (items: SpangleItem[]) => {
+    const safeItems = Array.isArray(items) ? items : [];
+
+    const calculatedItems = safeItems.map((item) => {
+        const rate = (Number(item.dotsReq) || 0) / 100;
+        const amount = (Number(item.quantity) || 0) * rate;
+        return {
+            ...item,
+            rate,
+            amount
+        };
+    });
+
+    const totalQuantity = calculatedItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    const totalAmount = calculatedItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+    const averageRate = totalQuantity > 0 ? totalAmount / totalQuantity : 0;
+
+    return {
+        totalQuantity,
+        totalAmount,
+        averageRate,
+        items: calculatedItems
+    };
 };
 
 export default function SpangleConfig({
@@ -70,7 +109,6 @@ export default function SpangleConfig({
     const [isSaving, setIsSaving] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-
     // Run Operations State
     const [isAddingRun, setIsAddingRun] = useState(false);
     const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
@@ -79,7 +117,33 @@ export default function SpangleConfig({
     const [editingRunId, setEditingRunId] = useState<string | null>(null);
     const [openRunId, setOpenRunId] = useState<string | null>(null);
 
-    // Initialize locations when opening a run
+    // State for local editing
+    const [editForm, setEditForm] = useState<any | null>(null);
+
+    // UI State
+    const [runManagers, setRunManagers] = useState<Record<string, { executorId?: string; reviewerId?: string }>>({});
+    const [runImages, setRunImages] = useState<Record<string, File[]>>({});
+    const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
+    const [existingRunImages, setExistingRunImages] = useState<Record<string, string[]>>({});
+
+    const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
+    const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
+
+    // Sync state when order changes
+    useEffect(() => {
+        setLocalOrder(order);
+        
+        const initImages: Record<string, string[]> = {};
+        order.processes.forEach(p => p.runs.forEach(r => {
+            if (r.values?.images && Array.isArray(r.values.images) && r.values.images.length > 0) {
+                initImages[r.id] = r.values.images as string[];
+            }
+        }));
+        setExistingRunImages(initImages);
+    }, [order]);
+
+    // Initialize state when opening a run
     useEffect(() => {
         if (openRunId) {
             let run: ProcessRun | undefined;
@@ -89,6 +153,18 @@ export default function SpangleConfig({
             }
 
             if (run) {
+                const values = (run.values || {}) as any;
+                const existingItems = parseItems(values.items);
+                setEditForm({
+                    quantity: values.quantity || 0,
+                    rate: values.rate || 0,
+                    amount: values.amount || 0,
+                    items: existingItems.length > 0 ? existingItems : [
+                        { design: '', quantity: 0, dotSize: 0, cd: 0, dotsReq: 0, rate: 0, amount: 0 }
+                    ],
+                    images: values.images || []
+                });
+
                 if (run.location?.id) {
                     setRunLocations(prev => ({ ...prev, [run!.id]: run!.location!.id }));
                 }
@@ -99,52 +175,10 @@ export default function SpangleConfig({
                     setPostProdLocations(prev => ({ ...prev, [run!.id]: run!.postProductionLocation!.id }));
                 }
             }
+        } else {
+            setEditForm(null);
         }
     }, [openRunId, localOrder]);
-
-    // UI State
-    const [runManagers, setRunManagers] = useState<Record<string, { executorId?: string; reviewerId?: string }>>({});
-    const [runImages, setRunImages] = useState<Record<string, File[]>>({});
-    const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
-    // Pre-existing image URLs from run.values.images (shown in edit form)
-    const [existingRunImages, setExistingRunImages] = useState<Record<string, string[]>>(
-        () => {
-            const init: Record<string, string[]> = {};
-            order.processes.forEach(p => p.runs.forEach(r => {
-                if (r.values?.images && Array.isArray(r.values.images) && r.values.images.length > 0) {
-                    init[r.id] = r.values.images as string[];
-                }
-            }));
-            return init;
-        }
-    );
-
-    const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
-    const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
-    const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
-
-
-
-    useEffect(() => {
-        setLocalOrder(order);
-    }, [order]);
-
-
-
-    const getRunFieldConfigs = (run: ProcessRun) => {
-        // Use injected fields if available, otherwise default
-        return (run.fields && run.fields.length > 0) ? run.fields : SPANGLE_FIELDS;
-    };
-
-    const groupFieldsIntoPairs = (fields: any[]) => {
-        const pairs = [];
-        for (let i = 0; i < fields.length; i += 2) {
-            pairs.push([fields[i], fields[i + 1]]);
-        }
-        return pairs;
-    };
-
-    const prettyLabel = (field: string) => field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
 
     const handleAddRun = async (processId: string) => {
         setIsAddingRun(true);
@@ -179,9 +213,7 @@ export default function SpangleConfig({
         setError(null);
         try {
             await deleteProcessFromOrder(localOrder.id, processId);
-            if (onRefresh) {
-                await onRefresh();
-            }
+            if (onRefresh) await onRefresh();
         } catch (err: any) {
             console.error(err);
             setError(err.message || 'Failed to delete process');
@@ -218,49 +250,53 @@ export default function SpangleConfig({
         });
     };
 
-    const updateRunField = (processId: string, runId: string, field: string, value: string) => {
-        setLocalOrder(prev => {
+    const removeExistingImage = (runId: string, index: number) => {
+        setExistingRunImages(prev => {
+            const newImages = [...(prev[runId] || [])];
+            newImages.splice(index, 1);
+            return { ...prev, [runId]: newImages };
+        });
+    };
+
+    const updateItem = (index: number, field: keyof SpangleItem, value: any) => {
+        setEditForm((prev: any) => {
             if (!prev) return prev;
-            const process = prev.processes.find(p => p.id === processId);
-            const run = process?.runs.find(r => r.id === runId);
-            if (!run) return prev;
-
-            const fieldDef = getRunFieldConfigs(run).find(f => f.key === field);
-            let typedValue: string | number = value;
-
-            if (fieldDef?.type === 'number' && value !== '') {
-                typedValue = Number(value);
+            const newItems = [...prev.items];
+            let typedValue = value;
+            if (field !== 'design') {
+                typedValue = value === '' ? '' : Number(value);
             }
+            newItems[index] = { ...newItems[index], [field]: typedValue };
+            
+            // Recalculate row rate & amount immediately
+            const rate = field === 'dotsReq' ? (Number(typedValue) || 0) / 100 : (Number(newItems[index].dotsReq) || 0) / 100;
+            const quantity = field === 'quantity' ? (Number(typedValue) || 0) : (Number(newItems[index].quantity) || 0);
+            newItems[index].rate = rate;
+            newItems[index].amount = quantity * rate;
+            
+            return { ...prev, items: newItems };
+        });
+    };
 
-            const newValues = { ...run.values, [field]: typedValue };
-
-            // Calculations
-            // Rate = dotsReq / 100
-            // Amount = Rate * Quantity
-            if (field === 'dotsReq') {
-                const dotsReq = Number(typedValue) || 0;
-                const rate = dotsReq / 100;
-                newValues['rate'] = rate;
-
-                const qty = Number(newValues['quantity']) || 0;
-                newValues['amount'] = rate * qty;
-            } else if (field === 'quantity') {
-                const qty = Number(typedValue) || 0;
-                const rate = Number(newValues['rate']) || 0;
-                newValues['amount'] = rate * qty;
-            } else if (field === 'rate') {
-                // If user manually edits rate? Maybe allow it.
-                const rate = Number(typedValue) || 0;
-                const qty = Number(newValues['quantity']) || 0;
-                newValues['amount'] = rate * qty;
-            }
-
+    const addRow = () => {
+        setEditForm((prev: any) => {
+            if (!prev) return prev;
             return {
                 ...prev,
-                processes: prev.processes.map(p => p.id !== processId ? p : {
-                    ...p,
-                    runs: p.runs.map(r => r.id !== runId ? r : { ...r, values: newValues })
-                })
+                items: [
+                    ...prev.items,
+                    { design: '', quantity: 0, dotSize: 0, cd: 0, dotsReq: 0, rate: 0, amount: 0 }
+                ]
+            };
+        });
+    };
+
+    const deleteRow = (index: number) => {
+        setEditForm((prev: any) => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                items: prev.items.filter((_: any, i: number) => i !== index)
             };
         });
     };
@@ -279,17 +315,23 @@ export default function SpangleConfig({
     };
 
     const saveRun = async (processId: string, runId: string) => {
-        const process = localOrder.processes.find(p => p.id === processId);
-        const run = process?.runs.find(r => r.id === runId);
-        if (!run) return;
+        if (!editForm) return;
+
+        const totals = getTotals(editForm.items);
+
+        // Validation
+        if (totals.items.some(item => !item.design || !item.quantity || !item.dotsReq)) {
+            alert('Please fill in Design size, Qty, and Dots Req for all rows.');
+            return;
+        }
 
         setIsSaving(runId);
         setError(null);
 
         try {
-            // Standard Image Upload
+            // Upload Reference Images
             const images = runImages[runId] || [];
-            const imageUrls: string[] = [];
+            const imageUrls = [...(existingRunImages[runId] || [])];
 
             if (images.length > 0) {
                 const { apiRequest } = await import('@/services/api.service');
@@ -304,29 +346,31 @@ export default function SpangleConfig({
                 imageUrls.push(...(await Promise.all(uploadPromises)));
             }
 
+            const apiValues = {
+                quantity: totals.totalQuantity,
+                rate: totals.averageRate,
+                amount: totals.totalAmount,
+                items: JSON.stringify(totals.items),
+                'Estimated Amount': totals.totalAmount // Required for order estimate calculations
+            };
+
             const managerSelection = runManagers[runId];
 
-            // Find current run executor/reviewer if not changed
+            // Find current run executor/reviewer/locations if not changed in UI
             let currentExecutorId: string | undefined;
             let currentReviewerId: string | undefined;
-
-            // Find the run
+            let currentPreProdLocationId: string | undefined;
+            let currentPostProdLocationId: string | undefined;
             for (const p of localOrder.processes) {
-                const r = p.runs.find(r => r.id === runId);
+                const r = p.runs.find(run => run.id === runId);
                 if (r) {
                     currentExecutorId = r.executor?.id;
                     currentReviewerId = r.reviewer?.id;
+                    currentPreProdLocationId = r.preProductionLocation?.id;
+                    currentPostProdLocationId = r.postProductionLocation?.id;
                     break;
                 }
             }
-
-
-            // Only send defined fields
-            const apiValues: any = {};
-            // Copy keys from values that match field configs or are custom
-            Object.keys(run.values).forEach(key => {
-                apiValues[key] = run.values[key];
-            });
 
             const res = await configureRun(
                 localOrder.id,
@@ -336,15 +380,15 @@ export default function SpangleConfig({
                 imageUrls,
                 managerSelection?.executorId ?? currentExecutorId,
                 managerSelection?.reviewerId ?? currentReviewerId,
-                undefined, // deprecated locationId
-                undefined, // comments
-                preProdLocations[runId] ?? run?.preProductionLocation?.id,
-                postProdLocations[runId] ?? run?.postProductionLocation?.id
+                undefined,
+                undefined,
+                preProdLocations[runId] ?? currentPreProdLocationId,
+                postProdLocations[runId] ?? currentPostProdLocationId
             );
 
             if (res.success) {
-                const selectedExecutor = (managerSelection?.executorId) ? managers.find(u => u.id === managerSelection.executorId) || run.executor : run.executor;
-                const selectedReviewer = (managerSelection?.reviewerId) ? managers.find(u => u.id === managerSelection.reviewerId) || run.reviewer : run.reviewer;
+                const selectedExecutor = (managerSelection?.executorId) ? managers.find(u => u.id === managerSelection.executorId) : null;
+                const selectedReviewer = (managerSelection?.reviewerId) ? managers.find(u => u.id === managerSelection.reviewerId) : null;
 
                 updateRunState(processId, runId, {
                     configStatus: 'COMPLETE',
@@ -370,7 +414,6 @@ export default function SpangleConfig({
         }
     };
 
-
     const toggleRunOpen = (run: ProcessRun) => {
         if (openRunId === run.id) {
             setOpenRunId(null);
@@ -384,25 +427,28 @@ export default function SpangleConfig({
     const renderRun = (process: any, run: ProcessRun) => {
         const isConfigured = run.configStatus === 'COMPLETE';
         const isEditing = editingRunId === run.id;
+        const mode = isConfigured && !isEditing ? 'view' : 'edit';
 
-        // Compact Form Render similar to ScreenPrintingConfig
-        const fieldConfigs = getRunFieldConfigs(run);
-        const pairs = groupFieldsIntoPairs(fieldConfigs);
+        const data = mode === 'view' ? (run.values || {}) : editForm || {
+            quantity: 0,
+            rate: 0,
+            amount: 0,
+            items: []
+        };
 
-        // Read One View vs Edit Form
-        // Since we are just mirroring logic, let's keep it simple: 
-        // If configured and not editing => Read Only View
-        // Else => Edit Form
-
-        const isViewMode = isConfigured && !isEditing;
+        const items = parseItems(data.items);
+        const totals = getTotals(items);
 
         return (
             <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
+                {/* Header */}
                 <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-blue-500' : 'bg-green-500'}`} />
-                        <h3 className="font-semibold text-sm">{isEditing ? `Edit Run ${run.runNumber}` : `Spangle Run ${run.runNumber}`}</h3>
-                        {isViewMode && (
+                        <div className={`w-2 h-2 rounded-full ${mode === 'edit' ? 'bg-blue-500' : 'bg-green-500'}`} />
+                        <h3 className="font-semibold text-sm">
+                            {mode === 'edit' ? `Configure Spangle Run ${run.runNumber}` : `Spangle Run ${run.runNumber}`}
+                        </h3>
+                        {mode === 'view' && (
                             <div className="flex gap-1 ml-2">
                                 {run.preProductionLocation && (
                                     <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1" title="Pre-Production Location">
@@ -419,10 +465,21 @@ export default function SpangleConfig({
                             </div>
                         )}
                     </div>
-                    {isViewMode && hasPermission(Permission.RUNS_UPDATE) && (
+                    {mode === 'view' && hasPermission(Permission.RUNS_UPDATE) && (
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => setEditingRunId(run.id)}
+                                onClick={() => {
+                                    setEditingRunId(run.id);
+                                    // Load editing state
+                                    const parsed = parseItems((run.values || {}).items);
+                                    setEditForm({
+                                        quantity: run.values.quantity || 0,
+                                        rate: run.values.rate || 0,
+                                        amount: run.values.amount || 0,
+                                        items: parsed.length > 0 ? parsed : [{ design: '', quantity: 0, dotSize: 0, cd: 0, dotsReq: 0, rate: 0, amount: 0 }],
+                                        images: run.values.images || []
+                                    });
+                                }}
                                 className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200 transition-colors"
                             >
                                 <Edit className="w-3 h-3" />
@@ -433,91 +490,229 @@ export default function SpangleConfig({
                             </button>
                         </div>
                     )}
-                    {!isViewMode && <button onClick={() => { setOpenRunId(null); setEditingRunId(null); }}><X className="w-4 h-4 text-gray-500" /></button>}
+                    {mode === 'edit' && (
+                        <button onClick={() => { setOpenRunId(null); setEditingRunId(null); }}>
+                            <X className="w-4 h-4 text-gray-500" />
+                        </button>
+                    )}
                 </div>
 
                 <div className="bg-white border border-gray-200 rounded p-3 sm:p-4 space-y-6">
-                    {/* Manager Selection (Only in Edit Mode) */}
-                    {!isViewMode && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <SearchableManagerSelect
-                                label="Executor"
-                                users={managers}
-                                selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
-                                onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
-                            />
-                            <SearchableManagerSelect
-                                label="Reviewer"
-                                users={managers}
-                                selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
-                                onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
-                            />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                            <SearchableLocationSelect
-                                label="Pre-Prod Location"
-                                locations={locations}
-                                valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
-                                onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
-                            />
-                            <SearchableLocationSelect
-                                label="Post-Prod Location"
-                                locations={locations}
-                                valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
-                                onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
-                            />
-                        </div>
+                    {/* Location & Manager Select (Edit Mode) */}
+                    {mode === 'edit' && (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <SearchableLocationSelect
+                                    label="Pre-Prod Location"
+                                    locations={locations}
+                                    valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
+                                    onChange={(id) => setPreProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                                <SearchableLocationSelect
+                                    label="Post-Prod Location"
+                                    locations={locations}
+                                    valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
+                                    onChange={(id) => setPostProdLocations(prev => ({ ...prev, [run.id]: id }))}
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <SearchableManagerSelect
+                                    label="Executor"
+                                    users={managers}
+                                    selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
+                                    onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
+                                />
+                                <SearchableManagerSelect
+                                    label="Reviewer"
+                                    users={managers}
+                                    selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
+                                    onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                                />
+                            </div>
                         </div>
                     )}
 
-                    {/* Fields Grid */}
-                    <div className="border border-gray-300 rounded overflow-hidden bg-white">
-                        {pairs.map((pair, rowIndex) => (
-                            <div key={rowIndex} className="grid grid-cols-4 border-b last:border-b-0 divide-x divide-gray-300">
-                                {pair.map((fieldConfig: any, colIndex) => {
-                                    if (!fieldConfig) {
-                                        return (
-                                            <React.Fragment key={`empty-${colIndex}`}>
-                                                <div className="bg-gray-50 p-1.5"></div>
-                                                <div className="p-1.5 bg-white"></div>
-                                            </React.Fragment>
-                                        );
-                                    }
-                                    const field = fieldConfig.key;
-                                    const type = fieldConfig.type || 'string';
-                                    const isNumber = type === 'number';
-                                    const val = (run.values as SpangleRunValues)[field];
-                                    const isAuto = field === 'rate' || field === 'amount';
-
-                                    return (
-                                        <React.Fragment key={field}>
-                                            <div className="bg-gray-50 p-1.5 flex items-center gap-1">
-                                                {getFieldIcon(field)}
-                                                <label className="text-xs font-medium text-gray-700">{prettyLabel(field)}</label>
-                                            </div>
-                                            <div className="p-1.5 bg-white">
-                                                {isViewMode || isAuto ? (
-                                                    <div className="w-full text-sm border border-gray-200 bg-gray-50 rounded px-2 py-1 font-medium text-gray-700">
-                                                        {/* Show 0 for auto fields if undefined, or just - */}
-                                                        {isAuto ? ((val === undefined || val === null) ? '0.00' : Number(val).toFixed(2)) : (val || '-')}
-                                                    </div>
-                                                ) : (
-                                                    <input
-                                                        type={isNumber ? 'number' : 'text'}
-                                                        className="w-full text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500"
-                                                        value={val ?? ''}
-                                                        onChange={e => updateRunField(process.id, run.id, field, e.target.value)}
-                                                    />
-                                                )}
-                                            </div>
-                                        </React.Fragment>
-                                    );
-                                })}
+                    {/* Compact read-only view of managers/locations */}
+                    {mode === 'view' && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-2 bg-gray-50 rounded border text-xs">
+                            <div>
+                                <span className="text-gray-500 font-semibold block">Executor</span>
+                                <span className="font-medium text-gray-800">{run.executor?.name || '-'}</span>
                             </div>
-                        ))}
+                            <div>
+                                <span className="text-gray-500 font-semibold block">Reviewer</span>
+                                <span className="font-medium text-gray-800">{run.reviewer?.name || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 font-semibold block">Pre-Prod Location</span>
+                                <span className="font-medium text-gray-800">{run.preProductionLocation?.code || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500 font-semibold block">Post-Prod Location</span>
+                                <span className="font-medium text-gray-800">{run.postProductionLocation?.code || '-'}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Spangle Grid Items Table */}
+                    <div className="border rounded overflow-hidden">
+                        <div className="p-3 bg-gray-50 border-b flex justify-between items-center">
+                            <span className="font-semibold text-xs text-gray-700 flex items-center gap-1.5">
+                                <Grid className="w-4 h-4 text-blue-600" /> Size Configuration Details
+                            </span>
+                            {mode === 'edit' && (
+                                <button
+                                    onClick={addRow}
+                                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold flex items-center gap-1"
+                                >
+                                    <Plus className="w-3 h-3" /> Add Size Row
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="p-3 overflow-x-auto bg-white">
+                            <table className="w-full text-xs min-w-max border-collapse">
+                                <thead>
+                                    <tr className="bg-gray-50 border-b text-gray-600 uppercase tracking-wider text-[10px] text-center font-bold">
+                                        <th className="p-2 border-r w-8">#</th>
+                                        <th className="p-2 border-r w-24 text-left">Design Sizes</th>
+                                        <th className="p-2 border-r w-20">Qty</th>
+                                        <th className="p-2 border-r w-20">Dot Size</th>
+                                        <th className="p-2 border-r w-24">CD</th>
+                                        <th className="p-2 border-r w-20">Dots Req</th>
+                                        <th className="p-2 border-r w-20 bg-blue-50/50">Rate</th>
+                                        <th className="p-2 w-24 bg-blue-50/50">Amount</th>
+                                        {mode === 'edit' && <th className="p-2 w-8"></th>}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {totals.items.map((item, idx) => (
+                                        <tr key={idx} className="border-b last:border-0 hover:bg-gray-50">
+                                            {/* Row # */}
+                                            <td className="p-2 border-r text-center font-semibold text-gray-400">{idx + 1}</td>
+                                            
+                                            {/* Design Sizes */}
+                                            <td className="p-2 border-r">
+                                                {mode === 'edit' ? (
+                                                    <input
+                                                        type="text"
+                                                        className="w-full border rounded px-1.5 py-0.5 text-sm"
+                                                        value={item.design}
+                                                        onChange={(e) => updateItem(idx, 'design', e.target.value)}
+                                                        placeholder="e.g. 1"
+                                                    />
+                                                ) : (
+                                                    <span className="font-medium text-gray-800">{item.design}</span>
+                                                )}
+                                            </td>
+
+                                            {/* Qty */}
+                                            <td className="p-2 border-r text-center">
+                                                {mode === 'edit' ? (
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        className="w-16 border rounded px-1 py-0.5 text-center text-sm font-medium"
+                                                        value={item.quantity === 0 ? '' : item.quantity}
+                                                        onChange={(e) => updateItem(idx, 'quantity', e.target.value)}
+                                                    />
+                                                ) : (
+                                                    <span className="font-semibold text-gray-800">{item.quantity}</span>
+                                                )}
+                                            </td>
+
+                                            {/* Dot Size */}
+                                            <td className="p-2 border-r text-center">
+                                                {mode === 'edit' ? (
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.1"
+                                                        className="w-14 border rounded px-1 py-0.5 text-center text-sm"
+                                                        value={item.dotSize === 0 ? '' : item.dotSize}
+                                                        onChange={(e) => updateItem(idx, 'dotSize', e.target.value)}
+                                                    />
+                                                ) : (
+                                                    <span className="text-gray-700">{item.dotSize || '-'}</span>
+                                                )}
+                                            </td>
+
+                                            {/* CD */}
+                                            <td className="p-2 border-r text-center">
+                                                {mode === 'edit' ? (
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.0001"
+                                                        className="w-20 border rounded px-1 py-0.5 text-center text-sm"
+                                                        value={item.cd === 0 ? '' : item.cd}
+                                                        onChange={(e) => updateItem(idx, 'cd', e.target.value)}
+                                                    />
+                                                ) : (
+                                                    <span className="text-gray-700">{item.cd || '-'}</span>
+                                                )}
+                                            </td>
+
+                                            {/* Dots Req */}
+                                            <td className="p-2 border-r text-center">
+                                                {mode === 'edit' ? (
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        className="w-16 border rounded px-1 py-0.5 text-center text-sm"
+                                                        value={item.dotsReq === 0 ? '' : item.dotsReq}
+                                                        onChange={(e) => updateItem(idx, 'dotsReq', e.target.value)}
+                                                    />
+                                                ) : (
+                                                    <span className="text-gray-700">{item.dotsReq || '-'}</span>
+                                                )}
+                                            </td>
+
+                                            {/* Rate */}
+                                            <td className="p-2 border-r text-center bg-blue-50/20 font-medium text-gray-700">
+                                                ₹{item.rate.toFixed(2)}
+                                            </td>
+
+                                            {/* Amount */}
+                                            <td className="p-2 text-right bg-blue-50/20 font-semibold text-gray-900">
+                                                ₹{item.amount.toFixed(2)}
+                                            </td>
+
+                                            {/* Delete Row Icon */}
+                                            {mode === 'edit' && (
+                                                <td className="p-1 text-center">
+                                                    <button
+                                                        onClick={() => deleteRow(idx)}
+                                                        disabled={items.length <= 1}
+                                                        className="p-1 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-30"
+                                                        title="Delete Row"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
+
+                                    {/* Bottom Totals Row */}
+                                    <tr className="bg-blue-50 border-t-2 border-blue-200 font-bold text-gray-800 text-center">
+                                        <td className="p-2 border-r"></td>
+                                        <td className="p-2 border-r text-left text-[10px] uppercase">Totals</td>
+                                        <td className="p-2 border-r text-blue-900 text-sm">{totals.totalQuantity}</td>
+                                        <td className="p-2 border-r"></td>
+                                        <td className="p-2 border-r text-gray-500 font-medium text-[10px] italic">In meters</td>
+                                        <td className="p-2 border-r"></td>
+                                        <td className="p-2 border-r text-blue-900">₹{totals.averageRate.toFixed(2)}</td>
+                                        <td className="p-2 text-right text-blue-900 text-sm">₹{totals.totalAmount.toFixed(2)}</td>
+                                        {mode === 'edit' && <td></td>}
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     {/* Run Comments */}
-                    {isViewMode && (
+                    {mode === 'view' && (
                         <RunCommentEditor 
                             orderId={localOrder.id}
                             processId={process.id}
@@ -527,33 +722,60 @@ export default function SpangleConfig({
                         />
                     )}
 
-                    {/* Image Upload */}
-                    {!isViewMode && (
-                        <div className="border border-gray-300 rounded p-3">
+                    {/* Reference Images */}
+                    {mode === 'edit' && (
+                        <div className="border border-gray-200 rounded p-3 bg-gray-50">
                             <div className="flex justify-between mb-2">
                                 <label className="text-xs font-bold text-gray-700">Reference Images</label>
-                                <span className="text-xs text-gray-500">{(runImages[run.id] || []).length}/2</span>
+                                <span className="text-xs text-gray-500">
+                                    {((runImages[run.id] || []).length + (existingRunImages[run.id] || []).length)}/2
+                                </span>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 <input type="file" id={`img-${run.id}`} className="hidden" multiple accept="image/*" onChange={e => handleImageSelect(run.id, e)} />
-                                <label htmlFor={`img-${run.id}`} className="w-16 h-16 border-2 border-dashed rounded flex items-center justify-center cursor-pointer hover:bg-gray-50">
-                                    <Plus className="w-4 h-4 text-gray-400" />
-                                </label>
+                                {((runImages[run.id] || []).length + (existingRunImages[run.id] || []).length) < 2 && (
+                                    <label htmlFor={`img-${run.id}`} className="w-16 h-16 border-2 border-dashed bg-white rounded flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
+                                        <Plus className="w-4 h-4 text-gray-400" />
+                                    </label>
+                                )}
+                                {/* New Previews */}
                                 {(imagePreviews[run.id] || []).map((src, i) => (
-                                    <div key={i} className="relative w-16 h-16 border rounded overflow-hidden group">
+                                    <div key={`new-${i}`} className="relative w-16 h-16 border rounded overflow-hidden group">
                                         <img src={src} className="w-full h-full object-cover" />
                                         <button onClick={() => removeImage(run.id, i)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 opacity-0 group-hover:opacity-100"><X className="w-3 h-3" /></button>
+                                    </div>
+                                ))}
+                                {/* Existing Images */}
+                                {(existingRunImages[run.id] || []).map((src, i) => (
+                                    <div key={`exist-${i}`} className="relative w-16 h-16 border rounded overflow-hidden group">
+                                        <img src={src} className="w-full h-full object-cover" />
+                                        <button onClick={() => removeExistingImage(run.id, i)} className="absolute top-0 right-0 bg-red-500 text-white p-0.5 opacity-0 group-hover:opacity-100"><X className="w-3 h-3" /></button>
                                     </div>
                                 ))}
                             </div>
                         </div>
                     )}
 
-                    {/* Save Button */}
-                    {!isViewMode && (
+                    {/* Display Images in View Mode */}
+                    {mode === 'view' && run.values?.images && Array.isArray(run.values.images) && run.values.images.length > 0 && (
+                        <div className="border border-gray-200 rounded p-3">
+                            <label className="text-xs font-bold text-gray-700 block mb-2">Reference Images</label>
+                            <div className="flex gap-2">
+                                {run.values.images.map((src: string, i: number) => (
+                                    <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="w-16 h-16 border rounded overflow-hidden hover:opacity-85 transition-opacity">
+                                        <img src={src} className="w-full h-full object-cover" />
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Save Buttons */}
+                    {mode === 'edit' && (
                         <div className="flex justify-end gap-2 pt-4 border-t">
-                            <button onClick={() => { setOpenRunId(null); setEditingRunId(null); }} className="px-3 py-1 text-sm border rounded">Cancel</button>
-                            <button onClick={() => saveRun(process.id, run.id)} disabled={isSaving === run.id} className="px-3 py-1 text-sm bg-blue-600 text-white rounded">
+                            <button onClick={() => { setOpenRunId(null); setEditingRunId(null); }} className="px-3 py-1 text-sm border rounded hover:bg-gray-50 transition-colors">Cancel</button>
+                            <button onClick={() => saveRun(process.id, run.id)} disabled={isSaving === run.id} className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors flex items-center gap-1">
+                                {isSaving === run.id && <Loader2 className="w-3 h-3 animate-spin" />}
                                 {isSaving === run.id ? 'Saving...' : 'Save Configuration'}
                             </button>
                         </div>
