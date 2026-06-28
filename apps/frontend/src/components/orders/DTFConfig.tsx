@@ -556,13 +556,39 @@ export default function DTFConfig({
             const rate = data.rate || 0;
             const newItems: DTFItem[] = rows.map(row => {
                 const cols = row.split('\t');
+                let particulars = '';
+                let height = 0;
+                let pcsPerLayout = 0;
+                let quantityActual = 0;
+                let adjustment = 0;
+                let fromOther = 0;
+
+                if (cols.length >= 7) {
+                    // Includes the read-only W column at index 1
+                    particulars = cols[0]?.trim() || '';
+                    // cols[1] is W (read-only), so we skip it
+                    height = parseFloat(cols[2]?.replace(/,/g, '')) || 0;
+                    pcsPerLayout = parseFloat(cols[3]?.replace(/,/g, '')) || 0;
+                    quantityActual = parseFloat(cols[4]?.replace(/,/g, '')) || 0;
+                    adjustment = parseFloat(cols[5]?.replace(/,/g, '')) || 0;
+                    fromOther = parseFloat(cols[6]?.replace(/,/g, '')) || 0;
+                } else {
+                    // Only editable columns
+                    particulars = cols[0]?.trim() || '';
+                    height = parseFloat(cols[1]?.replace(/,/g, '')) || 0;
+                    pcsPerLayout = parseFloat(cols[2]?.replace(/,/g, '')) || 0;
+                    quantityActual = parseFloat(cols[3]?.replace(/,/g, '')) || 0;
+                    adjustment = parseFloat(cols[4]?.replace(/,/g, '')) || 0;
+                    fromOther = parseFloat(cols[5]?.replace(/,/g, '')) || 0;
+                }
+
                 const item: DTFItem = {
-                    particulars: cols[0]?.trim() || '',
-                    height: parseFloat(cols[1]?.replace(/,/g, '')) || 0,
-                    pcsPerLayout: parseFloat(cols[2]?.replace(/,/g, '')) || 0,
-                    quantityActual: parseFloat(cols[3]?.replace(/,/g, '')) || 0,
-                    adjustment: parseFloat(cols[4]?.replace(/,/g, '')) || 0,
-                    fromOther: parseFloat(cols[5]?.replace(/,/g, '')) || 0,
+                    particulars,
+                    height,
+                    pcsPerLayout,
+                    quantityActual,
+                    adjustment,
+                    fromOther,
                     quantityRequired: 0,
                     numberOfLayouts: 0,
                     area: 0,

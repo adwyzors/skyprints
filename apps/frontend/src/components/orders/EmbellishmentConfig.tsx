@@ -905,10 +905,19 @@ export default function EmbellishmentConfig({
                 const columns = firstRow.split('\t');
                 if (columns.length === 0) return;
 
+                const hasCalculatedField = fieldConfigs.some(f => f.key === 'Estimated Amount');
+                let targetFields = fieldConfigs;
+                if (hasCalculatedField && columns.length < fieldConfigs.length) {
+                    targetFields = pastableFields;
+                }
+
                 const filledNames: string[] = [];
                 columns.forEach((rawValue, idx) => {
-                    const fieldDef = pastableFields[idx];
+                    const fieldDef = targetFields[idx];
                     if (!fieldDef) return;
+
+                    // Skip field if it is not editable in form
+                    if (fieldDef.key === 'Estimated Amount') return;
 
                     const value = rawValue.trim();
                     if (value === '') return;

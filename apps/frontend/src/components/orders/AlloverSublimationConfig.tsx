@@ -748,12 +748,24 @@ export default function AlloverSublimationConfig({
             const ratePerMeter = Number(currentEdit.ratePerMeter) || 0;
             const newItems: AlloverSublimationItem[] = rows.map(row => {
                 const cols = row.split('\t');
-                const height = parseFloat(cols[1]?.replace(/,/g, '')) || 0;
-                const qty = parseFloat(cols[2]?.replace(/,/g, '')) || 0;
+                const design = cols[0]?.trim() || '';
+                let height = 0;
+                let qty = 0;
+
+                if (cols.length >= 4) {
+                    // Clipboard contains the read-only 'rate' column (cols[2])
+                    height = parseFloat(cols[1]?.replace(/,/g, '')) || 0;
+                    qty = parseFloat(cols[3]?.replace(/,/g, '')) || 0;
+                } else {
+                    // Clipboard only contains editable columns
+                    height = parseFloat(cols[1]?.replace(/,/g, '')) || 0;
+                    qty = parseFloat(cols[2]?.replace(/,/g, '')) || 0;
+                }
+
                 const rate = (height / 39.38) * ratePerMeter;
                 const amount = rate * qty;
                 return {
-                    design: cols[0]?.trim() || '',
+                    design: design,
                     height: height,
                     rate: Number(rate.toFixed(2)),
                     quantity: qty,

@@ -514,16 +514,39 @@ export default function DiamondConfig({
 
             const newItems: DiamondItem[] = rows.map(row => {
                 const cols = row.split('\t');
-                const qty = parseFloat(cols[1]?.replace(/,/g, '')) || 0;
-                const rate = parseFloat(cols[5]?.replace(/,/g, '')) || 0;
+                let designSizes = '';
+                let qty = 0;
+                let fSize = 'all';
+                let diamond = '';
+                let time = 0;
+                let rate = 0;
+
+                if (cols.length >= 6) {
+                    // Includes the read-only F. Size column at index 2
+                    designSizes = cols[0]?.trim() || '';
+                    qty = parseFloat(cols[1]?.replace(/,/g, '')) || 0;
+                    fSize = cols[2]?.trim() || 'all'; // read-only field
+                    diamond = cols[3]?.trim() || '';
+                    time = parseFloat(cols[4]?.replace(/,/g, '')) || 0;
+                    rate = parseFloat(cols[5]?.replace(/,/g, '')) || 0;
+                } else {
+                    // Only editable columns
+                    designSizes = cols[0]?.trim() || '';
+                    qty = parseFloat(cols[1]?.replace(/,/g, '')) || 0;
+                    fSize = 'all';
+                    diamond = cols[2]?.trim() || '';
+                    time = parseFloat(cols[3]?.replace(/,/g, '')) || 0;
+                    rate = parseFloat(cols[4]?.replace(/,/g, '')) || 0;
+                }
+
                 const amount = qty * rate;
                 return {
-                    designSizes: cols[0]?.trim() || '',
+                    designSizes,
                     quantity: qty,
-                    fSize: cols[2]?.trim() || 'all',
-                    diamond: cols[3]?.trim() || '',
-                    time: parseFloat(cols[4]?.replace(/,/g, '')) || 0,
-                    rate: rate,
+                    fSize,
+                    diamond,
+                    time,
+                    rate,
                     amount: Number(amount.toFixed(2))
                 };
             });
