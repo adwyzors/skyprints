@@ -38,7 +38,14 @@ export class UsersService {
         location: { select: { id: true, code: true, name: true } },
         createdAt: true,
         login: {
-          select: { permissions: true, lastLoginAt: true, isActive: true },
+          select: {
+            permissions: true,
+            isActive: true,
+            lastLoginAt: true,
+            failedLoginAttempts: true,
+            lastFailedLoginAt: true,
+            createdAt: true,
+          },
         },
       },
     });
@@ -56,8 +63,16 @@ export class UsersService {
         locationId: true,
         location: { select: { id: true, code: true, name: true } },
         createdAt: true,
+        updatedAt: true,
         login: {
-          select: { permissions: true, lastLoginAt: true, isActive: true },
+          select: {
+            permissions: true,
+            isActive: true,
+            lastLoginAt: true,
+            failedLoginAttempts: true,
+            lastFailedLoginAt: true,
+            createdAt: true,
+          },
         },
       },
     });

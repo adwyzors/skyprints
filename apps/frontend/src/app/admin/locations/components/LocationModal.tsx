@@ -5,6 +5,7 @@ import { createLocation, updateLocation } from '@/services/location.service';
 import { CreateLocationDto } from '@app/contracts';
 import { Loader2, MapPin, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface LocationModalProps {
     isOpen: boolean;
@@ -30,7 +31,6 @@ export default function LocationModal({
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     // Initialize form data when location prop changes
     useEffect(() => {
@@ -52,7 +52,6 @@ export default function LocationModal({
                 isActive: true,
             });
         }
-        setError(null);
     }, [location, isOpen]);
 
     if (!isOpen) return null;
@@ -71,10 +70,9 @@ export default function LocationModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
 
         if (!formData.name || !formData.code) {
-            setError('Name and Code are required.');
+            toast.error('Name and Code are required.');
             return;
         }
 
@@ -96,7 +94,7 @@ export default function LocationModal({
             onClose();
         } catch (err: any) {
             console.error(isEditMode ? 'Failed to update location:' : 'Failed to create location:', err);
-            setError(err.message || (isEditMode ? 'Failed to update location' : 'Failed to create location'));
+            toast.error(err.message || (isEditMode ? 'Failed to update location' : 'Failed to create location'));
         } finally {
             setIsSubmitting(false);
         }
@@ -191,12 +189,6 @@ export default function LocationModal({
                             <span className="text-xs font-medium text-gray-700">Active</span>
                         </label>
                     </div>
-
-                    {error && (
-                        <div className="p-2 bg-red-50 border border-red-100 rounded-lg text-center">
-                            <p className="text-xs text-red-600 font-medium">{error}</p>
-                        </div>
-                    )}
 
                     <div className="pt-1 flex gap-3">
                         <button

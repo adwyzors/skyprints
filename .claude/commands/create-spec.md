@@ -21,6 +21,7 @@ From $ARGUMENTS derive:
 1. `feature_title` — human readable, Title Case (e.g. "Bulk Order Export")
 2. `feature_slug` — lowercase kebab-case, max 40 chars, only a-z 0-9 and - (e.g. `bulk-order-export`)
 3. `branch_name` — format: `feature/<feature_slug>`
+4. `timestamp` — current date in `YYYY-MM-DD` format (e.g. `2026-06-29`). Get this by running `date +%Y-%m-%d` (Bash) or `Get-Date -Format 'yyyy-MM-dd'` (PowerShell).
 
 If you cannot infer these, ask the user before continuing.
 
@@ -141,7 +142,7 @@ A testable checklist. Each item must be verifiable by running the app or checkin
 
 ## Step 8 — Save the spec
 
-Save to: `.claude/specs/<feature_slug>.md`
+Save to: `.claude/specs/<timestamp>-<feature_slug>.md`
 Create the `.claude/specs/` directory if it does not exist.
 
 ## Step 9 — Report to the user
@@ -150,12 +151,12 @@ Print this summary:
 
 ```
 Branch:    <branch_name>
-Spec file: .claude/specs/<feature_slug>.md
+Spec file: .claude/specs/<timestamp>-<feature_slug>.md
 Title:     <feature_title>
 ```
 
 Then say:
-"Review the spec at `.claude/specs/<feature_slug>.md`, then use `/feature-dev` or
+"Review the spec at `.claude/specs/<timestamp>-<feature_slug>.md`, then use `/feature-dev` or
 enter Plan Mode (Shift+Tab twice) to begin implementation."
 
 Do not print the full spec in chat unless explicitly asked.

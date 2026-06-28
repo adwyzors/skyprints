@@ -29,17 +29,11 @@ export default function RoleGuard({ children, allowedRoles }: RoleGuardProps) {
                 // Redirect logic based on role
                 if (userRole === 'MANAGER') {
                     router.replace('/manager/runs');
-                } else if (userRole === 'ADMIN') {
-                    // Try to find the first authorized tab as a fallback
+                } else if (userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') {
                     const firstAllowedTab = ADMIN_TABS.find(tab =>
                         !tab.permission || hasPermission(tab.permission as any)
                     );
-
-                    if (firstAllowedTab) {
-                        router.replace(firstAllowedTab.path);
-                    } else {
-                        router.replace('/admin/runs'); // Logic fallback
-                    }
+                    router.replace(firstAllowedTab?.path ?? '/admin/runs');
                 } else {
                     router.replace('/403');
                 }

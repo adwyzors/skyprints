@@ -19,7 +19,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
     const router = useRouter();
 
     return (
-        <RoleGuard allowedRoles={['MANAGER', 'ADMIN']}>
+        <RoleGuard allowedRoles={['MANAGER', 'ADMIN', 'SUPER_ADMIN']}>
             <div className="min-h-screen bg-gray-50">
                 <AppHeader />
 

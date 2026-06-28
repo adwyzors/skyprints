@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getRunById, transitionLifeCycle } from '@/services/run.service';
 import { CheckCircle, Loader2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import ConfigurationModal from './ConfigurationModal';
 
 interface ManagerRunModalProps {
@@ -55,6 +56,7 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
             onClose();
         } catch (err) {
             console.error('Transition failed:', err);
+            toast.error(err instanceof Error ? err.message : 'Failed to advance run stage');
         } finally {
             setTransitioning(false);
         }

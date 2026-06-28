@@ -4,6 +4,7 @@ import { Order } from '@/domain/model/order.model';
 import { createBillingContext } from '@/services/billing.service';
 import { Loader2, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface CreateGroupModalProps {
   isOpen: boolean;
@@ -21,7 +22,6 @@ export default function CreateGroupModal({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Auto-generate details when modal opens
   useEffect(() => {
@@ -35,7 +35,6 @@ export default function CreateGroupModal({
 
       setName(`Bill-${randomCode}`);
       setDescription(`Created on ${dateStr}`);
-      setError(null);
     }
   }, [isOpen]);
 
@@ -45,17 +44,16 @@ export default function CreateGroupModal({
     if (e) e.preventDefault();
 
     if (!name.trim()) {
-      setError('Group name is required');
+      toast.error('Group name is required');
       return;
     }
 
     if (selectedOrders.length < 1) {
-      setError('At least 1 order is required to create a group');
+      toast.error('At least 1 order is required to create a group');
       return;
     }
 
     setIsSubmitting(true);
-    setError(null);
 
     try {
       const hasTestOrder = selectedOrders.some((o) => o.isTest);
@@ -72,7 +70,7 @@ export default function CreateGroupModal({
       onClose();
     } catch (err) {
       console.error('Failed to create billing group:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create group');
+      toast.error(err instanceof Error ? err.message : 'Failed to create group');
     } finally {
       setIsSubmitting(false);
     }
@@ -165,13 +163,6 @@ export default function CreateGroupModal({
               )}
             </div>
           </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-center">
-              <p className="text-sm text-red-600 font-medium">{error}</p>
-            </div>
-          )}
 
           {/* Action Button */}
           <button

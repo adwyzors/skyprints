@@ -3,6 +3,7 @@ import SearchableManagerSelect from '@/components/common/SearchableManagerSelect
 import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 import { AlertCircle, CheckCircle, ChevronRight, Edit, Eye, FileText, Loader2, MapPin, Palette, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -33,7 +34,6 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
     const { hasPermission, user } = useAuth();
     const [localOrder, setLocalOrder] = useState<Order>(order);
     const [isSaving, setIsSaving] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
     const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
 
     // Run Operations State
@@ -205,13 +205,12 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
 
     const handleAddRun = async (processId: string) => {
         setIsAddingRun(true);
-        setError(null);
         try {
             await addRunToProcess(localOrder.id, processId);
             if (onRefresh) await onRefresh();
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Failed to add run');
+            toast.error(err.message || 'Failed to add run');
         } finally {
             setIsAddingRun(false);
         }
@@ -220,13 +219,12 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
     const handleDeleteRun = async (processId: string, runId: string) => {
         if (!confirm('Are you sure you want to delete this run? This action cannot be undone.')) return;
         setIsDeletingRun(runId);
-        setError(null);
         try {
             await deleteRunFromProcess(localOrder.id, processId, runId);
             if (onRefresh) await onRefresh();
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Failed to delete run');
+            toast.error(err.message || 'Failed to delete run');
         } finally {
             setIsDeletingRun(null);
         }
@@ -236,7 +234,6 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
         if (!confirm('Are you sure you want to delete this entire process? This action cannot be undone.')) {
             return;
         }
-        setError(null);
         try {
             await deleteProcessFromOrder(localOrder.id, processId);
             if (onRefresh) {
@@ -244,7 +241,7 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
             }
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Failed to delete process');
+            toast.error(err.message || 'Failed to delete process');
         }
     };
 
@@ -389,7 +386,7 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
         const postLoc = postProdLocations[runId] ?? run?.postProductionLocation?.id;
 
         if (!preLoc || !postLoc) {
-            alert('Please select both Pre-Prod and Post-Prod locations.');
+            toast.error('Please select both Pre-Prod and Post-Prod locations.');
             return;
         }
 
@@ -411,7 +408,6 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
         } as SublimationRunValues & { 'Estimated Amount': number };
 
         setIsSaving(runId);
-        setError(null);
         try {
             // Standard Image Upload
             const images = runImages[runId] || [];
@@ -474,7 +470,7 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
             if (msg.toLowerCase().includes('credit limit')) {
                 setCreditLimitError(msg);
             } else {
-                setError(msg);
+                toast.error(msg);
             }
         } finally {
             setIsSaving(null);
@@ -766,12 +762,6 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
 
     return (
         <div className="space-y-4">
-            {error && (
-                <div className="p-3 bg-red-50 text-red-700 rounded-lg flex items-center gap-2 text-sm border border-red-200">
-                    <AlertCircle className="w-4 h-4" /> {error}
-                </div>
-            )}
-
             <CreditLimitErrorDialog
                 isOpen={!!creditLimitError}
                 onClose={() => setCreditLimitError(null)}

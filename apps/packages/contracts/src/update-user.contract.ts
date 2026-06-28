@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const UpdateUserSchema = z
   .object({
     name: z.string().min(1, 'Name cannot be empty').optional(),
-    role: z.enum(['ADMIN', 'MANAGER', 'OPERATOR']).optional(),
+    role: z.enum(['SUPER_ADMIN', 'ADMIN', 'MANAGER']).optional(),
     locationId: z.string().uuid('Invalid locationId').nullable().optional(),
     isActive: z.boolean().optional(),
   })

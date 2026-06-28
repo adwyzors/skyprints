@@ -31,11 +31,12 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 // ─── Permission data (mirrors apps/backend/src/auth/permissions.map.ts) ──────
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
-  ADMIN: [
+  SUPER_ADMIN: [
     'analytics:sync', 'analytics:view', 'billings:create', 'billings:create-test',
     'billings:delete', 'billings:update', 'billings:view', 'customers:create',
     'customers:delete', 'customers:update', 'customers:view', 'locations:all:view',
@@ -48,6 +49,18 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'runs:update', 'runs:view', 'settings:view', 'users:create', 'users:delete',
     'users:update', 'users:view',
   ],
+  ADMIN: [
+    'analytics:sync', 'analytics:view', 'billings:create', 'billings:create-test',
+    'billings:delete', 'billings:update', 'billings:view', 'customers:create',
+    'customers:delete', 'customers:update', 'customers:view', 'locations:all:view',
+    'locations:create', 'locations:delete', 'locations:update', 'locations:view',
+    'orders:create', 'orders:create-test', 'orders:delete', 'orders:reorder',
+    'orders:start-production', 'orders:update', 'orders:view', 'process:create',
+    'process:delete', 'process:update', 'process:view', 'rates:create', 'rates:delete',
+    'rates:update', 'rates:view', 'runs:create', 'runs:delete', 'runs:lifecycle:rollback',
+    'runs:lifecycle:update', 'runs:transition:digital', 'runs:transition:fusing',
+    'runs:update', 'runs:view', 'settings:view',
+  ],
   MANAGER: [
     'analytics:view', 'billings:create', 'billings:update', 'billings:view',
     'customers:view', 'locations:view', 'orders:create', 'orders:reorder',
@@ -55,7 +68,6 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'rates:view', 'runs:create', 'runs:lifecycle:update', 'runs:transition:digital',
     'runs:transition:fusing', 'runs:update', 'runs:view',
   ],
-  OPERATOR: ['orders:view', 'process:view', 'runs:lifecycle:update', 'runs:update', 'runs:view'],
 };
 
 const ALL_PERMISSIONS = Array.from(
@@ -125,16 +137,14 @@ interface CreateUserModalProps {
 
 function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserModalProps) {
   const [form, setForm] = useState<CreateUserPayload>({
-    name: '', email: '', role: 'OPERATOR', password: '',
-    permissions: [...ROLE_PERMISSIONS.OPERATOR],
+    name: '', email: '', role: 'MANAGER', password: '',
+    permissions: [...ROLE_PERMISSIONS.MANAGER],
   });
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      setForm({ name: '', email: '', role: 'OPERATOR', password: '', permissions: [...ROLE_PERMISSIONS.OPERATOR] });
-      setError(null);
+      setForm({ name: '', email: '', role: 'MANAGER', password: '', permissions: [...ROLE_PERMISSIONS.MANAGER] });
     }
   }, [isOpen]);
 
@@ -156,13 +166,12 @@ function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserMo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setSubmitting(true);
     try {
       await createUser({ ...form, locationId: form.locationId || undefined });
       onSuccess();
     } catch (err: any) {
-      setError(err?.message ?? 'Failed to create user');
+      toast.error(err?.message ?? 'Failed to create user');
     } finally {
       setSubmitting(false);
     }
@@ -209,9 +218,9 @@ function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserMo
                 <label className="text-xs font-medium text-gray-700">Role <span className="text-red-500">*</span></label>
                 <select value={form.role} onChange={e => handleRoleChange(e.target.value)}
                   className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="SUPER_ADMIN">Super Admin</option>
                   <option value="ADMIN">Admin</option>
                   <option value="MANAGER">Manager</option>
-                  <option value="OPERATOR">Operator</option>
                 </select>
               </div>
               <div className="space-y-1">
@@ -264,11 +273,6 @@ function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserMo
               </div>
             </div>
 
-            {error && (
-              <div className="p-2 bg-red-50 border border-red-100 rounded-lg">
-                <p className="text-xs text-red-600 font-medium">{error}</p>
-              </div>
-            )}
           </div>
 
           <div className="p-4 border-t border-gray-100 flex gap-3 flex-shrink-0">
@@ -301,12 +305,10 @@ interface EditUserModalProps {
 function EditUserModal({ isOpen, user, locations, onClose, onSuccess }: EditUserModalProps) {
   const [form, setForm] = useState<UpdateUserPayload>({});
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && isOpen) {
       setForm({ name: user.name, role: user.role as UpdateUserPayload['role'], locationId: user.locationId, isActive: user.isActive });
-      setError(null);
     }
   }, [user, isOpen]);
 
@@ -314,13 +316,12 @@ function EditUserModal({ isOpen, user, locations, onClose, onSuccess }: EditUser
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setSubmitting(true);
     try {
       await updateUser(user.id, form);
       onSuccess();
     } catch (err: any) {
-      setError(err?.message ?? 'Failed to update user');
+      toast.error(err?.message ?? 'Failed to update user');
     } finally {
       setSubmitting(false);
     }
@@ -357,9 +358,9 @@ function EditUserModal({ isOpen, user, locations, onClose, onSuccess }: EditUser
               <select value={form.role ?? ''}
                 onChange={e => setForm(p => ({ ...p, role: e.target.value as UpdateUserPayload['role'] }))}
                 className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="SUPER_ADMIN">Super Admin</option>
                 <option value="ADMIN">Admin</option>
                 <option value="MANAGER">Manager</option>
-                <option value="OPERATOR">Operator</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -381,12 +382,6 @@ function EditUserModal({ isOpen, user, locations, onClose, onSuccess }: EditUser
               className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded" />
             <span className="text-xs font-medium text-gray-700">Account Active</span>
           </label>
-
-          {error && (
-            <div className="p-2 bg-red-50 border border-red-100 rounded-lg">
-              <p className="text-xs text-red-600 font-medium">{error}</p>
-            </div>
-          )}
 
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} disabled={submitting}
@@ -417,12 +412,10 @@ interface PermissionsDrawerProps {
 function PermissionsDrawer({ isOpen, user, onClose, onSuccess }: PermissionsDrawerProps) {
   const [perms, setPerms] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && isOpen) {
       setPerms([...(user.login?.permissions ?? [])]);
-      setError(null);
     }
   }, [user, isOpen]);
 
@@ -432,13 +425,12 @@ function PermissionsDrawer({ isOpen, user, onClose, onSuccess }: PermissionsDraw
     setPerms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
 
   const handleSubmit = async () => {
-    setError(null);
     setSubmitting(true);
     try {
       await updatePermissions(user.id, { permissions: perms });
       onSuccess();
     } catch (err: any) {
-      setError(err?.message ?? 'Failed to update permissions');
+      toast.error(err?.message ?? 'Failed to update permissions');
     } finally {
       setSubmitting(false);
     }
@@ -448,12 +440,12 @@ function PermissionsDrawer({ isOpen, user, onClose, onSuccess }: PermissionsDraw
     <>
       <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-sm bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
-        <div className="bg-purple-600 p-4 text-white flex items-center justify-between flex-shrink-0">
+        <div className="bg-blue-600 p-4 text-white flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <Shield className="w-5 h-5" />
             <div>
               <h2 className="text-base font-bold">Permissions</h2>
-              <p className="text-purple-200 text-xs truncate max-w-[180px]">{user.name}</p>
+              <p className="text-blue-100 text-xs truncate max-w-[180px]">{user.name}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20"><X className="w-5 h-5" /></button>
@@ -462,7 +454,7 @@ function PermissionsDrawer({ isOpen, user, onClose, onSuccess }: PermissionsDraw
         <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between flex-shrink-0">
           <span className="text-xs text-gray-500">{perms.length} / {ALL_PERMISSIONS.length} selected</span>
           <button onClick={() => setPerms([...(ROLE_PERMISSIONS[user.role] ?? [])])}
-            className="text-xs font-medium text-purple-600 hover:underline">
+            className="text-xs font-medium text-blue-600 hover:underline">
             Load role defaults ({user.role})
           </button>
         </div>
@@ -475,9 +467,9 @@ function PermissionsDrawer({ isOpen, user, onClose, onSuccess }: PermissionsDraw
               </div>
               {groupPerms.map(p => (
                 <label key={p} onClick={() => toggle(p)}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-purple-50/40 cursor-pointer border-b border-gray-50">
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50/40 cursor-pointer border-b border-gray-50">
                   <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                    perms.includes(p) ? 'bg-purple-600 border-purple-600' : 'border-gray-300 bg-white'
+                    perms.includes(p) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'
                   }`}>
                     {perms.includes(p) && <Check className="w-3 h-3 text-white" />}
                   </div>
@@ -488,19 +480,13 @@ function PermissionsDrawer({ isOpen, user, onClose, onSuccess }: PermissionsDraw
           ))}
         </div>
 
-        {error && (
-          <div className="px-4 py-2 bg-red-50 border-t border-red-100 flex-shrink-0">
-            <p className="text-xs text-red-600">{error}</p>
-          </div>
-        )}
-
         <div className="p-4 border-t border-gray-100 flex gap-3 flex-shrink-0">
           <button onClick={onClose} disabled={submitting}
             className="flex-1 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium rounded-lg disabled:opacity-50">
             Cancel
           </button>
           <button onClick={handleSubmit} disabled={submitting}
-            className="flex-1 py-2 text-sm bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg disabled:opacity-60 flex items-center justify-center gap-2">
+            className="flex-1 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg disabled:opacity-60 flex items-center justify-center gap-2">
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
             Save
           </button>
@@ -522,23 +508,21 @@ interface ResetPasswordModalProps {
 function ResetPasswordModal({ isOpen, user, onClose, onSuccess }: ResetPasswordModalProps) {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) { setPassword(''); setError(null); }
+    if (isOpen) { setPassword(''); }
   }, [isOpen]);
 
   if (!isOpen || !user) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setSubmitting(true);
     try {
       await resetPassword(user.id, { password });
       onSuccess();
     } catch (err: any) {
-      setError(err?.message ?? 'Failed to reset password');
+      toast.error(err?.message ?? 'Failed to reset password');
     } finally {
       setSubmitting(false);
     }
@@ -548,14 +532,14 @@ function ResetPasswordModal({ isOpen, user, onClose, onSuccess }: ResetPasswordM
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="bg-orange-600 p-4 text-white flex items-center justify-between">
+        <div className="bg-blue-600 p-4 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center">
               <Key className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base font-bold">Reset Password</h2>
-              <p className="text-orange-100 text-xs truncate max-w-[160px]">{user.name}</p>
+              <p className="text-blue-100 text-xs truncate max-w-[160px]">{user.name}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20"><X className="w-5 h-5" /></button>
@@ -565,16 +549,15 @@ function ResetPasswordModal({ isOpen, user, onClose, onSuccess }: ResetPasswordM
             <label className="text-xs font-medium text-gray-700">New Password <span className="text-red-500">*</span></label>
             <input type="password" required autoComplete="new-password" value={password}
               onChange={e => setPassword(e.target.value)}
-              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
-          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-3 py-1.5">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} disabled={submitting}
               className="flex-1 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium rounded-lg disabled:opacity-50">
               Cancel
             </button>
             <button type="submit" disabled={submitting}
-              className="flex-1 py-2 text-sm bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg disabled:opacity-60 flex items-center justify-center gap-2">
+              className="flex-1 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg disabled:opacity-60 flex items-center justify-center gap-2">
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               Reset Password
             </button>
@@ -697,6 +680,8 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Login</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Perms</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Last Login</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Failed Logins</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -704,14 +689,14 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                 {loading ? (
                   [...Array(5)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      {[...Array(8)].map((_, j) => (
+                      {[...Array(10)].map((_, j) => (
                         <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded" /></td>
                       ))}
                     </tr>
                   ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center">
+                    <td colSpan={10} className="px-4 py-12 text-center">
                       <Users className="w-10 h-10 text-gray-200 mx-auto mb-2" />
                       <p className="text-sm text-gray-400">No users found</p>
                     </td>
@@ -722,9 +707,9 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                     const loginActive = u.login?.isActive ?? false;
                     const permCount = u.login?.permissions?.length ?? 0;
                     const roleColor: Record<string, string> = {
+                      SUPER_ADMIN: 'bg-red-100 text-red-700',
                       ADMIN: 'bg-purple-100 text-purple-700',
                       MANAGER: 'bg-blue-100 text-blue-700',
-                      OPERATOR: 'bg-gray-100 text-gray-600',
                     };
                     return (
                       <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
@@ -769,10 +754,32 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                         <td className="px-4 py-3 text-right">
                           <span className="text-sm font-medium text-gray-700">{permCount}</span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                          {u.login?.lastLoginAt
-                            ? new Date(u.login.lastLoginAt).toLocaleDateString('en-GB')
-                            : <span className="text-gray-300 text-xs">Never</span>}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {u.login?.lastLoginAt ? (
+                            <div>
+                              <div className="text-xs text-gray-700">{new Date(u.login.lastLoginAt).toLocaleDateString('en-GB')}</div>
+                              <div className="text-[10px] text-gray-400">{new Date(u.login.lastLoginAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                          ) : <span className="text-gray-300 text-xs">Never</span>}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {u.login && u.login.failedLoginAttempts > 0 ? (
+                            <div>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700">
+                                {u.login.failedLoginAttempts}x
+                              </span>
+                              {u.login.lastFailedLoginAt && (
+                                <div className="text-[10px] text-gray-400 mt-0.5">
+                                  {new Date(u.login.lastFailedLoginAt).toLocaleDateString('en-GB')}{' '}
+                                  {new Date(u.login.lastFailedLoginAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              )}
+                            </div>
+                          ) : <span className="text-gray-300 text-xs">—</span>}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="text-xs text-gray-700">{new Date(u.createdAt).toLocaleDateString('en-GB')}</div>
+                          <div className="text-[10px] text-gray-400">{new Date(u.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-0.5">

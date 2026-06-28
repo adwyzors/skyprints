@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AuthUser } from './auth.types';
-import { fetchMe, redirectToLogin } from './authClient';
+import { clearSession, fetchMe, redirectToLogin } from './authClient';
 import { PUBLIC_ROUTES } from './publicRoutes';
 
 function isPublicRoute(pathname: string) {
@@ -57,7 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         }
                         break;
                     case 'forbidden':
-                        router.replace('/403');
+                        // Account disabled or deleted — clear cookies and go to login
+                        if (!redirectedRef.current) {
+                            redirectedRef.current = true;
+                            await clearSession();
+                            redirectToLogin(pathname);
+                        }
                         break;
                     default:
                         router.replace('/error');
@@ -100,11 +105,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const userRole = user.user?.role || '';
 
         // Strict prefix-based protection
-        if (pathname.startsWith('/admin') && userRole !== 'ADMIN') {
+        if (pathname.startsWith('/admin') && !['SUPER_ADMIN', 'ADMIN'].includes(userRole)) {
             return false;
         }
 
-        if (pathname.startsWith('/manager') && !['ADMIN', 'MANAGER'].includes(userRole)) {
+        if (pathname.startsWith('/manager') && !['SUPER_ADMIN', 'ADMIN', 'MANAGER'].includes(userRole)) {
             return false;
         }
 

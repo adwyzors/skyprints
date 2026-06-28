@@ -8,6 +8,7 @@ import { createOrder } from '@/services/orders.service';
 import { getProcesses } from '@/services/process.service';
 import { NewOrderPayload } from '@/types/planning';
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import CustomerSelector from '../orders/CustomerSelector';
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -37,7 +38,6 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     const [jobCode, setJobCode] = useState<string>('');
     const [processRows, setProcessRows] = useState<ProcessRow[]>([]);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [processes, setProcesses] = useState<ProcessSummary[]>([]);
     const [dataLoading, setDataLoading] = useState(false);
@@ -56,7 +56,6 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
         setQuantity(0);
         setJobCode('');
         setProcessRows([]);
-        setError(null);
         setSelectedImages([]);
         setImagePreviews([]);
         setUseOrderImageForRuns(false);
@@ -83,7 +82,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
             } catch (error) {
                 if (!cancelled) {
                     const message = error instanceof Error ? error.message : 'Failed to load data';
-                    setError(message);
+                    toast.error(message);
                     console.error(error);
                 }
             } finally {
@@ -114,28 +113,25 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
 
         // Restrict to 2 photos
         if (selectedImages.length + fileArray.length > 2) {
-            setError('Maximum 2 photos allowed');
+            toast.error('Maximum 2 photos allowed');
             return;
         }
 
-        // Validate file types
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
         const invalidFiles = fileArray.filter(file => !validTypes.includes(file.type));
 
         if (invalidFiles.length > 0) {
-            setError('Only JPEG, PNG, and WebP images are allowed');
+            toast.error('Only JPEG, PNG, and WebP images are allowed');
             return;
         }
 
-        // Validate original file sizes (max 5MB per file just as a sane limit before compression)
         const oversizedFiles = fileArray.filter(file => file.size > 5 * 1024 * 1024);
         if (oversizedFiles.length > 0) {
-            setError('Each image must be less than 5MB');
+            toast.error('Each image must be less than 5MB');
             return;
         }
 
         setLoading(true);
-        setError(null);
 
         try {
             const compressedFilesPromises = fileArray.map(async (file) => {
@@ -183,7 +179,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
 
         } catch (err) {
             console.error("Image processing error", err);
-            setError('Failed to process images');
+            toast.error('Failed to process images');
         } finally {
             setLoading(false);
         }
@@ -202,25 +198,23 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     const handleCreateClick = () => {
         // 1. Validate inputs
         if (!selectedCustomer) {
-            setError('Please select a customer');
+            toast.error('Please select a customer');
             return;
         }
         if (quantity <= 0) {
-            setError('Please enter a valid quantity');
+            toast.error('Please enter a valid quantity');
             return;
         }
         if (processRows.length === 0) {
-            setError('Please add at least one process');
+            toast.error('Please add at least one process');
             return;
         }
         const invalidRows = processRows.some((row) => !row.processId || row.runs <= 0);
         if (invalidRows) {
-            setError('Please fill all process details correctly');
+            toast.error('Please fill all process details correctly');
             return;
         }
 
-        // 2. Clear error and show confirmation
-        setError(null);
         setShowConfirm(true);
     };
 
@@ -228,7 +222,6 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
         if (!selectedCustomer) return;
 
         setLoading(true);
-        setError(null);
 
         try {
             const now = new Date().toISOString();
@@ -256,18 +249,17 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
             setShowConfirm(false); // Close confirmation on error
 
             const errorMsg = err.message || '';
-            
-            // Check for credit limit specifically
-            if (errorMsg.toLowerCase().includes('credit limit reached')) {
+
+            if (errorMsg.toLowerCase().includes('credit limit')) {
                 setCreditLimitError('Credit limit reached for this customer.');
                 return;
             }
 
             if (errorMsg.includes('invalid_type') || errorMsg.includes('expected')) {
-                setError('Server validation error. Please check your data and try again.');
+                toast.error('Server validation error. Please check your data and try again.');
                 console.error('Validation error details:', err);
             } else {
-                setError(errorMsg || 'Failed to create order');
+                toast.error(errorMsg || 'Failed to create order');
             }
         } finally {
             setLoading(false);
@@ -323,13 +315,6 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
 
                     {/* CONTENT */}
                     <div className="flex-1 overflow-y-auto p-6">
-                        {/* ERROR MESSAGE */}
-                        {error && (
-                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                <p className="text-red-700 text-sm">{error}</p>
-                            </div>
-                        )}
-
                         {/* LOADING DATA */}
                         {dataLoading && (
                             <div className="flex items-center justify-center py-8">
@@ -353,7 +338,6 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                                 selectedCustomerId={selectedCustomerId}
                                                 onSelect={(c) => {
                                                     setSelectedCustomerId(c?.id || null);
-                                                    setError(null);
                                                 }}
                                                 disabled={loading}
                                             />
@@ -369,7 +353,6 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                                 onChange={(e) => {
                                                     const value = parseInt(e.target.value);
                                                     setQuantity(isNaN(value) ? 0 : value);
-                                                    setError(null);
                                                 }}
                                                 disabled={loading}
                                                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
@@ -404,34 +387,11 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                                 value={jobCode}
                                                 onChange={(e) => {
                                                     setJobCode(e.target.value);
-                                                    setError(null);
                                                 }}
                                                 disabled={loading}
                                                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
                                             />
                                         </div>
-
-                                        {/* TEST ORDER SETTING */}
-                                        {canCreateTest && (
-                                            <div className="space-y-2 col-span-1 md:col-span-2 mt-2 bg-yellow-50 border border-yellow-200 p-3 rounded-lg flex items-center">
-                                                <input
-                                                    type="checkbox"
-                                                    id="isTestOrder"
-                                                    checked={isTest}
-                                                    onChange={(e) => setIsTest(e.target.checked)}
-                                                    disabled={loading}
-                                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
-                                                />
-                                                <div className="flex flex-col">
-                                                    <label htmlFor="isTestOrder" className="text-sm font-semibold text-gray-800 cursor-pointer">
-                                                        Create as Test Order
-                                                    </label>
-                                                    <p className="text-xs text-gray-600 mt-0.5">
-                                                        Will generate under TESTORD sequence and can be filtered out of regular reporting.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
 
                                     {/* IMAGE UPLOAD */}
@@ -613,7 +573,6 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                                                 selectedProcessId={row.processId || null}
                                                                 onSelect={(id) => {
                                                                     updateProcessRow(i, { processId: id });
-                                                                    setError(null);
                                                                 }}
                                                                 disabled={loading}
                                                                 label="Process"
@@ -647,6 +606,28 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                         </div>
                                     )}
                                 </div>
+
+                                        {/* TEST ORDER SETTING */}
+                                        {canCreateTest && (
+                                            <div className="space-y-2 col-span-1 md:col-span-2 mt-2 bg-yellow-50 border border-yellow-200 p-3 rounded-lg flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id="isTestOrder"
+                                                    checked={isTest}
+                                                    onChange={(e) => setIsTest(e.target.checked)}
+                                                    disabled={loading}
+                                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
+                                                />
+                                                <div className="flex flex-col">
+                                                    <label htmlFor="isTestOrder" className="text-sm font-semibold text-gray-800 cursor-pointer">
+                                                        Create as Test Order
+                                                    </label>
+                                                    <p className="text-xs text-gray-600 mt-0.5">
+                                                        Will generate under TESTORD sequence and can be filtered out of regular reporting.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                             </>
                         )}
                     </div>

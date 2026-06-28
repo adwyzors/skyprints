@@ -21,7 +21,17 @@ export async function fetchMe(): Promise<FetchMeResult> {
         });
 
         if (res.status === 401) {
-            return { status: "unauthenticated" };
+            // Access token expired — attempt a silent refresh before giving up
+            const refreshed = await refreshToken();
+            if (!refreshed) {
+                return { status: "unauthenticated" };
+            }
+            const retry = await fetch(`${API}/auth/me`, { credentials: "include" });
+            if (retry.status === 401) return { status: "unauthenticated" };
+            if (retry.status === 403) return { status: "forbidden" };
+            if (!retry.ok) return { status: "error" };
+            const user = await retry.json();
+            return { status: "ok", user };
         }
 
         if (res.status === 403) {
@@ -65,13 +75,12 @@ export function redirectToLogin(redirectTo: string) {
         : `${API}/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
 }
 
+export async function clearSession(): Promise<void> {
+    await fetch(`${API}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => {});
+}
+
 export async function logout() {
     log("Logging out");
-
-    await fetch(`${API}/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-    });
-
+    await clearSession();
     window.location.href = "/";
 }

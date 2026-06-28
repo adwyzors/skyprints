@@ -2,7 +2,6 @@
 
 import { getRunBillingMetrics as getRunBillingMetricsInfo } from '@/services/billing-calculator';
 import {
-    AlertCircle,
     ArrowLeft,
     Calculator,
     ChevronDown,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -49,7 +49,6 @@ function OrderConfigPage() {
     const [order, setOrder] = useState<Order | null>(null);
     const [billingData, setBillingData] = useState<BillingSnapshot | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [editingRunId, setEditingRunId] = useState<string | null>(null);
     const [editValues, setEditValues] = useState<Record<string, number>>({});
     const [isSavingBilling, setIsSavingBilling] = useState(false);
@@ -85,7 +84,6 @@ function OrderConfigPage() {
 
         isFetching.current = true;
         setLoading(true);
-        setError(null);
 
         try {
             // Fetch order data
@@ -113,7 +111,7 @@ function OrderConfigPage() {
             }
         } catch (err) {
             console.error(err);
-            setError(err instanceof Error ? err.message : 'Failed to load order data');
+            toast.error(err instanceof Error ? err.message : 'Failed to load order data');
         } finally {
             setLoading(false);
             isFetching.current = false;
@@ -179,7 +177,7 @@ function OrderConfigPage() {
             await fetchAllData(); // Refresh to get recalculated totals
         } catch (err) {
             console.error('Failed to update billing:', err);
-            alert('Failed to update billing data');
+            toast.error('Failed to update billing data');
         } finally {
             setIsSavingBilling(false);
         }
@@ -226,27 +224,9 @@ function OrderConfigPage() {
         );
     }
 
-    if (error === 'Order not found' || !order) {
-        if (!loading) notFound();
+    if (!loading && !order) {
+        notFound();
         return null;
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-gray-700 mb-2">{error}</h2>
-                    <button
-                        onClick={() => router.push('/admin/orders')}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back to Orders
-                    </button>
-                </div>
-            </div>
-        );
     }
 
     return (
@@ -979,7 +959,7 @@ function OrderConfigPage() {
                                                 router.push(`/admin/orders?selectedOrder=${order.id}`);
                                             } catch (err) {
                                                 console.error(err);
-                                                alert('Failed to transition order');
+                                                toast.error('Failed to transition order');
                                                 setLoading(false);
                                             }
                                         }}

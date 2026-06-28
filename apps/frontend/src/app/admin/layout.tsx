@@ -43,7 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // never unmounts them. Only the sidebar content swaps on hydration, which does not
     // affect children at all.
     return (
-        <RoleGuard allowedRoles={['ADMIN']}>
+        <RoleGuard allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
             <div className="h-screen bg-gray-50 flex flex-col overflow-hidden relative">
                 {/* GLOBAL TOP HEADER */}
                 <div className="flex-shrink-0 bg-white">

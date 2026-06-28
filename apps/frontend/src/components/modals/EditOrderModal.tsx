@@ -7,6 +7,7 @@ import { getCustomers } from '@/services/customer.service';
 import { updateOrder } from '@/services/orders.service';
 import { Loader2, Save, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Props {
     open: boolean;
@@ -33,7 +34,6 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
     const [existingImages, setExistingImages] = useState<string[]>(order.images || []);
 
     const [processing, setProcessing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     // Load customers on mount
     useEffect(() => {
@@ -52,7 +52,6 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
             setExistingImages(order.images || []);
             setNewImages([]);
             setNewImagePreviews([]);
-            setError(null);
         }
     }, [open, order]);
 
@@ -71,7 +70,7 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
 
         // Limits
         if (existingImages.length + newImages.length + fileArray.length > 2) {
-            setError('Maximum 2 images allowed');
+            toast.error('Maximum 2 images allowed');
             return;
         }
 
@@ -117,10 +116,9 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
                 reader.readAsDataURL(file);
             });
 
-            setError(null);
         } catch (err) {
             console.error(err);
-            setError('Failed to process images');
+            toast.error('Failed to process images');
         }
     };
 
@@ -135,16 +133,15 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
 
     const handleSubmit = async () => {
         if (!customerId) {
-            setError("Please select a valid customer");
+            toast.error('Please select a valid customer');
             return;
         }
         if (quantity <= 0) {
-            setError("Quantity must be greater than 0");
+            toast.error('Quantity must be greater than 0');
             return;
         }
 
         setProcessing(true);
-        setError(null);
 
         try {
             // Upload new images
@@ -178,7 +175,7 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
             onClose();
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Failed to update order');
+            toast.error(err.message || 'Failed to update order');
         } finally {
             setProcessing(false);
         }
@@ -206,13 +203,7 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
 
                 {/* Body */}
                 <div className="p-6 overflow-y-auto space-y-5">
-                    {error && (
-                        <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg">
-                            {error}
-                        </div>
-                    )}
-
-                    {/* Customer Select */}
+                        {/* Customer Select */}
                     <div className="space-y-1.5 relative">
                         <label className="text-sm font-medium text-gray-700">Customer</label>
                         <input

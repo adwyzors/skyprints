@@ -5,6 +5,7 @@ import { createCustomer, updateCustomer } from '@/services/customer.service';
 import { CreateCustomerDto } from '@app/contracts';
 import { ClipboardPaste, Loader2, Users, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 interface CustomerModalProps {
     isOpen: boolean;
@@ -51,7 +52,6 @@ export default function CustomerModal({
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [pasteSuccess, setPasteSuccess] = useState<string | null>(null);
     const pasteToastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -87,7 +87,6 @@ export default function CustomerModal({
                 outstandingAmount: 0,
             });
         }
-        setError(null);
         setPasteSuccess(null);
     }, [customer, isOpen]);
 
@@ -159,15 +158,13 @@ export default function CustomerModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
-
         if (!formData.name || !formData.code) {
-            setError('Name and Code are required.');
+            toast.error('Name and Code are required.');
             return;
         }
 
         if (formData.tds && !formData.tdsno) {
-            setError('TDS Number is required when TDS Deduction is enabled.');
+            toast.error('TDS Number is required when TDS Deduction is enabled.');
             return;
         }
 
@@ -191,7 +188,7 @@ export default function CustomerModal({
             onClose();
         } catch (err: any) {
             console.error(isEditMode ? 'Failed to update customer:' : 'Failed to create customer:', err);
-            setError(err.message || (isEditMode ? 'Failed to update customer' : 'Failed to create customer'));
+            toast.error(err.message || (isEditMode ? 'Failed to update customer' : 'Failed to create customer'));
         } finally {
             setIsSubmitting(false);
         }
@@ -389,12 +386,6 @@ export default function CustomerModal({
                     </div>
 
 
-
-                    {error && (
-                        <div className="p-2 bg-red-50 border border-red-100 rounded-lg text-center">
-                            <p className="text-xs text-red-600 font-medium">{error}</p>
-                        </div>
-                    )}
 
                     <div className="pt-1 flex gap-3">
                         <button

@@ -14,6 +14,10 @@ Auth: Keycloak hosted on DigitalOcean. DB: hosted PostgreSQL. Image storage: Clo
 
 **This project is live in production. Never change externally observable behaviour without explicit approval.**
 
+## Security rules
+
+- **NEVER read, display, or reference the contents of `.env.prod` or `.env.supabase.prod`.** If a task requires knowing a production value, ask the user to provide it explicitly.
+
 ## Commands (run from repo root)
 
 ```bash

@@ -117,6 +117,10 @@ export async function apiRequest<T>(
         return handleResponseError(response);
     }
 
+    if (response.status === 204) {
+        return undefined as T;
+    }
+
     return response.json() as Promise<T>;
 }
 

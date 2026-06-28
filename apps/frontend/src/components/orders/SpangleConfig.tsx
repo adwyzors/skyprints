@@ -16,6 +16,7 @@ import {
     X
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import RunCommentEditor from './RunCommentEditor';
@@ -108,7 +109,6 @@ export default function SpangleConfig({
     const { hasPermission } = useAuth();
     const [localOrder, setLocalOrder] = useState<Order>(order);
     const [isSaving, setIsSaving] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
     const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
 
     // Run Operations State
@@ -184,12 +184,11 @@ export default function SpangleConfig({
 
     const handleAddRun = async (processId: string) => {
         setIsAddingRun(true);
-        setError(null);
         try {
             await addRunToProcess(localOrder.id, processId);
             if (onRefresh) await onRefresh();
         } catch (err: any) {
-            setError(err.message || 'Failed to add run');
+            toast.error(err.message || 'Failed to add run');
         } finally {
             setIsAddingRun(false);
         }
@@ -202,7 +201,7 @@ export default function SpangleConfig({
             await deleteRunFromProcess(localOrder.id, processId, runId);
             if (onRefresh) await onRefresh();
         } catch (err: any) {
-            setError(err.message || 'Failed to delete run');
+            toast.error(err.message || 'Failed to delete run');
         } finally {
             setIsDeletingRun(null);
         }
@@ -212,13 +211,12 @@ export default function SpangleConfig({
         if (!confirm('Are you sure you want to delete this entire process? This action cannot be undone.')) {
             return;
         }
-        setError(null);
         try {
             await deleteProcessFromOrder(localOrder.id, processId);
             if (onRefresh) await onRefresh();
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Failed to delete process');
+            toast.error(err.message || 'Failed to delete process');
         }
     };
 
@@ -334,7 +332,7 @@ export default function SpangleConfig({
         const postLoc = postProdLocations[runId] ?? currentPostProdLocationId;
 
         if (!preLoc || !postLoc) {
-            alert('Please select both Pre-Prod and Post-Prod locations.');
+            toast.error('Please select both Pre-Prod and Post-Prod locations.');
             return;
         }
 
@@ -342,12 +340,11 @@ export default function SpangleConfig({
 
         // Validation
         if (totals.items.some(item => !item.design || !item.quantity || !item.dotsReq)) {
-            alert('Please fill in Design size, Qty, and Dots Req for all rows.');
+            toast.error('Please fill in Design size, Qty, and Dots Req for all rows.');
             return;
         }
 
         setIsSaving(runId);
-        setError(null);
 
         try {
             // Upload Reference Images
@@ -434,7 +431,7 @@ export default function SpangleConfig({
             if (msg.toLowerCase().includes('credit limit')) {
                 setCreditLimitError(msg);
             } else {
-                setError(msg);
+                toast.error(msg);
             }
         } finally {
             setIsSaving(null);
@@ -816,7 +813,6 @@ export default function SpangleConfig({
 
     return (
         <div className="space-y-4">
-            {error && <div className="p-3 bg-red-50 text-red-700 rounded text-sm">{error}</div>}
             <CreditLimitErrorDialog
                 isOpen={!!creditLimitError}
                 onClose={() => setCreditLimitError(null)}

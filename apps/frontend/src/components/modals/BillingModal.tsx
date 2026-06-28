@@ -9,6 +9,7 @@ import { getOrderById } from '@/services/orders.service';
 import { Calculator, ChevronDown, Edit2, FileText, Image as ImageIcon, IndianRupee, Loader2, Package, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import EditOrderModal from './EditOrderModal';
 import ImagePreviewModal from './ImagePreviewModal';
 
@@ -29,7 +30,6 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
     const [billingRates, setBillingRates] = useState<BillingRates>({});
     const [expandedRuns, setExpandedRuns] = useState<Set<string>>(new Set());
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const [mobilePanelTab, setMobilePanelTab] = useState<'summary' | 'billing'>('summary');
@@ -47,7 +47,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                 setOrder(fetchedOrder);
             } catch (err) {
                 console.error('Error fetching order:', err);
-                setError('Failed to load order details');
+                toast.error('Failed to load order details');
             } finally {
                 setLoading(false);
             }
@@ -136,7 +136,6 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
         if (!order) return;
 
         setSubmitting(true);
-        setError(null);
 
         try {
             const payload = buildPayload();
@@ -151,7 +150,7 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
             onClose();
         } catch (err) {
             console.error('Billing error:', err);
-            setError(err instanceof Error ? err.message : 'Failed to finalize billing');
+            toast.error(err instanceof Error ? err.message : 'Failed to finalize billing');
         } finally {
             setSubmitting(false);
         }
@@ -356,12 +355,6 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                             </div>
                         </div>
 
-                        {/* Error Message */}
-                        {error && (
-                            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                                {error}
-                            </div>
-                        )}
                     </div>
 
                 </div>

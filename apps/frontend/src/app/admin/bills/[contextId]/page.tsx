@@ -20,6 +20,7 @@ import {
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 function BillingContextDetailPage() {
     const { contextId } = useParams<{ contextId: string }>();
@@ -30,7 +31,6 @@ function BillingContextDetailPage() {
     const [details, setDetails] = useState<BillingContextDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [finalizing, setFinalizing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const { hasPermission } = useAuth();
 
     // Track editable inputs: { orderId: { runId: { new_rate: number } } }
@@ -49,7 +49,7 @@ function BillingContextDetailPage() {
             setDetails(data);
         } catch (error) {
             console.error('Failed to fetch billing context details:', error);
-            setError('Failed to load billing group details');
+            toast.error('Failed to load billing group details');
         } finally {
             setLoading(false);
         }
@@ -126,10 +126,10 @@ function BillingContextDetailPage() {
             await finalizeBillingGroupWithInputs(payload);
             setDraftInputs({});
             await fetchDetails();
-            alert('Billing group finalized successfully!');
+            toast.success('Billing group finalized successfully!');
         } catch (error) {
             console.error('Failed to finalize group:', error);
-            alert('Failed to finalize billing group');
+            toast.error('Failed to finalize billing group');
         } finally {
             setFinalizing(false);
         }
@@ -185,10 +185,10 @@ function BillingContextDetailPage() {
         );
     }
 
-    if (error || !details) {
+    if (!details) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-gray-500">
-                <p className="text-lg font-bold">{error || 'Billing Group Not Found'}</p>
+                <p className="text-lg font-bold">Billing Group Not Found</p>
                 <Link href="/admin/bills" className="mt-4 text-blue-600 hover:underline">
                     Return to Bills
                 </Link>

@@ -10,6 +10,7 @@ import {
     X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import RunCommentEditor from './RunCommentEditor';
 import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
@@ -42,7 +43,6 @@ export default function PositiveConfig({
     const [localOrder, setLocalOrder] = useState<Order>(order);
     const [openRunId, setOpenRunId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
     const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
     const [isAddingRun, setIsAddingRun] = useState(false);
     const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
@@ -101,7 +101,7 @@ export default function PositiveConfig({
 
         // Restrict to 2 photos total (existing + new)
         if (totalCurrent + fileArray.length > 2) {
-            alert('Maximum 2 photos allowed per run');
+            toast.error('Maximum 2 photos allowed per run');
             return;
         }
 
@@ -110,14 +110,14 @@ export default function PositiveConfig({
         const invalidFiles = fileArray.filter((file) => !validTypes.includes(file.type));
 
         if (invalidFiles.length > 0) {
-            alert('Only JPEG, PNG, and WebP images are allowed');
+            toast.error('Only JPEG, PNG, and WebP images are allowed');
             return;
         }
 
         // Validate original file sizes (max 5MB per file)
         const oversizedFiles = fileArray.filter((file) => file.size > 5 * 1024 * 1024);
         if (oversizedFiles.length > 0) {
-            alert('Each image must be less than 5MB');
+            toast.error('Each image must be less than 5MB');
             return;
         }
 
@@ -169,7 +169,7 @@ export default function PositiveConfig({
             });
         } catch (err) {
             console.error('Image processing error', err);
-            setError('Failed to process images');
+            toast.error('Failed to process images');
         }
     };
 
@@ -213,12 +213,11 @@ export default function PositiveConfig({
 
     const handleAddRun = async (processId: string) => {
         setIsAddingRun(true);
-        setError(null);
         try {
             await addRunToProcess(order.id, processId);
             if (onRefresh) await onRefresh();
         } catch (err: any) {
-            setError(err.message || 'Failed to add run');
+            toast.error(err.message || 'Failed to add run');
         } finally {
             setIsAddingRun(false);
         }
@@ -227,12 +226,11 @@ export default function PositiveConfig({
     const handleDeleteRun = async (processId: string, runId: string) => {
         if (!confirm('Are you sure?')) return;
         setIsDeletingRun(runId);
-        setError(null);
         try {
             await deleteRunFromProcess(localOrder.id, processId, runId);
             if (onRefresh) await onRefresh();
         } catch (err: any) {
-            setError(err.message || 'Failed to delete run');
+            toast.error(err.message || 'Failed to delete run');
         } finally {
             setIsDeletingRun(null);
         }
@@ -242,7 +240,6 @@ export default function PositiveConfig({
         if (!confirm('Are you sure you want to delete this entire process? This action cannot be undone.')) {
             return;
         }
-        setError(null);
         try {
             await deleteProcessFromOrder(localOrder.id, processId);
             if (onRefresh) {
@@ -250,7 +247,7 @@ export default function PositiveConfig({
             }
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Failed to delete process');
+            toast.error(err.message || 'Failed to delete process');
         }
     };
 
@@ -365,12 +362,12 @@ export default function PositiveConfig({
         const postLoc = postProdLocations[runId] ?? run?.postProductionLocation?.id;
 
         if (!preLoc || !postLoc) {
-            alert('Please select both Pre-Prod and Post-Prod locations.');
+            toast.error('Please select both Pre-Prod and Post-Prod locations.');
             return;
         }
 
         if (!editForm.particulars) {
-            alert('Particulars is required');
+            toast.error('Particulars is required');
             return;
         }
 
@@ -387,7 +384,6 @@ export default function PositiveConfig({
         };
 
         setIsSaving(runId);
-        setError(null);
         try {
             // Upload Images
             const images = runImages[runId] || [];
@@ -461,7 +457,7 @@ export default function PositiveConfig({
             if (msg.toLowerCase().includes('credit limit')) {
                 setCreditLimitError(msg);
             } else {
-                setError(msg);
+                toast.error(msg);
             }
         } finally {
             setIsSaving(null);
@@ -748,7 +744,6 @@ export default function PositiveConfig({
 
     return (
         <div className="space-y-4">
-            {error && <div className="p-3 bg-red-50 text-red-600 rounded text-sm border border-red-200">{error}</div>}
             <CreditLimitErrorDialog
                 isOpen={!!creditLimitError}
                 onClose={() => setCreditLimitError(null)}

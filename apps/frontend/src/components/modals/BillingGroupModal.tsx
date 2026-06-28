@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 // Import for PDF generation
 import InvoicePDF from '@/components/billing/InvoicePDF';
@@ -56,14 +57,14 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
             const differentCustomers = details.orders.some(o => o.customer?.name !== firstCustomer);
 
             if (differentCustomers) {
-                alert("Cannot generate invoice: All orders in a group must belong to the same customer.");
+                toast.error("Cannot generate invoice: All orders in a group must belong to the same customer.");
                 return;
             }
 
             const snapshot = details.latestSnapshot;
 
             if (!snapshot) {
-                alert("No billing snapshot found for this group.");
+                toast.error("No billing snapshot found for this group.");
                 return;
             }
 

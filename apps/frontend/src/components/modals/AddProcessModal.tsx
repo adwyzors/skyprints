@@ -5,6 +5,7 @@ import { ProcessSummary } from '@/domain/model/process.model';
 import { addProcessToOrder } from '@/services/orders.service';
 import { getProcesses } from '@/services/process.service';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 interface Props {
     open: boolean;
@@ -19,7 +20,6 @@ export default function AddProcessModal({ open, onClose, onSuccess, orderId }: P
     const [count, setCount] = useState(1);
     const [loading, setLoading] = useState(false);
     const [dataLoading, setDataLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (open) {
@@ -28,29 +28,26 @@ export default function AddProcessModal({ open, onClose, onSuccess, orderId }: P
                 .then(setProcesses)
                 .catch((err) => {
                     console.error(err);
-                    setError('Failed to load processes');
+                    toast.error('Failed to load processes');
                 })
                 .finally(() => setDataLoading(false));
         } else {
-            // Reset state on close
             setSelectedProcessId('');
             setCount(1);
-            setError(null);
         }
     }, [open]);
 
     const handleSubmit = async () => {
         if (!selectedProcessId) {
-            setError('Please select a process');
+            toast.error('Please select a process');
             return;
         }
         if (count <= 0) {
-            setError('Count must be greater than 0');
+            toast.error('Count must be greater than 0');
             return;
         }
 
         setLoading(true);
-        setError(null);
 
         try {
             await addProcessToOrder(orderId, {
@@ -63,8 +60,6 @@ export default function AddProcessModal({ open, onClose, onSuccess, orderId }: P
             console.error(err);
             let errorMessage = err.message || 'Failed to add process';
 
-            // Attempt to extract friendly message from API error
-            // Format is usually: "API Error <status>: <json_response>"
             if (errorMessage.includes('API Error')) {
                 try {
                     const jsonMatch = errorMessage.match(/API Error \d+: (.+)/);
@@ -75,12 +70,11 @@ export default function AddProcessModal({ open, onClose, onSuccess, orderId }: P
                         }
                     }
                 } catch (e) {
-                    // Conversion failed, fallback to original message
+                    // fallback to original message
                 }
             }
 
-            setError(errorMessage);
-            alert(errorMessage);
+            toast.error(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -102,12 +96,6 @@ export default function AddProcessModal({ open, onClose, onSuccess, orderId }: P
                 </div>
 
                 <div className="p-6 space-y-4">
-                    {error && (
-                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                            {error}
-                        </div>
-                    )}
-
                     {dataLoading ? (
                         <div className="text-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>

@@ -17,6 +17,7 @@ import {
     X
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 import { apiRequest } from "@/services/api.service";
 import { configureRun } from '@/services/run.service';
@@ -203,7 +204,6 @@ export default function RunConfigForm({
     const [preProductionLocationId, setPreProductionLocationId] = useState<string>(initialPreProductionLocationId);
     const [postProductionLocationId, setPostProductionLocationId] = useState<string>(initialPostProductionLocationId);
     const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -259,7 +259,7 @@ export default function RunConfigForm({
 
         } catch (err) {
             console.error("Image processing error", err);
-            setError('Failed to process images');
+            toast.error('Failed to process images');
         }
     };
 
@@ -307,17 +307,16 @@ export default function RunConfigForm({
             });
 
         if (missingFields.length > 0) {
-            alert(`Please fill required fields: ${missingFields.map(f => prettyLabel(f.key)).join(', ')}`);
+            toast.error(`Please fill required fields: ${missingFields.map(f => prettyLabel(f.key)).join(', ')}`);
             return;
         }
 
         if (!preProductionLocationId || !postProductionLocationId) {
-            alert('Please select both Production and Post-Production locations.');
+            toast.error('Please select both Production and Post-Production locations.');
             return;
         }
 
         setIsSaving(true);
-        setError(null);
 
         try {
             // Upload images
@@ -385,7 +384,7 @@ export default function RunConfigForm({
             if (err.message.toLowerCase().includes('credit limit')) {
                 setCreditLimitError(err.message);
             } else {
-                setError(err.message || 'Failed to save');
+                toast.error(err.message || 'Failed to save');
             }
         } finally {
             setIsSaving(false);
@@ -706,12 +705,6 @@ export default function RunConfigForm({
                         )}
                     </button>
                 </div>
-
-                {error && (
-                    <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded border border-red-100 text-center">
-                        {error}
-                    </div>
-                )}
 
                 <CreditLimitErrorDialog
                     isOpen={!!creditLimitError}

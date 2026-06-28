@@ -2,6 +2,7 @@
 
 import { CheckCircle, FileText, Loader2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { configureRun } from '@/services/run.service';
 import { ProcessRun } from '@/domain/model/run.model';
 
@@ -50,7 +51,7 @@ export default function RunCommentEditor({
             }
         } catch (err) {
             console.error('Failed to save comment:', err);
-            alert('Failed to save comment');
+            toast.error('Failed to save comment');
         } finally {
             setIsSaving(false);
         }
