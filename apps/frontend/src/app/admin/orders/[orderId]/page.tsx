@@ -224,7 +224,7 @@ function OrderConfigPage() {
         );
     }
 
-    if (!loading && !order) {
+    if (!order) {
         notFound();
         return null;
     }
