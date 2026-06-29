@@ -57,6 +57,16 @@ export const OrderProcessRunSchema = z.object({
         name: z.string(),
         code: z.string(),
     }).optional().nullable(),
+    preProductionLocation: z.object({
+        id: z.string().uuid(),
+        name: z.string(),
+        code: z.string(),
+    }).optional().nullable(),
+    postProductionLocation: z.object({
+        id: z.string().uuid(),
+        name: z.string(),
+        code: z.string(),
+    }).optional().nullable(),
     preProductionLocationId: z.string().uuid().optional().nullable(),
     postProductionLocationId: z.string().uuid().optional().nullable(),
     billingFormula: z.string().optional(),

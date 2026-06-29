@@ -1,8 +1,8 @@
 import SearchableLocationSelect from '@/components/common/SearchableLocationSelect';
 import SearchableManagerSelect from '@/components/common/SearchableManagerSelect';
 import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
-import { AlertCircle, CheckCircle, ChevronRight, Edit, Eye, FileText, Loader2, MapPin, Palette, Plus, Trash2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle, ChevronRight, Edit, Eye, FileText, Loader2, MapPin, Palette, Plus, Trash2, X, ClipboardPaste } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/auth/AuthProvider';
@@ -45,6 +45,8 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
     const [openRunId, setOpenRunId] = useState<string | null>(null); // For accordion
     const [editForm, setEditForm] = useState<SublimationRunValues | null>(null);
     const [editableHeaders, setEditableHeaders] = useState<[string, string, string, string]>(['Col 1', 'Col 2', 'Col 3', 'Col 4']);
+    const [pasteSuccess, setPasteSuccess] = useState<string | null>(null);
+    const pasteToastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // UI State
     const [runManagers, setRunManagers] = useState<Record<string, { executorId?: string; reviewerId?: string }>>({});
@@ -525,8 +527,52 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
             ? editableHeaders
             : data.columnHeaders;
 
+        const handlePasteToFill = (e: React.ClipboardEvent<HTMLDivElement>) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+            const text = e.clipboardData.getData('text');
+            if (!text.includes('\t') && !text.includes('\n')) return;
+
+            e.preventDefault();
+
+            const rows = text.split('\n').map(r => r.replace(/\r$/, '')).filter(r => r.trim() !== '');
+            if (rows.length === 0) return;
+
+            const ratePerMeter = Number(data.ratePerMeter) || 0;
+            const newItems: SublimationItem[] = rows.map(row => {
+                const cols = row.split('\t');
+                const qty1 = parseFloat(cols[3]?.replace(/,/g, '')) || 0;
+                const qty2 = parseFloat(cols[4]?.replace(/,/g, '')) || 0;
+                const qty3 = parseFloat(cols[5]?.replace(/,/g, '')) || 0;
+                const qty4 = parseFloat(cols[6]?.replace(/,/g, '')) || 0;
+                const item: SublimationItem = {
+                    size: cols[0]?.trim() || '',
+                    width: parseFloat(cols[1]?.replace(/,/g, '')) || 0,
+                    height: parseFloat(cols[2]?.replace(/,/g, '')) || 0,
+                    quantities: [qty1, qty2, qty3, qty4],
+                    sum: 0,
+                    rowRate: 0,
+                    rowTotal: 0
+                };
+                return calculateItem(item, ratePerMeter);
+            });
+
+            setEditForm(prev => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    items: newItems
+                };
+            });
+
+            if (pasteToastRef.current) clearTimeout(pasteToastRef.current);
+            setPasteSuccess(`✓ Pasted ${newItems.length} rows from Excel!`);
+            pasteToastRef.current = setTimeout(() => setPasteSuccess(null), 3500);
+        };
+
         return (
-            <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
+            <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3" onPaste={handlePasteToFill}>
                 <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${mode === 'edit' ? 'bg-blue-500' : 'bg-green-500'}`} />
@@ -566,6 +612,34 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                 </div>
 
                 <div className="bg-white border border-gray-200 rounded p-3 sm:p-4 space-y-6">
+                    {mode === 'edit' && (
+                        <div className="mb-3 flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg">
+                            <ClipboardPaste className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold text-blue-700">
+                                    Paste to Fill Table
+                                    <span className="ml-1.5 text-[10px] font-normal text-blue-500">
+                                        Copy rows from Excel &amp; press <kbd className="bg-blue-100 px-1 py-0.5 rounded font-mono text-[9px]">Ctrl+V</kbd> outside fields
+                                    </span>
+                                </p>
+                                <p className="text-[10px] text-blue-400 mt-0.5 font-mono leading-relaxed truncate">
+                                    Cols: <span className="text-blue-500">Size → W → H → Qty1 → Qty2 → Qty3 → Qty4</span>
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'edit' && pasteSuccess && (
+                        <div className="mb-3 flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <p className="text-xs text-green-700 font-medium">{pasteSuccess}</p>
+                        </div>
+                    )}
+
                     {/* 1. TOP SECTION (EXECUTOR + RATE) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                         <SearchableManagerSelect

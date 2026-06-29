@@ -19,8 +19,9 @@ import {
     Type,
     User,
     X,
+    ClipboardPaste,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/auth/AuthProvider';
@@ -198,6 +199,8 @@ export default function ScreenPrintingConfig({
     const [runManagers, setRunManagers] = useState<
         Record<string, { executorId?: string; reviewerId?: string }>
     >({});
+    const [pasteSuccess, setPasteSuccess] = useState<string | null>(null);
+    const pasteToastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
 
@@ -868,8 +871,52 @@ export default function ScreenPrintingConfig({
                 reviewerId: run.reviewer?.id,
             };
 
+            const fieldConfigs = getRunFieldConfigs(run).filter((f) => f.required === true);
+            const pastableFields = fieldConfigs.filter((f) => f.key !== 'Estimated Amount');
+
+            const handlePasteToFill = (e: React.ClipboardEvent<HTMLDivElement>) => {
+                const target = e.target as HTMLElement;
+                if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+                const text = e.clipboardData.getData('text');
+                if (!text.includes('\t') && !text.includes('\n')) return;
+
+                e.preventDefault();
+
+                const firstRow = text.split('\n')[0].replace(/\r$/, '');
+                const columns = firstRow.split('\t');
+                if (columns.length === 0) return;
+
+                const hasCalculatedField = fieldConfigs.some(f => f.key === 'Estimated Amount');
+                let targetFields = fieldConfigs;
+                if (hasCalculatedField && columns.length < fieldConfigs.length) {
+                    targetFields = pastableFields;
+                }
+
+                const filledNames: string[] = [];
+                columns.forEach((rawValue, idx) => {
+                    const fieldDef = targetFields[idx];
+                    if (!fieldDef) return;
+
+                    // Skip field if it is not editable in form
+                    if (fieldDef.key === 'Estimated Amount') return;
+
+                    const value = rawValue.trim();
+                    if (value === '') return;
+
+                    updateRunField(process.id, run.id, fieldDef.key, value);
+                    filledNames.push(prettyLabel(fieldDef.key));
+                });
+
+                if (filledNames.length === 0) return;
+
+                if (pasteToastRef.current) clearTimeout(pasteToastRef.current);
+                setPasteSuccess(`✓ Filled ${filledNames.length} field${filledNames.length > 1 ? 's' : ''}: ${filledNames.join(', ')}`);
+                pasteToastRef.current = setTimeout(() => setPasteSuccess(null), 3500);
+            };
+
             return (
-                <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3">
+                <div className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3" onPaste={handlePasteToFill}>
                     <div className="mb-4">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -920,8 +967,39 @@ export default function ScreenPrintingConfig({
                                 required
                             />
                         </div>
+                        
+                        {mode === 'edit' && (
+                            <div className="mb-3 flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg mx-3 mt-3">
+                                <ClipboardPaste className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold text-blue-700">
+                                        Paste to Fill
+                                        <span className="ml-1.5 text-[10px] font-normal text-blue-500">
+                                            Copy a row from Excel &amp; press <kbd className="bg-blue-100 px-1 py-0.5 rounded font-mono text-[9px]">Ctrl+V</kbd> outside fields
+                                        </span>
+                                    </p>
+                                    <p className="text-[10px] text-blue-400 mt-0.5 font-mono leading-relaxed truncate">
+                                        Cols: {pastableFields.map((f, i) => (
+                                            <span key={f.key}>
+                                                {i > 0 && <span className="mx-1 opacity-55">→</span>}
+                                                <span className="text-blue-500">{prettyLabel(f.key)}</span>
+                                            </span>
+                                        ))}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
-
+                        {mode === 'edit' && pasteSuccess && (
+                            <div className="mb-3 flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200 mx-3 mt-3">
+                                <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <p className="text-xs text-green-700 font-medium">{pasteSuccess}</p>
+                            </div>
+                        )}
 
                         {/* EDITABLE COMPACT FORM TABLE */}
                         <div className="border border-gray-300 rounded overflow-hidden bg-white">
