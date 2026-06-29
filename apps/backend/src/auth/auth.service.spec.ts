@@ -13,9 +13,11 @@ const bcryptCompare = bcrypt.compare as jest.Mock;
 const mockPrisma = {
   user: {
     findFirst: jest.fn(),
+    findUnique: jest.fn(),
     update: jest.fn(),
   },
   login: {
+    findFirst: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
   },
@@ -55,17 +57,22 @@ describe('AuthService', () => {
   // ─── login ────────────────────────────────────────────────────────────────
 
   describe('login', () => {
-    const activeUser = { id: 'u1', email: 'a@b.com', isActive: true };
-    const activeLogin = {
+    const activeUser = { id: 'u1', email: 'a@b.com', isActive: true, deletedAt: null };
+    // loginRecord as returned by login.findFirst/findUnique with include: { user: true }
+    const activeLoginRecord = {
       isActive: true,
       passwordHash: '$2b$10$hash',
       permissions: ['orders:view'],
       tokenVersion: 0,
       failedLoginAttempts: 0,
+      user: activeUser,
     };
 
     beforeEach(() => {
       process.env.INTERNAL_AUTH_ENABLED = 'true';
+      // Default: username lookup misses; email lookup misses
+      (mockPrisma.login.findFirst as jest.Mock).mockResolvedValue(null);
+      (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue(null);
     });
 
     afterEach(() => {
@@ -79,21 +86,26 @@ describe('AuthService', () => {
       );
     });
 
-    it('throws UnauthorizedException for unknown email', async () => {
-      (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue(null);
+    it('throws UnauthorizedException for unknown identifier', async () => {
+      // login.findFirst → null (no username match), user.findFirst → null (no email match)
       await expect(svc.login('x@y.com', 'pass', mockRes, mockReq)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
     it('throws UnauthorizedException when User.isActive=false', async () => {
-      (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue({ ...activeUser, isActive: false });
+      // Username path: loginRecord.user.isActive is false
+      (mockPrisma.login.findFirst as jest.Mock).mockResolvedValue({
+        ...activeLoginRecord,
+        user: { ...activeUser, isActive: false },
+      });
       await expect(svc.login('a@b.com', 'pass', mockRes, mockReq)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
-    it('throws UnauthorizedException when no Login record exists', async () => {
+    it('throws UnauthorizedException when no Login record exists (email fallback)', async () => {
+      // login.findFirst → null; user.findFirst finds a user; login.findUnique → null
       (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue(activeUser);
       (mockPrisma.login.findUnique as jest.Mock).mockResolvedValue(null);
       await expect(svc.login('a@b.com', 'pass', mockRes, mockReq)).rejects.toThrow(
@@ -102,17 +114,17 @@ describe('AuthService', () => {
     });
 
     it('throws UnauthorizedException when Login.isActive=false', async () => {
-      (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue(activeUser);
-      (mockPrisma.login.findUnique as jest.Mock).mockResolvedValue({ ...activeLogin, isActive: false });
-      bcryptCompare.mockResolvedValue(false);
+      (mockPrisma.login.findFirst as jest.Mock).mockResolvedValue({
+        ...activeLoginRecord,
+        isActive: false,
+      });
       await expect(svc.login('a@b.com', 'pass', mockRes, mockReq)).rejects.toThrow(
         UnauthorizedException,
       );
     });
 
     it('increments failedLoginAttempts on wrong password', async () => {
-      (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue(activeUser);
-      (mockPrisma.login.findUnique as jest.Mock).mockResolvedValue(activeLogin);
+      (mockPrisma.login.findFirst as jest.Mock).mockResolvedValue(activeLoginRecord);
       bcryptCompare.mockResolvedValue(false);
 
       await expect(svc.login('a@b.com', 'wrong', mockRes, mockReq)).rejects.toThrow(
@@ -125,8 +137,7 @@ describe('AuthService', () => {
     });
 
     it('sets cookies and returns on successful login', async () => {
-      (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue(activeUser);
-      (mockPrisma.login.findUnique as jest.Mock).mockResolvedValue(activeLogin);
+      (mockPrisma.login.findFirst as jest.Mock).mockResolvedValue(activeLoginRecord);
       bcryptCompare.mockResolvedValue(true);
       (mockPrisma.login.update as jest.Mock).mockResolvedValue({});
 

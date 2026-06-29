@@ -70,7 +70,7 @@ describe('UsersService', () => {
 
   describe('create', () => {
     const dto = {
-      name: 'Bob', email: 'bob@example.com', role: 'OPERATOR' as const,
+      name: 'Bob', email: 'bob@example.com', role: 'MANAGER' as const,
       password: 'password123', locationId: undefined, permissions: undefined,
     };
 
@@ -80,7 +80,7 @@ describe('UsersService', () => {
       await svc.create(dto);
 
       expect(mockTx.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ email: 'bob@example.com', role: 'OPERATOR' }) }),
+        expect.objectContaining({ data: expect.objectContaining({ email: 'bob@example.com', role: 'MANAGER' }) }),
       );
       expect(mockTx.login.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ userId: 'new-id', passwordHash: '$2b$10$hashed' }) }),
@@ -100,7 +100,7 @@ describe('UsersService', () => {
     it('uses role defaults for permissions when none provided', async () => {
       mockTx.user.create.mockResolvedValue({ id: 'x' });
 
-      await svc.create({ ...dto, role: 'OPERATOR', permissions: undefined });
+      await svc.create({ ...dto, role: 'MANAGER', permissions: undefined });
 
       expect(mockTx.login.create).toHaveBeenCalledWith(
         expect.objectContaining({
