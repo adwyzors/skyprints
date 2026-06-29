@@ -24,6 +24,7 @@ export class ImageRetentionController {
     @Headers('authorization') authorization?: string,
     @Headers('x-limit') limitHeader?: string,
     @Headers('x-dry-run') dryRunHeader?: string,
+    @Headers('x-retention-days') retentionDaysHeader?: string,
   ) {
     const isProd = process.env.NODE_ENV === 'prod';
 
@@ -43,10 +44,15 @@ export class ImageRetentionController {
 
     const dryRun = dryRunHeader === 'true' || dryRunHeader === '1';
 
+    const retentionDays = retentionDaysHeader
+      ? parseInt(retentionDaysHeader, 10)
+      : undefined;
+
     try {
       const result = await this.retentionService.cleanup({
         limit,
         dryRun,
+        retentionDays,
       });
 
       return result;

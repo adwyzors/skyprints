@@ -15,7 +15,15 @@ export class ImageRetentionService {
     private readonly cloudflare: CloudflareService,
   ) {}
 
-  async cleanup({ limit, dryRun }: { limit?: number; dryRun?: boolean }) {
+  async cleanup({
+    limit,
+    dryRun,
+    retentionDays,
+  }: {
+    limit?: number;
+    dryRun?: boolean;
+    retentionDays?: number;
+  }) {
     const [{ lock_acquired }] = await this.prisma.client.$queryRaw<
       [{ lock_acquired: boolean }]
     >`SELECT pg_try_advisory_lock(${this.CLEANUP_LOCK_KEY}) AS lock_acquired`;
@@ -33,9 +41,13 @@ export class ImageRetentionService {
       const batchSize =
         limit ?? parseInt(process.env.MAX_ORDERS_PER_RUN ?? '100', 10);
 
-      const thirtyDaysAgo = new Date();
+      const days =
+        retentionDays ??
+        parseInt(process.env.IMAGE_RETENTION_DAYS ?? '365', 10);
 
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const cutoffDate = new Date();
+
+      cutoffDate.setDate(cutoffDate.getDate() - days);
 
       /**
        * STEP 1
@@ -56,7 +68,7 @@ export class ImageRetentionService {
           },
           deletedAt: null,
           createdAt: {
-            lt: thirtyDaysAgo,
+            lt: cutoffDate,
           },
         },
         select: {
