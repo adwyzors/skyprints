@@ -384,10 +384,21 @@ export default function ConfigurationModal({
 
         if (isDTF) {
             const dtfItems = items as any[];
+            const rate = Number(run.values?.rate || 0);
+            const totalMeter = dtfItems.reduce(
+                (sum, i) => sum + (Number(i.height || 0) * Number(i.numberOfLayouts || 0)),
+                0
+            ) / 39.38;
+            const actualMeter = 23 * 39.38 * rate * totalMeter;
+            const layoutTotalAmount = Number(run.values?.['Layout Amount'] || 0);
+            const efficiency = layoutTotalAmount > 0
+                ? 100 - ((actualMeter - layoutTotalAmount) / layoutTotalAmount) * 100
+                : 0;
+
             return (
                 <div className="mb-6 text-black">
                     {renderSharedHeader()}
-                    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                    <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-4">
                         <table className="w-full text-xs">
                             <thead>
                                 <tr className="bg-gray-100 border-b text-gray-600 uppercase text-[10px] font-bold tracking-wider">
@@ -435,6 +446,30 @@ export default function ConfigurationModal({
                                 </tr>
                             </tfoot>
                         </table>
+                    </div>
+
+                    {/* RATE & METERS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-4 rounded border mb-6">
+                        <div>
+                            <span className="text-xs font-semibold text-gray-700 block mb-1">Rate</span>
+                            <div className="text-sm font-bold">{rate.toFixed(2)}</div>
+                        </div>
+                        <div className="text-right sm:text-left">
+                            <span className="text-[10px] uppercase text-gray-500 block">Total Mtr</span>
+                            <div className="text-sm font-medium">{totalMeter.toFixed(2)}</div>
+                        </div>
+                        <div className="text-right sm:text-left">
+                            <span className="text-[10px] uppercase text-gray-500 block">Act. Meter Total</span>
+                            <div className="text-sm font-medium">{actualMeter.toFixed(2)}</div>
+                        </div>
+                        <div className="text-right sm:text-left">
+                            <span className="text-[10px] uppercase text-gray-500 block">Efficiency</span>
+                            <div
+                                className={`text-sm font-medium ${efficiency < 0 ? 'text-red-500' : 'text-green-600'}`}
+                            >
+                                {efficiency.toFixed(2)}%
+                            </div>
+                        </div>
                     </div>
                 </div>
             );
