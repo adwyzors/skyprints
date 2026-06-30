@@ -17,7 +17,7 @@ import {
     Loader2,
     Search
 } from 'lucide-react';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
 
 export default function ReportsPage() {
@@ -35,7 +35,20 @@ export default function ReportsPage() {
 const ProtectedReportsPageContent = withAuth(ReportsPageContent, { permission: Permission.ANALYTICS_VIEW });
 
 function ReportsPageContent() {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const hasInitializedRef = useRef(false);
+
+    useEffect(() => {
+        if (hasInitializedRef.current) return;
+        hasInitializedRef.current = true;
+        const savedSidebarOpen = localStorage.getItem('reports-sidebar-open');
+        if (savedSidebarOpen !== null) setIsSidebarOpen(savedSidebarOpen === 'true');
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('reports-sidebar-open', String(isSidebarOpen));
+    }, [isSidebarOpen]);
+
     const [loading, setLoading] = useState(false);
     const [reportData, setReportData] = useState<BilledOrderReportResponse | null>(null);
     const [query, setQuery] = useState<ReportsQuery>({
