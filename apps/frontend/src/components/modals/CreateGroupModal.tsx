@@ -83,10 +83,6 @@ export default function CreateGroupModal({
   };
 
   const hasTestOrder = selectedOrders.some((o) => o.isTest);
-  // Determine billing type from first order's customer tax setting
-  const isTaxCustomer = !hasTestOrder && (selectedOrders[0]?.customer?.tax === true);
-  const billingTypeLabel = hasTestOrder ? 'Test Invoice' : (isTaxCustomer ? 'Tax Invoice' : 'Delivery Challan');
-  const billingSeries = hasTestOrder ? 'TESTR' : (isTaxCustomer ? 'R' : 'RC');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -96,22 +92,14 @@ export default function CreateGroupModal({
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className={`p-6 text-white text-center ${
-          hasTestOrder ? 'bg-orange-600' : isTaxCustomer ? 'bg-indigo-600' : 'bg-teal-600'
-        }`}>
+        <div className={`p-6 text-white text-center ${hasTestOrder ? 'bg-orange-600' : 'bg-indigo-600'}`}>
           <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
             <Users className="w-6 h-6 text-white" />
           </div>
-          <h2 className="text-2xl font-bold">Create {billingTypeLabel}</h2>
-          <p className={`${
-            hasTestOrder ? 'text-orange-100' : isTaxCustomer ? 'text-indigo-100' : 'text-teal-100'
-          } text-sm mt-1`}>
+          <h2 className="text-2xl font-bold">{hasTestOrder ? 'Create Test Invoice' : 'Create Invoice'}</h2>
+          <p className={`${hasTestOrder ? 'text-orange-100' : 'text-indigo-100'} text-sm mt-1`}>
             Invoicing {selectedOrders.length} orders
           </p>
-          {/* Series badge */}
-          <div className="mt-2 inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1">
-            <span className="text-xs font-bold tracking-widest opacity-90">{billingSeries} series</span>
-          </div>
         </div>
 
         {/* Body */}
@@ -122,14 +110,6 @@ export default function CreateGroupModal({
               <p className="text-xs text-orange-700 mt-1">
                 One or more selected orders are test orders. This will generate a <strong>Test Invoice</strong> (TESTR sequence).
                 No real invoice can be prepared with a test order.
-              </p>
-            </div>
-          )}
-          {!hasTestOrder && !isTaxCustomer && (
-            <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl flex flex-col items-center text-center">
-              <span className="font-bold text-teal-800 text-sm">📋 Non-Tax Customer</span>
-              <p className="text-xs text-teal-700 mt-1">
-                This customer does not have GST/Tax enabled. The bill will be generated as a <strong>Delivery Challan</strong> using the RC series.
               </p>
             </div>
           )}
@@ -191,9 +171,7 @@ export default function CreateGroupModal({
             className={`w-full py-3.5 font-bold rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
               hasTestOrder 
                 ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-orange-200' 
-                : isTaxCustomer
-                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
-                  : 'bg-teal-600 hover:bg-teal-700 text-white shadow-teal-200'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
             }`}
           >
             {isSubmitting ? (
@@ -202,7 +180,7 @@ export default function CreateGroupModal({
                 Saving...
               </>
             ) : (
-              `Create ${billingTypeLabel}`
+              hasTestOrder ? 'Create Test Invoice' : 'Create Invoice'
             )}
           </button>
 
