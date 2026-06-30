@@ -1,15 +1,15 @@
 import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 import {
-  CheckCircle,
-  ChevronRight,
-  ClipboardPaste,
-  Edit,
-  Eye,
-  MapPin,
-  Palette,
-  Plus,
-  Trash2,
-  X,
+    CheckCircle,
+    ChevronRight,
+    ClipboardPaste,
+    Edit,
+    Eye,
+    MapPin,
+    Palette,
+    Plus,
+    Trash2,
+    X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -22,1109 +22,1109 @@ import { Location } from '@/domain/model/location.model';
 import { Order } from '@/domain/model/order.model';
 import { PlotterItem, PlotterRunValues, ProcessRun } from '@/domain/model/run.model';
 import {
-  addRunToProcess,
-  deleteProcessFromOrder,
-  deleteRunFromProcess,
+    addRunToProcess,
+    deleteProcessFromOrder,
+    deleteRunFromProcess,
 } from '@/services/orders.service';
 import { configureRun } from '@/services/run.service';
 import { User as ManagerUser } from '@/services/user.service';
 import RunCommentEditor from './RunCommentEditor';
 
 interface PlotterConfigProps {
-  order: Order;
-  locations: Location[];
-  managers: ManagerUser[];
-  onRefresh?: () => Promise<void>;
-  onSaveSuccess?: (processId: string, runId: string) => void;
+    order: Order;
+    locations: Location[];
+    managers: ManagerUser[];
+    onRefresh?: () => Promise<void>;
+    onSaveSuccess?: (processId: string, runId: string) => void;
 }
 
 export default function PlotterConfig({
-  order,
-  locations,
-  managers,
-  onRefresh,
-  onSaveSuccess,
+    order,
+    locations,
+    managers,
+    onRefresh,
+    onSaveSuccess,
 }: PlotterConfigProps) {
-  const [localOrder, setLocalOrder] = useState<Order>(order);
-  const [openRunId, setOpenRunId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState<string | null>(null);
-  const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
-  const [isAddingRun, setIsAddingRun] = useState(false);
-  const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
-  const [editingRunId, setEditingRunId] = useState<string | null>(null);
+    const [localOrder, setLocalOrder] = useState<Order>(order);
+    const [openRunId, setOpenRunId] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState<string | null>(null);
+    const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
+    const [isAddingRun, setIsAddingRun] = useState(false);
+    const [isDeletingRun, setIsDeletingRun] = useState<string | null>(null);
+    const [editingRunId, setEditingRunId] = useState<string | null>(null);
 
-  // State for local editing
-  const [editForm, setEditForm] = useState<PlotterRunValues | null>(null);
-  const [pasteSuccess, setPasteSuccess] = useState<string | null>(null);
-  const pasteToastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // State for local editing
+    const [editForm, setEditForm] = useState<PlotterRunValues | null>(null);
+    const [pasteSuccess, setPasteSuccess] = useState<string | null>(null);
+    const pasteToastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
-  const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
-  const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
+    const [runLocations, setRunLocations] = useState<Record<string, string>>({}); // runId -> locationId
+    const [preProdLocations, setPreProdLocations] = useState<Record<string, string>>({});
+    const [postProdLocations, setPostProdLocations] = useState<Record<string, string>>({});
 
-  // --- Image Handling ---
-  const [runImages, setRunImages] = useState<Record<string, File[]>>({});
-  const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
-  // Pre-existing image URLs from run.values.images (shown in edit form)
-  const [existingRunImages, setExistingRunImages] = useState<Record<string, string[]>>(() => {
-    const init: Record<string, string[]> = {};
-    order.processes.forEach((p) =>
-      p.runs.forEach((r) => {
-        if (r.values?.images && Array.isArray(r.values.images) && r.values.images.length > 0) {
-          init[r.id] = r.values.images as string[];
+    // --- Image Handling ---
+    const [runImages, setRunImages] = useState<Record<string, File[]>>({});
+    const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
+    // Pre-existing image URLs from run.values.images (shown in edit form)
+    const [existingRunImages, setExistingRunImages] = useState<Record<string, string[]>>(() => {
+        const init: Record<string, string[]> = {};
+        order.processes.forEach((p) =>
+            p.runs.forEach((r) => {
+                if (r.values?.images && Array.isArray(r.values.images) && r.values.images.length > 0) {
+                    init[r.id] = r.values.images as string[];
+                }
+            }),
+        );
+        return init;
+    });
+
+    const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+
+        const fileArray = Array.from(files);
+        const currentNewImages = runImages[runId] || [];
+        const currentExisting = existingRunImages[runId] || [];
+        const totalCurrent = currentNewImages.length + currentExisting.length;
+
+        // Restrict to 2 photos total (existing + new)
+        if (totalCurrent + fileArray.length > 2) {
+            toast.error('Maximum 2 photos allowed per run');
+            return;
         }
-      }),
-    );
-    return init;
-  });
 
-  const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+        // Validate file types
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        const invalidFiles = fileArray.filter((file) => !validTypes.includes(file.type));
 
-    const fileArray = Array.from(files);
-    const currentNewImages = runImages[runId] || [];
-    const currentExisting = existingRunImages[runId] || [];
-    const totalCurrent = currentNewImages.length + currentExisting.length;
+        if (invalidFiles.length > 0) {
+            toast.error('Only JPEG, PNG, and WebP images are allowed');
+            return;
+        }
 
-    // Restrict to 2 photos total (existing + new)
-    if (totalCurrent + fileArray.length > 2) {
-      toast.error('Maximum 2 photos allowed per run');
-      return;
-    }
+        // Validate original file sizes (max 5MB per file)
+        const oversizedFiles = fileArray.filter((file) => file.size > 5 * 1024 * 1024);
+        if (oversizedFiles.length > 0) {
+            toast.error('Each image must be less than 5MB');
+            return;
+        }
 
-    // Validate file types
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    const invalidFiles = fileArray.filter((file) => !validTypes.includes(file.type));
-
-    if (invalidFiles.length > 0) {
-      toast.error('Only JPEG, PNG, and WebP images are allowed');
-      return;
-    }
-
-    // Validate original file sizes (max 5MB per file)
-    const oversizedFiles = fileArray.filter((file) => file.size > 5 * 1024 * 1024);
-    if (oversizedFiles.length > 0) {
-      toast.error('Each image must be less than 5MB');
-      return;
-    }
-
-    //console.log(`Processing ${fileArray.length} images for run ${runId}...`);
-
-    try {
-      const compressedFilesPromises = fileArray.map(async (file) => {
-        const options = {
-          maxSizeMB: 0.1, // 100KB
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-          fileType: 'image/webp',
-          initialQuality: 0.8,
-        };
+        //console.log(`Processing ${fileArray.length} images for run ${runId}...`);
 
         try {
-          const imageCompression = (await import('browser-image-compression')).default;
-          const compressedBlob = await imageCompression(file, options);
-          const compressedFile = new File(
-            [compressedBlob],
-            file.name.replace(/\.[^/.]+$/, '') + '.webp',
-            { type: 'image/webp', lastModified: Date.now() },
-          );
-          return compressedFile;
-        } catch (error) {
-          console.error('Compression failed for', file.name, error);
-          return file;
+            const compressedFilesPromises = fileArray.map(async (file) => {
+                const options = {
+                    maxSizeMB: 0.1, // 100KB
+                    maxWidthOrHeight: 1920,
+                    useWebWorker: true,
+                    fileType: 'image/webp',
+                    initialQuality: 0.8,
+                };
+
+                try {
+                    const imageCompression = (await import('browser-image-compression')).default;
+                    const compressedBlob = await imageCompression(file, options);
+                    const compressedFile = new File(
+                        [compressedBlob],
+                        file.name.replace(/\.[^/.]+$/, '') + '.webp',
+                        { type: 'image/webp', lastModified: Date.now() },
+                    );
+                    return compressedFile;
+                } catch (error) {
+                    console.error('Compression failed for', file.name, error);
+                    return file;
+                }
+            });
+
+            const compressedFiles = await Promise.all(compressedFilesPromises);
+
+            // Update state
+            setRunImages((prev) => ({
+                ...prev,
+                [runId]: [...(prev[runId] || []), ...compressedFiles],
+            }));
+
+            // Create previews
+            compressedFiles.forEach((file) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setImagePreviews((prev) => ({
+                        ...prev,
+                        [runId]: [...(prev[runId] || []), reader.result as string],
+                    }));
+                };
+                reader.readAsDataURL(file);
+            });
+        } catch (err) {
+            console.error('Image processing error', err);
+            toast.error('Failed to process images');
         }
-      });
+    };
 
-      const compressedFiles = await Promise.all(compressedFilesPromises);
-
-      // Update state
-      setRunImages((prev) => ({
-        ...prev,
-        [runId]: [...(prev[runId] || []), ...compressedFiles],
-      }));
-
-      // Create previews
-      compressedFiles.forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setImagePreviews((prev) => ({
+    const removeImage = (runId: string, index: number) => {
+        setRunImages((prev) => ({
             ...prev,
-            [runId]: [...(prev[runId] || []), reader.result as string],
-          }));
+            [runId]: (prev[runId] || []).filter((_, i) => i !== index),
+        }));
+        setImagePreviews((prev) => ({
+            ...prev,
+            [runId]: (prev[runId] || []).filter((_, i) => i !== index),
+        }));
+    };
+
+    const removeExistingImage = (runId: string, index: number) => {
+        setExistingRunImages((prev) => ({
+            ...prev,
+            [runId]: (prev[runId] || []).filter((_, i) => i !== index),
+        }));
+    };
+
+    const initialFormState: PlotterRunValues = {
+        particulars: '',
+        sheetsToCut: '',
+        items: [],
+        images: [],
+    };
+
+    const { hasPermission } = useAuth();
+
+    // Managers Logic
+    const [runManagers, setRunManagers] = useState<
+        Record<string, { executorId?: string; reviewerId?: string }>
+    >({});
+
+    const handleManagerSelect = (
+        runId: string,
+        type: 'executorId' | 'reviewerId',
+        userId: string,
+    ) => {
+        setRunManagers((prev) => ({
+            ...prev,
+            [runId]: {
+                ...prev[runId],
+                [type]: userId,
+            },
+        }));
+    };
+
+    // --- Actions ---
+    const handleAddRun = async (processId: string) => {
+        setIsAddingRun(true);
+        try {
+            await addRunToProcess(order.id, processId);
+            if (onRefresh) await onRefresh();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to add run');
+        } finally {
+            setIsAddingRun(false);
+        }
+    };
+
+    const handleDeleteRun = async (processId: string, runId: string) => {
+        if (!confirm('Are you sure?')) return;
+        setIsDeletingRun(runId);
+        try {
+            await deleteRunFromProcess(localOrder.id, processId, runId);
+            if (onRefresh) await onRefresh();
+        } catch (err: any) {
+            toast.error(err.message || 'Failed to delete run');
+        } finally {
+            setIsDeletingRun(null);
+        }
+    };
+
+    const handleDeleteProcess = async (processId: string) => {
+        if (
+            !confirm('Are you sure you want to delete this entire process? This action cannot be undone.')
+        ) {
+            return;
+        }
+        try {
+            await deleteProcessFromOrder(localOrder.id, processId);
+            if (onRefresh) {
+                await onRefresh();
+            }
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.message || 'Failed to delete process');
+        }
+    };
+
+    useEffect(() => {
+        setLocalOrder(order);
+    }, [order]);
+
+    useEffect(() => {
+        if (openRunId) {
+            const process = localOrder.processes.find((p) => p.runs.some((r) => r.id === openRunId));
+            const run = process?.runs.find((r) => r.id === openRunId);
+
+            if (run) {
+                const values = run.values as PlotterRunValues;
+                const existingItems = values.items || [];
+                setEditForm({
+                    particulars: values.particulars || '',
+                    sheetsToCut: values.sheetsToCut || '',
+                    items:
+                        existingItems.length > 0
+                            ? existingItems
+                            : [
+                                {
+                                    fileSizes: '',
+                                    quantity: 0,
+                                    sizeW: 0,
+                                    sizeH: 0,
+                                    layoutHeight: 0,
+                                    layoutPcs: 0,
+                                    sheetRate: 0,
+                                    sheetReq: 0,
+                                    rate: 0,
+                                    total: 0,
+                                },
+                            ],
+                });
+
+                // Init location
+                if (run.location?.id) {
+                    setRunLocations((prev) => ({
+                        ...prev,
+                        [run.id]: run.location!.id,
+                    }));
+                }
+                if (run.preProductionLocation?.id) {
+                    setPreProdLocations((prev) => ({
+                        ...prev,
+                        [run.id]: run.preProductionLocation!.id,
+                    }));
+                }
+                if (run.postProductionLocation?.id) {
+                    setPostProdLocations((prev) => ({
+                        ...prev,
+                        [run.id]: run.postProductionLocation!.id,
+                    }));
+                }
+            }
+        } else {
+            setEditForm(null);
+        }
+    }, [openRunId, localOrder]);
+
+    // --- Calculations ---
+    const calculateRow = (item: PlotterItem): PlotterItem => {
+        // Sheet Req = (Quantity / In Layout Pcs) * In Layout Height
+        const pcs = item.layoutPcs || 1; // avoid div by zero
+        const sheetReq = (item.quantity / pcs) * item.layoutHeight;
+
+        // Rate = Size W * Size H * Sheet Rate
+        const rate = item.sizeW * item.sizeH * item.sheetRate;
+
+        // Total = Quantity * Rate
+        const total = item.quantity * rate;
+
+        return {
+            ...item,
+            sheetReq: Number(sheetReq.toFixed(4)), // keep some precision
+            rate: Number(rate.toFixed(2)),
+            total: Number(total.toFixed(2)),
         };
-        reader.readAsDataURL(file);
-      });
-    } catch (err) {
-      console.error('Image processing error', err);
-      toast.error('Failed to process images');
+    };
+
+    // --- Form Updates ---
+    const updateHeader = (field: string, value: any) => {
+        setEditForm((prev) => (prev ? { ...prev, [field]: value } : prev));
+    };
+
+    const updateItem = (index: number, field: keyof PlotterItem, value: any) => {
+        setEditForm((prev) => {
+            if (!prev) return prev;
+            const newItems = [...prev.items];
+            let item = { ...newItems[index], [field]: value };
+
+            // Recalculate dependent fields
+            item = calculateRow(item);
+
+            newItems[index] = item;
+            return { ...prev, items: newItems };
+        });
+    };
+
+    const addItem = () => {
+        setEditForm((prev) =>
+            prev
+                ? {
+                    ...prev,
+                    items: [
+                        ...prev.items,
+                        {
+                            fileSizes: '',
+                            quantity: 0,
+                            sizeW: 0,
+                            sizeH: 0,
+                            layoutHeight: 0,
+                            layoutPcs: 0,
+                            sheetRate: 0,
+                            sheetReq: 0,
+                            rate: 0,
+                            total: 0,
+                        },
+                    ],
+                }
+                : prev,
+        );
+    };
+
+    const deleteItem = (index: number) => {
+        setEditForm((prev) =>
+            prev ? { ...prev, items: prev.items.filter((_, i) => i !== index) } : prev,
+        );
+    };
+
+    function parseItems(items: unknown): PlotterItem[] {
+        if (Array.isArray(items)) {
+            return items;
+        }
+
+        if (typeof items === 'string') {
+            try {
+                const parsed = JSON.parse(items);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+
+        return [];
     }
-  };
+    const getTotals = (items: PlotterItem[]) => {
+        const totalQty = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
+        const totalSheetReq = items.reduce((sum, i) => sum + (i.sheetReq || 0), 0);
+        const totalSheetReqMeters = totalSheetReq / 39.38;
+        const totalAmount = items.reduce((sum, i) => sum + (i.total || 0), 0);
+        return { totalQty, totalSheetReq, totalSheetReqMeters, totalAmount };
+    };
 
-  const removeImage = (runId: string, index: number) => {
-    setRunImages((prev) => ({
-      ...prev,
-      [runId]: (prev[runId] || []).filter((_, i) => i !== index),
-    }));
-    setImagePreviews((prev) => ({
-      ...prev,
-      [runId]: (prev[runId] || []).filter((_, i) => i !== index),
-    }));
-  };
+    const saveRun = async (processId: string, runId: string) => {
+        if (!editForm) return;
 
-  const removeExistingImage = (runId: string, index: number) => {
-    setExistingRunImages((prev) => ({
-      ...prev,
-      [runId]: (prev[runId] || []).filter((_, i) => i !== index),
-    }));
-  };
+        const process = localOrder.processes.find((p) => p.id === processId);
+        const run = process?.runs.find((r) => r.id === runId);
+        const preLoc = preProdLocations[runId] ?? run?.preProductionLocation?.id;
+        const postLoc = postProdLocations[runId] ?? run?.postProductionLocation?.id;
 
-  const initialFormState: PlotterRunValues = {
-    particulars: '',
-    sheetsToCut: '',
-    items: [],
-    images: [],
-  };
+        if (!preLoc || !postLoc) {
+            toast.error('Please select both Pre-Prod and Post-Prod locations.');
+            return;
+        }
 
-  const { hasPermission } = useAuth();
+        if (!editForm.particulars) {
+            toast.error('Particulars is required');
+            return;
+        }
 
-  // Managers Logic
-  const [runManagers, setRunManagers] = useState<
-    Record<string, { executorId?: string; reviewerId?: string }>
-  >({});
+        const totals = getTotals(parseItems(editForm.items));
 
-  const handleManagerSelect = (
-    runId: string,
-    type: 'executorId' | 'reviewerId',
-    userId: string,
-  ) => {
-    setRunManagers((prev) => ({
-      ...prev,
-      [runId]: {
-        ...prev[runId],
-        [type]: userId,
-      },
-    }));
-  };
+        const apiValues = {
+            particulars: editForm.particulars,
+            sheetsToCut: editForm.sheetsToCut,
+            items: editForm.items,
 
-  // --- Actions ---
-  const handleAddRun = async (processId: string) => {
-    setIsAddingRun(true);
-    try {
-      await addRunToProcess(order.id, processId);
-      if (onRefresh) await onRefresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to add run');
-    } finally {
-      setIsAddingRun(false);
-    }
-  };
+            // Summaries
+            'Total Quantity': totals.totalQty,
+            'Total Sheet Req': Number(totals.totalSheetReq.toFixed(2)),
+            'Total Sheet Req (Meters)': Number(totals.totalSheetReqMeters.toFixed(4)),
+            'Total Amount': Number(totals.totalAmount.toFixed(2)),
+            'Estimated Amount': Number(totals.totalAmount.toFixed(2)),
+        };
 
-  const handleDeleteRun = async (processId: string, runId: string) => {
-    if (!confirm('Are you sure?')) return;
-    setIsDeletingRun(runId);
-    try {
-      await deleteRunFromProcess(localOrder.id, processId, runId);
-      if (onRefresh) await onRefresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete run');
-    } finally {
-      setIsDeletingRun(null);
-    }
-  };
+        setIsSaving(runId);
+        try {
+            // Upload Images
+            const images = runImages[runId] || [];
+            const imageUrls: string[] = [];
 
-  const handleDeleteProcess = async (processId: string) => {
-    if (
-      !confirm('Are you sure you want to delete this entire process? This action cannot be undone.')
-    ) {
-      return;
-    }
-    try {
-      await deleteProcessFromOrder(localOrder.id, processId);
-      if (onRefresh) {
-        await onRefresh();
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || 'Failed to delete process');
-    }
-  };
+            if (images.length > 0) {
+                //console.log(`Starting upload for ${images.length} images...`);
+                const { apiRequest } = await import('@/services/api.service');
 
-  useEffect(() => {
-    setLocalOrder(order);
-  }, [order]);
+                const uploadPromises = images.map(async (file) => {
+                    const { uploadUrl, publicUrl } = await apiRequest<{
+                        uploadUrl: string;
+                        publicUrl: string;
+                    }>(`/orders/upload-url?filename=${encodeURIComponent(file.name)}`);
 
-  useEffect(() => {
-    if (openRunId) {
-      const process = localOrder.processes.find((p) => p.runs.some((r) => r.id === openRunId));
-      const run = process?.runs.find((r) => r.id === openRunId);
+                    await fetch(uploadUrl, {
+                        method: 'PUT',
+                        body: file,
+                        headers: { 'Content-Type': file.type },
+                    });
+                    return publicUrl;
+                });
 
-      if (run) {
-        const values = run.values as PlotterRunValues;
-        const existingItems = values.items || [];
-        setEditForm({
-          particulars: values.particulars || '',
-          sheetsToCut: values.sheetsToCut || '',
-          items:
-            existingItems.length > 0
-              ? existingItems
-              : [
-                  {
-                    fileSizes: '',
-                    quantity: 0,
-                    sizeW: 0,
-                    sizeH: 0,
-                    layoutHeight: 0,
-                    layoutPcs: 0,
-                    sheetRate: 0,
+                const uploaded = await Promise.all(uploadPromises);
+                imageUrls.push(...uploaded);
+            }
+
+            const managerSelection = runManagers[runId];
+            const process = localOrder.processes.find((p) => p.id === processId);
+            const run = process?.runs.find((r) => r.id === runId);
+
+            const executorId = managerSelection?.executorId ?? run?.executor?.id;
+            const reviewerId = managerSelection?.reviewerId ?? run?.reviewer?.id;
+
+            const res = await configureRun(
+                localOrder.id,
+                processId,
+                runId,
+                apiValues,
+                imageUrls,
+                executorId,
+                reviewerId,
+                undefined, // deprecated locationId
+                undefined, // comments
+                preProdLocations[runId] ?? run?.preProductionLocation?.id,
+                postProdLocations[runId] ?? run?.postProductionLocation?.id,
+            );
+            if (res.success) {
+                // Clear images state
+                setRunImages((prev) => {
+                    const newState = { ...prev };
+                    delete newState[runId];
+                    return newState;
+                });
+                setImagePreviews((prev) => {
+                    const newState = { ...prev };
+                    delete newState[runId];
+                    return newState;
+                });
+
+                if (onSaveSuccess) onSaveSuccess(processId, runId);
+                setOpenRunId(null);
+                setEditingRunId(null);
+                if (onRefresh) await onRefresh();
+            } else {
+                throw new Error('Save failed');
+            }
+        } catch (err: any) {
+            console.error(err);
+            const msg = err.message || 'Save failed';
+            if (msg.toLowerCase().includes('credit limit')) {
+                setCreditLimitError(msg);
+            } else {
+                toast.error(msg);
+            }
+        } finally {
+            setIsSaving(null);
+        }
+    };
+
+    // --- Render ---
+    const renderRun = (process: any, run: ProcessRun) => {
+        const isConfigured = run.configStatus === 'COMPLETE';
+        const isEditing = editingRunId === run.id;
+
+        // Mode: View or Edit
+        const mode = isConfigured && !isEditing ? 'view' : 'edit';
+        const data = mode === 'view' ? (run.values as PlotterRunValues) : editForm || initialFormState;
+
+        const savedImages = (mode === 'view' ? data.images || [] : []) as string[];
+        const totals = getTotals(parseItems(data.items as PlotterItem[]));
+
+        const handlePasteToFill = (e: React.ClipboardEvent<HTMLDivElement>) => {
+            const target = e.target as HTMLElement;
+            if (
+                target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.tagName === 'SELECT'
+            )
+                return;
+
+            const text = e.clipboardData.getData('text');
+            if (!text.includes('\t') && !text.includes('\n')) return;
+
+            e.preventDefault();
+
+            const rows = text
+                .split('\n')
+                .map((r) => r.replace(/\r$/, ''))
+                .filter((r) => r.trim() !== '');
+            if (rows.length === 0) return;
+
+            const newItems: PlotterItem[] = rows.map((row) => {
+                const cols = row.split('\t');
+                const item: PlotterItem = {
+                    fileSizes: cols[0]?.trim() || '',
+                    quantity: parseFloat(cols[1]?.replace(/,/g, '')) || 0,
+                    sizeW: parseFloat(cols[2]?.replace(/,/g, '')) || 0,
+                    sizeH: parseFloat(cols[3]?.replace(/,/g, '')) || 0,
+                    layoutHeight: parseFloat(cols[4]?.replace(/,/g, '')) || 0,
+                    layoutPcs: parseFloat(cols[5]?.replace(/,/g, '')) || 0,
+                    sheetRate: parseFloat(cols[6]?.replace(/,/g, '')) || 0,
                     sheetReq: 0,
                     rate: 0,
                     total: 0,
-                  },
-                ],
-        });
+                };
+                return calculateRow(item);
+            });
 
-        // Init location
-        if (run.location?.id) {
-          setRunLocations((prev) => ({
-            ...prev,
-            [run.id]: run.location!.id,
-          }));
-        }
-        if (run.preProductionLocation?.id) {
-          setPreProdLocations((prev) => ({
-            ...prev,
-            [run.id]: run.preProductionLocation!.id,
-          }));
-        }
-        if (run.postProductionLocation?.id) {
-          setPostProdLocations((prev) => ({
-            ...prev,
-            [run.id]: run.postProductionLocation!.id,
-          }));
-        }
-      }
-    } else {
-      setEditForm(null);
-    }
-  }, [openRunId, localOrder]);
+            setEditForm((prev) => {
+                if (!prev) return prev;
+                return {
+                    ...prev,
+                    items: newItems,
+                };
+            });
 
-  // --- Calculations ---
-  const calculateRow = (item: PlotterItem): PlotterItem => {
-    // Sheet Req = (Quantity / In Layout Pcs) * In Layout Height
-    const pcs = item.layoutPcs || 1; // avoid div by zero
-    const sheetReq = (item.quantity / pcs) * item.layoutHeight;
-
-    // Rate = Size W * Size H * Sheet Rate
-    const rate = item.sizeW * item.sizeH * item.sheetRate;
-
-    // Total = Quantity * Rate
-    const total = item.quantity * rate;
-
-    return {
-      ...item,
-      sheetReq: Number(sheetReq.toFixed(4)), // keep some precision
-      rate: Number(rate.toFixed(2)),
-      total: Number(total.toFixed(2)),
-    };
-  };
-
-  // --- Form Updates ---
-  const updateHeader = (field: string, value: any) => {
-    setEditForm((prev) => (prev ? { ...prev, [field]: value } : prev));
-  };
-
-  const updateItem = (index: number, field: keyof PlotterItem, value: any) => {
-    setEditForm((prev) => {
-      if (!prev) return prev;
-      const newItems = [...prev.items];
-      let item = { ...newItems[index], [field]: value };
-
-      // Recalculate dependent fields
-      item = calculateRow(item);
-
-      newItems[index] = item;
-      return { ...prev, items: newItems };
-    });
-  };
-
-  const addItem = () => {
-    setEditForm((prev) =>
-      prev
-        ? {
-            ...prev,
-            items: [
-              ...prev.items,
-              {
-                fileSizes: '',
-                quantity: 0,
-                sizeW: 0,
-                sizeH: 0,
-                layoutHeight: 0,
-                layoutPcs: 0,
-                sheetRate: 0,
-                sheetReq: 0,
-                rate: 0,
-                total: 0,
-              },
-            ],
-          }
-        : prev,
-    );
-  };
-
-  const deleteItem = (index: number) => {
-    setEditForm((prev) =>
-      prev ? { ...prev, items: prev.items.filter((_, i) => i !== index) } : prev,
-    );
-  };
-
-  function parseItems(items: unknown): PlotterItem[] {
-    if (Array.isArray(items)) {
-      return items;
-    }
-
-    if (typeof items === 'string') {
-      try {
-        const parsed = JSON.parse(items);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    }
-
-    return [];
-  }
-  const getTotals = (items: PlotterItem[]) => {
-    const totalQty = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
-    const totalSheetReq = items.reduce((sum, i) => sum + (i.sheetReq || 0), 0);
-    const totalSheetReqMeters = totalSheetReq / 39.38;
-    const totalAmount = items.reduce((sum, i) => sum + (i.total || 0), 0);
-    return { totalQty, totalSheetReq, totalSheetReqMeters, totalAmount };
-  };
-
-  const saveRun = async (processId: string, runId: string) => {
-    if (!editForm) return;
-
-    const process = localOrder.processes.find((p) => p.id === processId);
-    const run = process?.runs.find((r) => r.id === runId);
-    const preLoc = preProdLocations[runId] ?? run?.preProductionLocation?.id;
-    const postLoc = postProdLocations[runId] ?? run?.postProductionLocation?.id;
-
-    if (!preLoc || !postLoc) {
-      toast.error('Please select both Pre-Prod and Post-Prod locations.');
-      return;
-    }
-
-    if (!editForm.particulars) {
-      toast.error('Particulars is required');
-      return;
-    }
-
-    const totals = getTotals(parseItems(editForm.items));
-
-    const apiValues = {
-      particulars: editForm.particulars,
-      sheetsToCut: editForm.sheetsToCut,
-      items: editForm.items,
-
-      // Summaries
-      'Total Quantity': totals.totalQty,
-      'Total Sheet Req': Number(totals.totalSheetReq.toFixed(2)),
-      'Total Sheet Req (Meters)': Number(totals.totalSheetReqMeters.toFixed(4)),
-      'Total Amount': Number(totals.totalAmount.toFixed(2)),
-      'Estimated Amount': Number(totals.totalAmount.toFixed(2)),
-    };
-
-    setIsSaving(runId);
-    try {
-      // Upload Images
-      const images = runImages[runId] || [];
-      const imageUrls: string[] = [];
-
-      if (images.length > 0) {
-        //console.log(`Starting upload for ${images.length} images...`);
-        const { apiRequest } = await import('@/services/api.service');
-
-        const uploadPromises = images.map(async (file) => {
-          const { uploadUrl, publicUrl } = await apiRequest<{
-            uploadUrl: string;
-            publicUrl: string;
-          }>(`/orders/upload-url?filename=${encodeURIComponent(file.name)}`);
-
-          await fetch(uploadUrl, {
-            method: 'PUT',
-            body: file,
-            headers: { 'Content-Type': file.type },
-          });
-          return publicUrl;
-        });
-
-        const uploaded = await Promise.all(uploadPromises);
-        imageUrls.push(...uploaded);
-      }
-
-      const managerSelection = runManagers[runId];
-      const process = localOrder.processes.find((p) => p.id === processId);
-      const run = process?.runs.find((r) => r.id === runId);
-
-      const executorId = managerSelection?.executorId ?? run?.executor?.id;
-      const reviewerId = managerSelection?.reviewerId ?? run?.reviewer?.id;
-
-      const res = await configureRun(
-        localOrder.id,
-        processId,
-        runId,
-        apiValues,
-        imageUrls,
-        executorId,
-        reviewerId,
-        undefined, // deprecated locationId
-        undefined, // comments
-        preProdLocations[runId] ?? run?.preProductionLocation?.id,
-        postProdLocations[runId] ?? run?.postProductionLocation?.id,
-      );
-      if (res.success) {
-        // Clear images state
-        setRunImages((prev) => {
-          const newState = { ...prev };
-          delete newState[runId];
-          return newState;
-        });
-        setImagePreviews((prev) => {
-          const newState = { ...prev };
-          delete newState[runId];
-          return newState;
-        });
-
-        if (onSaveSuccess) onSaveSuccess(processId, runId);
-        setOpenRunId(null);
-        setEditingRunId(null);
-        if (onRefresh) await onRefresh();
-      } else {
-        throw new Error('Save failed');
-      }
-    } catch (err: any) {
-      console.error(err);
-      const msg = err.message || 'Save failed';
-      if (msg.toLowerCase().includes('credit limit')) {
-        setCreditLimitError(msg);
-      } else {
-        toast.error(msg);
-      }
-    } finally {
-      setIsSaving(null);
-    }
-  };
-
-  // --- Render ---
-  const renderRun = (process: any, run: ProcessRun) => {
-    const isConfigured = run.configStatus === 'COMPLETE';
-    const isEditing = editingRunId === run.id;
-
-    // Mode: View or Edit
-    const mode = isConfigured && !isEditing ? 'view' : 'edit';
-    const data = mode === 'view' ? (run.values as PlotterRunValues) : editForm || initialFormState;
-
-    const savedImages = (mode === 'view' ? data.images || [] : []) as string[];
-    const totals = getTotals(parseItems(data.items as PlotterItem[]));
-
-    const handlePasteToFill = (e: React.ClipboardEvent<HTMLDivElement>) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT'
-      )
-        return;
-
-      const text = e.clipboardData.getData('text');
-      if (!text.includes('\t') && !text.includes('\n')) return;
-
-      e.preventDefault();
-
-      const rows = text
-        .split('\n')
-        .map((r) => r.replace(/\r$/, ''))
-        .filter((r) => r.trim() !== '');
-      if (rows.length === 0) return;
-
-      const newItems: PlotterItem[] = rows.map((row) => {
-        const cols = row.split('\t');
-        const item: PlotterItem = {
-          fileSizes: cols[0]?.trim() || '',
-          quantity: parseFloat(cols[1]?.replace(/,/g, '')) || 0,
-          sizeW: parseFloat(cols[2]?.replace(/,/g, '')) || 0,
-          sizeH: parseFloat(cols[3]?.replace(/,/g, '')) || 0,
-          layoutHeight: parseFloat(cols[4]?.replace(/,/g, '')) || 0,
-          layoutPcs: parseFloat(cols[5]?.replace(/,/g, '')) || 0,
-          sheetRate: parseFloat(cols[6]?.replace(/,/g, '')) || 0,
-          sheetReq: 0,
-          rate: 0,
-          total: 0,
+            if (pasteToastRef.current) clearTimeout(pasteToastRef.current);
+            setPasteSuccess(`✓ Pasted ${newItems.length} rows from Excel!`);
+            pasteToastRef.current = setTimeout(() => setPasteSuccess(null), 3500);
         };
-        return calculateRow(item);
-      });
 
-      setEditForm((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          items: newItems,
-        };
-      });
+        return (
+            <div
+                className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3"
+                onPaste={handlePasteToFill}
+            >
+                <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div
+                            className={`w-2 h-2 rounded-full ${mode === 'edit' ? 'bg-blue-500' : 'bg-green-500'}`}
+                        />
+                        <h3 className="font-semibold text-sm">
+                            {mode === 'edit' ? `Configure Run ${run.runNumber}` : `Run ${run.runNumber} Config`}
+                        </h3>
+                        {mode === 'view' && (
+                            <div className="flex gap-1 ml-2">
+                                {run.preProductionLocation && (
+                                    <span
+                                        className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1"
+                                        title="Pre-Production Location"
+                                    >
+                                        <MapPin className="w-3 h-3" />
+                                        PRE: {run.preProductionLocation.code}
+                                    </span>
+                                )}
+                                {run.postProductionLocation && (
+                                    <span
+                                        className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1"
+                                        title="Post-Production Location"
+                                    >
+                                        <MapPin className="w-3 h-3" />
+                                        POST: {run.postProductionLocation.code}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    {mode === 'view' && hasPermission(Permission.RUNS_UPDATE) && (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setEditingRunId(run.id)}
+                                className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200 transition-colors"
+                            >
+                                <Edit className="w-3 h-3" />
+                                Edit
+                            </button>
+                            <button
+                                onClick={() => setOpenRunId(null)}
+                                className="text-gray-500 hover:text-gray-700 text-sm"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+                    {mode === 'edit' && (
+                        <button
+                            onClick={() => {
+                                setOpenRunId(null);
+                                setEditingRunId(null);
+                            }}
+                        >
+                            <X className="w-4 h-4 text-gray-500" />
+                        </button>
+                    )}
+                </div>
 
-      if (pasteToastRef.current) clearTimeout(pasteToastRef.current);
-      setPasteSuccess(`✓ Pasted ${newItems.length} rows from Excel!`);
-      pasteToastRef.current = setTimeout(() => setPasteSuccess(null), 3500);
+                {/* FIELDS */}
+                <div className="bg-white border border-gray-200 rounded p-3 sm:p-4 space-y-4">
+                    {mode === 'edit' && (
+                        <div className="mb-3 flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg">
+                            <ClipboardPaste className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold text-blue-700">
+                                    Paste to Fill Table
+                                    <span className="ml-1.5 text-[10px] font-normal text-blue-500">
+                                        Copy rows from Excel &amp; press{' '}
+                                        <kbd className="bg-blue-100 px-1 py-0.5 rounded font-mono text-[9px]">
+                                            Ctrl+V
+                                        </kbd>{' '}
+                                        outside fields
+                                    </span>
+                                </p>
+                                <p className="text-[10px] text-blue-400 mt-0.5 font-mono leading-relaxed truncate">
+                                    Cols:{' '}
+                                    <span className="text-blue-500">
+                                        Files/Sizes → Qty → W → H → Layout H → Layout Pc → Sheet Rate
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {mode === 'edit' && pasteSuccess && (
+                        <div className="mb-3 flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
+                            <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                                <svg
+                                    className="w-2.5 h-2.5 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={3}
+                                        d="M5 13l4 4L19 7"
+                                    />
+                                </svg>
+                            </div>
+                            <p className="text-xs text-green-700 font-medium">{pasteSuccess}</p>
+                        </div>
+                    )}
+
+                    {mode === 'edit' && (
+                        <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+                                <SearchableManagerSelect
+                                    label="Executor"
+                                    users={managers}
+                                    selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
+                                    onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
+                                />
+                                <SearchableManagerSelect
+                                    label="Reviewer"
+                                    users={managers}
+                                    selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
+                                    onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                                <SearchableLocationSelect
+                                    label="Pre-Prod Location"
+                                    locations={locations}
+                                    valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
+                                    onChange={(id) => setPreProdLocations((prev) => ({ ...prev, [run.id]: id }))}
+                                    required
+                                />
+                                <SearchableLocationSelect
+                                    label="Post-Prod Location"
+                                    locations={locations}
+                                    valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
+                                    onChange={(id) => setPostProdLocations((prev) => ({ ...prev, [run.id]: id }))}
+                                    required
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {/* IMAGE UPLOAD SECTION */}
+                    {mode === 'edit' && (
+                        <div className="mt-3 border border-gray-300 rounded overflow-hidden bg-white p-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                                    <Palette className="w-3.5 h-3.5" />
+                                    Reference Images (Max 2)
+                                </label>
+                                <div className="text-xs text-gray-500">
+                                    {(runImages[run.id] || []).length}/2 uploaded
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 items-start">
+                                {/* UPLOAD BUTTON */}
+                                {(runImages[run.id] || []).length < 2 && (
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            id={`img-upload-${run.id}`}
+                                            className="hidden"
+                                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                                            multiple
+                                            onChange={(e) => handleImageSelect(run.id, e)}
+                                        />
+                                        <label
+                                            htmlFor={`img-upload-${run.id}`}
+                                            className="flex flex-col items-center justify-center w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
+                                        >
+                                            <span className="text-gray-400 text-2xl">+</span>
+                                            <span className="text-[10px] text-gray-500 mt-1">Add Image</span>
+                                        </label>
+                                    </div>
+                                )}
+
+                                {/* PREVIEWS */}
+                                {(imagePreviews[run.id] || []).map((preview, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="relative group w-20 h-20 border rounded-lg overflow-hidden"
+                                    >
+                                        <img
+                                            src={preview}
+                                            alt={`Preview ${idx}`}
+                                            className="w-full h-full object-cover"
+                                        />
+                                        <button
+                                            onClick={() => removeImage(run.id, idx)}
+                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* DISPLAY IMAGES IF AVAILABLE (READ-ONLY) */}
+                    {mode === 'view' && savedImages.length > 0 && (
+                        <div className="mt-4 border border-gray-200 rounded p-3 bg-white">
+                            <h4 className="text-xs font-semibold text-gray-700 mb-2">Reference Images</h4>
+                            <div className="flex gap-2 overflow-x-auto">
+                                {savedImages.map((imgUrl, index) => (
+                                    <a
+                                        key={index}
+                                        href={imgUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block w-16 h-16 border rounded overflow-hidden shrink-0 hover:border-blue-500 transition-colors"
+                                    >
+                                        <img
+                                            src={imgUrl}
+                                            alt={`Ref ${index + 1}`}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Run Comments */}
+                    {mode === 'view' && (
+                        <RunCommentEditor
+                            orderId={localOrder.id}
+                            processId={process.id}
+                            run={run}
+                            onRefresh={onRefresh}
+                            canEdit={hasPermission(Permission.RUNS_UPDATE)}
+                        />
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs text-gray-500 block">Particulars</label>
+                            {mode === 'edit' ? (
+                                <input
+                                    className="w-full border p-1 rounded text-sm"
+                                    value={data.particulars as string}
+                                    onChange={(e) => updateHeader('particulars', e.target.value)}
+                                />
+                            ) : (
+                                <div className="text-sm font-medium">{data.particulars as string}</div>
+                            )}
+                        </div>
+                        <div>
+                            <label className="text-xs text-gray-500 block">Sheets to Cut</label>
+                            {mode === 'edit' ? (
+                                <input
+                                    className="w-full border p-1 rounded text-sm"
+                                    value={data.sheetsToCut as string}
+                                    onChange={(e) => updateHeader('sheetsToCut', e.target.value)}
+                                />
+                            ) : (
+                                <div className="text-sm font-medium">{data.sheetsToCut as string}</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* TABLE */}
+                    <div className="overflow-x-auto border rounded">
+                        <table className="w-full text-sm min-w-max">
+                            <thead className="bg-gray-100 text-xs">
+                                <tr>
+                                    <th className="p-2 text-left">Files/Sizes</th>
+                                    <th className="p-2 text-right">Qty (pcs)</th>
+                                    <th className="p-2 text-right">Size W</th>
+                                    <th className="p-2 text-right">Size H</th>
+                                    <th className="p-2 text-right">In Layout H</th>
+                                    <th className="p-2 text-right">In Layout Pcs</th>
+                                    <th className="p-2 text-right">Sheet Rate</th>
+                                    <th className="p-2 text-right bg-blue-50">Sheet Req</th>
+                                    <th className="p-2 text-right bg-blue-50">Rate</th>
+                                    <th className="p-2 text-right bg-blue-50">Total</th>
+                                    {mode === 'edit' && <th className="p-2"></th>}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {parseItems(data.items as PlotterItem[]).map((item, idx) => (
+                                    <tr key={idx} className="border-t">
+                                        <td className="p-2">
+                                            {mode === 'edit' ? (
+                                                <input
+                                                    className="w-full border p-1"
+                                                    value={item.fileSizes}
+                                                    onChange={(e) => updateItem(idx, 'fileSizes', e.target.value)}
+                                                />
+                                            ) : (
+                                                item.fileSizes
+                                            )}
+                                        </td>
+                                        <td className="p-2 text-right">
+                                            {mode === 'edit' ? (
+                                                <input
+                                                    type="number"
+                                                    className="w-16 border p-1 text-right"
+                                                    value={item.quantity}
+                                                    onChange={(e) =>
+                                                        updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
+                                                    }
+                                                />
+                                            ) : (
+                                                item.quantity
+                                            )}
+                                        </td>
+                                        <td className="p-2 text-right">
+                                            {mode === 'edit' ? (
+                                                <input
+                                                    type="number"
+                                                    className="w-16 border p-1 text-right"
+                                                    value={item.sizeW}
+                                                    onChange={(e) =>
+                                                        updateItem(idx, 'sizeW', parseFloat(e.target.value) || 0)
+                                                    }
+                                                />
+                                            ) : (
+                                                item.sizeW
+                                            )}
+                                        </td>
+                                        <td className="p-2 text-right">
+                                            {mode === 'edit' ? (
+                                                <input
+                                                    type="number"
+                                                    className="w-16 border p-1 text-right"
+                                                    value={item.sizeH}
+                                                    onChange={(e) =>
+                                                        updateItem(idx, 'sizeH', parseFloat(e.target.value) || 0)
+                                                    }
+                                                />
+                                            ) : (
+                                                item.sizeH
+                                            )}
+                                        </td>
+                                        <td className="p-2 text-right">
+                                            {mode === 'edit' ? (
+                                                <input
+                                                    type="number"
+                                                    className="w-16 border p-1 text-right"
+                                                    value={item.layoutHeight}
+                                                    onChange={(e) =>
+                                                        updateItem(idx, 'layoutHeight', parseFloat(e.target.value) || 0)
+                                                    }
+                                                />
+                                            ) : (
+                                                item.layoutHeight
+                                            )}
+                                        </td>
+                                        <td className="p-2 text-right">
+                                            {mode === 'edit' ? (
+                                                <input
+                                                    type="number"
+                                                    className="w-16 border p-1 text-right"
+                                                    value={item.layoutPcs}
+                                                    onChange={(e) =>
+                                                        updateItem(idx, 'layoutPcs', parseFloat(e.target.value) || 0)
+                                                    }
+                                                />
+                                            ) : (
+                                                item.layoutPcs
+                                            )}
+                                        </td>
+                                        <td className="p-2 text-right">
+                                            {mode === 'edit' ? (
+                                                <input
+                                                    type="number"
+                                                    className="w-16 border p-1 text-right"
+                                                    value={item.sheetRate}
+                                                    onChange={(e) =>
+                                                        updateItem(idx, 'sheetRate', parseFloat(e.target.value) || 0)
+                                                    }
+                                                />
+                                            ) : (
+                                                item.sheetRate
+                                            )}
+                                        </td>
+                                        {/* READ ONLY CALCS */}
+                                        <td className="p-2 text-right bg-gray-50">{item.sheetReq.toFixed(2)}</td>
+                                        <td className="p-2 text-right bg-gray-50">{item.rate.toFixed(2)}</td>
+                                        <td className="p-2 text-right bg-gray-50 font-semibold">
+                                            {item.total.toFixed(2)}
+                                        </td>
+
+                                        {mode === 'edit' && (
+                                            <td className="p-2 text-center">
+                                                <button
+                                                    onClick={() => deleteItem(idx)}
+                                                    className="text-red-500 hover:text-red-700"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-gray-100 font-bold text-gray-700">
+                                <tr>
+                                    <td className="p-2 text-right">Totals:</td>
+                                    <td className="p-2 text-right">{totals.totalQty}</td>
+                                    <td colSpan={5}></td>
+                                    <td className="p-2 text-right">{totals.totalSheetReq.toFixed(2)}</td>
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right">₹{totals.totalAmount.toFixed(2)}</td>
+                                    {mode === 'edit' && <td></td>}
+                                </tr>
+                                <tr>
+                                    <td colSpan={7} className="p-2 text-right">
+                                        In Meters:
+                                    </td>
+                                    <td className="p-2 text-right">{totals.totalSheetReqMeters.toFixed(4)}</td>
+                                    <td colSpan={2 + (mode === 'edit' ? 1 : 0)}></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                        {mode === 'edit' && (
+                            <button
+                                onClick={addItem}
+                                className="w-full p-2 bg-gray-50 hover:bg-gray-100 text-blue-600 border-t text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                                <Plus className="w-4 h-4" /> Add Item
+                            </button>
+                        )}
+                    </div>
+
+                    {mode === 'edit' && (
+                        <div className="flex justify-end gap-3 pt-2">
+                            <button
+                                onClick={() => {
+                                    setEditingRunId(null);
+                                    setOpenRunId(null);
+                                }}
+                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded text-sm font-medium"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => saveRun(process.id, run.id)}
+                                disabled={isSaving === run.id}
+                                className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50"
+                            >
+                                {isSaving === run.id ? 'Saving...' : 'Save'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
     };
 
     return (
-      <div
-        className="bg-gray-50 border border-gray-300 rounded p-2 sm:p-3"
-        onPaste={handlePasteToFill}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div
-              className={`w-2 h-2 rounded-full ${mode === 'edit' ? 'bg-blue-500' : 'bg-green-500'}`}
+        <div className="space-y-4">
+            <CreditLimitErrorDialog
+                isOpen={!!creditLimitError}
+                onClose={() => setCreditLimitError(null)}
+                message={creditLimitError || undefined}
             />
-            <h3 className="font-semibold text-sm">
-              {mode === 'edit' ? `Configure Run ${run.runNumber}` : `Run ${run.runNumber} Config`}
-            </h3>
-            {mode === 'view' && (
-              <div className="flex gap-1 ml-2">
-                {run.preProductionLocation && (
-                  <span
-                    className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full flex items-center gap-1"
-                    title="Pre-Production Location"
-                  >
-                    <MapPin className="w-3 h-3" />
-                    PRE: {run.preProductionLocation.code}
-                  </span>
-                )}
-                {run.postProductionLocation && (
-                  <span
-                    className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full flex items-center gap-1"
-                    title="Post-Production Location"
-                  >
-                    <MapPin className="w-3 h-3" />
-                    POST: {run.postProductionLocation.code}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-          {mode === 'view' && hasPermission(Permission.RUNS_UPDATE) && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setEditingRunId(run.id)}
-                className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 bg-blue-50 px-2 py-1 rounded border border-blue-200 transition-colors"
-              >
-                <Edit className="w-3 h-3" />
-                Edit
-              </button>
-              <button
-                onClick={() => setOpenRunId(null)}
-                className="text-gray-500 hover:text-gray-700 text-sm"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-          {mode === 'edit' && (
-            <button
-              onClick={() => {
-                setOpenRunId(null);
-                setEditingRunId(null);
-              }}
-            >
-              <X className="w-4 h-4 text-gray-500" />
-            </button>
-          )}
-        </div>
 
-        {/* FIELDS */}
-        <div className="bg-white border border-gray-200 rounded p-3 sm:p-4 space-y-4">
-          {mode === 'edit' && (
-            <div className="mb-3 flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg">
-              <ClipboardPaste className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-blue-700">
-                  Paste to Fill Table
-                  <span className="ml-1.5 text-[10px] font-normal text-blue-500">
-                    Copy rows from Excel &amp; press{' '}
-                    <kbd className="bg-blue-100 px-1 py-0.5 rounded font-mono text-[9px]">
-                      Ctrl+V
-                    </kbd>{' '}
-                    outside fields
-                  </span>
-                </p>
-                <p className="text-[10px] text-blue-400 mt-0.5 font-mono leading-relaxed truncate">
-                  Cols:{' '}
-                  <span className="text-blue-500">
-                    Files/Sizes → Qty → W → H → Layout H → Layout Pc → Sheet Rate
-                  </span>
-                </p>
-              </div>
-            </div>
-          )}
-
-          {mode === 'edit' && pasteSuccess && (
-            <div className="mb-3 flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
-              <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                <svg
-                  className="w-2.5 h-2.5 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={3}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-              <p className="text-xs text-green-700 font-medium">{pasteSuccess}</p>
-            </div>
-          )}
-
-          {mode === 'edit' && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
-                <SearchableManagerSelect
-                  label="Executor"
-                  users={managers}
-                  selectedUserId={runManagers[run.id]?.executorId ?? run.executor?.id ?? null}
-                  onSelect={(id: string) => handleManagerSelect(run.id, 'executorId', id)}
-                />
-                <SearchableManagerSelect
-                  label="Reviewer"
-                  users={managers}
-                  selectedUserId={runManagers[run.id]?.reviewerId ?? run.reviewer?.id ?? null}
-                  onSelect={(id: string) => handleManagerSelect(run.id, 'reviewerId', id)}
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                <SearchableLocationSelect
-                  label="Pre-Prod Location"
-                  locations={locations}
-                  valueId={preProdLocations[run.id] ?? run.preProductionLocation?.id}
-                  onChange={(id) => setPreProdLocations((prev) => ({ ...prev, [run.id]: id }))}
-                  required
-                />
-                <SearchableLocationSelect
-                  label="Post-Prod Location"
-                  locations={locations}
-                  valueId={postProdLocations[run.id] ?? run.postProductionLocation?.id}
-                  onChange={(id) => setPostProdLocations((prev) => ({ ...prev, [run.id]: id }))}
-                  required
-                />
-              </div>
-            </>
-          )}
-
-          {/* IMAGE UPLOAD SECTION */}
-          {mode === 'edit' && (
-            <div className="mt-3 border border-gray-300 rounded overflow-hidden bg-white p-3">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                  <Palette className="w-3.5 h-3.5" />
-                  Reference Images (Max 2)
-                </label>
-                <div className="text-xs text-gray-500">
-                  {(runImages[run.id] || []).length}/2 uploaded
-                </div>
-              </div>
-
-              <div className="flex gap-3 items-start">
-                {/* UPLOAD BUTTON */}
-                {(runImages[run.id] || []).length < 2 && (
-                  <div className="relative">
-                    <input
-                      type="file"
-                      id={`img-upload-${run.id}`}
-                      className="hidden"
-                      accept="image/jpeg,image/jpg,image/png,image/webp"
-                      multiple
-                      onChange={(e) => handleImageSelect(run.id, e)}
-                    />
-                    <label
-                      htmlFor={`img-upload-${run.id}`}
-                      className="flex flex-col items-center justify-center w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
-                    >
-                      <span className="text-gray-400 text-2xl">+</span>
-                      <span className="text-[10px] text-gray-500 mt-1">Add Image</span>
-                    </label>
-                  </div>
-                )}
-
-                {/* PREVIEWS */}
-                {(imagePreviews[run.id] || []).map((preview, idx) => (
-                  <div
-                    key={idx}
-                    className="relative group w-20 h-20 border rounded-lg overflow-hidden"
-                  >
-                    <img
-                      src={preview}
-                      alt={`Preview ${idx}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      onClick={() => removeImage(run.id, idx)}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* DISPLAY IMAGES IF AVAILABLE (READ-ONLY) */}
-          {mode === 'view' && savedImages.length > 0 && (
-            <div className="mt-4 border border-gray-200 rounded p-3 bg-white">
-              <h4 className="text-xs font-semibold text-gray-700 mb-2">Reference Images</h4>
-              <div className="flex gap-2 overflow-x-auto">
-                {savedImages.map((imgUrl, index) => (
-                  <a
-                    key={index}
-                    href={imgUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-16 h-16 border rounded overflow-hidden shrink-0 hover:border-blue-500 transition-colors"
-                  >
-                    <img
-                      src={imgUrl}
-                      alt={`Ref ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Run Comments */}
-          {mode === 'view' && (
-            <RunCommentEditor
-              orderId={localOrder.id}
-              processId={process.id}
-              run={run}
-              onRefresh={onRefresh}
-              canEdit={hasPermission(Permission.RUNS_UPDATE)}
-            />
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-gray-500 block">Particulars</label>
-              {mode === 'edit' ? (
-                <input
-                  className="w-full border p-1 rounded text-sm"
-                  value={data.particulars as string}
-                  onChange={(e) => updateHeader('particulars', e.target.value)}
-                />
-              ) : (
-                <div className="text-sm font-medium">{data.particulars as string}</div>
-              )}
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block">Sheets to Cut</label>
-              {mode === 'edit' ? (
-                <input
-                  className="w-full border p-1 rounded text-sm"
-                  value={data.sheetsToCut as string}
-                  onChange={(e) => updateHeader('sheetsToCut', e.target.value)}
-                />
-              ) : (
-                <div className="text-sm font-medium">{data.sheetsToCut as string}</div>
-              )}
-            </div>
-          </div>
-
-          {/* TABLE */}
-          <div className="overflow-x-auto border rounded">
-            <table className="w-full text-sm min-w-max">
-              <thead className="bg-gray-100 text-xs">
-                <tr>
-                  <th className="p-2 text-left">Files/Sizes</th>
-                  <th className="p-2 text-right">Qty (pcs)</th>
-                  <th className="p-2 text-right">Size W</th>
-                  <th className="p-2 text-right">Size H</th>
-                  <th className="p-2 text-right">In Layout H</th>
-                  <th className="p-2 text-right">In Layout Pcs</th>
-                  <th className="p-2 text-right">Sheet Rate</th>
-                  <th className="p-2 text-right bg-blue-50">Sheet Req</th>
-                  <th className="p-2 text-right bg-blue-50">Rate</th>
-                  <th className="p-2 text-right bg-blue-50">Total</th>
-                  {mode === 'edit' && <th className="p-2"></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {parseItems(data.items as PlotterItem[]).map((item, idx) => (
-                  <tr key={idx} className="border-t">
-                    <td className="p-2">
-                      {mode === 'edit' ? (
-                        <input
-                          className="w-full border p-1"
-                          value={item.fileSizes}
-                          onChange={(e) => updateItem(idx, 'fileSizes', e.target.value)}
-                        />
-                      ) : (
-                        item.fileSizes
-                      )}
-                    </td>
-                    <td className="p-2 text-right">
-                      {mode === 'edit' ? (
-                        <input
-                          type="number"
-                          className="w-16 border p-1 text-right"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      ) : (
-                        item.quantity
-                      )}
-                    </td>
-                    <td className="p-2 text-right">
-                      {mode === 'edit' ? (
-                        <input
-                          type="number"
-                          className="w-16 border p-1 text-right"
-                          value={item.sizeW}
-                          onChange={(e) =>
-                            updateItem(idx, 'sizeW', parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      ) : (
-                        item.sizeW
-                      )}
-                    </td>
-                    <td className="p-2 text-right">
-                      {mode === 'edit' ? (
-                        <input
-                          type="number"
-                          className="w-16 border p-1 text-right"
-                          value={item.sizeH}
-                          onChange={(e) =>
-                            updateItem(idx, 'sizeH', parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      ) : (
-                        item.sizeH
-                      )}
-                    </td>
-                    <td className="p-2 text-right">
-                      {mode === 'edit' ? (
-                        <input
-                          type="number"
-                          className="w-16 border p-1 text-right"
-                          value={item.layoutHeight}
-                          onChange={(e) =>
-                            updateItem(idx, 'layoutHeight', parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      ) : (
-                        item.layoutHeight
-                      )}
-                    </td>
-                    <td className="p-2 text-right">
-                      {mode === 'edit' ? (
-                        <input
-                          type="number"
-                          className="w-16 border p-1 text-right"
-                          value={item.layoutPcs}
-                          onChange={(e) =>
-                            updateItem(idx, 'layoutPcs', parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      ) : (
-                        item.layoutPcs
-                      )}
-                    </td>
-                    <td className="p-2 text-right">
-                      {mode === 'edit' ? (
-                        <input
-                          type="number"
-                          className="w-16 border p-1 text-right"
-                          value={item.sheetRate}
-                          onChange={(e) =>
-                            updateItem(idx, 'sheetRate', parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      ) : (
-                        item.sheetRate
-                      )}
-                    </td>
-                    {/* READ ONLY CALCS */}
-                    <td className="p-2 text-right bg-gray-50">{item.sheetReq.toFixed(2)}</td>
-                    <td className="p-2 text-right bg-gray-50">{item.rate.toFixed(2)}</td>
-                    <td className="p-2 text-right bg-gray-50 font-semibold">
-                      {item.total.toFixed(2)}
-                    </td>
-
-                    {mode === 'edit' && (
-                      <td className="p-2 text-center">
-                        <button
-                          onClick={() => deleteItem(idx)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-gray-100 font-bold text-gray-700">
-                <tr>
-                  <td className="p-2 text-right">Totals:</td>
-                  <td className="p-2 text-right">{totals.totalQty}</td>
-                  <td colSpan={5}></td>
-                  <td className="p-2 text-right">{totals.totalSheetReq.toFixed(2)}</td>
-                  <td className="p-2 text-right"></td>
-                  <td className="p-2 text-right">₹{totals.totalAmount.toFixed(2)}</td>
-                  {mode === 'edit' && <td></td>}
-                </tr>
-                <tr>
-                  <td colSpan={7} className="p-2 text-right">
-                    In Meters:
-                  </td>
-                  <td className="p-2 text-right">{totals.totalSheetReqMeters.toFixed(4)}</td>
-                  <td colSpan={2 + (mode === 'edit' ? 1 : 0)}></td>
-                </tr>
-              </tfoot>
-            </table>
-            {mode === 'edit' && (
-              <button
-                onClick={addItem}
-                className="w-full p-2 bg-gray-50 hover:bg-gray-100 text-blue-600 border-t text-sm font-medium flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" /> Add Item
-              </button>
-            )}
-          </div>
-
-          {mode === 'edit' && (
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => {
-                  setEditingRunId(null);
-                  setOpenRunId(null);
-                }}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded text-sm font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => saveRun(process.id, run.id)}
-                disabled={isSaving === run.id}
-                className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50"
-              >
-                {isSaving === run.id ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="space-y-4">
-      <CreditLimitErrorDialog
-        isOpen={!!creditLimitError}
-        onClose={() => setCreditLimitError(null)}
-        message={creditLimitError || undefined}
-      />
-
-      {localOrder.processes.map((process) => (
-        <div key={process.id} className="space-y-2">
-          {process.runs.map((run) => (
-            <div key={run.id} className="space-y-1">
-              {!openRunId || openRunId !== run.id ? (
-                <div
-                  className={`border rounded p-2 transition-colors cursor-pointer flex items-center justify-between
+            {localOrder.processes.map((process) => (
+                <div key={process.id} className="space-y-2">
+                    {process.runs.map((run) => (
+                        <div key={run.id} className="space-y-1">
+                            {!openRunId || openRunId !== run.id ? (
+                                <div
+                                    className={`border rounded p-2 transition-colors cursor-pointer flex items-center justify-between
                                         ${run.configStatus === 'COMPLETE' ? 'bg-green-50 border-green-200 hover:bg-green-100' : 'bg-gray-50 border-gray-300 hover:bg-gray-100'}`}
-                >
-                  <div
-                    onClick={() => setOpenRunId(run.id)}
-                    className="flex items-center gap-2 flex-1"
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full ${run.configStatus === 'COMPLETE' ? 'bg-green-500' : 'bg-yellow-500'}`}
-                    />
-                    <span className="font-medium text-sm">Run {run.runNumber}</span>
-                    {run.configStatus === 'COMPLETE' && (
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" /> Configured
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {run.configStatus === 'COMPLETE' ? (
-                      <div className="p-1">
-                        <Eye className="w-4 h-4 text-gray-500" />
-                      </div>
-                    ) : (
-                      <div className="p-1">
-                        <Edit className="w-4 h-4 text-gray-500" />
-                      </div>
-                    )}
-                    {hasPermission(Permission.RUNS_DELETE) && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteRun(process.id, run.id);
-                        }}
-                        className="p-1 text-gray-400 hover:text-red-500"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
-              ) : (
-                renderRun(process, run)
-              )}
-            </div>
-          ))}
-          <div className="flex gap-2">
-            {hasPermission(Permission.RUNS_CREATE) && (
-              <button
-                onClick={() => handleAddRun(process.id)}
-                disabled={isAddingRun}
-                className="flex-1 py-2 border-2 border-dashed border-gray-300 rounded text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 text-sm font-medium flex items-center justify-center gap-2"
-              >
-                {isAddingRun ? (
-                  'Adding...'
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" /> Add configuration run
-                  </>
-                )}
-              </button>
-            )}
+                                >
+                                    <div
+                                        onClick={() => setOpenRunId(run.id)}
+                                        className="flex items-center gap-2 flex-1"
+                                    >
+                                        <div
+                                            className={`w-2 h-2 rounded-full ${run.configStatus === 'COMPLETE' ? 'bg-green-500' : 'bg-yellow-500'}`}
+                                        />
+                                        <span className="font-medium text-sm">Run {run.runNumber}</span>
+                                        {run.configStatus === 'COMPLETE' && (
+                                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                <CheckCircle className="w-3 h-3" /> Configured
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        {run.configStatus === 'COMPLETE' ? (
+                                            <div className="p-1">
+                                                <Eye className="w-4 h-4 text-gray-500" />
+                                            </div>
+                                        ) : (
+                                            <div className="p-1">
+                                                <Edit className="w-4 h-4 text-gray-500" />
+                                            </div>
+                                        )}
+                                        {hasPermission(Permission.RUNS_DELETE) && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteRun(process.id, run.id);
+                                                }}
+                                                className="p-1 text-gray-400 hover:text-red-500"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                                    </div>
+                                </div>
+                            ) : (
+                                renderRun(process, run)
+                            )}
+                        </div>
+                    ))}
+                    <div className="flex gap-2">
+                        {hasPermission(Permission.RUNS_CREATE) && (
+                            <button
+                                onClick={() => handleAddRun(process.id)}
+                                disabled={isAddingRun}
+                                className="flex-1 py-2 border-2 border-dashed border-gray-300 rounded text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                                {isAddingRun ? (
+                                    'Adding...'
+                                ) : (
+                                    <>
+                                        <Plus className="w-4 h-4" /> Add configuration run
+                                    </>
+                                )}
+                            </button>
+                        )}
 
-            {process.runs.length === 0 && (
-              <button
-                onClick={() => handleDeleteProcess(process.id)}
-                className="flex-1 py-2 border-2 border-dashed border-red-300 rounded-lg text-red-500 hover:border-red-500 hover:text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete Process
-              </button>
-            )}
-          </div>
+                        {process.runs.length === 0 && (
+                            <button
+                                onClick={() => handleDeleteProcess(process.id)}
+                                className="flex-1 py-2 border-2 border-dashed border-red-300 rounded-lg text-red-500 hover:border-red-500 hover:text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Delete Process
+                            </button>
+                        )}
+                    </div>
+                </div>
+            ))}
         </div>
-      ))}
-    </div>
-  );
+    );
 }

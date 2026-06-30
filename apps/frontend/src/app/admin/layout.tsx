@@ -56,7 +56,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <aside
                             className={`
                                 hidden md:flex bg-white border-r border-gray-200 flex-col transition-all duration-300 ease-in-out z-40
-                                ${isSidebarCollapsed ? 'w-[72px]' : 'w-64'}
+                                ${isSidebarCollapsed ? 'w-[72px]' : 'w-56'}
                             `}
                         >
                             {/* NAVIGATION LINKS */}
@@ -70,7 +70,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                             key={tab.path}
                                             onClick={() => router.push(tab.path)}
                                             className={`
-                                                relative flex items-center h-11 w-full rounded-xl transition-all duration-200 group
+                                                relative flex items-center h-11 w-full rounded-xl transition-all duration-200 group text-left
                                                 ${active
                                                     ? 'bg-blue-50 text-blue-700 shadow-sm'
                                                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
@@ -84,7 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                                             <span
                                                 className={`
-                                                    font-medium text-sm whitespace-nowrap transition-all duration-300 overflow-hidden
+                                                    font-medium text-sm whitespace-nowrap transition-all duration-300 overflow-hidden text-left
                                                     ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}
                                                 `}
                                             >
@@ -114,14 +114,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <div className="p-3 border-t border-gray-100 bg-gray-50/50">
                                 <button
                                     onClick={toggleSidebar}
-                                    className="flex items-center h-10 w-full rounded-xl text-gray-400 hover:text-gray-600 hover:bg-white hover:shadow-sm transition-all group"
+                                    className="flex items-center h-10 w-full rounded-xl text-gray-400 hover:text-gray-600 hover:bg-white hover:shadow-sm transition-all group text-left"
                                 >
                                     <div className="flex items-center justify-center min-w-[48px]">
                                         {isSidebarCollapsed ? <ChevronUp className="w-5 h-5 rotate-90" /> : <ChevronLeft className="w-5 h-5" />}
                                     </div>
                                     <span
                                         className={`
-                                            text-xs font-semibold uppercase tracking-wider transition-all duration-300 overflow-hidden
+                                            text-xs font-semibold uppercase tracking-wider transition-all duration-300 overflow-hidden text-left
                                             ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-full opacity-100'}
                                         `}
                                     >
