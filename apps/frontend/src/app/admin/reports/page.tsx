@@ -226,6 +226,7 @@ function ReportsPageContent() {
                                                     <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Customer</th>
                                                     <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Process</th>
                                                     <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Run No</th>
+                                                    <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Description</th>
                                                     <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Qty</th>
                                                     <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Rate</th>
                                                     <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Amount</th>
@@ -267,6 +268,9 @@ function ReportsPageContent() {
                                                             </span>
                                                         </td>
                                                         <td className="px-4 py-3 text-xs text-gray-500 font-mono">{row.runNumbers || '-'}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-600 max-w-[200px] truncate" title={row.description}>
+                                                            {row.description || '-'}
+                                                        </td>
                                                         <td className="px-4 py-3 text-sm text-gray-600 text-right font-medium">{row.quantity.toLocaleString()}</td>
                                                         <td className="px-4 py-3 text-sm text-gray-500 text-right">₹{row.rate}</td>
                                                         <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">₹{parseFloat(row.amount).toLocaleString()}</td>
