@@ -1,0 +1,285 @@
+/* =============================
+   Page background
+============================= */
+.page {
+  --brand-primary: #6366f1;
+  --page-bg: #020617;
+
+  min-height: 100vh;
+  background: var(--page-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated glow */
+.glow {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  background: radial-gradient(
+    circle at top,
+    color-mix(in srgb, var(--brand-primary) 20%, transparent),
+    transparent 60%
+  );
+  animation: bgPulse 12s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes bgPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow,
+  .animateIn,
+  .animateError,
+  .animateSuccess {
+    animation: none !important;
+  }
+}
+
+/* =============================
+   Login card
+============================= */
+.loginCard {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 2.5rem;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.animateIn {
+  animation: cardIn 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* =============================
+   Branding
+============================= */
+.brandText {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1.8;
+  color: var(--brand-primary);
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.title {
+  margin: 0 0 1.5rem;
+  font-size: 1.25rem;
+  color: #111827;
+  font-weight: 600;
+}
+
+/* =============================
+   Alerts
+============================= */
+.alert {
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  background: #fee2e2;
+  color: #991b1b;
+  text-align: left;
+}
+
+.animateError {
+  animation: shake 400ms ease;
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadePop {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* =============================
+   Fields
+============================= */
+.field {
+  text-align: left;
+  margin-bottom: 1.25rem;
+}
+
+.field label {
+  display: block;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+  color: #374151;
+}
+
+.field input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  outline: none;
+  background: #f9fafb;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.field input:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 25%, transparent);
+  transform: translateY(-1px);
+}
+
+/* =============================
+   Password toggle
+============================= */
+.passwordWrapper {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+}
+
+.passwordWrapper input {
+  padding-right: 3rem;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  height: 1.6rem;
+  width: 1.6rem;
+}
+
+.passwordToggle:hover {
+  color: var(--brand-primary);
+}
+
+.passwordToggle svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* =============================
+   Remember me
+============================= */
+.rememberRow {
+  margin-top: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.rememberLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rememberLabel input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand-primary);
+  cursor: pointer;
+}
+
+/* =============================
+   Actions
+============================= */
+.actions {
+  margin-top: 1.5rem;
+}
+
+.btnPrimary {
+  width: 100%;
+  padding: 0.7rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--brand-primary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    opacity 120ms ease;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px color-mix(in srgb, var(--brand-primary) 40%, transparent);
+}
+
+.btnPrimary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
