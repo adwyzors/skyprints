@@ -1,4 +1,5 @@
 export interface BilledOrderReportRow {
+    orderId: string;
     orderCode: string;
     images?: string[];
     processName: string;
@@ -9,6 +10,7 @@ export interface BilledOrderReportRow {
     rate: string;
     amount: string;
     billNumber: string;
+    billId?: string;
     date: string;
     preProductionLocation?: string;
     postProductionLocation?: string;

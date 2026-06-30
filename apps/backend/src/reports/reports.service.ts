@@ -150,6 +150,7 @@ export class ReportsService {
       // 1. Prepare a map of all available billing data for this order across all contexts
       const allBillingInputs: any[] = [];
       let primaryBillNumber = 'N/A';
+      let primaryBillId: string | null = null;
       let latestSnapshotDate: Date | null = null;
       let orderLevelResult: any = null;
 
@@ -188,12 +189,14 @@ export class ReportsService {
               inputs,
               orderResult,
               billNumber: bc.billingContext.name || bc.billingContext.id,
+              billId: bc.billingContext.id,
               type: bc.billingContext.type,
               date: snapshot.createdAt,
             });
             if (primaryBillNumber === 'N/A') {
               primaryBillNumber =
                 bc.billingContext.name || bc.billingContext.id;
+              primaryBillId = bc.billingContext.id;
             }
           }
         }
@@ -246,12 +249,14 @@ export class ReportsService {
           // Search for run-specific billing data in all available snapshots
           let runBilling: any = null;
           let runBillNumber = primaryBillNumber;
+          let runBillId = primaryBillId;
 
           for (const entry of allBillingInputs) {
             if (entry.orderResult) orderLevelResult = entry.orderResult;
             if (entry.inputs && entry.inputs[run.id]) {
               runBilling = entry.inputs[run.id];
               runBillNumber = entry.billNumber;
+              runBillId = entry.billId;
               break;
             }
           }
@@ -405,6 +410,7 @@ export class ReportsService {
           const productionDate = orderProcess.lifecycleCompletedAt || date;
 
           reportData.push({
+            orderId: order.id,
             orderCode: order.code,
             images: order.images || [],
             processName: orderProcess.process.name,
@@ -415,6 +421,7 @@ export class ReportsService {
             rate: rate.toFixed(2),
             amount: amount.toFixed(2),
             billNumber: runBillNumber,
+            billId: runBillId,
             date: productionDate.toISOString().split('T')[0],
             preProductionLocation: run.preProductionLocation?.name || '-',
             postProductionLocation: run.postProductionLocation?.name || '-',
