@@ -2,6 +2,7 @@
 
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
+import Link from 'next/link';
 import Pagination from '@/components/common/Pagination';
 import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
@@ -238,9 +239,11 @@ function ReportsPageContent() {
                                                 {data.map((row, idx) => (
                                                     <tr key={idx} className="hover:bg-gray-50 transition-colors group">
                                                         <td className="px-4 py-3">
-                                                            <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
-                                                                {row.orderCode}
-                                                            </span>
+                                                            <Link href={`/admin/orders/${row.orderId}`} className="hover:opacity-85 transition-opacity inline-block">
+                                                                <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 cursor-pointer">
+                                                                    {row.orderCode}
+                                                                </span>
+                                                            </Link>
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             <div className="flex flex-wrap gap-1 max-w-[100px]">
@@ -274,7 +277,18 @@ function ReportsPageContent() {
                                                         <td className="px-4 py-3 text-sm text-gray-600 text-right font-medium">{row.quantity.toLocaleString()}</td>
                                                         <td className="px-4 py-3 text-sm text-gray-500 text-right">₹{row.rate}</td>
                                                         <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">₹{parseFloat(row.amount).toLocaleString()}</td>
-                                                        <td className="px-4 py-3 text-xs font-medium text-gray-500">{row.billNumber}</td>
+                                                        <td className="px-4 py-3 text-xs font-medium text-gray-500">
+                                                            {row.billId ? (
+                                                                <Link 
+                                                                    href={`/admin/bills/${row.billId}`} 
+                                                                    className="text-blue-600 hover:text-blue-800 hover:underline transition-colors font-semibold"
+                                                                >
+                                                                    {row.billNumber}
+                                                                </Link>
+                                                            ) : (
+                                                                row.billNumber
+                                                            )}
+                                                        </td>
                                                         <td className="px-4 py-3 text-sm text-gray-500 text-right whitespace-nowrap">{row.date}</td>
                                                     </tr>
                                                 ))}

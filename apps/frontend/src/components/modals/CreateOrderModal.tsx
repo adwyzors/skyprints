@@ -1,5 +1,7 @@
 'use client';
 
+import { useAuth } from '@/auth/AuthProvider';
+import { Permission } from '@/auth/permissions';
 import SearchableProcessSelect from '@/components/common/SearchableProcessSelect';
 import { Customer } from '@/domain/model/customer.model';
 import { ProcessSummary } from '@/domain/model/process.model';
@@ -10,8 +12,6 @@ import { NewOrderPayload } from '@/types/planning';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import CustomerSelector from '../orders/CustomerSelector';
-import { useAuth } from '@/auth/AuthProvider';
-import { Permission } from '@/auth/permissions';
 
 /* ================= TYPES ================= */
 
@@ -343,20 +343,18 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                             />
                                         </div>
 
-                                        {/* QUANTITY */}
+                                        {/* JOB CODE */}
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-gray-700">Quantity</label>
+                                            <label className="text-sm font-medium text-gray-700">Job Code (Optional)</label>
                                             <input
-                                                type="number"
-                                                placeholder="Enter quantity..."
-                                                value={quantity || ''}
+                                                type="text"
+                                                placeholder="Enter job code..."
+                                                value={jobCode}
                                                 onChange={(e) => {
-                                                    const value = parseInt(e.target.value);
-                                                    setQuantity(isNaN(value) ? 0 : value);
+                                                    setJobCode(e.target.value);
                                                 }}
                                                 disabled={loading}
                                                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
-                                                min="1"
                                             />
                                         </div>
 
@@ -378,18 +376,20 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                             </div>
                                         </div>
 
-                                        {/* JOB CODE */}
+                                        {/* QUANTITY */}
                                         <div className="space-y-2">
-                                            <label className="text-sm font-medium text-gray-700">Job Code (Optional)</label>
+                                            <label className="text-sm font-medium text-gray-700">Quantity</label>
                                             <input
-                                                type="text"
-                                                placeholder="Enter job code..."
-                                                value={jobCode}
+                                                type="number"
+                                                placeholder="Enter quantity..."
+                                                value={quantity || ''}
                                                 onChange={(e) => {
-                                                    setJobCode(e.target.value);
+                                                    const value = parseInt(e.target.value);
+                                                    setQuantity(isNaN(value) ? 0 : value);
                                                 }}
                                                 disabled={loading}
                                                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
+                                                min="1"
                                             />
                                         </div>
                                     </div>
@@ -607,27 +607,27 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                     )}
                                 </div>
 
-                                        {/* TEST ORDER SETTING */}
-                                        {canCreateTest && (
-                                            <div className="space-y-2 col-span-1 md:col-span-2 mt-2 bg-yellow-50 border border-yellow-200 p-3 rounded-lg flex items-center">
-                                                <input
-                                                    type="checkbox"
-                                                    id="isTestOrder"
-                                                    checked={isTest}
-                                                    onChange={(e) => setIsTest(e.target.checked)}
-                                                    disabled={loading}
-                                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
-                                                />
-                                                <div className="flex flex-col">
-                                                    <label htmlFor="isTestOrder" className="text-sm font-semibold text-gray-800 cursor-pointer">
-                                                        Create as Test Order
-                                                    </label>
-                                                    <p className="text-xs text-gray-600 mt-0.5">
-                                                        Will generate under TESTORD sequence and can be filtered out of regular reporting.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
+                                {/* TEST ORDER SETTING */}
+                                {canCreateTest && (
+                                    <div className="space-y-2 col-span-1 md:col-span-2 mt-2 bg-yellow-50 border border-yellow-200 p-3 rounded-lg flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="isTestOrder"
+                                            checked={isTest}
+                                            onChange={(e) => setIsTest(e.target.checked)}
+                                            disabled={loading}
+                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
+                                        />
+                                        <div className="flex flex-col">
+                                            <label htmlFor="isTestOrder" className="text-sm font-semibold text-gray-800 cursor-pointer">
+                                                Create as Test Order
+                                            </label>
+                                            <p className="text-xs text-gray-600 mt-0.5">
+                                                Will generate under TESTORD sequence and can be filtered out of regular reporting.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
@@ -733,8 +733,8 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 mb-2">Credit Limit Reached</h3>
                         <p className="text-gray-500 text-sm leading-relaxed mb-8">
-                            This order cannot be created because the customer has exceeded their assigned credit limit. 
-                            <br/><br/>
+                            This order cannot be created because the customer has exceeded their assigned credit limit.
+                            <br /><br />
                             Please contact administration to adjust the limit or settle outstanding payments.
                         </p>
                         <button
