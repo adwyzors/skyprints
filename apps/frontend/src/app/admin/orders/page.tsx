@@ -82,7 +82,7 @@ function AdminOrdersContent() {
     const hasInitializedRef = useRef(false);
     const isMountedRef = useRef(false);
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
 
