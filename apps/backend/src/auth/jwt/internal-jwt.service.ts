@@ -43,12 +43,17 @@ export class InternalJwtService {
     );
   }
 
-  signRefreshToken(payload: { sub: string; tokenVersion: number }): string {
+  signRefreshToken(
+    payload: { sub: string; tokenVersion: number },
+    expiresInOverride?: string,
+  ): string {
     return this.jwt.sign(
       { ...payload, iss: ISS, aud: AUD },
       {
         secret: process.env.JWT_SECRET,
-        expiresIn: (process.env.JWT_REFRESH_EXPIRES ?? '7d') as StringValue,
+        expiresIn: (expiresInOverride ??
+          process.env.JWT_REFRESH_EXPIRES ??
+          '7d') as StringValue,
       },
     );
   }

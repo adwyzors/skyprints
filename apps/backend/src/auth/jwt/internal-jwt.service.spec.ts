@@ -75,5 +75,10 @@ describe('InternalJwtService', () => {
       );
       expect(() => svc.verifyRefreshToken(expiredToken)).toThrow(UnauthorizedException);
     });
+
+    it('honors an expiresIn override (rememberMe=false short session)', () => {
+      const token = svc.signRefreshToken({ sub: 'user-3', tokenVersion: 0 }, '-1s');
+      expect(() => svc.verifyRefreshToken(token)).toThrow(UnauthorizedException);
+    });
   });
 });

@@ -18,6 +18,7 @@ import { KeycloakService } from './keycloak/keycloak.service';
 interface LoginBody {
   username: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 const safeRedirect = (path: string): string =>
@@ -126,13 +127,13 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { username, password } = body ?? {};
+    const { username, password, rememberMe = true } = body ?? {};
 
     if (!username || !password) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    await this.auth.login(username, password, res, req);
+    await this.auth.login(username, password, res, req, rememberMe);
     return { ok: true };
   }
 

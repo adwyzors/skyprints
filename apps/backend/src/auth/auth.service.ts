@@ -22,16 +22,23 @@ export class AuthService {
     private readonly internalJwt: InternalJwtService,
   ) {}
 
-  setAuthCookies(res: Response, tokens: any, req: Request) {
+  setAuthCookies(
+    res: Response,
+    tokens: any,
+    req: Request,
+    rememberMe = true,
+  ) {
     this.setAccessCookie(res, tokens.access_token, req);
 
+    // rememberMe=false -> session cookie, cleared when the browser closes
+    const refreshMaxAge = rememberMe ? 7 * 24 * 60 * 60 : undefined;
     res.cookie(
       'REFRESH_TOKEN',
       tokens.refresh_token,
-      cookieOptions(req, 7 * 24 * 60 * 60),
+      cookieOptions(req, refreshMaxAge),
     );
 
-    this.logger.log('Auth cookies set');
+    this.logger.log(`Auth cookies set (rememberMe=${rememberMe})`);
   }
 
   setAccessCookie(res: Response, token: string, req: Request) {
@@ -50,6 +57,7 @@ export class AuthService {
     password: string,
     res: Response,
     req: Request,
+    rememberMe = true,
   ): Promise<void> {
     if (process.env.INTERNAL_AUTH_ENABLED !== 'true') {
       throw new ServiceUnavailableException(
@@ -131,19 +139,25 @@ export class AuthService {
       permissions: loginRecord.permissions,
       tokenVersion: loginRecord.tokenVersion,
     });
-    const refreshToken = this.internalJwt.signRefreshToken({
-      sub: user.id,
-      tokenVersion: loginRecord.tokenVersion,
-    });
+    const refreshExpiresIn = rememberMe
+      ? process.env.JWT_REFRESH_EXPIRES ?? '7d'
+      : process.env.JWT_REFRESH_EXPIRES_SHORT ?? '1d';
+    const refreshToken = this.internalJwt.signRefreshToken(
+      { sub: user.id, tokenVersion: loginRecord.tokenVersion },
+      refreshExpiresIn,
+    );
 
     // 8. Set cookies
     this.setAuthCookies(
       res,
       { access_token: accessToken, refresh_token: refreshToken },
       req,
+      rememberMe,
     );
 
-    this.logger.log(`Internal login succeeded for userId=${user.id}`);
+    this.logger.log(
+      `Internal login succeeded for userId=${user.id} (rememberMe=${rememberMe})`,
+    );
   }
 
   async refreshInternal(
