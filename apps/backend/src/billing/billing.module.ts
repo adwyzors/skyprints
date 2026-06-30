@@ -1,5 +1,6 @@
 import { forwardRef, Module } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
+
 
 import { FormulaCompiler } from './formula/formula-compiler';
 import { MathOnlyFormulaEngine } from './formula/math-only.formula.engine';
