@@ -264,7 +264,7 @@ export default function PlotterConfig({
 
             if (run) {
                 const values = run.values as PlotterRunValues;
-                const existingItems = values.items || [];
+                const existingItems = parseItems(values.items);
                 setEditForm({
                     particulars: values.particulars || '',
                     sheetsToCut: values.sheetsToCut || '',
@@ -314,9 +314,9 @@ export default function PlotterConfig({
 
         return {
             ...item,
-            sheetReq: Number(sheetReq.toFixed(4)), // keep some precision
-            rate: Number(rate.toFixed(2)),
-            total: Number(total.toFixed(2))
+            sheetReq: Number((sheetReq || 0).toFixed(4)), // keep some precision
+            rate: Number((rate || 0).toFixed(2)),
+            total: Number((total || 0).toFixed(2))
         };
     };
 
@@ -355,20 +355,31 @@ export default function PlotterConfig({
     };
 
     function parseItems(items: unknown): PlotterItem[] {
+        let list: any[] = [];
         if (Array.isArray(items)) {
-            return items;
-        }
-
-        if (typeof items === 'string') {
+            list = items;
+        } else if (typeof items === 'string') {
             try {
                 const parsed = JSON.parse(items);
-                return Array.isArray(parsed) ? parsed : [];
+                list = Array.isArray(parsed) ? parsed : [];
             } catch {
-                return [];
+                list = [];
             }
         }
 
-        return [];
+        return list.map(item => ({
+            ...item,
+            fileSizes: item?.fileSizes || '',
+            quantity: Number(item?.quantity || 0),
+            sizeW: Number(item?.sizeW || 0),
+            sizeH: Number(item?.sizeH || 0),
+            layoutHeight: Number(item?.layoutHeight || 0),
+            layoutPcs: Number(item?.layoutPcs || 0),
+            sheetRate: Number(item?.sheetRate || 0),
+            sheetReq: Number(item?.sheetReq || 0),
+            rate: Number(item?.rate || 0),
+            total: Number(item?.total || 0)
+        }));
     }
     const getTotals = (items: PlotterItem[]) => {
         const totalQty = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
