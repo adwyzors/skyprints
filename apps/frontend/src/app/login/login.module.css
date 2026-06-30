@@ -3,7 +3,7 @@
 ============================= */
 .page {
   --brand-primary: #6366f1;
-  --page-bg: #020617;
+  --page-bg: #ffffff;
 
   min-height: 100vh;
   background: var(--page-bg);
