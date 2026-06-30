@@ -1,5 +1,5 @@
 // services/billing.service.ts
-import { BillingContextDetails, BillingSnapshot, GetBillingContextsResponse } from '@/domain/model/billing.model';
+import { BillingContext, BillingContextDetails, BillingSnapshot, GetBillingContextsResponse } from '@/domain/model/billing.model';
 import { apiRequest, apiRequestWithHeaders } from './api.service';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -108,5 +108,23 @@ export const finalizeBillingGroup = async (contextId: string): Promise<void> => 
     return apiRequest<void>('/billing/finalize/group', {
         method: 'POST',
         body: JSON.stringify({ billingContextId: contextId }),
+    });
+};
+
+export const getBillingContextsRangePreview = async (
+    startDate: string,
+    endDate: string
+): Promise<BillingContext[]> => {
+    return apiRequest<BillingContext[]>(`/billing/contexts/range-preview?startDate=${startDate}&endDate=${endDate}`, {
+        method: 'GET',
+    });
+};
+
+export const deleteBillingContextsRange = async (
+    startDate: string,
+    endDate: string
+): Promise<{ success: boolean; count: number }> => {
+    return apiRequest<{ success: boolean; count: number }>(`/billing/contexts/range?startDate=${startDate}&endDate=${endDate}`, {
+        method: 'DELETE',
     });
 };

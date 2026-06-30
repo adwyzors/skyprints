@@ -12,7 +12,7 @@ import type {
   UpdatePermissionsDto,
   UpdateUserDto,
 } from '@app/contracts';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { ContextLogger } from '../common/logger/context.logger';
 import { ALL_PERMISSIONS, ROLE_PERMISSIONS } from '../auth/permissions.map';
 

@@ -13,7 +13,7 @@ import {
   seedUser,
 } from '../../test/db';
 import { disconnectTestPrisma, getTestPrisma } from '../../test/prisma';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { FormulaCompiler } from '../formula/formula-compiler';
 import { MathOnlyFormulaEngine } from '../formula/math-only.formula.engine';
 import { BillingCalculatorService } from './billing-calculator.service';

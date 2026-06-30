@@ -3,6 +3,7 @@
  * Needs DATABASE_URL from .env.test → npm run test:integration
  */
 import { BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../../prisma/prisma.service';
 import {
   cleanDatabase,
   seedCustomer,
@@ -13,7 +14,6 @@ import {
   seedUser,
 } from '../../test/db';
 import { disconnectTestPrisma, getTestPrisma } from '../../test/prisma';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
 import { FormulaCompiler } from '../formula/formula-compiler';
 import { MathOnlyFormulaEngine } from '../formula/math-only.formula.engine';
 import { BillingCalculatorService } from './billing-calculator.service';
@@ -27,7 +27,13 @@ function buildServices() {
   const mathEngine = new MathOnlyFormulaEngine();
   const calculator = new BillingCalculatorService(prismaService, compiler, mathEngine);
   const contextResolver = new BillingContextResolver();
-  const analyticsStub: any = { trackOrderFinalized: async () => {} };
+  const analyticsStub: any = {
+    trackOrderFinalized: async () => { },
+    syncExistingData: async () => ({ processed: 0 }),
+  };
+  const cloudflareStub: any = {
+    deleteFileByUrl: async () => { },
+  };
   const ordersStub: any = {};
   const snapshotService = new BillingSnapshotService(
     prismaService,
@@ -36,7 +42,13 @@ function buildServices() {
     ordersStub,
     analyticsStub,
   );
-  const contextService = new BillingContextService(prismaService, snapshotService, calculator);
+  const contextService = new BillingContextService(
+    prismaService,
+    snapshotService,
+    calculator,
+    analyticsStub,
+    cloudflareStub,
+  );
   return { prismaService, calculator, contextResolver, snapshotService, contextService };
 }
 
@@ -367,6 +379,68 @@ describe('BillingContextService (integration)', () => {
         where: { billingContextId: ctx.id, orderId: order.id },
       });
       expect(link).toBeNull();
+    });
+  });
+
+  // ── Range Preview and Delete ──────────────────────────────────────────────
+
+  describe('Range Preview and Delete', () => {
+    it('retrieves contexts in date range and deletes them along with soft-deleting their orders', async () => {
+      const customer = await seedCustomer(testPrisma, { code: 'RANGE_CUST', name: 'Range Customer' });
+      const user = await seedUser(testPrisma, { email: 'range@test.com' });
+      const order1 = await seedOrder(testPrisma, { customerId: customer.id, createdById: user.id });
+      const order2 = await seedOrder(testPrisma, { customerId: customer.id, createdById: user.id });
+
+      const ctx1 = await testPrisma.billingContext.create({
+        data: {
+          type: 'GROUP',
+          name: 'CTX_IN_RANGE',
+          createdAt: new Date('2026-06-15T12:00:00Z'),
+          orders: {
+            create: [
+              { orderId: order1.id },
+              { orderId: order2.id },
+            ]
+          }
+        },
+      });
+
+      const ctx2 = await testPrisma.billingContext.create({
+        data: {
+          type: 'GROUP',
+          name: 'CTX_OUT_RANGE',
+          createdAt: new Date('2026-05-15T12:00:00Z'),
+        },
+      });
+
+      // Preview contexts in range 2026-06-01 to 2026-06-30
+      const preview = await contextService.getContextsInRange('2026-06-01', '2026-06-30');
+      expect(preview.length).toBe(1);
+      expect(preview[0].id).toBe(ctx1.id);
+      expect(preview[0].ordersCount).toBe(2);
+
+      // Perform range delete
+      const deleteResult = await contextService.deleteContextsInRange('2026-06-01', '2026-06-30');
+      expect(deleteResult.success).toBe(true);
+      expect(deleteResult.count).toBe(1);
+
+      // Verify context is deleted
+      const deletedCtx = await testPrisma.billingContext.findUnique({
+        where: { id: ctx1.id },
+      });
+      expect(deletedCtx).toBeNull();
+
+      // Verify other context is not deleted
+      const otherCtx = await testPrisma.billingContext.findUnique({
+        where: { id: ctx2.id },
+      });
+      expect(otherCtx).toBeTruthy();
+
+      // Verify associated orders are soft-deleted (deletedAt is set)
+      const o1 = await testPrisma.order.findUnique({ where: { id: order1.id } });
+      const o2 = await testPrisma.order.findUnique({ where: { id: order2.id } });
+      expect(o1?.deletedAt).toBeTruthy();
+      expect(o2?.deletedAt).toBeTruthy();
     });
   });
 });

@@ -3,7 +3,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { InternalJwtService } from './jwt/internal-jwt.service';
 import { AuthService } from './auth.service';
 

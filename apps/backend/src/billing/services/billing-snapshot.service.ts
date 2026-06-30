@@ -7,7 +7,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import pLimit from 'p-limit';
 import { AnalyticsService } from '../../analytics/analytics.service';
 import { ContextLogger } from '../../common/logger/context.logger';

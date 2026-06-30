@@ -1,5 +1,5 @@
 import { forwardRef, Module } from '@nestjs/common';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 import { FormulaCompiler } from './formula/formula-compiler';
 import { MathOnlyFormulaEngine } from './formula/math-only.formula.engine';
@@ -12,6 +12,7 @@ import { BillingContextResolver } from './services/billing-context.resolver';
 import { BillingContextService } from './services/billing-context.service';
 import { BillingSnapshotService } from './services/billing-snapshot.service';
 import { BillingService } from './services/billing.service';
+import { CloudflareService } from '../common/cloudflare.service';
 
 import { AnalyticsModule } from '../analytics/analytics.module';
 
@@ -19,6 +20,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
   controllers: [BillingController, BillingContextController],
   providers: [
     PrismaService,
+    CloudflareService,
 
     // core services
     BillingService,

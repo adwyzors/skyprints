@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { ContextLogger } from '../../common/logger/context.logger';
 import { FormulaCompiler } from '../formula/formula-compiler';
 import { MathOnlyFormulaEngine } from '../formula/math-only.formula.engine';

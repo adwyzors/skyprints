@@ -3,6 +3,7 @@ import type {
   CreateBillingContextDto,
 } from '@app/contracts';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -14,6 +15,8 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { BillingContextService } from '../services/billing-context.service';
+import { Permissions } from '../../auth/decorators/permissions.decorator';
+
 
 @Controller('billing/contexts')
 export class BillingContextController {
@@ -87,6 +90,30 @@ export class BillingContextController {
 
     // Return only the data
     return result.res;
+  }
+
+  @Get('range-preview')
+  @Permissions('billings:view')
+  async getRangePreview(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    if (!startDate || !endDate) {
+      throw new BadRequestException('startDate and endDate are required');
+    }
+    return this.service.getContextsInRange(startDate, endDate);
+  }
+
+  @Delete('range')
+  @Permissions('billings:delete')
+  async deleteRange(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    if (!startDate || !endDate) {
+      throw new BadRequestException('startDate and endDate are required');
+    }
+    return this.service.deleteContextsInRange(startDate, endDate);
   }
 
   @Get(':contextId')

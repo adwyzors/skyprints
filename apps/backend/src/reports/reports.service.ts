@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import * as ExcelJS from 'exceljs';
 import { Response } from 'express';
 import { ReportsQueryDto } from './dto/reports.query.dto';

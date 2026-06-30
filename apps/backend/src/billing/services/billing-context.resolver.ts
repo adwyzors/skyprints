@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaExecutor } from 'apps/backend/prisma/prisma.service';
+import { PrismaExecutor } from '../../../prisma/prisma.service';
 
 @Injectable()
 export class BillingContextResolver {

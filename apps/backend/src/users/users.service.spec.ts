@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { UsersService } from './users.service';
 
 jest.mock('bcrypt');

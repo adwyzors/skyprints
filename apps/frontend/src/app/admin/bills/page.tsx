@@ -15,9 +15,12 @@ import { getBillingContextById, getBillingContexts } from '@/services/billing.se
 import { getRunBillingMetrics } from '@/services/billing-calculator';
 import debounce from 'lodash/debounce';
 import FilterDrawer from '@/components/layout/FilterDrawer';
-import { ChevronLeft, Download, FileText, Filter, Loader2, Search, X } from 'lucide-react';
+import { ChevronLeft, Download, FileText, Filter, Loader2, Search, X, Trash2 } from 'lucide-react';
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useAuth } from '@/auth/AuthProvider';
+import DeleteBillsModal from "@/components/modals/DeleteBillsModal";
+
 
 export default function BillsPage() {
     return (
@@ -37,10 +40,15 @@ function BillsPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const selectedGroupId = searchParams.get('SelectedGroup');
+    const { hasPermission } = useAuth();
+    const canDelete = hasPermission(Permission.BILLINGS_DELETE);
 
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
     const [pageSize, setPageSize] = useState(12);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
 
     const [data, setData] = useState<GetBillingContextsResponse>({
         data: [],
@@ -123,7 +131,7 @@ function BillsPageContent() {
         };
         fetchContexts();
         return () => { cancelled = true; };
-    }, [currentPage, debouncedSearch, pageSize, isTest, taxEnabled, taxDisabled]);
+    }, [currentPage, debouncedSearch, pageSize, isTest, taxEnabled, taxDisabled, refreshTrigger]);
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= data.totalPages) {
@@ -352,6 +360,16 @@ function BillsPageContent() {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {canDelete && (
+                            <button
+                                onClick={() => setIsDeleteModalOpen(true)}
+                                className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold border border-red-200 transition-colors shadow-sm hover:text-red-700"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Delete Range
+                            </button>
+                        )}
+
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                             <input
@@ -496,6 +514,15 @@ function BillsPageContent() {
                 isOpen={!!selectedGroupId}
                 onClose={handleCloseModal}
                 groupId={selectedGroupId || ''}
+            />
+
+            <DeleteBillsModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onSuccess={() => {
+                    setCurrentPage(1);
+                    setRefreshTrigger(prev => prev + 1);
+                }}
             />
         </div>
     );

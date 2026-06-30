@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UpdatePreferencesSchema } from '@app/contracts';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import type { Request, Response } from 'express';
 import { ContextLogger } from '../common/logger/context.logger';
 import { InternalJwtService } from './jwt/internal-jwt.service';

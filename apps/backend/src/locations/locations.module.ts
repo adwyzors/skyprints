@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { LocationsController } from './locations.controller';
 import { LocationsRepository } from './locations.repository';
 import { LocationsService } from './locations.service';

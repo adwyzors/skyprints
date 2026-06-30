@@ -1,10 +1,13 @@
 import type { CreateBillingContextDto } from '@app/contracts';
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { PrismaService } from 'apps/backend/prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { ContextLogger } from '../../common/logger/context.logger';
 import { generateFiscalCode } from '../../common/utils/fiscal-year.utils';
 import { BillingCalculatorService } from './billing-calculator.service';
 import { BillingSnapshotService } from './billing-snapshot.service';
+import { AnalyticsService } from '../../analytics/analytics.service';
+import { CloudflareService } from '../../common/cloudflare.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class BillingContextService {
@@ -14,7 +17,10 @@ export class BillingContextService {
     private readonly prisma: PrismaService,
     private readonly billingSnapshotService: BillingSnapshotService,
     private readonly calculator: BillingCalculatorService,
+    private readonly analyticsService: AnalyticsService,
+    private readonly cloudflare: CloudflareService,
   ) {}
+
 
   async create(dto: CreateBillingContextDto) {
     this.logger.log(`Creating billing context type=${dto.type}`);
@@ -568,5 +574,265 @@ export class BillingContextService {
 
       return { added: result.count };
     });
+  }
+
+  async getContextsInRange(startDateStr: string, endDateStr: string) {
+    const start = new Date(startDateStr);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDateStr);
+    end.setHours(23, 59, 59, 999);
+
+    const contexts = await this.prisma.billingContext.findMany({
+      where: {
+        type: 'GROUP',
+        createdAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      include: {
+        _count: {
+          select: { orders: true },
+        },
+        orders: {
+          include: {
+            order: {
+              include: {
+                customer: {
+                  select: { name: true },
+                },
+              },
+            },
+          },
+        },
+        snapshots: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return contexts.map((ctx) => {
+      const snapshot = ctx.snapshots[0];
+      const uniqueCustomers = Array.from(
+        new Set(ctx.orders.map((o) => o.order.customer.name)),
+      ).join(', ');
+
+      return {
+        id: ctx.id,
+        type: ctx.type,
+        name: ctx.name,
+        description: ctx.description,
+        ordersCount: ctx._count.orders,
+        customerNames: uniqueCustomers,
+        createdAt: ctx.createdAt,
+        latestSnapshot: snapshot
+          ? {
+              id: snapshot.id,
+              version: snapshot.version,
+              intent: snapshot.intent,
+              result: snapshot.result.toString(),
+              taxEnabled: snapshot.taxEnabled,
+              subTotalAmount: snapshot.subTotalAmount.toString(),
+              taxPercentage: snapshot.taxPercentage.toString(),
+              taxAmount: snapshot.taxAmount.toString(),
+              finalAmount: snapshot.finalAmount.toString(),
+              createdAt: snapshot.createdAt,
+            }
+          : null,
+      };
+    });
+  }
+
+  async deleteContextsInRange(startDateStr: string, endDateStr: string) {
+    const start = new Date(startDateStr);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDateStr);
+    end.setHours(23, 59, 59, 999);
+
+    // 1. Get all contexts in the range
+    const contexts = await this.prisma.billingContext.findMany({
+      where: {
+        type: 'GROUP',
+        createdAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      include: {
+        orders: {
+          include: {
+            order: {
+              select: {
+                id: true,
+                images: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (contexts.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    const contextIds = contexts.map((c) => c.id);
+    const orderIds = contexts.flatMap((c) => c.orders.map((o) => o.order.id));
+
+    // Get images from the orders to delete
+    const ordersWithImages = await this.prisma.order.findMany({
+      where: { id: { in: orderIds } },
+      select: { id: true, images: true },
+    });
+
+    // Get the process runs for these orders
+    const runsWithImages = await this.prisma.processRun.findMany({
+      where: {
+        orderProcess: {
+          orderId: { in: orderIds },
+        },
+      },
+      select: { fields: true },
+    });
+
+    // Collect all image URLs
+    const imageUrlSet = new Set<string>();
+    for (const order of ordersWithImages) {
+      for (const url of order.images ?? []) {
+        if (typeof url === 'string' && url.trim()) {
+          imageUrlSet.add(url);
+        }
+      }
+    }
+    for (const run of runsWithImages) {
+      const fields = run.fields as Record<string, any>;
+      if (fields?.images && Array.isArray(fields.images)) {
+        for (const url of fields.images) {
+          if (typeof url === 'string' && url.trim()) {
+            imageUrlSet.add(url);
+          }
+        }
+      }
+    }
+
+    const allUrls = Array.from(imageUrlSet);
+
+    // 2. Perform soft-delete of orders and delete of billing records in a transaction
+    await this.prisma.transaction(async (tx) => {
+      // Soft-delete all associated orders (deletedAt: new Date()) without touching outstanding amount
+      await tx.order.updateMany({
+        where: { id: { in: orderIds } },
+        data: { deletedAt: new Date() },
+      });
+
+      // Delete billing snapshots for these contexts
+      await tx.billingSnapshot.deleteMany({
+        where: {
+          billingContextId: { in: contextIds },
+        },
+      });
+
+      // Delete billing context order mappings
+      await tx.billingContextOrder.deleteMany({
+        where: {
+          billingContextId: { in: contextIds },
+        },
+      });
+
+      // Delete billing contexts
+      await tx.billingContext.deleteMany({
+        where: {
+          id: { in: contextIds },
+        },
+      });
+    });
+
+    this.logger.log(
+      `Deleted ${contexts.length} billing contexts and soft-deleted ${orderIds.length} orders in range ${startDateStr} to ${endDateStr}`,
+    );
+
+    // 3. Delete files from Cloudflare R2 in the background to avoid blocking the REST request
+    if (allUrls.length > 0) {
+      this.cleanupImagesBackground(allUrls, orderIds).catch((err) => {
+        this.logger.error('Failed to perform background image deletion', err);
+      });
+    }
+
+    // 4. Trigger asynchronous analytics resync
+    this.analyticsService.syncExistingData().catch((err) => {
+      this.logger.error('Failed to trigger analytics resync after deletion', err);
+    });
+
+    return { success: true, count: contexts.length };
+  }
+
+  private async cleanupImagesBackground(allUrls: string[], deletedOrderIds: string[]) {
+    this.logger.log(`Starting background image cleanup for ${allUrls.length} image URLs...`);
+
+    // Check which URLs are referenced by other active orders
+    const otherOrders = await this.prisma.order.findMany({
+      where: {
+        id: { notIn: deletedOrderIds },
+        deletedAt: null,
+        images: { hasSome: allUrls },
+      },
+      select: { images: true },
+    });
+
+    const referencedUrls = new Set<string>();
+    for (const order of otherOrders) {
+      for (const url of order.images ?? []) {
+        if (typeof url === 'string' && url.trim()) {
+          referencedUrls.add(url);
+        }
+      }
+    }
+
+    // Check which URLs are referenced by other active runs
+    const otherRuns = await this.prisma.processRun.findMany({
+      where: {
+        orderProcess: {
+          order: {
+            id: { notIn: deletedOrderIds },
+            deletedAt: null,
+          },
+        },
+        fields: {
+          path: ['images'],
+          not: Prisma.JsonNull,
+        },
+      },
+      select: { fields: true },
+    });
+
+    for (const run of otherRuns) {
+      const fields = run.fields as Record<string, any>;
+      if (fields?.images && Array.isArray(fields.images)) {
+        for (const url of fields.images) {
+          if (typeof url === 'string' && url.trim()) {
+            referencedUrls.add(url);
+          }
+        }
+      }
+    }
+
+    // Delete URLs that are NOT referenced
+    let deletedCount = 0;
+    for (const url of allUrls) {
+      if (!referencedUrls.has(url)) {
+        try {
+          await this.cloudflare.deleteFileByUrl(url);
+          deletedCount++;
+        } catch (err) {
+          this.logger.error(`Failed to delete file from Cloudflare R2: ${url}`, err);
+        }
+      }
+    }
+
+    this.logger.log(`Background image cleanup finished. Deleted ${deletedCount} of ${allUrls.length} images.`);
   }
 }
