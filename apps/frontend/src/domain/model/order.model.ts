@@ -16,6 +16,7 @@ export interface Order {
         id: string;
         code: string;
         name: string;
+        tax?: boolean;
     };
 
     processes: OrderProcess[];

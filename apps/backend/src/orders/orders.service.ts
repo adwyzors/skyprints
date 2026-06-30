@@ -258,6 +258,7 @@ export class OrdersService {
                 id: true,
                 code: true,
                 name: true,
+                tax: true,
               },
             },
 

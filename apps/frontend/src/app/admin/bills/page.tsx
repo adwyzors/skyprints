@@ -3,7 +3,6 @@ import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
 import BillingContextCard from "@/components/billing/BillingContextCard";
 import BillingContextTable from "@/components/billing/BillingContextTable";
-import BillsFilter from "@/components/billing/BillsFilter";
 import Pagination from '@/components/common/Pagination';
 import BillingGroupModal from "@/components/modals/BillingGroupModal";
 import OrdersViewToggle from "@/components/orders/OrdersViewToggle";
@@ -15,12 +14,24 @@ import { getBillingContextById, getBillingContexts } from '@/services/billing.se
 import { getRunBillingMetrics } from '@/services/billing-calculator';
 import debounce from 'lodash/debounce';
 import FilterDrawer from '@/components/layout/FilterDrawer';
-import { ChevronLeft, Download, FileText, Filter, Loader2, Search, X, Trash2 } from 'lucide-react';
+import BillsFilter from "@/components/billing/BillsFilter";
+import { ChevronLeft, Download, FileText, Filter, Loader2, Search, X, Trash2, Receipt, FileCheck } from 'lucide-react';
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
 import DeleteBillsModal from "@/components/modals/DeleteBillsModal";
 
+type TabType = 'tax' | 'challan';
+
+const EMPTY_DATA: GetBillingContextsResponse = {
+    data: [],
+    total: 0,
+    page: 1,
+    limit: 12,
+    totalPages: 0,
+    totalQuantity: 0,
+    totalEstimatedAmount: 0,
+};
 
 export default function BillsPage() {
     return (
@@ -43,36 +54,23 @@ function BillsPageContent() {
     const { hasPermission } = useAuth();
     const canDelete = hasPermission(Permission.BILLINGS_DELETE);
 
+    const [activeTab, setActiveTab] = useState<TabType>(() => {
+        const tab = searchParams.get('tab');
+        return tab === 'challan' ? 'challan' : 'tax';
+    });
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
     const [pageSize, setPageSize] = useState(12);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-
-    const [data, setData] = useState<GetBillingContextsResponse>({
-        data: [],
-        total: 0,
-        page: 1,
-        limit: 12,
-        totalPages: 0,
-        totalQuantity: 0,
-        totalEstimatedAmount: 0
-    });
+    const [data, setData] = useState<GetBillingContextsResponse>(EMPTY_DATA);
     const [currentPage, setCurrentPage] = useState(1);
 
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [isTest, setIsTest] = useState(searchParams.get('isTest') === 'true');
-    const [taxEnabled, setTaxEnabled] = useState(() => {
-        const param = searchParams.get('taxEnabled');
-        return param === null ? true : param === 'true';
-    });
-    const [taxDisabled, setTaxDisabled] = useState(() => {
-        const param = searchParams.get('taxDisabled');
-        return param === null ? true : param === 'true';
-    });
     const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -89,38 +87,30 @@ function BillsPageContent() {
         return () => debouncedSearchUpdate.cancel();
     }, [searchQuery, debouncedSearchUpdate]);
 
+    // When the tab changes, reset page + selection
+    const handleTabChange = (tab: TabType) => {
+        setActiveTab(tab);
+        setCurrentPage(1);
+        setSelectedGroupIds([]);
+        setData(EMPTY_DATA);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', tab);
+        params.delete('page');
+        router.push(`/admin/bills?${params.toString()}`);
+    };
+
     useEffect(() => {
         let cancelled = false;
         const fetchContexts = async () => {
             setLoading(true);
             try {
-                let isTaxEnabledApiValue: boolean | undefined = undefined;
-                if (taxEnabled && !taxDisabled) {
-                    isTaxEnabledApiValue = true;
-                } else if (!taxEnabled && taxDisabled) {
-                    isTaxEnabledApiValue = false;
-                } else if (!taxEnabled && !taxDisabled) {
-                    if (!cancelled) {
-                        setData({
-                            data: [],
-                            total: 0,
-                            page: currentPage,
-                            limit: pageSize,
-                            totalPages: 0,
-                            totalQuantity: 0,
-                            totalEstimatedAmount: 0
-                        });
-                        setLoading(false);
-                    }
-                    return;
-                }
-
+                const isTaxEnabled = activeTab === 'tax';
                 const response = await getBillingContexts({
                     page: currentPage,
                     limit: pageSize,
                     search: debouncedSearch,
                     isTest: isTest,
-                    ...(isTaxEnabledApiValue !== undefined ? { isTaxEnabled: isTaxEnabledApiValue } : {}),
+                    isTaxEnabled,
                 });
                 if (!cancelled) setData(response);
             } catch (error) {
@@ -131,7 +121,7 @@ function BillsPageContent() {
         };
         fetchContexts();
         return () => { cancelled = true; };
-    }, [currentPage, debouncedSearch, pageSize, isTest, taxEnabled, taxDisabled, refreshTrigger]);
+    }, [currentPage, debouncedSearch, pageSize, isTest, activeTab, refreshTrigger]);
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= data.totalPages) {
@@ -211,8 +201,6 @@ function BillsPageContent() {
                     }
                 }
 
-
-
                 let finalTotal = totalAmt;
                 if (tdsEnabled && tdsAmt && Number(tdsAmt) > 0) {
                     const expectedWithoutTds = Number(subTotal) + Number(taxAmt);
@@ -289,107 +277,133 @@ function BillsPageContent() {
         }
     };
 
+    const isTaxTab = activeTab === 'tax';
+
     return (
         <div className="flex h-full bg-gray-50/50 overflow-hidden scrollbar-hide">
-            {/* LEFT SIDEBAR FILTERS */}
+            {/* LEFT SIDEBAR FILTERS — isTest filter only; tabs handle tax filtering */}
             <FilterDrawer open={isSidebarOpen} onClose={() => setIsSidebarOpen(false)}>
                 <BillsFilter
                     onClose={() => setIsSidebarOpen(false)}
                     isTest={isTest}
                     onIsTestChange={(val) => {
                         setIsTest(val);
-                        setData((prev) => ({ ...prev, page: 1 }));
+                        setCurrentPage(1);
                         const params = new URLSearchParams(searchParams.toString());
                         if (val) params.set('isTest', 'true');
                         else params.delete('isTest');
                         params.set('page', '1');
                         router.push(`/admin/bills?${params.toString()}`);
                     }}
-                    taxEnabled={taxEnabled}
-                    onTaxEnabledChange={(val) => {
-                        setTaxEnabled(val);
-                        setData((prev) => ({ ...prev, page: 1 }));
-                        const params = new URLSearchParams(searchParams.toString());
-                        params.set('taxEnabled', String(val));
-                        params.set('page', '1');
-                        router.push(`/admin/bills?${params.toString()}`);
-                    }}
-                    taxDisabled={taxDisabled}
-                    onTaxDisabledChange={(val) => {
-                        setTaxDisabled(val);
-                        setData((prev) => ({ ...prev, page: 1 }));
-                        const params = new URLSearchParams(searchParams.toString());
-                        params.set('taxDisabled', String(val));
-                        params.set('page', '1');
-                        router.push(`/admin/bills?${params.toString()}`);
-                    }}
+                    taxEnabled={true}
+                    onTaxEnabledChange={() => {}}
+                    taxDisabled={true}
+                    onTaxDisabledChange={() => {}}
                 />
             </FilterDrawer>
 
             {/* MAIN CONTENT AREA */}
             <div className="flex-1 flex flex-col w-full relative overflow-hidden">
                 {/* Header Section */}
-                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
-                                ? 'bg-blue-50 border-blue-200 text-blue-600'
-                                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
-                                }`}
-                            title={isSidebarOpen ? "Collapse Filters" : "Expand Filters"}
-                        >
-                            {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
-                        </button>
+                <div className="flex-shrink-0 px-4 py-4 border-b border-gray-200 bg-white/80 backdrop-blur-xl z-20 flex flex-col gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                                className={`p-2 rounded-lg border transition-colors ${isSidebarOpen
+                                    ? 'bg-blue-50 border-blue-200 text-blue-600'
+                                    : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                                    }`}
+                                title={isSidebarOpen ? "Collapse Filters" : "Expand Filters"}
+                            >
+                                {isSidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
+                            </button>
 
-                        <div>
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-2xl font-bold tracking-tight text-gray-900">Billing Groups</h1>
-                                <div className="flex items-center gap-2">
-                                    <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-bold rounded-full border border-green-200 whitespace-nowrap">
-                                        Total: ₹{data.totalEstimatedAmount?.toLocaleString() || 0}
-                                    </span>
-                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-sm font-bold rounded-full border border-blue-100 whitespace-nowrap">
-                                        <span className="text-[10px] text-blue-400 uppercase tracking-wider">Total pcs</span>
-                                        {data.totalQuantity?.toLocaleString() || 0}
+                            <div>
+                                <div className="flex items-center gap-3">
+                                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">Bills</h1>
+                                    <div className="flex items-center gap-2">
+                                        <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-bold rounded-full border border-green-200 whitespace-nowrap">
+                                            Total: ₹{data.totalEstimatedAmount?.toLocaleString() || 0}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-sm font-bold rounded-full border border-blue-100 whitespace-nowrap">
+                                            <span className="text-[10px] text-blue-400 uppercase tracking-wider">Total pcs</span>
+                                            {data.totalQuantity?.toLocaleString() || 0}
+                                        </div>
                                     </div>
                                 </div>
+                                <p className="text-sm text-gray-500 mt-0.5">Manage and view all billing groups</p>
                             </div>
-                            <p className="text-sm text-gray-500 mt-0.5">Manage and view all billing groups</p>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            {canDelete && (
+                                <button
+                                    onClick={() => setIsDeleteModalOpen(true)}
+                                    className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold border border-red-200 transition-colors shadow-sm hover:text-red-700"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete Range
+                                </button>
+                            )}
+
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by name, description, job, order code..."
+                                    className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64 bg-white shadow-sm transition-all"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery("")}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded"
+                                    >
+                                        <X className="w-3 h-3 text-gray-400" />
+                                    </button>
+                                )}
+                            </div>
+
+                            <OrdersViewToggle view={viewMode} onViewChange={setViewMode} />
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        {canDelete && (
-                            <button
-                                onClick={() => setIsDeleteModalOpen(true)}
-                                className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold border border-red-200 transition-colors shadow-sm hover:text-red-700"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                                Delete Range
-                            </button>
-                        )}
-
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search by name, description, job, order code..."
-                                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-64 bg-white shadow-sm transition-all"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                            {searchQuery && (
-                                <button
-                                    onClick={() => setSearchQuery("")}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-100 rounded"
-                                >
-                                    <X className="w-3 h-3 text-gray-400" />
-                                </button>
+                    {/* TABS */}
+                    <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+                        <button
+                            onClick={() => handleTabChange('tax')}
+                            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                                activeTab === 'tax'
+                                    ? 'bg-white text-indigo-700 shadow-sm border border-indigo-100'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            <FileCheck className="w-4 h-4" />
+                            Tax Invoice
+                            {activeTab === 'tax' && data.total > 0 && (
+                                <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                                    {data.total}
+                                </span>
                             )}
-                        </div>
-
-                        <OrdersViewToggle view={viewMode} onViewChange={setViewMode} />
+                        </button>
+                        <button
+                            onClick={() => handleTabChange('challan')}
+                            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                                activeTab === 'challan'
+                                    ? 'bg-white text-teal-700 shadow-sm border border-teal-100'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            <Receipt className="w-4 h-4" />
+                            Challan
+                            {activeTab === 'challan' && data.total > 0 && (
+                                <span className="bg-teal-100 text-teal-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                                    {data.total}
+                                </span>
+                            )}
+                        </button>
                     </div>
                 </div>
 
@@ -400,7 +414,10 @@ function BillsPageContent() {
                         <div className="flex items-center justify-between">
                             <p className="text-sm text-gray-600">
                                 Showing <span className="font-semibold text-gray-800">{data.data.length}</span>{' '}
-                                of <span className="font-semibold text-gray-800">{data.total}</span> groups
+                                of <span className="font-semibold text-gray-800">{data.total}</span>{' '}
+                                <span className={`font-medium ${isTaxTab ? 'text-indigo-600' : 'text-teal-600'}`}>
+                                    {isTaxTab ? 'Tax Invoices' : 'Challans'}
+                                </span>
                             </p>
                             <PageSizeSelector pageSize={pageSize} onPageSizeChange={handlePageSizeChange} />
                         </div>
@@ -408,16 +425,25 @@ function BillsPageContent() {
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
                                 <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-                                <p className="text-gray-500 font-medium">Loading billing groups...</p>
+                                <p className="text-gray-500 font-medium">Loading {isTaxTab ? 'tax invoices' : 'challans'}...</p>
                             </div>
                         ) : data.data.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-gray-500 bg-white rounded-2xl border border-gray-100 border-dashed shadow-sm">
-                                <FileText className="w-16 h-16 mb-4 text-gray-300" />
-                                <p className="text-lg font-medium">No billing groups found</p>
+                                {isTaxTab
+                                    ? <FileCheck className="w-16 h-16 mb-4 text-indigo-200" />
+                                    : <Receipt className="w-16 h-16 mb-4 text-teal-200" />
+                                }
+                                <p className="text-lg font-medium">
+                                    No {isTaxTab ? 'tax invoices' : 'challans'} found
+                                </p>
                                 {debouncedSearch ? (
                                     <p className="text-sm mt-1">Try adjusting your search query</p>
                                 ) : (
-                                    <p className="text-sm mt-1">Create a group from the Completed Orders page</p>
+                                    <p className="text-sm mt-1">
+                                        {isTaxTab
+                                            ? 'Tax invoices (R series) will appear here once created'
+                                            : 'Delivery challans (RC series) will appear here once created'}
+                                    </p>
                                 )}
                             </div>
                         ) : (
@@ -458,7 +484,7 @@ function BillsPageContent() {
                                     onPageChange={handlePageChange}
                                     totalItems={data.total}
                                     pageSize={pageSize}
-                                    itemLabel="groups"
+                                    itemLabel={isTaxTab ? 'invoices' : 'challans'}
                                 />
                             </>
                         )}
@@ -501,7 +527,7 @@ function BillsPageContent() {
                                 ) : (
                                     <>
                                         <Download className="w-4 h-4" />
-                                        Download Merged Invoice
+                                        Download Merged {isTaxTab ? 'Invoice' : 'Challan'}
                                     </>
                                 )}
                             </button>

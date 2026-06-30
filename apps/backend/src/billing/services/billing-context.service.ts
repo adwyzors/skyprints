@@ -46,8 +46,21 @@ export class BillingContextService {
       let name = contextData.name;
 
       if (dto.type === 'GROUP') {
-        const prefix = dto.isTest ? 'TESTR' : 'R';
-        name = await generateFiscalCode(tx, prefix);
+        if (dto.isTest) {
+          name = await generateFiscalCode(tx, 'TESTR');
+        } else {
+          // Detect customer tax setting from the first order to choose R vs RC series
+          const firstOrder = await tx.order.findFirst({
+            where: { id: { in: orderIds } },
+            select: { customer: { select: { tax: true } } },
+            orderBy: { createdAt: 'asc' },
+          });
+          const isTaxCustomer = firstOrder?.customer?.tax ?? false;
+          // R series = Tax Invoice (tax-enabled customers)
+          // RC series = Delivery Challan (non-tax customers)
+          const prefix = isTaxCustomer ? 'R' : 'RC';
+          name = await generateFiscalCode(tx, prefix);
+        }
       }
 
       const context = await tx.billingContext.create({
