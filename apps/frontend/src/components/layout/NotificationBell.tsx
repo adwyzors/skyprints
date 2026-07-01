@@ -94,8 +94,13 @@ export default function NotificationBell() {
       }
     }
 
-    // Navigate to Rate Confirmation search page
-    router.push(`/admin/billing?search=${encodeURIComponent(notif.orderCode)}`);
+    // Check if the order is still in the rate configuration stage (COMPLETE)
+    if (notif.orderStatus && notif.orderStatus !== 'COMPLETE') {
+      toast.info(`Order ${notif.orderCode} has already been finalized and billed.`);
+    } else {
+      // Navigate to Rate Confirmation search page
+      router.push(`/admin/billing?search=${encodeURIComponent(notif.orderCode)}`);
+    }
   };
 
   const handleMarkAllRead = async () => {

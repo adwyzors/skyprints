@@ -19,6 +19,19 @@ export class NotificationsService {
         },
       });
       this.logger.log(`Notification created for order ${orderCode}: ${notif.id}`);
+
+      // Prune old notifications asynchronously
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      client.notification.deleteMany({
+        where: {
+          createdAt: {
+            lt: thirtyDaysAgo,
+          },
+        },
+      }).catch((err: any) => {
+        this.logger.error(`Failed to prune old notifications: ${err.message}`);
+      });
+
       return notif;
     } catch (err) {
       this.logger.error(`Failed to create notification for order ${orderCode}: ${err.message}`);
@@ -34,10 +47,17 @@ export class NotificationsService {
       throw new ForbiddenException('Only admin accounts can access notifications');
     }
 
-    // Retrieve last 50 notifications
+    // Retrieve last 50 notifications with order status
     const list = await this.prisma.notification.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50,
+      include: {
+        order: {
+          select: {
+            statusCode: true,
+          },
+        },
+      },
     });
 
     return list.map((n) => ({
@@ -47,6 +67,7 @@ export class NotificationsService {
       message: n.message,
       createdAt: n.createdAt,
       isRead: n.readByUserIds.includes(userId),
+      orderStatus: n.order?.statusCode,
     }));
   }
 
@@ -73,6 +94,7 @@ export class NotificationsService {
       UPDATE "Notification"
       SET "readByUserIds" = array_append("readByUserIds", ${userId})
       WHERE NOT (${userId} = ANY("readByUserIds"))
+        AND "createdAt" > NOW() - INTERVAL '30 days'
     `;
     return { success: true };
   }

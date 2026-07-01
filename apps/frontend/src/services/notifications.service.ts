@@ -7,6 +7,7 @@ export interface AppNotification {
   message: string;
   createdAt: string;
   isRead: boolean;
+  orderStatus?: string;
 }
 
 export async function fetchNotifications(): Promise<AppNotification[]> {
