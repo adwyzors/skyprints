@@ -217,8 +217,8 @@ function RunsPageContent() {
                 changed = true;
             }
 
-            const isDigital = hasPermission(Permission.RUNS_TRANSITION_DIGITAL);
-            const isFusing = hasPermission(Permission.RUNS_TRANSITION_FUSING);
+            const isDigital = hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_UPDATE);
+            const isFusing = hasPermission(Permission.RUNS_TRANSITION_FUSING) && !hasPermission(Permission.RUNS_UPDATE);
 
             if (isDigital && !next.get('lifeCycleStatus')) {
                 next.set('lifeCycleStatus', 'PRODUCTION');
@@ -300,7 +300,7 @@ function RunsPageContent() {
                     }
                 }
 
-                const isDigitalUser = hasPermission(Permission.RUNS_TRANSITION_DIGITAL);
+                const isDigitalUser = hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_UPDATE);
 
                 // Determine process restricting for Digital role
                 let processIdParam = filters.processId;
@@ -549,7 +549,7 @@ function RunsPageContent() {
                 <div className="flex-shrink-0 z-20 bg-white border-b border-gray-100 px-4 py-3">
                     <div className="flex flex-wrap items-center gap-8">
                         {/* Status Pills */}
-                        {!hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING) && (
+                        {(hasPermission(Permission.RUNS_UPDATE) || (!hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING))) && (
                             <div className="flex items-center gap-3 text-gray-400">
                                 <span className="text-[10px] font-bold uppercase tracking-widest">Status:</span>
                                 <div className="flex flex-wrap gap-2">
@@ -632,7 +632,7 @@ function RunsPageContent() {
                             <div className="relative min-w-[180px]">
                                 <select
                                     value={filters.lifeCycleStatus[0] || 'all'}
-                                    disabled={hasPermission(Permission.RUNS_TRANSITION_DIGITAL)}
+                                    disabled={hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_UPDATE)}
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         handleFilterChange('lifeCycleStatus', val === 'all' ? [] : [val]);

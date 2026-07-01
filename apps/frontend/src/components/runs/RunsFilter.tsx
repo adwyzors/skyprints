@@ -190,7 +190,7 @@ export default function RunsFilter({ filters, locations, onChange, onClear, onCl
                 </div>
 
                 {/* Order Status */}
-                {!hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING) && (
+                {(hasPermission(Permission.RUNS_UPDATE) || (!hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING))) && (
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Order Status</label>
                         <div className="flex flex-wrap gap-2">
@@ -230,7 +230,7 @@ export default function RunsFilter({ filters, locations, onChange, onClear, onCl
                 </div>
 
                 {/* Status - Only show if process is selected and user is not restricted */}
-                {filters.processId && filters.processId !== 'all' && !hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING) && (
+                {filters.processId && filters.processId !== 'all' && (hasPermission(Permission.RUNS_UPDATE) || (!hasPermission(Permission.RUNS_TRANSITION_DIGITAL) && !hasPermission(Permission.RUNS_TRANSITION_FUSING))) && (
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
                             Status
