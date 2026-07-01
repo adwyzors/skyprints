@@ -682,6 +682,13 @@ export class OrdersService {
           await recomputeOrderEstimate(tx, orderId, this.billingCalculator);
         }
 
+        await this.notificationsService.createNotification(
+          orderId,
+          code,
+          `Configure Order ${code}`,
+          tx,
+        );
+
         return { id: orderId, code };
       });
     } catch (err) {
@@ -827,6 +834,13 @@ export class OrdersService {
 
       this.logger.log(
         `[REORDER_SUCCESS] source=${sourceOrderId} newOrder=${newOrderId} code=${newCode}`,
+      );
+
+      await this.notificationsService.createNotification(
+        newOrderId,
+        newCode,
+        `Configure Order ${newCode}`,
+        tx,
       );
 
       return {

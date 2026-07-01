@@ -94,12 +94,24 @@ export default function NotificationBell() {
       }
     }
 
-    // Check if the order is still in the rate configuration stage (COMPLETE)
-    if (notif.orderStatus && notif.orderStatus !== 'COMPLETE') {
-      toast.info(`Order ${notif.orderCode} has already been finalized and billed.`);
+    // Check if it is a "Configure Order" notification
+    const isConfigureNotif = notif.message.toLowerCase().includes('configure');
+
+    if (isConfigureNotif) {
+      if (notif.orderStatus && notif.orderStatus !== 'CONFIGURE') {
+        toast.info(`Order ${notif.orderCode} has already been configured.`);
+      } else {
+        // Navigate to Order Config page
+        router.push(`/admin/orders/${notif.orderId}`);
+      }
     } else {
-      // Navigate to Rate Confirmation and open the specific order modal
-      router.push(`/admin/billing?selectedOrder=${notif.orderId}`);
+      // Check if the order is still in the rate configuration stage (COMPLETE)
+      if (notif.orderStatus && notif.orderStatus !== 'COMPLETE') {
+        toast.info(`Order ${notif.orderCode} has already been finalized and billed.`);
+      } else {
+        // Navigate to Rate Confirmation and open the specific order modal
+        router.push(`/admin/billing?selectedOrder=${notif.orderId}`);
+      }
     }
   };
 
