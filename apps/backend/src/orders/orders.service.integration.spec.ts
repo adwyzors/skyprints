@@ -27,13 +27,15 @@ const cloudflareStub: any = {
   deleteImage: async () => {},
 };
 
+const notificationsStub: any = { createNotification: async () => {} };
+
 describe('OrdersService (integration)', () => {
   const testPrisma = getTestPrisma();
   const prismaService = new PrismaService();
   const compiler = new FormulaCompiler();
   const mathEngine = new MathOnlyFormulaEngine();
   const calculator = new BillingCalculatorService(prismaService, compiler, mathEngine);
-  const service = new OrdersService(prismaService, cloudflareStub, calculator);
+  const service = new OrdersService(prismaService, cloudflareStub, calculator, notificationsStub);
 
   beforeAll(async () => {
     await cleanDatabase(testPrisma);
