@@ -51,7 +51,7 @@ export class NotificationsService {
     }
   }
 
-  async getNotifications(userId: string) {
+  private async assertAdmin(userId: string): Promise<void> {
     const dbUser = await this.prisma.user.findUnique({
       where: { id: userId, deletedAt: null },
     });
@@ -64,29 +64,56 @@ export class NotificationsService {
         'Only admin accounts can access notifications',
       );
     }
+  }
 
-    // Retrieve last 50 notifications with order status
-    const list = await this.prisma.notification.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      include: {
-        order: {
-          select: {
-            statusCode: true,
-          },
-        },
-      },
+  async getUnreadCount(userId: string): Promise<{ count: number }> {
+    await this.assertAdmin(userId);
+
+    const count = await this.prisma.notification.count({
+      where: { NOT: { readByUserIds: { has: userId } } },
     });
 
-    return list.map((n) => ({
-      id: n.id,
-      orderId: n.orderId,
-      orderCode: n.orderCode,
-      message: n.message,
-      createdAt: n.createdAt,
-      isRead: n.readByUserIds.includes(userId),
-      orderStatus: n.order?.statusCode,
-    }));
+    return { count };
+  }
+
+  async getNotifications(userId: string, page = 1, limit = 10) {
+    await this.assertAdmin(userId);
+
+    const skip = (page - 1) * limit;
+
+    const [total, list] = await Promise.all([
+      this.prisma.notification.count(),
+      this.prisma.notification.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          order: {
+            select: {
+              statusCode: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      data: list.map((n) => ({
+        id: n.id,
+        orderId: n.orderId,
+        orderCode: n.orderCode,
+        message: n.message,
+        createdAt: n.createdAt,
+        isRead: n.readByUserIds.includes(userId),
+        orderStatus: n.order?.statusCode,
+      })),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
   }
 
   async markAsRead(notificationId: string, userId: string) {

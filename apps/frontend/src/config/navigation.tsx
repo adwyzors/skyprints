@@ -2,6 +2,7 @@ import { Permission } from "@/auth/permissions";
 import {
     Activity,
     BarChart3,
+    Bell,
     CheckCircle,
     CreditCard,
     FileText,
@@ -90,5 +91,11 @@ export const ADMIN_TABS: NavTab[] = [
         icon: <UserCog className="w-4 h-4" />,
         badge: null,
         permission: Permission.USERS_VIEW,
+    },
+    {
+        label: 'Notifications',
+        path: '/admin/notifications',
+        icon: <Bell className="w-4 h-4" />,
+        badge: null,
     },
 ];

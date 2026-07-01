@@ -4,13 +4,17 @@ import { useAuth } from '@/auth/AuthProvider';
 import {
   AppNotification,
   fetchNotifications,
+  fetchUnreadNotificationCount,
   markAllNotificationsAsRead,
   markNotificationAsRead,
+  resolveNotificationTarget,
 } from '@/services/notifications.service';
-import { Bell, Check, Loader2 } from 'lucide-react';
+import { ArrowRight, Bell, Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+
+const HEADER_NOTIFICATION_LIMIT = 10;
 
 export default function NotificationBell() {
   const { user } = useAuth();
@@ -20,8 +24,7 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(10);
-  
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Notifications are only for Admin/Super Admin
@@ -31,9 +34,11 @@ export default function NotificationBell() {
     if (!isAdmin) return;
     if (showLoading) setLoading(true);
     try {
-      const data = await fetchNotifications();
+      const [data, unread] = await Promise.all([
+        fetchNotifications(HEADER_NOTIFICATION_LIMIT),
+        fetchUnreadNotificationCount(),
+      ]);
       setNotifications(data);
-      const unread = data.filter((n) => !n.isRead).length;
       setUnreadCount(unread);
     } catch (err) {
       console.error('Failed to load notifications:', err);
@@ -55,13 +60,6 @@ export default function NotificationBell() {
 
     return () => clearInterval(interval);
   }, [isAdmin]);
-
-  // Reset visibleCount when dropdown is closed
-  useEffect(() => {
-    if (!isOpen) {
-      setVisibleCount(10);
-    }
-  }, [isOpen]);
 
   // Click outside to close
   useEffect(() => {
@@ -94,24 +92,11 @@ export default function NotificationBell() {
       }
     }
 
-    // Check if it is a "Configure Order" notification
-    const isConfigureNotif = notif.message.toLowerCase().includes('configure');
-
-    if (isConfigureNotif) {
-      if (notif.orderStatus && notif.orderStatus !== 'CONFIGURE') {
-        toast.info(`Order ${notif.orderCode} has already been configured.`);
-      } else {
-        // Navigate to Order Config page
-        router.push(`/admin/orders/${notif.orderId}`);
-      }
+    const target = resolveNotificationTarget(notif);
+    if (target.blockedMessage) {
+      toast.info(target.blockedMessage);
     } else {
-      // Check if the order is still in the rate configuration stage (COMPLETE)
-      if (notif.orderStatus && notif.orderStatus !== 'COMPLETE') {
-        toast.info(`Order ${notif.orderCode} has already been finalized and billed.`);
-      } else {
-        // Navigate to Rate Confirmation and open the specific order modal
-        router.push(`/admin/billing?selectedOrder=${notif.orderId}`);
-      }
+      router.push(target.path);
     }
   };
 
@@ -204,49 +189,59 @@ export default function NotificationBell() {
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {notifications.slice(0, visibleCount).map((notif) => (
-                  <button
+                {notifications.map((notif) => (
+                  <div
                     key={notif.id}
-                    onClick={() => handleNotificationClick(notif)}
-                    className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-gray-50 transition-colors ${
+                    className={`px-4 py-3 flex gap-3 hover:bg-gray-50 transition-colors ${
                       !notif.isRead ? 'bg-blue-50/20' : ''
                     }`}
                   >
                     {/* Unread circle */}
-                    <div className="flex-shrink-0 mt-1.5">
+                    <button
+                      onClick={() => handleNotificationClick(notif)}
+                      className="flex-shrink-0 mt-1.5"
+                    >
                       <div
                         className={`w-2 h-2 rounded-full ${
                           !notif.isRead ? 'bg-blue-600' : 'bg-transparent'
                         }`}
                       />
-                    </div>
+                    </button>
                     {/* Content */}
-                    <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => handleNotificationClick(notif)}
+                      className="flex-1 min-w-0 text-left"
+                    >
                       <p className="text-sm text-gray-700 font-medium break-words leading-relaxed">
                         {notif.message}
                       </p>
-                      <span className="text-[10px] text-gray-400 font-bold block mt-1">
-                        {formatTime(notif.createdAt)}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-                {notifications.length > visibleCount && (
-                  <div className="p-3 text-center bg-gray-50/30">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setVisibleCount((prev) => prev + 10);
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-100 font-semibold py-1.5 px-4 rounded-xl transition-all shadow-sm"
-                    >
-                      View More ({notifications.length - visibleCount} remaining)
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-[10px] text-gray-400 font-bold">
+                          {formatTime(notif.createdAt)}
+                        </span>
+                        <span className="text-[10px] text-blue-600 font-bold flex items-center gap-0.5">
+                          View Order {notif.orderCode}
+                          <ArrowRight className="w-2.5 h-2.5" />
+                        </span>
+                      </div>
                     </button>
                   </div>
-                )}
+                ))}
               </div>
             )}
           </div>
+
+          {/* Footer */}
+          {notifications.length > 0 && (
+            <div className="px-4 pt-3 border-t border-gray-100 flex-shrink-0">
+              <button
+                onClick={() => { setIsOpen(false); router.push('/admin/notifications'); }}
+                className="w-full text-center text-xs text-blue-600 hover:text-blue-700 font-semibold py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                Show all notifications
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
