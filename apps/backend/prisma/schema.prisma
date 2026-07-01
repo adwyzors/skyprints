@@ -274,6 +274,7 @@ model Order {
 
   processes       OrderProcess[]
   billingContexts BillingContextOrder[]
+  notifications   Notification[]
 
   createdAt          DateTime  @default(now())
   lifecycleStartedAt DateTime?
@@ -588,4 +589,18 @@ model LocationAnalytics {
   updatedAt DateTime @updatedAt
 
   @@index([locationId])
+}
+
+model Notification {
+  id            String   @id @default(uuid())
+  orderId       String
+  orderCode     String
+  message       String
+  createdAt     DateTime @default(now())
+  readByUserIds String[] @default([])
+
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([orderId])
 }

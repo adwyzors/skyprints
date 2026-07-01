@@ -27,6 +27,7 @@ import { WorkflowModule } from './workflow/workflow.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ReportsModule } from './reports/reports.module';
 import { UsersModule } from './users/users.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { UsersModule } from './users/users.module';
     ReportsModule,
     ImageRetentionModule,
     UsersModule,
+    NotificationsModule,
   ],
   providers: [
     AppService,

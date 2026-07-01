@@ -20,6 +20,7 @@ import { OrdersQueryDto } from '../dto/orders.query.dto';
 import { toOrderSummary } from '../mappers/order.mapper';
 import { BillingCalculatorService } from '../billing/services/billing-calculator.service';
 import { recomputeOrderEstimate } from './utils/order-estimate.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class OrdersService {
@@ -29,6 +30,7 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly cloudflare: CloudflareService,
     private readonly billingCalculator: BillingCalculatorService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   public async validateCreditLimit(
@@ -1165,10 +1167,11 @@ export class OrdersService {
 
   async completeProduction(orderId: string) {
     return this.prisma.transaction(async (tx) => {
-      const order = await tx.order.findUnique({
+       const order = await tx.order.findUnique({
         where: { id: orderId },
         select: {
           id: true,
+          code: true,
           statusCode: true,
           totalProcesses: true,
         },
@@ -1212,13 +1215,20 @@ export class OrdersService {
       /* =====================================
        * COMPLETE ORDER
        * ===================================== */
-      await tx.order.update({
+       await tx.order.update({
         where: { id: orderId },
         data: {
           statusCode: OrderStatus.COMPLETE,
           completedProcesses: order.totalProcesses,
         },
       });
+
+      await this.notificationsService.createNotification(
+        orderId,
+        order.code,
+        `Order ${order.code} went to rate confirmation.`,
+        tx,
+      );
 
       return { success: true };
     });

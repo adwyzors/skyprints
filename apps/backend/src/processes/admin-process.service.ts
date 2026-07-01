@@ -20,6 +20,7 @@ import { toProcessSummary } from '../mappers/process.mapper';
 import { OrdersService } from '../orders/orders.service';
 import { BillingCalculatorService } from '../billing/services/billing-calculator.service';
 import { recomputeOrderEstimate } from '../orders/utils/order-estimate.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AdminProcessService {
@@ -109,6 +110,7 @@ export class AdminProcessService {
     private readonly orderService: OrdersService,
     private readonly cloudflare: CloudflareService,
     private readonly billingCalculator: BillingCalculatorService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /* =========================================================
@@ -1303,6 +1305,7 @@ export class AdminProcessService {
           data: { completedProcesses: { increment: 1 } },
           select: {
             id: true,
+            code: true,
             totalProcesses: true,
             completedProcesses: true,
           },
@@ -1313,6 +1316,13 @@ export class AdminProcessService {
             where: { id: updatedOrder.id },
             data: { statusCode: OrderStatus.COMPLETE },
           });
+
+          await this.notificationsService.createNotification(
+            updatedOrder.id,
+            updatedOrder.code,
+            `Order ${updatedOrder.code} went to rate confirmation.`,
+            tx,
+          );
         }
       }
 

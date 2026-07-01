@@ -6,6 +6,7 @@ import { Permission } from '@/auth/permissions';
 import { ChevronDown, ChevronUp, LogOut, Menu, Settings, User, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import NotificationBell from '@/components/layout/NotificationBell';
 
 export default function AppHeader() {
     const { hasPermission: hasAuthPermission, user: authUser } = useAuth();
@@ -202,6 +203,9 @@ export default function AppHeader() {
                                 <ChevronDown className="w-3 h-3 group-hover:translate-y-[1px] transition-transform" />
                             </button>
                         </div>
+                        
+                        {/* NOTIFICATION BELL */}
+                        <NotificationBell />
 
                         {/* PROFILE DROPDOWN */}
                         <div className="relative" ref={profileMenuRef}>

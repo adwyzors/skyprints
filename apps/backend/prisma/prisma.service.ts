@@ -132,6 +132,10 @@ export class PrismaService {
         return prisma.locationAnalytics;
     }
 
+    get notification() {
+        return prisma.notification;
+    }
+
     /* ---------- TRANSACTIONS ---------- */
 
     // Functional transaction
