@@ -7,12 +7,14 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import type {
+  AssignStagePermissionsDto,
   CreateUserDto,
+  ManagerStagePermissionDto,
   ResetPasswordDto,
   UpdatePermissionsDto,
   UpdateUserDto,
 } from '@app/contracts';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaExecutor, PrismaService } from '../../prisma/prisma.service';
 import { ContextLogger } from '../common/logger/context.logger';
 import { ALL_PERMISSIONS, ROLE_PERMISSIONS } from '../auth/permissions.map';
 
@@ -164,7 +166,10 @@ export class UsersService {
     } catch (err: any) {
       // Partial unique index violation: active user with same email already exists
       if (err?.code === 'P2002') {
-        if (err?.meta?.target?.includes('username') || err?.message?.includes('Login_username_key')) {
+        if (
+          err?.meta?.target?.includes('username') ||
+          err?.message?.includes('Login_username_key')
+        ) {
           throw new ConflictException('Username already in use');
         }
         throw new ConflictException('Email already in use');
@@ -318,5 +323,157 @@ export class UsersService {
     });
 
     this.logger.log(`Password reset for userId=${id}`);
+  }
+
+  async getStagePermissions(
+    userId: string,
+  ): Promise<ManagerStagePermissionDto[]> {
+    const rows = await this.prisma.managerStagePermission.findMany({
+      where: { managerId: userId },
+      include: {
+        process: { select: { name: true } },
+        lifecycleStage: { select: { code: true } },
+      },
+    });
+
+    return rows.map((r) => ({
+      processId: r.processId,
+      processName: r.process.name,
+      lifecycleStageId: r.lifecycleStageId,
+      stageCode: r.lifecycleStage.code,
+    }));
+  }
+
+  async updateStagePermissions(
+    userId: string,
+    entries: AssignStagePermissionsDto,
+  ): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { role: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role !== 'MANAGER') {
+      throw new BadRequestException(
+        'Stage permissions can only be assigned to MANAGER-role users',
+      );
+    }
+
+    // Validate every (processId, lifecycleStageId) pair is internally consistent —
+    // the stage must actually belong to that process's lifecycle workflow type.
+    for (const entry of entries) {
+      const runDefs = await this.prisma.processRunDefinition.findMany({
+        where: { processId: entry.processId },
+        select: { runTemplate: { select: { lifecycleWorkflowTypeId: true } } },
+      });
+      const workflowTypeIds = new Set(
+        runDefs.map((d) => d.runTemplate.lifecycleWorkflowTypeId),
+      );
+
+      const stage = await this.prisma.workflowStatus.findUnique({
+        where: { id: entry.lifecycleStageId },
+        select: { workflowTypeId: true },
+      });
+
+      if (!stage || !workflowTypeIds.has(stage.workflowTypeId)) {
+        throw new BadRequestException(
+          `lifecycleStageId ${entry.lifecycleStageId} does not belong to processId ${entry.processId}`,
+        );
+      }
+    }
+
+    await this.prisma.transaction(async (tx) => {
+      // Snapshot which (processId, lifecycleStageId) pairs already had ANY
+      // manager assigned, before this save — used to detect newly-covered pairs.
+      const beforePairs = new Set(
+        (
+          await tx.managerStagePermission.findMany({
+            distinct: ['processId', 'lifecycleStageId'],
+            select: { processId: true, lifecycleStageId: true },
+          })
+        ).map((p) => `${p.processId}:${p.lifecycleStageId}`),
+      );
+
+      await tx.managerStagePermission.deleteMany({
+        where: { managerId: userId },
+      });
+
+      if (entries.length > 0) {
+        await tx.managerStagePermission.createMany({
+          data: entries.map((e) => ({
+            managerId: userId,
+            processId: e.processId,
+            lifecycleStageId: e.lifecycleStageId,
+          })),
+        });
+      }
+
+      const newlyCoveredPairs = entries.filter(
+        (e) => !beforePairs.has(`${e.processId}:${e.lifecycleStageId}`),
+      );
+
+      for (const pair of newlyCoveredPairs) {
+        await this.backfillClaimsForPair(
+          tx,
+          pair.processId,
+          pair.lifecycleStageId,
+        );
+      }
+    });
+
+    this.logger.log(`Stage permissions updated for managerId=${userId}`);
+  }
+
+  private async backfillClaimsForPair(
+    tx: PrismaExecutor,
+    processId: string,
+    lifecycleStageId: string,
+  ): Promise<void> {
+    const stage = await tx.workflowStatus.findUnique({
+      where: { id: lifecycleStageId },
+      select: { code: true },
+    });
+    if (!stage) return;
+
+    const candidates = await tx.processRun.findMany({
+      where: {
+        claimedBy: null,
+        executorId: { not: null },
+        lifeCycleStatusCode: stage.code,
+        orderProcess: { processId },
+      },
+      select: { id: true, executorId: true, createdAt: true },
+    });
+
+    for (const run of candidates) {
+      const enteredStageHistory = await tx.processRunLifecycleHistory.findFirst(
+        {
+          where: {
+            processRunId: run.id,
+            statusCode: stage.code,
+            completedAt: null,
+          },
+          select: { createdAt: true },
+        },
+      );
+
+      await tx.processRun.update({
+        where: { id: run.id },
+        data: {
+          claimedBy: run.executorId,
+          claimedAt: enteredStageHistory?.createdAt ?? run.createdAt,
+        },
+      });
+    }
+
+    if (candidates.length > 0) {
+      this.logger.log(
+        `Backfilled ${candidates.length} in-flight run(s) claimedBy for processId=${processId} stage=${stage.code}`,
+      );
+    }
   }
 }

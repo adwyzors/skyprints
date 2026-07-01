@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { getRunById, transitionLifeCycle } from '@/services/run.service';
-import { CheckCircle, Loader2, X } from 'lucide-react';
+import { useAuth } from '@/auth/AuthProvider';
+import { getRunById } from '@/services/run.service';
+import { claimRun, completeRun, releaseRun } from '@/services/managerQueueService';
+import { CheckCircle, Loader2, LogOut, PlayCircle, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ConfigurationModal from './ConfigurationModal';
 
@@ -13,9 +15,10 @@ interface ManagerRunModalProps {
 }
 
 export default function ManagerRunModal({ runId, onClose, onTransitionComplete }: ManagerRunModalProps) {
+    const { user } = useAuth();
     const [run, setRun] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [transitioning, setTransitioning] = useState(false);
+    const [acting, setActing] = useState(false);
     const [mobilePanelTab, setMobilePanelTab] = useState<'progress' | 'config'>('progress');
     const hasFetchedRef = useRef(false);
 
@@ -23,42 +26,76 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
         setMobilePanelTab('progress');
     }, [runId]);
 
+    const fetchRun = async () => {
+        try {
+            const fetched = await getRunById(runId);
+            setRun(fetched);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (hasFetchedRef.current) return;
         hasFetchedRef.current = true;
-        getRunById(runId)
-            .then(setRun)
-            .catch(console.error)
-            .finally(() => setLoading(false));
+        fetchRun();
     }, [runId]);
 
     const getStatusDisplayName = (code: string) =>
         code.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
-    const handleMarkComplete = async () => {
+    const isMine = !!run && run.claimedBy === user?.id;
+    const isUnclaimed = !!run && !run.claimedBy;
+
+    const handleStartWork = async () => {
         if (!run) return;
-        setTransitioning(true);
+        setActing(true);
         try {
-            const lifecycle: Array<{ code: string }> = run.lifecycle ?? [];
-            const prodIdx = lifecycle.findIndex((s) => s.code === 'PRODUCTION');
-            const nextStage =
-                prodIdx >= 0 && prodIdx < lifecycle.length - 1
-                    ? lifecycle[prodIdx + 1].code
-                    : null;
-            if (!nextStage) throw new Error('No next stage after PRODUCTION');
-            await transitionLifeCycle(
-                run.orderProcess.order.id,
-                run.orderProcessId,
-                run.id,
-                { statusCode: nextStage },
+            await claimRun(run.id);
+            toast.success('Run claimed — added to your active jobs');
+            await fetchRun();
+        } catch (err) {
+            console.error('Claim failed:', err);
+            toast.error(
+                err instanceof Error ? err.message : 'Failed to claim run — it may already be taken',
             );
+            await fetchRun();
+        } finally {
+            setActing(false);
+        }
+    };
+
+    const handleCompleteStage = async () => {
+        if (!run) return;
+        setActing(true);
+        try {
+            await completeRun(run.id);
+            toast.success('Stage completed');
             onTransitionComplete?.();
             onClose();
         } catch (err) {
-            console.error('Transition failed:', err);
-            toast.error(err instanceof Error ? err.message : 'Failed to advance run stage');
+            console.error('Complete failed:', err);
+            toast.error(err instanceof Error ? err.message : 'Failed to complete stage');
         } finally {
-            setTransitioning(false);
+            setActing(false);
+        }
+    };
+
+    const handleReleaseJob = async () => {
+        if (!run) return;
+        setActing(true);
+        try {
+            await releaseRun(run.id);
+            toast.success('Job released back to the queue');
+            onTransitionComplete?.();
+            onClose();
+        } catch (err) {
+            console.error('Release failed:', err);
+            toast.error(err instanceof Error ? err.message : 'Failed to release job');
+        } finally {
+            setActing(false);
         }
     };
 
@@ -120,6 +157,22 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
                         </button>
                     </div>
 
+                    {isUnclaimed && (
+                        <div className="mx-5 mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700 font-medium">
+                            Unclaimed — anyone permitted may start it
+                        </div>
+                    )}
+                    {!!run.claimedBy && !isMine && (
+                        <div className="mx-5 mb-3 px-3 py-2 rounded-lg bg-gray-100 border border-gray-200 text-xs text-gray-500 font-medium">
+                            Claimed by another manager
+                        </div>
+                    )}
+                    {isMine && (
+                        <div className="mx-5 mb-3 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-700 font-medium">
+                            Claimed by you
+                        </div>
+                    )}
+
                     <p className="px-5 pb-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex-shrink-0">
                         Lifecycle Progress
                     </p>
@@ -173,19 +226,44 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
                                                 {isCompleted ? 'Completed' : isCurrent ? 'Current Stage' : 'Pending'}
                                             </p>
 
-                                            {step.code === 'PRODUCTION' && isCurrent && (
+                                            {isCurrent && isUnclaimed && (
                                                 <button
-                                                    onClick={handleMarkComplete}
-                                                    disabled={transitioning}
-                                                    className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-xs font-semibold transition-colors"
+                                                    onClick={handleStartWork}
+                                                    disabled={acting}
+                                                    className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs font-semibold transition-colors"
                                                 >
-                                                    {transitioning ? (
+                                                    {acting ? (
                                                         <Loader2 className="w-3 h-3 animate-spin" />
                                                     ) : (
-                                                        <CheckCircle className="w-3 h-3" />
+                                                        <PlayCircle className="w-3 h-3" />
                                                     )}
-                                                    {transitioning ? 'Advancing…' : 'Mark Complete'}
+                                                    {acting ? 'Claiming…' : 'Start Work'}
                                                 </button>
+                                            )}
+
+                                            {isCurrent && isMine && (
+                                                <div className="mt-2 flex flex-col gap-1.5">
+                                                    <button
+                                                        onClick={handleCompleteStage}
+                                                        disabled={acting}
+                                                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-xs font-semibold transition-colors"
+                                                    >
+                                                        {acting ? (
+                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                        ) : (
+                                                            <CheckCircle className="w-3 h-3" />
+                                                        )}
+                                                        {acting ? 'Advancing…' : 'Complete Stage'}
+                                                    </button>
+                                                    <button
+                                                        onClick={handleReleaseJob}
+                                                        disabled={acting}
+                                                        className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-600 text-xs font-medium transition-colors"
+                                                    >
+                                                        <LogOut className="w-3 h-3" />
+                                                        Release Job
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     </div>

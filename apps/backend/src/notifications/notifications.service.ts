@@ -8,7 +8,12 @@ export class NotificationsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async createNotification(orderId: string, orderCode: string, message: string, tx?: any) {
+  async createNotification(
+    orderId: string,
+    orderCode: string,
+    message: string,
+    tx?: any,
+  ) {
     const client = tx || this.prisma;
     try {
       const notif = await client.notification.create({
@@ -18,23 +23,31 @@ export class NotificationsService {
           message,
         },
       });
-      this.logger.log(`Notification created for order ${orderCode}: ${notif.id}`);
+      this.logger.log(
+        `Notification created for order ${orderCode}: ${notif.id}`,
+      );
 
       // Prune old notifications asynchronously
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      client.notification.deleteMany({
-        where: {
-          createdAt: {
-            lt: thirtyDaysAgo,
+      client.notification
+        .deleteMany({
+          where: {
+            createdAt: {
+              lt: thirtyDaysAgo,
+            },
           },
-        },
-      }).catch((err: any) => {
-        this.logger.error(`Failed to prune old notifications: ${err.message}`);
-      });
+        })
+        .catch((err: any) => {
+          this.logger.error(
+            `Failed to prune old notifications: ${err.message}`,
+          );
+        });
 
       return notif;
     } catch (err) {
-      this.logger.error(`Failed to create notification for order ${orderCode}: ${err.message}`);
+      this.logger.error(
+        `Failed to create notification for order ${orderCode}: ${err.message}`,
+      );
     }
   }
 
@@ -43,8 +56,13 @@ export class NotificationsService {
       where: { id: userId, deletedAt: null },
     });
 
-    if (!dbUser || !(dbUser.role === 'ADMIN' || dbUser.role === 'SUPER_ADMIN')) {
-      throw new ForbiddenException('Only admin accounts can access notifications');
+    if (
+      !dbUser ||
+      !(dbUser.role === 'ADMIN' || dbUser.role === 'SUPER_ADMIN')
+    ) {
+      throw new ForbiddenException(
+        'Only admin accounts can access notifications',
+      );
     }
 
     // Retrieve last 50 notifications with order status

@@ -33,6 +33,10 @@ model User {
 
   login Login?
 
+  managerStagePermissions ManagerStagePermission[] @relation("ManagerStagePermissions")
+  claimedRuns             ProcessRun[]             @relation("ProcessRunClaimedBy")
+  stageHistories          ProcessRunStageHistory[] @relation("ManagerStageHistory")
+
   @@index([locationId])
   @@index([role, isActive, deletedAt])
   @@index([name, isActive, deletedAt])
@@ -82,8 +86,8 @@ model Customer {
   tds   Boolean @default(false)
   tax   Boolean @default(false)
 
-  creditLimit       Decimal @db.Decimal(18, 4) @default(0)
-  outstandingAmount Decimal @db.Decimal(18, 4) @default(0)
+  creditLimit       Decimal @default(0) @db.Decimal(18, 4)
+  outstandingAmount Decimal @default(0) @db.Decimal(18, 4)
 
   @@index([isActive])
   @@index([deletedAt])
@@ -140,6 +144,9 @@ model WorkflowStatus {
   toTransitions   WorkflowTransition[] @relation("To")
 
   createdAt DateTime @default(now())
+
+  managerStagePermissions ManagerStagePermission[]
+  stageHistories          ProcessRunStageHistory[]
 
   @@unique([workflowTypeId, code])
   @@index([workflowTypeId, code])
@@ -207,6 +214,9 @@ model Process {
   orderProcesses OrderProcess[]
 
   createdAt DateTime @default(now())
+
+  managerStagePermissions ManagerStagePermission[]
+  stageHistories          ProcessRunStageHistory[]
 
   @@index([isEnabled])
 }
@@ -279,7 +289,7 @@ model Order {
   createdAt          DateTime  @default(now())
   lifecycleStartedAt DateTime?
 
-  estimatedAmount Decimal @db.Decimal(18, 4) @default(0)
+  estimatedAmount Decimal @default(0) @db.Decimal(18, 4)
 
   @@unique([code, deletedAt])
   @@index([id, deletedAt])
@@ -347,6 +357,10 @@ model ProcessRun {
   executor User? @relation("ProcessRunExecutor", fields: [executorId], references: [id])
   reviewer User? @relation("ProcessRunReviewer", fields: [reviewerId], references: [id])
 
+  claimedBy     String?
+  claimedAt     DateTime?
+  claimedByUser User?     @relation("ProcessRunClaimedBy", fields: [claimedBy], references: [id])
+
   comments String?
 
   location Location? @relation(fields: [locationId], references: [id])
@@ -362,25 +376,72 @@ model ProcessRun {
   createdAt    DateTime     @default(now())
   configuredAt DateTime?
 
+  lifecycleHistories ProcessRunLifecycleHistory[]
+  stageHistories     ProcessRunStageHistory[]
+
   @@unique([orderProcessId, runNumber])
   @@index([orderProcessId, id])
   @@index([orderProcessId, lifeCycleStatusCode])
   @@index([createdAt])
+  @@index([claimedBy])
+}
 
-  lifecycleHistories ProcessRunLifecycleHistory[]
+///////////////////////////////
+// MANAGER STAGE QUEUE
+///////////////////////////////
+
+model ManagerStagePermission {
+  id               String @id @default(uuid())
+  managerId        String
+  processId        String
+  lifecycleStageId String
+
+  manager        User           @relation("ManagerStagePermissions", fields: [managerId], references: [id])
+  process        Process        @relation(fields: [processId], references: [id])
+  lifecycleStage WorkflowStatus @relation(fields: [lifecycleStageId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([managerId, processId, lifecycleStageId])
+  @@index([managerId])
+  @@index([processId, lifecycleStageId])
+}
+
+model ProcessRunStageHistory {
+  id               String @id @default(uuid())
+  processRunId     String
+  processId        String
+  lifecycleStageId String
+  managerId        String
+
+  claimedAt       DateTime
+  completedAt     DateTime
+  durationSeconds Int
+
+  createdAt DateTime @default(now())
+
+  processRun     ProcessRun     @relation(fields: [processRunId], references: [id], onDelete: Cascade)
+  process        Process        @relation(fields: [processId], references: [id])
+  lifecycleStage WorkflowStatus @relation(fields: [lifecycleStageId], references: [id])
+  manager        User           @relation("ManagerStageHistory", fields: [managerId], references: [id])
+
+  @@index([processRunId])
+  @@index([managerId, completedAt])
+  @@index([processId, lifecycleStageId])
+  @@index([completedAt])
 }
 
 model ProcessRunLifecycleHistory {
-  id             String   @id @default(uuid())
-  processRunId   String
-  statusCode     String
-  
-  expectedDate   DateTime?
-  completedAt    DateTime?
-  
-  createdAt      DateTime @default(now())
-  
-  processRun     ProcessRun @relation(fields: [processRunId], references: [id], onDelete: Cascade)
+  id           String @id @default(uuid())
+  processRunId String
+  statusCode   String
+
+  expectedDate DateTime?
+  completedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  processRun ProcessRun @relation(fields: [processRunId], references: [id], onDelete: Cascade)
 
   @@index([processRunId])
   @@index([statusCode])
@@ -400,7 +461,7 @@ model Location {
 
   users User[]
 
-  runs ProcessRun[]
+  runs               ProcessRun[]
   preProductionRuns  ProcessRun[] @relation("PreProdLocation")
   postProductionRuns ProcessRun[] @relation("PostProdLocation")
 
@@ -477,11 +538,11 @@ model BillingSnapshot {
 
   taxEnabled Boolean @default(false)
 
-  subTotalAmount Decimal @db.Decimal(18, 4) @default(0)
-  taxPercentage  Decimal @db.Decimal(5, 2) @default(0)
-  taxAmount      Decimal @db.Decimal(18, 4) @default(0)
+  subTotalAmount Decimal @default(0) @db.Decimal(18, 4)
+  taxPercentage  Decimal @default(0) @db.Decimal(5, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(18, 4)
 
-  finalAmount Decimal @db.Decimal(18, 4) @default(0)
+  finalAmount Decimal @default(0) @db.Decimal(18, 4)
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -599,7 +660,7 @@ model Notification {
   createdAt     DateTime @default(now())
   readByUserIds String[] @default([])
 
-  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
   @@index([orderId])

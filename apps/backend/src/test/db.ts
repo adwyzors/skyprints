@@ -39,6 +39,10 @@ export async function cleanDatabase(prisma: PrismaClient): Promise<void> {
   await prisma.billingContextOrder.deleteMany();
   await prisma.billingContext.deleteMany();
 
+  // manager stage queue (must go before processRun/user deletes — FK restrict)
+  await prisma.processRunStageHistory.deleteMany();
+  await prisma.managerStagePermission.deleteMany();
+
   // order hierarchy
   await prisma.processRun.deleteMany();
   await prisma.orderProcess.deleteMany();
@@ -155,13 +159,13 @@ export async function seedCustomer(
 
 export async function seedUser(
   prisma: PrismaClient,
-  overrides: Partial<{ email: string; name: string }> = {},
+  overrides: Partial<{ email: string; name: string; role: string }> = {},
 ) {
   return prisma.user.create({
     data: {
       email: overrides.email ?? 'test@test.com',
       name: overrides.name ?? 'Test User',
-      role: 'ADMIN',
+      role: overrides.role ?? 'ADMIN',
     },
   });
 }

@@ -32,3 +32,7 @@ export * from './update-user.contract';
 export * from './update-permissions.contract';
 export * from './reset-password.contract';
 
+export * from './manager-stage-permission.contract';
+export * from './manager-queue-item.read.contract';
+export * from './manager-active-job.read.contract';
+

@@ -7,11 +7,12 @@ import {
 } from '@app/contracts';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { OrderStatus, Prisma, ProcessRunStatus } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaExecutor, PrismaService } from '../../prisma/prisma.service';
 import { resolveLocationFilter } from '../auth/utils/location-scope.util';
 import { CloudflareService } from '../common/cloudflare.service';
 import { ContextLogger } from '../common/logger/context.logger';
@@ -194,20 +195,10 @@ export class AdminProcessService {
   }
 
   async getAllRuns(query: ProcessRunsQueryDto) {
-    // MANAGER scoping: enforce executor-only view, PRODUCTION stage, IN_PRODUCTION orders
+    // NOTE: MANAGER no longer gets special-cased here (executor-only / PRODUCTION-only).
+    // Manager visibility is now driven by ManagerStagePermission + claim state via the
+    // dedicated manager-queue module — see .claude/specs/2026-07-01-manager-stage-queue.md
     const ctx = RequestContextStore.getStore();
-    if (ctx?.user?.id) {
-      const caller = await this.prisma.user.findUnique({
-        where: { id: ctx.user.id },
-        select: { role: true },
-      });
-      if (caller?.role === 'MANAGER') {
-        query.executorUserId = ctx.user.id;
-        query.assignedUserId = undefined;
-        query.lifeCycleStatusCode = 'PRODUCTION';
-        query.orderStatus = 'IN_PRODUCTION';
-      }
-    }
 
     const scopedLocationId = resolveLocationFilter(ctx?.user, query.locationId);
 
@@ -1047,6 +1038,7 @@ export class AdminProcessService {
                 statuses: {
                   orderBy: { createdAt: 'asc' },
                   select: {
+                    id: true,
                     code: true,
                     isInitial: true,
                     isTerminal: true,
@@ -1087,6 +1079,17 @@ export class AdminProcessService {
 
     if (!run) throw new NotFoundException('Process run not found');
 
+    const codeToStageId = new Map(
+      run.runTemplate.lifecycleWorkflowType.statuses.map((s) => [s.code, s.id]),
+    );
+    const stageHistories = await this.prisma.processRunStageHistory.findMany({
+      where: { processRunId: run.id },
+      include: { manager: { select: { id: true, name: true } } },
+    });
+    const managerByStageId = new Map(
+      stageHistories.map((h) => [h.lifecycleStageId, h.manager]),
+    );
+
     let displayProcessName = run.orderProcess.process.name;
     if (run.fields) {
       const f = run.fields as any;
@@ -1116,6 +1119,10 @@ export class AdminProcessService {
         expectedDate: h.expectedDate?.toISOString() || null,
         completedAt: h.completedAt?.toISOString() || null,
         createdAt: h.createdAt.toISOString(),
+        manager: (() => {
+          const stageId = codeToStageId.get(h.statusCode);
+          return stageId ? managerByStageId.get(stageId) : undefined;
+        })(),
       })),
       fields: {
         ...((run.fields as Record<string, any>) || {}),
@@ -1176,34 +1183,67 @@ export class AdminProcessService {
     processRunId: string,
     targetStatusCode: string,
     expectedDate?: string,
+    tx?: PrismaExecutor,
   ) {
     this.logger.log(
       `[LIFECYCLE][START] orderProcess=${orderProcessId} run=${processRunId} → ${targetStatusCode}`,
     );
 
-    return this.prisma.transaction(async (tx) => {
+    const run = async (executor: PrismaExecutor) => {
       /* =====================================================
        * 1️⃣ LOAD RUN (MINIMAL)
        * ===================================================== */
-      const run = await tx.processRun.findFirst({
+      const processRun = await executor.processRun.findFirst({
         where: { id: processRunId, orderProcessId },
         select: {
           id: true,
           orderProcessId: true,
           lifeCycleStatusCode: true,
           runTemplateId: true,
+          claimedBy: true,
+          orderProcess: { select: { processId: true } },
         },
       });
 
-      if (!run) {
+      if (!processRun) {
         throw new BadRequestException('Invalid process run');
+      }
+
+      /* =====================================================
+       * 1️⃣.5 CLAIM-BYPASS GUARD (MANAGER callers only)
+       * A MANAGER may not advance a run through the raw transition path for a
+       * stage under claim-based management (any ManagerStagePermission assigned
+       * for this process+stage) unless they currently hold the claim.
+       * ADMIN/SUPER_ADMIN are exempt. See 2026-07-01-manager-stage-queue.md.
+       * ===================================================== */
+      const ctx = RequestContextStore.getStore();
+      if (ctx?.user?.id) {
+        const caller = await executor.user.findUnique({
+          where: { id: ctx.user.id },
+          select: { role: true },
+        });
+
+        if (caller?.role === 'MANAGER') {
+          const stageIsClaimManaged =
+            await executor.managerStagePermission.findFirst({
+              where: {
+                processId: processRun.orderProcess.processId,
+                lifecycleStage: { code: processRun.lifeCycleStatusCode },
+              },
+              select: { id: true },
+            });
+
+          if (stageIsClaimManaged && processRun.claimedBy !== ctx.user.id) {
+            throw new ForbiddenException('Claim this run before advancing it');
+          }
+        }
       }
 
       /* =====================================================
        * 2️⃣ LOAD WORKFLOW ID
        * ===================================================== */
-      const template = await tx.runTemplate.findUnique({
-        where: { id: run.runTemplateId },
+      const template = await executor.runTemplate.findUnique({
+        where: { id: processRun.runTemplateId },
         select: { lifecycleWorkflowTypeId: true },
       });
 
@@ -1214,11 +1254,11 @@ export class AdminProcessService {
       /* =====================================================
        * 3️⃣ LOAD BOTH CURRENT + TARGET STATUSES
        * ===================================================== */
-      const statuses = await tx.workflowStatus.findMany({
+      const statuses = await executor.workflowStatus.findMany({
         where: {
           workflowTypeId: template.lifecycleWorkflowTypeId,
           code: {
-            in: [run.lifeCycleStatusCode, targetStatusCode],
+            in: [processRun.lifeCycleStatusCode, targetStatusCode],
           },
         },
         select: {
@@ -1228,7 +1268,9 @@ export class AdminProcessService {
         },
       });
 
-      const current = statuses.find((s) => s.code === run.lifeCycleStatusCode);
+      const current = statuses.find(
+        (s) => s.code === processRun.lifeCycleStatusCode,
+      );
 
       if (!current) {
         throw new BadRequestException('Invalid current lifecycle state');
@@ -1249,15 +1291,15 @@ export class AdminProcessService {
        * ===================================================== */
       const transitionDate = expectedDate ? new Date(expectedDate) : new Date();
 
-      await tx.processRun.update({
-        where: { id: run.id },
+      await executor.processRun.update({
+        where: { id: processRun.id },
         data: { lifeCycleStatusCode: target.code },
       });
 
       // Mark previous state as completed
-      await tx.processRunLifecycleHistory.updateMany({
+      await executor.processRunLifecycleHistory.updateMany({
         where: {
-          processRunId: run.id,
+          processRunId: processRun.id,
           statusCode: current.code,
           completedAt: null,
         },
@@ -1267,9 +1309,9 @@ export class AdminProcessService {
       });
 
       // Create new state history
-      await tx.processRunLifecycleHistory.create({
+      await executor.processRunLifecycleHistory.create({
         data: {
-          processRunId: run.id,
+          processRunId: processRun.id,
           statusCode: target.code,
           expectedDate: expectedDate ? transitionDate : null,
           completedAt: target.isTerminal ? transitionDate : null,
@@ -1286,8 +1328,8 @@ export class AdminProcessService {
       /* =====================================================
        * 6️⃣ TERMINAL HANDLING
        * ===================================================== */
-      const updatedOrderProcess = await tx.orderProcess.update({
-        where: { id: run.orderProcessId },
+      const updatedOrderProcess = await executor.orderProcess.update({
+        where: { id: processRun.orderProcessId },
         data: { lifecycleCompletedRuns: { increment: 1 } },
         select: {
           id: true,
@@ -1297,7 +1339,7 @@ export class AdminProcessService {
         },
       });
 
-      const finalized = await tx.orderProcess.updateMany({
+      const finalized = await executor.orderProcess.updateMany({
         where: {
           id: updatedOrderProcess.id,
           lifecycleCompletedRuns: updatedOrderProcess.totalRuns,
@@ -1307,7 +1349,7 @@ export class AdminProcessService {
       });
 
       if (finalized.count === 1) {
-        const updatedOrder = await tx.order.update({
+        const updatedOrder = await executor.order.update({
           where: { id: updatedOrderProcess.orderId },
           data: { completedProcesses: { increment: 1 } },
           select: {
@@ -1319,7 +1361,7 @@ export class AdminProcessService {
         });
 
         if (updatedOrder.completedProcesses === updatedOrder.totalProcesses) {
-          await tx.order.update({
+          await executor.order.update({
             where: { id: updatedOrder.id },
             data: { statusCode: OrderStatus.COMPLETE },
           });
@@ -1328,20 +1370,25 @@ export class AdminProcessService {
             updatedOrder.id,
             updatedOrder.code,
             `Order ${updatedOrder.code} went to rate confirmation.`,
-            tx,
+            executor,
           );
         }
       }
 
       // Recompute estimate after status change
       await recomputeOrderEstimate(
-        tx,
+        executor,
         updatedOrderProcess.orderId,
         this.billingCalculator,
       );
 
       return { success: true, status: target.code };
-    });
+    };
+
+    if (tx) {
+      return run(tx);
+    }
+    return this.prisma.transaction(run);
   }
 
   /* =========================================================

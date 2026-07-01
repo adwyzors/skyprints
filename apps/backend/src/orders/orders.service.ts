@@ -1173,7 +1173,7 @@ export class OrdersService {
 
   async completeProduction(orderId: string) {
     return this.prisma.transaction(async (tx) => {
-       const order = await tx.order.findUnique({
+      const order = await tx.order.findUnique({
         where: { id: orderId },
         select: {
           id: true,
@@ -1221,7 +1221,7 @@ export class OrdersService {
       /* =====================================
        * COMPLETE ORDER
        * ===================================== */
-       await tx.order.update({
+      await tx.order.update({
         where: { id: orderId },
         data: {
           statusCode: OrderStatus.COMPLETE,

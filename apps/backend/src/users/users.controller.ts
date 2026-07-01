@@ -8,9 +8,11 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Req,
 } from '@nestjs/common';
 import {
+  AssignStagePermissionsSchema,
   CreateUserSchema,
   ResetPasswordSchema,
   UpdatePermissionsSchema,
@@ -98,5 +100,22 @@ export class UsersController {
       throw new BadRequestException(parsed.error.flatten());
     }
     await this.service.resetPassword(id, parsed.data);
+  }
+
+  @Get(':id/stage-permissions')
+  @Permissions('users:view')
+  async getStagePermissions(@Param('id') id: string) {
+    return this.service.getStagePermissions(id);
+  }
+
+  @Put(':id/stage-permissions')
+  @Permissions('users:update')
+  @HttpCode(204)
+  async updateStagePermissions(@Param('id') id: string, @Body() body: unknown) {
+    const parsed = AssignStagePermissionsSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten());
+    }
+    await this.service.updateStagePermissions(id, parsed.data);
   }
 }

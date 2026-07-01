@@ -20,6 +20,7 @@ export enum Permission {
     RUNS_LIFECYCLE_UPDATE = "runs:lifecycle:update",
     RUNS_TRANSITION_DIGITAL = "runs:transition:digital",
     RUNS_TRANSITION_FUSING = "runs:transition:fusing",
+    RUNS_CLAIM_OVERRIDE = "runs:claim:override",
 
     RATES_VIEW = "rates:view",
     RATES_CREATE = "rates:create",

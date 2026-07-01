@@ -21,7 +21,6 @@ export class BillingContextService {
     private readonly cloudflare: CloudflareService,
   ) {}
 
-
   async create(dto: CreateBillingContextDto) {
     this.logger.log(`Creating billing context type=${dto.type}`);
 
@@ -777,14 +776,22 @@ export class BillingContextService {
 
     // 4. Trigger asynchronous analytics resync
     this.analyticsService.syncExistingData().catch((err) => {
-      this.logger.error('Failed to trigger analytics resync after deletion', err);
+      this.logger.error(
+        'Failed to trigger analytics resync after deletion',
+        err,
+      );
     });
 
     return { success: true, count: contexts.length };
   }
 
-  private async cleanupImagesBackground(allUrls: string[], deletedOrderIds: string[]) {
-    this.logger.log(`Starting background image cleanup for ${allUrls.length} image URLs...`);
+  private async cleanupImagesBackground(
+    allUrls: string[],
+    deletedOrderIds: string[],
+  ) {
+    this.logger.log(
+      `Starting background image cleanup for ${allUrls.length} image URLs...`,
+    );
 
     // Check which URLs are referenced by other active orders
     const otherOrders = await this.prisma.order.findMany({
@@ -841,11 +848,16 @@ export class BillingContextService {
           await this.cloudflare.deleteFileByUrl(url);
           deletedCount++;
         } catch (err) {
-          this.logger.error(`Failed to delete file from Cloudflare R2: ${url}`, err);
+          this.logger.error(
+            `Failed to delete file from Cloudflare R2: ${url}`,
+            err,
+          );
         }
       }
     }
 
-    this.logger.log(`Background image cleanup finished. Deleted ${deletedCount} of ${allUrls.length} images.`);
+    this.logger.log(
+      `Background image cleanup finished. Deleted ${deletedCount} of ${allUrls.length} images.`,
+    );
   }
 }
