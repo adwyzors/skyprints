@@ -261,7 +261,7 @@ export default function PlotterConfig({
 
             if (run) {
                 const values = run.values as PlotterRunValues;
-                const existingItems = values.items || [];
+                const existingItems = parseItems(values.items);
                 setEditForm({
                     particulars: values.particulars || '',
                     sheetsToCut: values.sheetsToCut || '',
