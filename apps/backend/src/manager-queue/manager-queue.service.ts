@@ -121,7 +121,11 @@ export class ManagerQueueService {
     const runs = await this.prisma.processRun.findMany({
       where: {
         claimedBy: null,
-        statusCode: 'IN_PROGRESS',
+        // statusCode is the config-workflow status (CONFIGURE -> COMPLETE);
+        // it's never set to IN_PROGRESS anywhere. COMPLETE means the run's
+        // fields are configured and it's ready for lifecycle work — the
+        // actual production stage is tracked separately by lifeCycleStatusCode.
+        statusCode: 'COMPLETE',
         orderProcess: {
           order: { statusCode: 'IN_PRODUCTION', deletedAt: null },
         },

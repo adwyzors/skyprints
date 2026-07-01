@@ -102,7 +102,7 @@ async function buildScaffold(testPrisma: ReturnType<typeof getTestPrisma>) {
       displayName: 'MQ Run 1',
       configWorkflowTypeId: configWf.id,
       lifecycleWorkflowTypeId: lifecycleWf.id,
-      statusCode: 'IN_PROGRESS',
+      statusCode: 'COMPLETE',
       lifeCycleStatusCode: 'PRODUCTION',
       fields: { Quantity: 100 },
     },
