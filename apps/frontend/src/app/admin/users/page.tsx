@@ -85,6 +85,7 @@ const PERMISSION_GROUPS: Record<string, string[]> = ALL_PERMISSIONS.reduce(
   {} as Record<string, string[]>,
 );
 
+
 // ─── ConfirmModal ─────────────────────────────────────────────────────────────
 
 interface ConfirmModalProps {
@@ -115,9 +116,8 @@ function ConfirmModal({
             Cancel
           </button>
           <button onClick={onConfirm} disabled={loading}
-            className={`flex-1 py-2 text-sm font-bold rounded-lg disabled:opacity-60 flex items-center justify-center gap-2 ${
-              danger ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
-            }`}>
+            className={`flex-1 py-2 text-sm font-bold rounded-lg disabled:opacity-60 flex items-center justify-center gap-2 ${danger ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}>
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             {confirmLabel}
           </button>
@@ -488,9 +488,8 @@ function PermissionsDrawer({ isOpen, user, onClose, onSuccess }: PermissionsDraw
               {groupPerms.map(p => (
                 <label key={p} onClick={() => toggle(p)}
                   className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50/40 cursor-pointer border-b border-gray-50">
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                    perms.includes(p) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'
-                  }`}>
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${perms.includes(p) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'
+                    }`}>
                     {perms.includes(p) && <Check className="w-3 h-3 text-white" />}
                   </div>
                   <span className="text-xs text-gray-700">{p}</span>
@@ -616,9 +615,9 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
 
   const filtered = search
     ? users.filter(u =>
-        u.name.toLowerCase().includes(search.toLowerCase()) ||
-        u.email.toLowerCase().includes(search.toLowerCase()),
-      )
+      u.name.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase()),
+    )
     : users;
 
   const closeAndRefresh = (setter: (v: null) => void) => {
@@ -764,10 +763,9 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                           </span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            !u.login ? 'bg-gray-100 text-gray-500' :
-                            loginActive ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                          }`}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${!u.login ? 'bg-gray-100 text-gray-500' :
+                              loginActive ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                            }`}>
                             {!u.login ? 'NONE' : loginActive ? 'OK' : 'LOCKED'}
                           </span>
                         </td>
