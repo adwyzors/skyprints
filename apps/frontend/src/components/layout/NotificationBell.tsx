@@ -98,8 +98,8 @@ export default function NotificationBell() {
     if (notif.orderStatus && notif.orderStatus !== 'COMPLETE') {
       toast.info(`Order ${notif.orderCode} has already been finalized and billed.`);
     } else {
-      // Navigate to Rate Confirmation search page
-      router.push(`/admin/billing?search=${encodeURIComponent(notif.orderCode)}`);
+      // Navigate to Rate Confirmation and open the specific order modal
+      router.push(`/admin/billing?selectedOrder=${notif.orderId}`);
     }
   };
 
