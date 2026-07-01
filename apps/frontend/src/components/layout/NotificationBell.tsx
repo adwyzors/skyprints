@@ -20,6 +20,7 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(10);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +55,13 @@ export default function NotificationBell() {
 
     return () => clearInterval(interval);
   }, [isAdmin]);
+
+  // Reset visibleCount when dropdown is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setVisibleCount(10);
+    }
+  }, [isOpen]);
 
   // Click outside to close
   useEffect(() => {
@@ -179,7 +187,7 @@ export default function NotificationBell() {
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {notifications.map((notif) => (
+                {notifications.slice(0, visibleCount).map((notif) => (
                   <button
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
@@ -206,6 +214,19 @@ export default function NotificationBell() {
                     </div>
                   </button>
                 ))}
+                {notifications.length > visibleCount && (
+                  <div className="p-3 text-center bg-gray-50/30">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setVisibleCount((prev) => prev + 10);
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-100 font-semibold py-1.5 px-4 rounded-xl transition-all shadow-sm"
+                    >
+                      View More ({notifications.length - visibleCount} remaining)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
