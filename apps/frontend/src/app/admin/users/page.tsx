@@ -59,7 +59,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'process:delete', 'process:update', 'process:view', 'rates:create', 'rates:delete',
     'rates:update', 'rates:view', 'runs:create', 'runs:delete', 'runs:lifecycle:rollback',
     'runs:lifecycle:update', 'runs:transition:digital', 'runs:transition:fusing',
-    'runs:update', 'runs:view', 'settings:view',
+    'runs:update', 'runs:view', 'settings:view', 'users:create', 'users:delete',
+    'users:update', 'users:view',
   ],
   MANAGER: [
     'analytics:view', 'billings:create', 'billings:update', 'billings:view',
