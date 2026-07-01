@@ -27,6 +27,23 @@ export async function getProcessLifecycleStatuses(processId: string): Promise<st
   });
 }
 
+export interface ProcessLifecycleStage {
+  id: string;
+  code: string;
+}
+
+// Same endpoint as getProcessLifecycleStatuses, correctly typed as {id, code}
+// pairs — needed wherever the WorkflowStatus.id itself is required (e.g. stage
+// permission assignment), not just the display code.
+export async function getProcessLifecycleStages(
+  processId: string,
+): Promise<ProcessLifecycleStage[]> {
+  return apiRequest<ProcessLifecycleStage[]>(
+    `/process/${processId}/lifecycle-statuses`,
+    { method: 'GET' },
+  );
+}
+
 export async function uploadProcessRunImages(
   orderProcessId: string,
   processRunId: string,

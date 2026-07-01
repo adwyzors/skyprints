@@ -136,6 +136,18 @@ export class PrismaService {
         return prisma.notification;
     }
 
+    get processRunLifecycleHistory() {
+        return prisma.processRunLifecycleHistory;
+    }
+
+    get managerStagePermission() {
+        return prisma.managerStagePermission;
+    }
+
+    get processRunStageHistory() {
+        return prisma.processRunStageHistory;
+    }
+
     /* ---------- TRANSACTIONS ---------- */
 
     // Functional transaction

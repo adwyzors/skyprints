@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import EditOrderModal from './EditOrderModal';
 import ImagePreviewModal from './ImagePreviewModal';
+import RunLifecycleHistory from '../billing/RunLifecycleHistory';
 
 interface Props {
     orderId: string;
@@ -568,6 +569,9 @@ export default function BillingModal({ orderId, onClose, onSuccess }: Props) {
                                                                             </div>
                                                                         </div>
                                                                     )}
+
+                                                                    {/* Lifecycle Timeline (who worked each stage, when) */}
+                                                                    <RunLifecycleHistory runId={run.id} />
 
                                                                     {/* Run Values Overview */}
                                                                     <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">

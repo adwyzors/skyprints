@@ -1,5 +1,10 @@
 # Spec: Manager Role — Scoped Run View and Stage Completion
 
+> **SUPERSEDED (2026-07-01)** — the executorId + fixed-PRODUCTION-only visibility model
+> described below is being replaced by a data-driven Process+Stage permission grid with
+> exclusive claiming. See `.claude/specs/2026-07-01-manager-stage-queue.md`. This file is kept
+> for history/context on the flow it replaces; do not implement further against it.
+
 ## Overview
 
 When a user with `role = MANAGER` logs in, they should see only the `ProcessRun` rows where they are the assigned **executor** (not reviewer), and only for runs currently at the `PRODUCTION` lifecycle stage. Runs before `PRODUCTION` (e.g. `DESIGN`, `SIZE/COLOR`, `SAMPLE`, `RANGE`) are not visible yet. Runs that have passed `PRODUCTION` (e.g. `WAITING`, `CUTTING/WEEDING`, `FUSING`, `QC&COUNTING`, `COMPLETE`) are no longer visible. The manager's job is to mark their run's `PRODUCTION` stage complete, which advances it to the next stage and removes it from their view. A partial implementation already exists (manager layout, runs page, `assignedUserId` query param in the backend) — this spec closes the remaining gaps with the updated visibility rules.

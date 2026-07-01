@@ -34,6 +34,7 @@ const cloudflareStub: any = {
   deleteFiles: async () => {},
 };
 const analyticsStub: any = { trackOrderFinalized: async () => {} };
+const notificationsStub: any = { createNotification: async () => {} };
 
 function buildServices() {
   const prismaService = new PrismaService();
@@ -48,8 +49,14 @@ function buildServices() {
     {} as any,
     analyticsStub,
   );
-  const contextService = new BillingContextService(prismaService, snapshotService, calculator);
-  const ordersService = new OrdersService(prismaService, cloudflareStub, calculator);
+  const contextService = new BillingContextService(
+    prismaService,
+    snapshotService,
+    calculator,
+    analyticsStub,
+    cloudflareStub,
+  );
+  const ordersService = new OrdersService(prismaService, cloudflareStub, calculator, notificationsStub);
   const validator = new RunFieldsValidator();
   const runsService = new RunsService(prismaService, validator, calculator);
   return { prismaService, ordersService, snapshotService, contextService, runsService };

@@ -59,6 +59,18 @@ export interface ResetPasswordPayload {
   password: string;
 }
 
+export interface ManagerStagePermission {
+  processId: string;
+  processName: string;
+  lifecycleStageId: string;
+  stageCode: string;
+}
+
+export interface StagePermissionEntry {
+  processId: string;
+  lifecycleStageId: string;
+}
+
 export async function listUsers(): Promise<UserListItem[]> {
   return apiRequest<UserListItem[]>('/users');
 }
@@ -113,5 +125,21 @@ export async function resetPassword(
   await apiRequest<void>(`/users/${id}/reset-password`, {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export async function getStagePermissions(
+  id: string,
+): Promise<ManagerStagePermission[]> {
+  return apiRequest<ManagerStagePermission[]>(`/users/${id}/stage-permissions`);
+}
+
+export async function updateStagePermissions(
+  id: string,
+  entries: StagePermissionEntry[],
+): Promise<void> {
+  await apiRequest<void>(`/users/${id}/stage-permissions`, {
+    method: 'PUT',
+    body: JSON.stringify(entries),
   });
 }

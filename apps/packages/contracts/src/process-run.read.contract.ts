@@ -79,6 +79,10 @@ export const ProcessRunDetailSchema = ProcessRunListItemSchema.extend({
         expectedDate: z.string().nullable().optional(),
         completedAt: z.string().nullable().optional(),
         createdAt: z.string(),
+        manager: z.object({
+            id: z.string().uuid(),
+            name: z.string(),
+        }).optional(),
     })).optional(),
 
     // Field definitions for UI rendering (optional, but helpful)

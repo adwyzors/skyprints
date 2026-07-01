@@ -450,6 +450,11 @@ export default function ViewRunModal({ runId, onClose, onRunUpdate }: ViewRunMod
                                                         Completed: {new Date(h.completedAt).toLocaleDateString()}
                                                     </div>
                                                 )}
+                                                {h.manager && (
+                                                    <div className="text-[10px] text-blue-600 mt-0.5">
+                                                        by {h.manager.name}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>

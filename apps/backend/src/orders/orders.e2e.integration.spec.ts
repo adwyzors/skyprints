@@ -31,6 +31,7 @@ const cloudflareStub: any = {
 };
 
 const analyticsStub: any = { trackOrderFinalized: async () => {} };
+const notificationsStub: any = { createNotification: async () => {} };
 
 function buildServices() {
   const prismaService = new PrismaService();
@@ -38,7 +39,7 @@ function buildServices() {
   const mathEngine = new MathOnlyFormulaEngine();
   const calculator = new BillingCalculatorService(prismaService, compiler, mathEngine);
   const contextResolver = new BillingContextResolver();
-  const ordersService = new OrdersService(prismaService, cloudflareStub, calculator);
+  const ordersService = new OrdersService(prismaService, cloudflareStub, calculator, notificationsStub);
   const snapshotService = new BillingSnapshotService(
     prismaService,
     calculator,

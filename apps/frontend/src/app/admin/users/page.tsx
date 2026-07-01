@@ -20,6 +20,7 @@ import {
 import {
   Check,
   Key,
+  ListTree,
   Loader2,
   LogOut,
   Plus,
@@ -32,6 +33,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import StagePermissionsPanel from '@/components/users/StagePermissionsPanel';
 
 // ─── Permission data (mirrors apps/backend/src/auth/permissions.map.ts) ──────
 
@@ -45,9 +47,9 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'orders:start-production', 'orders:update', 'orders:view', 'process:create',
     'process:delete', 'process:update', 'process:view', 'rates:create', 'rates:delete',
     'rates:update', 'rates:view', 'runs:create', 'runs:delete', 'runs:lifecycle:rollback',
-    'runs:lifecycle:update', 'runs:transition:digital', 'runs:transition:fusing',
-    'runs:update', 'runs:view', 'settings:view', 'users:create', 'users:delete',
-    'users:update', 'users:view',
+    'runs:claim:override', 'runs:lifecycle:update', 'runs:transition:digital',
+    'runs:transition:fusing', 'runs:update', 'runs:view', 'settings:view',
+    'users:create', 'users:delete', 'users:update', 'users:view',
   ],
   ADMIN: [
     'analytics:sync', 'analytics:view', 'billings:create', 'billings:create-test',
@@ -58,9 +60,9 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'orders:start-production', 'orders:update', 'orders:view', 'process:create',
     'process:delete', 'process:update', 'process:view', 'rates:create', 'rates:delete',
     'rates:update', 'rates:view', 'runs:create', 'runs:delete', 'runs:lifecycle:rollback',
-    'runs:lifecycle:update', 'runs:transition:digital', 'runs:transition:fusing',
-    'runs:update', 'runs:view', 'settings:view', 'users:create', 'users:delete',
-    'users:update', 'users:view',
+    'runs:claim:override', 'runs:lifecycle:update', 'runs:transition:digital',
+    'runs:transition:fusing', 'runs:update', 'runs:view', 'settings:view',
+    'users:create', 'users:delete', 'users:update', 'users:view',
   ],
   MANAGER: [
     'analytics:view', 'billings:create', 'billings:update', 'billings:view',
@@ -607,6 +609,7 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<UserListItem | null>(null);
   const [permTarget, setPermTarget] = useState<UserListItem | null>(null);
+  const [stageTarget, setStageTarget] = useState<UserListItem | null>(null);
   const [resetPwTarget, setResetPwTarget] = useState<UserListItem | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<UserListItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserListItem | null>(null);
@@ -810,6 +813,12 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                                   className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
                                   <Shield className="w-4 h-4" />
                                 </button>
+                                {u.role === 'MANAGER' && (
+                                  <button title="Assign stage permissions" onClick={() => setStageTarget(u)}
+                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                    <ListTree className="w-4 h-4" />
+                                  </button>
+                                )}
                                 <button title="Reset password" onClick={() => setResetPwTarget(u)}
                                   className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
                                   <Key className="w-4 h-4" />
@@ -860,6 +869,10 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
       <PermissionsDrawer isOpen={!!permTarget} user={permTarget}
         onClose={() => setPermTarget(null)}
         onSuccess={() => closeAndRefresh(setPermTarget)} />
+
+      <StagePermissionsPanel isOpen={!!stageTarget} user={stageTarget}
+        onClose={() => setStageTarget(null)}
+        onSuccess={() => closeAndRefresh(setStageTarget)} />
 
       <ResetPasswordModal isOpen={!!resetPwTarget} user={resetPwTarget}
         onClose={() => setResetPwTarget(null)}
