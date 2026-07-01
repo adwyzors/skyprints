@@ -261,7 +261,7 @@ export default function PlotterConfig({
 
             if (run) {
                 const values = run.values as PlotterRunValues;
-                const existingItems = values.items || [];
+                const existingItems = parseItems(values.items);
                 setEditForm({
                     particulars: values.particulars || '',
                     sheetsToCut: values.sheetsToCut || '',
@@ -311,21 +311,33 @@ export default function PlotterConfig({
 
     // --- Calculations ---
     const calculateRow = (item: PlotterItem): PlotterItem => {
+        const qty = Number(item.quantity) || 0;
+        const w = Number(item.sizeW) || 0;
+        const h = Number(item.sizeH) || 0;
+        const layoutH = Number(item.layoutHeight) || 0;
+        const pcs = Number(item.layoutPcs) || 1;
+        const sheetRate = Number(item.sheetRate) || 0;
+
         // Sheet Req = (Quantity / In Layout Pcs) * In Layout Height
-        const pcs = item.layoutPcs || 1; // avoid div by zero
-        const sheetReq = (item.quantity / pcs) * item.layoutHeight;
+        const sheetReq = (qty / pcs) * layoutH;
 
         // Rate = Size W * Size H * Sheet Rate
-        const rate = item.sizeW * item.sizeH * item.sheetRate;
+        const rate = w * h * sheetRate;
 
         // Total = Quantity * Rate
-        const total = item.quantity * rate;
+        const total = qty * rate;
 
         return {
             ...item,
-            sheetReq: Number(sheetReq.toFixed(4)), // keep some precision
-            rate: Number(rate.toFixed(2)),
-            total: Number(total.toFixed(2)),
+            quantity: qty,
+            sizeW: w,
+            sizeH: h,
+            layoutHeight: layoutH,
+            layoutPcs: pcs,
+            sheetRate: sheetRate,
+            sheetReq: Number(sheetReq.toFixed(4)) || 0,
+            rate: Number(rate.toFixed(2)) || 0,
+            total: Number(total.toFixed(2)) || 0,
         };
     };
 
@@ -396,11 +408,16 @@ export default function PlotterConfig({
         return [];
     }
     const getTotals = (items: PlotterItem[]) => {
-        const totalQty = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
-        const totalSheetReq = items.reduce((sum, i) => sum + (i.sheetReq || 0), 0);
+        const totalQty = items.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
+        const totalSheetReq = items.reduce((sum, i) => sum + (Number(i.sheetReq) || 0), 0);
+        const totalAmount = items.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
         const totalSheetReqMeters = totalSheetReq / 39.38;
-        const totalAmount = items.reduce((sum, i) => sum + (i.total || 0), 0);
-        return { totalQty, totalSheetReq, totalSheetReqMeters, totalAmount };
+        return { 
+            totalQty, 
+            totalSheetReq, 
+            totalSheetReqMeters: totalSheetReqMeters || 0, 
+            totalAmount 
+        };
     };
 
     const saveRun = async (processId: string, runId: string) => {
@@ -430,10 +447,10 @@ export default function PlotterConfig({
 
             // Summaries
             'Total Quantity': totals.totalQty,
-            'Total Sheet Req': Number(totals.totalSheetReq.toFixed(2)),
-            'Total Sheet Req (Meters)': Number(totals.totalSheetReqMeters.toFixed(4)),
-            'Total Amount': Number(totals.totalAmount.toFixed(2)),
-            'Estimated Amount': Number(totals.totalAmount.toFixed(2)),
+            'Total Sheet Req': Number((totals.totalSheetReq ?? 0).toFixed(2)),
+            'Total Sheet Req (Meters)': Number((totals.totalSheetReqMeters ?? 0).toFixed(4)),
+            'Total Amount': Number((totals.totalAmount ?? 0).toFixed(2)),
+            'Estimated Amount': Number((totals.totalAmount ?? 0).toFixed(2)),
         };
 
         setIsSaving(runId);
@@ -963,10 +980,10 @@ export default function PlotterConfig({
                                             )}
                                         </td>
                                         {/* READ ONLY CALCS */}
-                                        <td className="p-2 text-right bg-gray-50">{item.sheetReq.toFixed(2)}</td>
-                                        <td className="p-2 text-right bg-gray-50">{item.rate.toFixed(2)}</td>
+                                        <td className="p-2 text-right bg-gray-50">{(item.sheetReq ?? 0).toFixed(2)}</td>
+                                        <td className="p-2 text-right bg-gray-50">{(item.rate ?? 0).toFixed(2)}</td>
                                         <td className="p-2 text-right bg-gray-50 font-semibold">
-                                            {item.total.toFixed(2)}
+                                            {(item.total ?? 0).toFixed(2)}
                                         </td>
 
                                         {mode === 'edit' && (
@@ -987,16 +1004,16 @@ export default function PlotterConfig({
                                     <td className="p-2 text-right">Totals:</td>
                                     <td className="p-2 text-right">{totals.totalQty}</td>
                                     <td colSpan={5}></td>
-                                    <td className="p-2 text-right">{totals.totalSheetReq.toFixed(2)}</td>
+                                    <td className="p-2 text-right">{(totals.totalSheetReq ?? 0).toFixed(2)}</td>
                                     <td className="p-2 text-right"></td>
-                                    <td className="p-2 text-right">₹{totals.totalAmount.toFixed(2)}</td>
+                                    <td className="p-2 text-right">₹{(totals.totalAmount ?? 0).toFixed(2)}</td>
                                     {mode === 'edit' && <td></td>}
                                 </tr>
                                 <tr>
                                     <td colSpan={7} className="p-2 text-right">
                                         In Meters:
                                     </td>
-                                    <td className="p-2 text-right">{totals.totalSheetReqMeters.toFixed(4)}</td>
+                                    <td className="p-2 text-right">{(totals.totalSheetReqMeters ?? 0).toFixed(4)}</td>
                                     <td colSpan={2 + (mode === 'edit' ? 1 : 0)}></td>
                                 </tr>
                             </tfoot>
