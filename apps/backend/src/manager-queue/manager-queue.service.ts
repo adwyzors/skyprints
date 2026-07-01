@@ -54,6 +54,112 @@ export class ManagerQueueService {
     return null;
   }
 
+  /**
+   * PRODUCTION is the physical hand-off point between the two locations
+   * stamped on a run (preProductionLocationId / postProductionLocationId).
+   * Classifies a stage as PRE (at-or-before PRODUCTION) or POST (after it)
+   * by walking the workflow's transition graph, not WorkflowStatus.createdAt
+   * order — that column doesn't reflect the configured stage sequence.
+   * Returns null if the workflow has no PRODUCTION stage or the stage is
+   * disconnected from it, in which case callers should treat it as unscoped.
+   */
+  private async classifyStage(
+    workflowTypeId: string,
+    stageCode: string,
+    cache: Map<string, 'PRE' | 'POST' | null>,
+  ): Promise<'PRE' | 'POST' | null> {
+    const cacheKey = `${workflowTypeId}::${stageCode}`;
+    if (cache.has(cacheKey)) return cache.get(cacheKey) ?? null;
+
+    if (stageCode === 'PRODUCTION') {
+      cache.set(cacheKey, 'PRE');
+      return 'PRE';
+    }
+
+    const [statuses, transitions] = await Promise.all([
+      this.prisma.workflowStatus.findMany({
+        where: { workflowTypeId },
+        select: { id: true, code: true },
+      }),
+      this.prisma.workflowTransition.findMany({
+        where: { workflowTypeId },
+        select: { fromStatusId: true, toStatusId: true },
+      }),
+    ]);
+
+    const codeById = new Map(statuses.map((s) => [s.id, s.code]));
+    const forward = new Map<string, string[]>();
+    for (const t of transitions) {
+      const from = codeById.get(t.fromStatusId);
+      const to = codeById.get(t.toStatusId);
+      if (!from || !to) continue;
+      forward.set(from, [...(forward.get(from) ?? []), to]);
+    }
+
+    const reaches = (start: string, target: string): boolean => {
+      const seen = new Set<string>();
+      const queue = [start];
+      while (queue.length > 0) {
+        const code = queue.shift() as string;
+        if (code === target) return true;
+        if (seen.has(code)) continue;
+        seen.add(code);
+        queue.push(...(forward.get(code) ?? []));
+      }
+      return false;
+    };
+
+    let result: 'PRE' | 'POST' | null;
+    if (reaches(stageCode, 'PRODUCTION')) {
+      result = 'PRE';
+    } else if (reaches('PRODUCTION', stageCode)) {
+      result = 'POST';
+    } else {
+      result = null;
+    }
+
+    cache.set(cacheKey, result);
+    return result;
+  }
+
+  private async matchesLocation(
+    run: {
+      lifeCycleStatusCode: string;
+      lifecycleWorkflowTypeId: string;
+      locationId: string | null;
+      preProductionLocationId: string | null;
+      postProductionLocationId: string | null;
+    },
+    scopedLocationId: string | undefined,
+    cache: Map<string, 'PRE' | 'POST' | null>,
+  ): Promise<boolean> {
+    if (!scopedLocationId) return true;
+
+    const classification = await this.classifyStage(
+      run.lifecycleWorkflowTypeId,
+      run.lifeCycleStatusCode,
+      cache,
+    );
+
+    if (classification === 'PRE') {
+      return run.preProductionLocationId === scopedLocationId;
+    }
+    if (classification === 'POST') {
+      return run.postProductionLocationId === scopedLocationId;
+    }
+
+    // Workflow has no PRODUCTION stage to anchor on — fall back to the
+    // broad "run touches my location somewhere" check instead of hiding it.
+    this.logger.warn(
+      `Could not classify stage=${run.lifeCycleStatusCode} for workflowTypeId=${run.lifecycleWorkflowTypeId} as pre/post-production`,
+    );
+    return (
+      run.locationId === scopedLocationId ||
+      run.preProductionLocationId === scopedLocationId ||
+      run.postProductionLocationId === scopedLocationId
+    );
+  }
+
   private toQueueItemDto(run: {
     id: string;
     runNumber: number;
@@ -134,31 +240,21 @@ export class ManagerQueueService {
         orderProcess: {
           order: { statusCode: 'IN_PRODUCTION', deletedAt: null },
         },
-        AND: [
-          {
-            OR: Array.from(grouped.entries()).map(([processId, codes]) => ({
-              orderProcess: { processId },
-              lifeCycleStatusCode: { in: codes },
-            })),
-          },
-          ...(scopedLocationId
-            ? [
-                {
-                  OR: [
-                    { locationId: scopedLocationId },
-                    { preProductionLocationId: scopedLocationId },
-                    { postProductionLocationId: scopedLocationId },
-                  ],
-                },
-              ]
-            : []),
-        ],
+        OR: Array.from(grouped.entries()).map(([processId, codes]) => ({
+          orderProcess: { processId },
+          lifeCycleStatusCode: { in: codes },
+        })),
       },
       include: this.queueItemInclude,
       orderBy: { createdAt: 'asc' },
     });
 
-    return runs.map((r) => this.toQueueItemDto(r));
+    const cache = new Map<string, 'PRE' | 'POST' | null>();
+    const scoped = await Promise.all(
+      runs.map((r) => this.matchesLocation(r, scopedLocationId, cache)),
+    );
+
+    return runs.filter((_, i) => scoped[i]).map((r) => this.toQueueItemDto(r));
   }
 
   async listActive(managerId: string): Promise<ManagerActiveJobDto[]> {
@@ -183,6 +279,7 @@ export class ManagerQueueService {
         select: {
           id: true,
           lifeCycleStatusCode: true,
+          lifecycleWorkflowTypeId: true,
           locationId: true,
           preProductionLocationId: true,
           postProductionLocationId: true,
@@ -211,13 +308,13 @@ export class ManagerQueueService {
 
       const ctx = RequestContextStore.getStore();
       const scopedLocationId = resolveLocationFilter(ctx?.user);
+      const locationOk = await this.matchesLocation(
+        run,
+        scopedLocationId,
+        new Map(),
+      );
 
-      if (
-        scopedLocationId &&
-        run.locationId !== scopedLocationId &&
-        run.preProductionLocationId !== scopedLocationId &&
-        run.postProductionLocationId !== scopedLocationId
-      ) {
+      if (!locationOk) {
         throw new ForbiddenException(
           'This run is not assigned to your location',
         );
