@@ -15,6 +15,7 @@ import {
     FileText,
     RotateCcw,
     Settings,
+    User,
     X
 } from 'lucide-react';
 import ConfigurationModal from './ConfigurationModal';
@@ -756,6 +757,14 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                     ? `Current: ${getStatusDisplayName(run.lifecycleStatus || 'Pending')}`
                                                                     : 'Configured'}
                                                         </div>
+                                                        {!isRunComplete && run.configStatus === 'COMPLETE' && (
+                                                            <div className="mt-0.5 text-xs text-gray-500 flex items-center gap-1">
+                                                                <User className="w-3 h-3" />
+                                                                {run.claimedBy
+                                                                    ? <span>In progress: <span className="font-medium text-gray-700">{run.claimedBy.name}</span></span>
+                                                                    : <span className="italic">Unclaimed</span>}
+                                                            </div>
+                                                        )}
                                                         {run.comments && (
                                                             <div className="mt-1 text-xs text-blue-600 italic flex items-center gap-1">
                                                                 <FileText className="w-3 h-3" />
@@ -871,6 +880,17 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                                                         </span>
                                                                                                         <span className="text-green-600 font-medium">
                                                                                                             {new Date(step.completedAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                                {step.completedAt && step.manager && (
+                                                                                                    <div className="flex items-center justify-between text-[10px]">
+                                                                                                        <span className="text-gray-400 flex items-center gap-1">
+                                                                                                            <User className="w-2.5 h-2.5 text-gray-400" />
+                                                                                                            By:
+                                                                                                        </span>
+                                                                                                        <span className="text-gray-700 font-medium">
+                                                                                                            {step.manager.name}
                                                                                                         </span>
                                                                                                     </div>
                                                                                                 )}

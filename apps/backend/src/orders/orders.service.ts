@@ -477,6 +477,13 @@ export class OrdersService {
                 lifecycleHistories: {
                   orderBy: { createdAt: 'desc' },
                 },
+                stageHistories: {
+                  select: {
+                    completedAt: true,
+                    manager: { select: { id: true, name: true } },
+                    lifecycleStage: { select: { code: true } },
+                  },
+                },
                 executor: {
                   select: {
                     id: true,
@@ -484,6 +491,12 @@ export class OrdersService {
                   },
                 },
                 reviewer: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+                claimedByUser: {
                   select: {
                     id: true,
                     name: true,

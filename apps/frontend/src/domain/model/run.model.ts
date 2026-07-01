@@ -162,12 +162,17 @@ export interface ProcessRun {
         completed: boolean;
         expectedDate?: string | null;
         completedAt?: string | null;
+        manager?: { id: string; name: string } | null;
     }>;
     executor?: {
         id: string;
         name: string;
     } | null;
     reviewer?: {
+        id: string;
+        name: string;
+    } | null;
+    claimedBy?: {
         id: string;
         name: string;
     } | null;

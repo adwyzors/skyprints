@@ -69,6 +69,13 @@ export function toOrderSummary(order: any): OrderSummaryDto {
               }
             : null,
 
+          claimedBy: run.claimedByUser
+            ? {
+                id: run.claimedByUser.id,
+                name: run.claimedByUser.name,
+              }
+            : null,
+
           location: run.location
             ? {
                 id: run.location.id,
@@ -97,6 +104,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
             run.runTemplate.lifecycleWorkflowType.statuses,
             run.lifeCycleStatusCode,
             run.lifecycleHistories,
+            run.stageHistories,
           ),
           lifecycleHistory: (run.lifecycleHistories || []).map((h: any) => ({
             statusCode: h.statusCode,
@@ -131,11 +139,17 @@ function buildLifecycleProgress(
   statuses: LifecycleStatus[],
   currentCode: string,
   histories: any[] = [],
+  stageHistories: any[] = [],
 ) {
   let reachedCurrent = false;
 
+  const managerByCode = new Map(
+    stageHistories.map((h) => [h.lifecycleStage.code, h.manager]),
+  );
+
   return statuses.map((s) => {
     const history = histories.find((h) => h.statusCode === s.code);
+    const manager = managerByCode.get(s.code) ?? null;
 
     if (s.code === currentCode) {
       reachedCurrent = true;
@@ -144,6 +158,7 @@ function buildLifecycleProgress(
         completed: s.isTerminal,
         expectedDate: history?.expectedDate?.toISOString() || null,
         completedAt: history?.completedAt?.toISOString() || null,
+        manager,
       };
     }
 
@@ -152,6 +167,7 @@ function buildLifecycleProgress(
       completed: !reachedCurrent,
       expectedDate: history?.expectedDate?.toISOString() || null,
       completedAt: history?.completedAt?.toISOString() || null,
+      manager,
     };
   });
 }

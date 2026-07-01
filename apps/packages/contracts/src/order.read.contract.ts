@@ -26,6 +26,9 @@ export const OrderProcessRunSchema = z.object({
     executor: UserSummarySchema.nullable().optional(),
     reviewer: UserSummarySchema.nullable().optional(),
 
+    // Manager currently holding the claim on this run's active stage (manager task pool)
+    claimedBy: UserSummarySchema.nullable().optional(),
+
     values: z.record(z.string(), z.any()),
     fields: z.array(TemplateFieldSchema),
     comments: z.string().nullable().optional(),
@@ -37,6 +40,8 @@ export const OrderProcessRunSchema = z.object({
                 completed: z.boolean(),
                 expectedDate: z.string().nullable().optional(),
                 completedAt: z.string().nullable().optional(),
+                // Manager who completed this stage (from ProcessRunStageHistory)
+                manager: UserSummarySchema.nullable().optional(),
             }),
         )
         .optional(),
