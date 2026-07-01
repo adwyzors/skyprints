@@ -24,6 +24,8 @@ const ADMIN_PERMISSIONS = [
   'customers:view', 'customers:create', 'customers:update', 'customers:delete',
   'analytics:view', 'analytics:sync',
   'users:view', 'users:create', 'users:update', 'users:delete',
+  'users:permissions:manage', 'users:password:reset', 'users:session:revoke',
+  'users:stage-permissions:manage',
   'locations:view', 'locations:create', 'locations:update', 'locations:delete', 'locations:all:view',
   'settings:view',
 ];

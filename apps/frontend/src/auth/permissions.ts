@@ -45,6 +45,10 @@ export enum Permission {
     USERS_CREATE = "users:create",
     USERS_UPDATE = "users:update",
     USERS_DELETE = "users:delete",
+    USERS_PERMISSIONS_MANAGE = "users:permissions:manage",
+    USERS_PASSWORD_RESET = "users:password:reset",
+    USERS_SESSION_REVOKE = "users:session:revoke",
+    USERS_STAGE_PERMISSIONS_MANAGE = "users:stage-permissions:manage",
 
     LOCATIONS_VIEW = "locations:view",
     LOCATIONS_CREATE = "locations:create",

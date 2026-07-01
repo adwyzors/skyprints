@@ -63,7 +63,7 @@ export class UsersController {
   }
 
   @Patch(':id/permissions')
-  @Permissions('users:update')
+  @Permissions('users:permissions:manage')
   @HttpCode(204)
   async updatePermissions(
     @Param('id') id: string,
@@ -85,14 +85,14 @@ export class UsersController {
   }
 
   @Post(':id/revoke-session')
-  @Permissions('users:update')
+  @Permissions('users:session:revoke')
   @HttpCode(204)
   async revokeSession(@Param('id') id: string, @Req() req: any) {
     await this.service.revokeSession(req.user.id, id);
   }
 
   @Post(':id/reset-password')
-  @Permissions('users:update')
+  @Permissions('users:password:reset')
   @HttpCode(204)
   async resetPassword(@Param('id') id: string, @Body() body: unknown) {
     const parsed = ResetPasswordSchema.safeParse(body);
@@ -109,7 +109,7 @@ export class UsersController {
   }
 
   @Put(':id/stage-permissions')
-  @Permissions('users:update')
+  @Permissions('users:stage-permissions:manage')
   @HttpCode(204)
   async updateStagePermissions(@Param('id') id: string, @Body() body: unknown) {
     const parsed = AssignStagePermissionsSchema.safeParse(body);

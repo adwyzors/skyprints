@@ -50,6 +50,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'runs:claim:override', 'runs:lifecycle:update', 'runs:transition:digital',
     'runs:transition:fusing', 'runs:update', 'runs:view', 'settings:view',
     'users:create', 'users:delete', 'users:update', 'users:view',
+    'users:permissions:manage', 'users:password:reset', 'users:session:revoke',
+    'users:stage-permissions:manage',
   ],
   ADMIN: [
     'analytics:sync', 'analytics:view', 'billings:create', 'billings:create-test',
@@ -604,6 +606,10 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
   const canCreate = hasPermission(Permission.USERS_CREATE);
   const canUpdate = hasPermission(Permission.USERS_UPDATE);
   const canDelete = hasPermission(Permission.USERS_DELETE);
+  const canManagePermissions = hasPermission(Permission.USERS_PERMISSIONS_MANAGE);
+  const canResetPassword = hasPermission(Permission.USERS_PASSWORD_RESET);
+  const canRevokeSession = hasPermission(Permission.USERS_SESSION_REVOKE);
+  const canManageStagePermissions = hasPermission(Permission.USERS_STAGE_PERMISSIONS_MANAGE);
 
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
@@ -804,33 +810,37 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-0.5">
                             {canUpdate && (
-                              <>
-                                <button title="Edit user" onClick={() => setEditTarget(u)}
-                                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                                  <UserCog className="w-4 h-4" />
-                                </button>
-                                <button title="Manage permissions" onClick={() => setPermTarget(u)}
-                                  className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
-                                  <Shield className="w-4 h-4" />
-                                </button>
-                                {u.role === 'MANAGER' && (
-                                  <button title="Assign stage permissions" onClick={() => setStageTarget(u)}
-                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                                    <ListTree className="w-4 h-4" />
-                                  </button>
-                                )}
-                                <button title="Reset password" onClick={() => setResetPwTarget(u)}
-                                  className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
-                                  <Key className="w-4 h-4" />
-                                </button>
-                                <button
-                                  title={isSelf ? 'Cannot revoke own session' : 'Revoke session'}
-                                  onClick={() => { if (!isSelf) setRevokeTarget(u); }}
-                                  disabled={isSelf}
-                                  className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
-                                  <LogOut className="w-4 h-4" />
-                                </button>
-                              </>
+                              <button title="Edit user" onClick={() => setEditTarget(u)}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                <UserCog className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canManagePermissions && (
+                              <button title="Manage permissions" onClick={() => setPermTarget(u)}
+                                className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors">
+                                <Shield className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canManageStagePermissions && u.role === 'MANAGER' && (
+                              <button title="Assign stage permissions" onClick={() => setStageTarget(u)}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                <ListTree className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canResetPassword && (
+                              <button title="Reset password" onClick={() => setResetPwTarget(u)}
+                                className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors">
+                                <Key className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canRevokeSession && (
+                              <button
+                                title={isSelf ? 'Cannot revoke own session' : 'Revoke session'}
+                                onClick={() => { if (!isSelf) setRevokeTarget(u); }}
+                                disabled={isSelf}
+                                className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                                <LogOut className="w-4 h-4" />
+                              </button>
                             )}
                             {canDelete && (
                               <button
