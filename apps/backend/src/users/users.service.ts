@@ -122,7 +122,7 @@ export class UsersService {
     };
   }
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto, requestingUserPermissions: string[]) {
     // Validate locationId if provided
     if (dto.locationId) {
       const location = await this.prisma.location.findUnique({
@@ -135,7 +135,15 @@ export class UsersService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
-    const permissions = dto.permissions ?? ROLE_PERMISSIONS[dto.role] ?? [];
+    // Only requesters holding users:permissions:manage may hand out a custom
+    // permission set — everyone else's created users get the role defaults,
+    // regardless of what the request body contains.
+    const canCustomizePermissions = requestingUserPermissions.includes(
+      'users:permissions:manage',
+    );
+    const permissions = canCustomizePermissions
+      ? (dto.permissions ?? ROLE_PERMISSIONS[dto.role] ?? [])
+      : (ROLE_PERMISSIONS[dto.role] ?? []);
 
     try {
       const result = await this.prisma.transaction(async (tx) => {

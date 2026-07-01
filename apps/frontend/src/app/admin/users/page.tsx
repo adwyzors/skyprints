@@ -140,6 +140,8 @@ interface CreateUserModalProps {
 }
 
 function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserModalProps) {
+  const { hasPermission } = useAuth();
+  const canManagePermissions = hasPermission(Permission.USERS_PERMISSIONS_MANAGE);
   const [form, setForm] = useState<CreateUserPayload>({
     name: '', email: '', username: '', role: 'MANAGER', password: '',
     permissions: [...ROLE_PERMISSIONS.MANAGER],
@@ -257,35 +259,41 @@ function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserMo
                 className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-gray-700">
-                  Permissions <span className="text-gray-400 font-normal">({perms.length} selected)</span>
-                </label>
-                <button type="button" onClick={() => setForm(p => ({ ...p, permissions: [...(ROLE_PERMISSIONS[p.role] ?? [])] }))}
-                  className="text-xs text-blue-600 hover:underline">
-                  Load role defaults
-                </button>
-              </div>
-              <div className="border border-gray-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
-                {Object.entries(PERMISSION_GROUPS).map(([group, groupPerms]) => (
-                  <div key={group}>
-                    <div className="px-3 py-1 bg-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-500 sticky top-0">
-                      {group}
+            {canManagePermissions ? (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium text-gray-700">
+                    Permissions <span className="text-gray-400 font-normal">({perms.length} selected)</span>
+                  </label>
+                  <button type="button" onClick={() => setForm(p => ({ ...p, permissions: [...(ROLE_PERMISSIONS[p.role] ?? [])] }))}
+                    className="text-xs text-blue-600 hover:underline">
+                    Load role defaults
+                  </button>
+                </div>
+                <div className="border border-gray-200 rounded-lg overflow-hidden max-h-48 overflow-y-auto">
+                  {Object.entries(PERMISSION_GROUPS).map(([group, groupPerms]) => (
+                    <div key={group}>
+                      <div className="px-3 py-1 bg-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-500 sticky top-0">
+                        {group}
+                      </div>
+                      <div className="grid grid-cols-2">
+                        {groupPerms.map(p => (
+                          <label key={p} className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-50/50 cursor-pointer text-xs border-b border-gray-50">
+                            <input type="checkbox" checked={perms.includes(p)} onChange={() => togglePerm(p)}
+                              className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded" />
+                            <span className="text-gray-700">{p}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2">
-                      {groupPerms.map(p => (
-                        <label key={p} className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-50/50 cursor-pointer text-xs border-b border-gray-50">
-                          <input type="checkbox" checked={perms.includes(p)} onChange={() => togglePerm(p)}
-                            className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded" />
-                          <span className="text-gray-700">{p}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <p className="text-xs text-gray-500 italic">
+                This user will get the default permissions for the selected role.
+              </p>
+            )}
 
           </div>
 

@@ -44,12 +44,12 @@ export class UsersController {
 
   @Post()
   @Permissions('users:create')
-  async create(@Body() body: unknown) {
+  async create(@Body() body: unknown, @Req() req: any) {
     const parsed = CreateUserSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
-    return this.service.create(parsed.data);
+    return this.service.create(parsed.data, req.user.permissions ?? []);
   }
 
   @Patch(':id')
