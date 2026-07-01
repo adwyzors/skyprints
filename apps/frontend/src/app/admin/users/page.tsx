@@ -85,7 +85,6 @@ const PERMISSION_GROUPS: Record<string, string[]> = ALL_PERMISSIONS.reduce(
   {} as Record<string, string[]>,
 );
 
-
 // ─── ConfirmModal ─────────────────────────────────────────────────────────────
 
 interface ConfirmModalProps {
