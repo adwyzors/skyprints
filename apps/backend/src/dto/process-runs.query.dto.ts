@@ -60,6 +60,7 @@ export class ProcessRunsQueryDto {
   createdTo?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (Array.isArray(value) ? value.join(',') : value))
   @IsString()
   processId?: string;
 

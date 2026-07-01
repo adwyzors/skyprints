@@ -256,7 +256,11 @@ export class AdminProcessService {
 
     // 1. Process Filter
     if (processId) {
-      const pidList = Array.isArray(processId) ? processId : [processId];
+      const pidList = typeof processId === 'string'
+        ? processId.split(',').map((s) => s.trim()).filter(Boolean)
+        : Array.isArray(processId)
+          ? processId
+          : [processId];
       const dtfNames = ['DTF', 'Direct to Film (DTF)'];
       if (pidList.some((p) => dtfNames.includes(p))) {
         dtfNames.forEach((n) => {
