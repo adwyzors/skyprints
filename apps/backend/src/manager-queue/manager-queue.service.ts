@@ -8,6 +8,8 @@ import type { ManagerActiveJobDto, ManagerQueueItemDto } from '@app/contracts';
 import { Prisma } from '@prisma/client';
 import { PrismaExecutor, PrismaService } from '../../prisma/prisma.service';
 import { ContextLogger } from '../common/logger/context.logger';
+import { RequestContextStore } from '../common/context/request-context.store';
+import { resolveLocationFilter } from '../auth/utils/location-scope.util';
 import { AdminProcessService } from '../processes/admin-process.service';
 
 const QUANTITY_FIELD_CANDIDATES = [
@@ -118,6 +120,9 @@ export class ManagerQueueService {
       grouped.set(p.processId, codes);
     }
 
+    const ctx = RequestContextStore.getStore();
+    const scopedLocationId = resolveLocationFilter(ctx?.user);
+
     const runs = await this.prisma.processRun.findMany({
       where: {
         claimedBy: null,
@@ -129,10 +134,25 @@ export class ManagerQueueService {
         orderProcess: {
           order: { statusCode: 'IN_PRODUCTION', deletedAt: null },
         },
-        OR: Array.from(grouped.entries()).map(([processId, codes]) => ({
-          orderProcess: { processId },
-          lifeCycleStatusCode: { in: codes },
-        })),
+        AND: [
+          {
+            OR: Array.from(grouped.entries()).map(([processId, codes]) => ({
+              orderProcess: { processId },
+              lifeCycleStatusCode: { in: codes },
+            })),
+          },
+          ...(scopedLocationId
+            ? [
+                {
+                  OR: [
+                    { locationId: scopedLocationId },
+                    { preProductionLocationId: scopedLocationId },
+                    { postProductionLocationId: scopedLocationId },
+                  ],
+                },
+              ]
+            : []),
+        ],
       },
       include: this.queueItemInclude,
       orderBy: { createdAt: 'asc' },
@@ -163,6 +183,9 @@ export class ManagerQueueService {
         select: {
           id: true,
           lifeCycleStatusCode: true,
+          locationId: true,
+          preProductionLocationId: true,
+          postProductionLocationId: true,
           orderProcess: { select: { processId: true } },
         },
       });
@@ -183,6 +206,20 @@ export class ManagerQueueService {
       if (!permitted) {
         throw new ForbiddenException(
           'You are not permitted to claim this stage',
+        );
+      }
+
+      const ctx = RequestContextStore.getStore();
+      const scopedLocationId = resolveLocationFilter(ctx?.user);
+
+      if (
+        scopedLocationId &&
+        run.locationId !== scopedLocationId &&
+        run.preProductionLocationId !== scopedLocationId &&
+        run.postProductionLocationId !== scopedLocationId
+      ) {
+        throw new ForbiddenException(
+          'This run is not assigned to your location',
         );
       }
 
