@@ -156,17 +156,26 @@ export default function BillingGroupModal({ isOpen, onClose, groupId }: BillingG
                     : 'NA',
                 billNumber: details.name,
 
-                items: details.orders.map((order, index) => {
-                    let actualQty = 0;
-                    order.processes?.forEach((process: any) => {
-                        process.runs?.forEach((run: any) => {
-                            const metrics = getRunBillingMetrics(run, process.name, order.quantity);
+                 items: details.orders.map((order, index) => {
+                    let billingQty = order.quantity;
+                    const rollOrLayoutProcess = order.processes?.find((p: any) =>
+                        p.name === 'Allover Sublimation' ||
+                        p.name === 'DTF' ||
+                        p.name === 'Direct to Film (DTF)'
+                    );
+
+                    if (rollOrLayoutProcess) {
+                        let actualQty = 0;
+                        rollOrLayoutProcess.runs?.forEach((run: any) => {
+                            const metrics = getRunBillingMetrics(run, rollOrLayoutProcess.name, order.quantity);
                             if (metrics.quantity > actualQty) {
                                 actualQty = metrics.quantity;
                             }
                         });
-                    });
-                    const billingQty = actualQty > 0 ? actualQty : order.quantity;
+                        if (actualQty > 0) {
+                            billingQty = actualQty;
+                        }
+                    }
 
                     return {
                         srNo: index + 1,
