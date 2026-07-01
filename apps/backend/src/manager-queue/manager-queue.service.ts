@@ -64,6 +64,7 @@ export class ManagerQueueService {
    * disconnected from it, in which case callers should treat it as unscoped.
    */
   private async classifyStage(
+    executor: PrismaExecutor,
     workflowTypeId: string,
     stageCode: string,
     cache: Map<string, 'PRE' | 'POST' | null>,
@@ -77,11 +78,11 @@ export class ManagerQueueService {
     }
 
     const [statuses, transitions] = await Promise.all([
-      this.prisma.workflowStatus.findMany({
+      executor.workflowStatus.findMany({
         where: { workflowTypeId },
         select: { id: true, code: true },
       }),
-      this.prisma.workflowTransition.findMany({
+      executor.workflowTransition.findMany({
         where: { workflowTypeId },
         select: { fromStatusId: true, toStatusId: true },
       }),
@@ -123,6 +124,7 @@ export class ManagerQueueService {
   }
 
   private async matchesLocation(
+    executor: PrismaExecutor,
     run: {
       lifeCycleStatusCode: string;
       lifecycleWorkflowTypeId: string;
@@ -136,6 +138,7 @@ export class ManagerQueueService {
     if (!scopedLocationId) return true;
 
     const classification = await this.classifyStage(
+      executor,
       run.lifecycleWorkflowTypeId,
       run.lifeCycleStatusCode,
       cache,
@@ -251,7 +254,9 @@ export class ManagerQueueService {
 
     const cache = new Map<string, 'PRE' | 'POST' | null>();
     const scoped = await Promise.all(
-      runs.map((r) => this.matchesLocation(r, scopedLocationId, cache)),
+      runs.map((r) =>
+        this.matchesLocation(this.prisma, r, scopedLocationId, cache),
+      ),
     );
 
     return runs.filter((_, i) => scoped[i]).map((r) => this.toQueueItemDto(r));
@@ -309,6 +314,7 @@ export class ManagerQueueService {
       const ctx = RequestContextStore.getStore();
       const scopedLocationId = resolveLocationFilter(ctx?.user);
       const locationOk = await this.matchesLocation(
+        tx,
         run,
         scopedLocationId,
         new Map(),
