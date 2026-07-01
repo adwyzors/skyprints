@@ -27,8 +27,8 @@ export class UsersController {
 
   @Get()
   @Permissions('users:view')
-  list() {
-    return this.service.list();
+  list(@Req() req: any) {
+    return this.service.list(req.user.id);
   }
 
   @Get('me')
@@ -38,8 +38,8 @@ export class UsersController {
 
   @Get(':id')
   @Permissions('users:view')
-  findById(@Param('id') id: string) {
-    return this.service.findById(id);
+  findById(@Param('id') id: string, @Req() req: any) {
+    return this.service.findById(id, req.user.id);
   }
 
   @Post()
@@ -49,17 +49,17 @@ export class UsersController {
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
-    return this.service.create(parsed.data, req.user.permissions ?? []);
+    return this.service.create(parsed.data, req.user.permissions ?? [], req.user.id);
   }
 
   @Patch(':id')
   @Permissions('users:update')
-  async update(@Param('id') id: string, @Body() body: unknown) {
+  async update(@Param('id') id: string, @Body() body: unknown, @Req() req: any) {
     const parsed = UpdateUserSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
-    return this.service.update(id, parsed.data);
+    return this.service.update(id, parsed.data, req.user.id);
   }
 
   @Patch(':id/permissions')
@@ -80,8 +80,8 @@ export class UsersController {
   @Delete(':id')
   @Permissions('users:delete')
   @HttpCode(204)
-  async softDelete(@Param('id') id: string) {
-    await this.service.softDelete(id);
+  async softDelete(@Param('id') id: string, @Req() req: any) {
+    await this.service.softDelete(id, req.user.id);
   }
 
   @Post(':id/revoke-session')
@@ -94,12 +94,12 @@ export class UsersController {
   @Post(':id/reset-password')
   @Permissions('users:password:reset')
   @HttpCode(204)
-  async resetPassword(@Param('id') id: string, @Body() body: unknown) {
+  async resetPassword(@Param('id') id: string, @Body() body: unknown, @Req() req: any) {
     const parsed = ResetPasswordSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
-    await this.service.resetPassword(id, parsed.data);
+    await this.service.resetPassword(id, parsed.data, req.user.id);
   }
 
   @Get(':id/stage-permissions')

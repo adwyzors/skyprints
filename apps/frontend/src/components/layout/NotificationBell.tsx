@@ -8,8 +8,9 @@ import {
   markAllNotificationsAsRead,
   markNotificationAsRead,
   resolveNotificationTarget,
+  splitMessageAroundOrderCode,
 } from '@/services/notifications.service';
-import { ArrowRight, Bell, Check, Loader2 } from 'lucide-react';
+import { Bell, Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -189,44 +190,44 @@ export default function NotificationBell() {
               </div>
             ) : (
               <div className="divide-y divide-gray-50">
-                {notifications.map((notif) => (
-                  <div
-                    key={notif.id}
-                    className={`px-4 py-3 flex gap-3 hover:bg-gray-50 transition-colors ${
-                      !notif.isRead ? 'bg-blue-50/20' : ''
-                    }`}
-                  >
-                    {/* Unread circle */}
+                {notifications.map((notif) => {
+                  const parts = splitMessageAroundOrderCode(notif);
+                  return (
                     <button
+                      key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
-                      className="flex-shrink-0 mt-1.5"
+                      className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-gray-50 transition-colors ${
+                        !notif.isRead ? 'bg-blue-50/20' : ''
+                      }`}
                     >
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          !notif.isRead ? 'bg-blue-600' : 'bg-transparent'
-                        }`}
-                      />
-                    </button>
-                    {/* Content */}
-                    <button
-                      onClick={() => handleNotificationClick(notif)}
-                      className="flex-1 min-w-0 text-left"
-                    >
-                      <p className="text-sm text-gray-700 font-medium break-words leading-relaxed">
-                        {notif.message}
-                      </p>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-[10px] text-gray-400 font-bold">
+                      {/* Unread circle */}
+                      <div className="flex-shrink-0 mt-1.5">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            !notif.isRead ? 'bg-blue-600' : 'bg-transparent'
+                          }`}
+                        />
+                      </div>
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-700 font-medium break-words leading-relaxed">
+                          {parts ? (
+                            <>
+                              {parts.before}
+                              <span className="text-blue-600 font-bold">{parts.code}</span>
+                              {parts.after}
+                            </>
+                          ) : (
+                            notif.message
+                          )}
+                        </p>
+                        <span className="text-[10px] text-gray-400 font-bold block mt-1">
                           {formatTime(notif.createdAt)}
-                        </span>
-                        <span className="text-[10px] text-blue-600 font-bold flex items-center gap-0.5">
-                          View Order {notif.orderCode}
-                          <ArrowRight className="w-2.5 h-2.5" />
                         </span>
                       </div>
                     </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

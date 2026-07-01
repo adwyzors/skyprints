@@ -26,9 +26,40 @@ export class UsersService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async list() {
+  private async isSuperAdmin(userId: string): Promise<boolean> {
+    const requester = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { role: true },
+    });
+    return requester?.role === 'SUPER_ADMIN';
+  }
+
+  // Super Admin accounts are invisible and untouchable to non-Super-Admins —
+  // 404 (rather than 403) avoids confirming that the account even exists.
+  private async assertTargetVisible(
+    targetUserId: string,
+    requestingUserId: string,
+  ): Promise<void> {
+    const target = await this.prisma.user.findFirst({
+      where: { id: targetUserId, deletedAt: null },
+      select: { role: true },
+    });
+    if (
+      target?.role === 'SUPER_ADMIN' &&
+      !(await this.isSuperAdmin(requestingUserId))
+    ) {
+      throw new NotFoundException('User not found');
+    }
+  }
+
+  async list(requestingUserId: string) {
+    const requesterIsSuperAdmin = await this.isSuperAdmin(requestingUserId);
+
     return this.prisma.user.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...(requesterIsSuperAdmin ? {} : { role: { not: 'SUPER_ADMIN' } }),
+      },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -54,7 +85,7 @@ export class UsersService {
     });
   }
 
-  async findById(id: string) {
+  async findById(id: string, requestingUserId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
       select: {
@@ -80,7 +111,9 @@ export class UsersService {
       },
     });
 
-    if (!user) {
+    // Super Admin accounts are invisible to non-Super-Admins — a 404 (rather
+    // than 403) avoids confirming that the account even exists.
+    if (!user || (user.role === 'SUPER_ADMIN' && !(await this.isSuperAdmin(requestingUserId)))) {
       throw new NotFoundException('User not found');
     }
 
@@ -122,7 +155,32 @@ export class UsersService {
     };
   }
 
-  async create(dto: CreateUserDto, requestingUserPermissions: string[]) {
+  // Permission strings don't distinguish SUPER_ADMIN from ADMIN (they share
+  // the same permission set), so granting/removing the SUPER_ADMIN role has
+  // to be checked against the requester's actual role in the database.
+  private async assertRequesterIsSuperAdmin(
+    requestingUserId: string,
+  ): Promise<void> {
+    const requester = await this.prisma.user.findFirst({
+      where: { id: requestingUserId, deletedAt: null },
+      select: { role: true },
+    });
+    if (!requester || requester.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException(
+        'Only Super Admins can assign the Super Admin role',
+      );
+    }
+  }
+
+  async create(
+    dto: CreateUserDto,
+    requestingUserPermissions: string[],
+    requestingUserId: string,
+  ) {
+    if (dto.role === 'SUPER_ADMIN') {
+      await this.assertRequesterIsSuperAdmin(requestingUserId);
+    }
+
     // Validate locationId if provided
     if (dto.locationId) {
       const location = await this.prisma.location.findUnique({
@@ -189,12 +247,19 @@ export class UsersService {
     }
   }
 
-  async update(id: string, dto: UpdateUserDto) {
+  async update(id: string, dto: UpdateUserDto, requestingUserId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
     });
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (
+      dto.role !== undefined &&
+      (dto.role === 'SUPER_ADMIN' || user.role === 'SUPER_ADMIN')
+    ) {
+      await this.assertRequesterIsSuperAdmin(requestingUserId);
     }
 
     if (dto.locationId !== undefined) {
@@ -244,6 +309,7 @@ export class UsersService {
     if (requestingUserId === targetId) {
       throw new ForbiddenException('You cannot modify your own permissions');
     }
+    await this.assertTargetVisible(targetId, requestingUserId);
 
     // Validate all permission strings
     const unknown = dto.permissions.filter((p) => !ALL_PERMISSIONS.includes(p));
@@ -269,13 +335,14 @@ export class UsersService {
     this.logger.log(`Permissions updated for userId=${targetId}`);
   }
 
-  async softDelete(id: string) {
+  async softDelete(id: string, requestingUserId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
     });
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    await this.assertTargetVisible(id, requestingUserId);
 
     await this.prisma.transaction(async (tx) => {
       await tx.user.update({
@@ -296,6 +363,7 @@ export class UsersService {
     if (requestingUserId === targetId) {
       throw new ForbiddenException('You cannot revoke your own session');
     }
+    await this.assertTargetVisible(targetId, requestingUserId);
 
     const loginRecord = await this.prisma.login.findUnique({
       where: { userId: targetId },
@@ -312,7 +380,13 @@ export class UsersService {
     this.logger.log(`Session revoked for userId=${targetId}`);
   }
 
-  async resetPassword(id: string, dto: ResetPasswordDto) {
+  async resetPassword(
+    id: string,
+    dto: ResetPasswordDto,
+    requestingUserId: string,
+  ) {
+    await this.assertTargetVisible(id, requestingUserId);
+
     const loginRecord = await this.prisma.login.findUnique({
       where: { userId: id },
     });

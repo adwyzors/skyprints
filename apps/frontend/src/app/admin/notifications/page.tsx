@@ -8,8 +8,9 @@ import {
     markAllNotificationsAsRead,
     markNotificationAsRead,
     resolveNotificationTarget,
+    splitMessageAroundOrderCode,
 } from '@/services/notifications.service';
-import { ArrowRight, Bell, Check, Loader2 } from 'lucide-react';
+import { Bell, Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -140,35 +141,37 @@ function NotificationsPageWrapper() {
                         </div>
                     ) : (
                         <div className="divide-y divide-gray-100">
-                            {notifications.map((notif) => (
-                                <div
-                                    key={notif.id}
-                                    className={`px-4 py-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors ${!notif.isRead ? 'bg-blue-50/20' : ''
-                                        }`}
-                                >
-                                    <div className="flex-shrink-0">
-                                        <div className={`w-2 h-2 rounded-full ${!notif.isRead ? 'bg-blue-600' : 'bg-transparent'}`} />
-                                    </div>
+                            {notifications.map((notif) => {
+                                const parts = splitMessageAroundOrderCode(notif);
+                                return (
                                     <button
+                                        key={notif.id}
                                         onClick={() => handleNotificationClick(notif)}
-                                        className="flex-1 min-w-0 text-left"
+                                        className={`w-full text-left px-4 py-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors ${!notif.isRead ? 'bg-blue-50/20' : ''
+                                            }`}
                                     >
-                                        <p className="text-sm text-gray-800 font-medium break-words leading-relaxed">
-                                            {notif.message}
-                                        </p>
-                                        <span className="text-xs text-gray-400 font-medium block mt-1">
-                                            {formatTime(notif.createdAt)}
-                                        </span>
+                                        <div className="flex-shrink-0">
+                                            <div className={`w-2 h-2 rounded-full ${!notif.isRead ? 'bg-blue-600' : 'bg-transparent'}`} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm text-gray-800 font-medium break-words leading-relaxed">
+                                                {parts ? (
+                                                    <>
+                                                        {parts.before}
+                                                        <span className="text-blue-600 font-bold">{parts.code}</span>
+                                                        {parts.after}
+                                                    </>
+                                                ) : (
+                                                    notif.message
+                                                )}
+                                            </p>
+                                            <span className="text-xs text-gray-400 font-medium block mt-1">
+                                                {formatTime(notif.createdAt)}
+                                            </span>
+                                        </div>
                                     </button>
-                                    <button
-                                        onClick={() => handleNotificationClick(notif)}
-                                        className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5 transition-colors"
-                                    >
-                                        View Order {notif.orderCode}
-                                        <ArrowRight className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

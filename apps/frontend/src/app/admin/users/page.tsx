@@ -140,8 +140,9 @@ interface CreateUserModalProps {
 }
 
 function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserModalProps) {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const canManagePermissions = hasPermission(Permission.USERS_PERMISSIONS_MANAGE);
+  const canAssignSuperAdmin = user?.user?.role === 'SUPER_ADMIN';
   const [form, setForm] = useState<CreateUserPayload>({
     name: '', email: '', username: '', role: 'MANAGER', password: '',
     permissions: [...ROLE_PERMISSIONS.MANAGER],
@@ -234,7 +235,7 @@ function CreateUserModal({ isOpen, locations, onClose, onSuccess }: CreateUserMo
                 <label className="text-xs font-medium text-gray-700">Role <span className="text-red-500">*</span></label>
                 <select value={form.role} onChange={e => handleRoleChange(e.target.value)}
                   className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="SUPER_ADMIN">Super Admin</option>
+                  {canAssignSuperAdmin && <option value="SUPER_ADMIN">Super Admin</option>}
                   <option value="ADMIN">Admin</option>
                   <option value="MANAGER">Manager</option>
                 </select>
@@ -325,6 +326,8 @@ interface EditUserModalProps {
 }
 
 function EditUserModal({ isOpen, user, locations, onClose, onSuccess }: EditUserModalProps) {
+  const { user: authUser } = useAuth();
+  const canAssignSuperAdmin = authUser?.user?.role === 'SUPER_ADMIN';
   const [form, setForm] = useState<UpdateUserPayload>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -389,7 +392,7 @@ function EditUserModal({ isOpen, user, locations, onClose, onSuccess }: EditUser
               <select value={form.role ?? ''}
                 onChange={e => setForm(p => ({ ...p, role: e.target.value as UpdateUserPayload['role'] }))}
                 className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="SUPER_ADMIN">Super Admin</option>
+                {canAssignSuperAdmin && <option value="SUPER_ADMIN">Super Admin</option>}
                 <option value="ADMIN">Admin</option>
                 <option value="MANAGER">Manager</option>
               </select>

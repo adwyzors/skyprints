@@ -54,6 +54,23 @@ export async function markAllNotificationsAsRead(): Promise<{ success: boolean }
 }
 
 /**
+ * Splits a notification's message around its order code so callers can
+ * render the code as a highlighted inline link instead of the plain string.
+ * Returns null if the order code isn't found in the message text.
+ */
+export function splitMessageAroundOrderCode(
+  notif: AppNotification,
+): { before: string; code: string; after: string } | null {
+  const idx = notif.message.indexOf(notif.orderCode);
+  if (idx === -1) return null;
+  return {
+    before: notif.message.slice(0, idx),
+    code: notif.orderCode,
+    after: notif.message.slice(idx + notif.orderCode.length),
+  };
+}
+
+/**
  * Order this notification refers to may have moved past the stage the
  * notification was raised for — resolveNotificationTarget() reports that
  * via blockedMessage instead of pushing a stale link.
