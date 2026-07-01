@@ -89,6 +89,29 @@ const PERMISSION_GROUPS: Record<string, string[]> = ALL_PERMISSIONS.reduce(
   {} as Record<string, string[]>,
 );
 
+// ─── Timestamp formatting ──────────────────────────────────────────────────
+
+function formatFullDate(date: Date): string {
+  return date.toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function formatRelativeTime(date: Date): string {
+  const diffSec = Math.round((Date.now() - date.getTime()) / 1000);
+  const diffMin = Math.round(diffSec / 60);
+  const diffHour = Math.round(diffMin / 60);
+  const diffDay = Math.round(diffHour / 24);
+
+  if (diffSec < 60) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffDay < 7) return `${diffDay}d ago`;
+  if (diffDay < 30) return `${Math.round(diffDay / 7)}w ago`;
+  if (diffDay < 365) return `${Math.round(diffDay / 30)}mo ago`;
+  return `${Math.round(diffDay / 365)}y ago`;
+}
+
 // ─── ConfirmModal ─────────────────────────────────────────────────────────────
 
 interface ConfirmModalProps {
@@ -715,8 +738,6 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Role</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Location</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Account</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Login</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Perms</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Last Login</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Failed Logins</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Created</th>
@@ -727,14 +748,14 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                 {loading ? (
                   [...Array(5)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      {[...Array(10)].map((_, j) => (
+                      {[...Array(8)].map((_, j) => (
                         <td key={j} className="px-4 py-3"><div className="h-4 bg-gray-100 rounded" /></td>
                       ))}
                     </tr>
                   ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-12 text-center">
+                    <td colSpan={8} className="px-4 py-12 text-center">
                       <Users className="w-10 h-10 text-gray-200 mx-auto mb-2" />
                       <p className="text-sm text-gray-400">No users found</p>
                     </td>
@@ -742,8 +763,6 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                 ) : (
                   filtered.map(u => {
                     const isSelf = u.id === currentUserId;
-                    const loginActive = u.login?.isActive ?? false;
-                    const permCount = u.login?.permissions?.length ?? 0;
                     const roleColor: Record<string, string> = {
                       SUPER_ADMIN: 'bg-red-100 text-red-700',
                       ADMIN: 'bg-purple-100 text-purple-700',
@@ -781,42 +800,31 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                             {u.isActive ? 'ACTIVE' : 'DISABLED'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${!u.login ? 'bg-gray-100 text-gray-500' :
-                              loginActive ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                            }`}>
-                            {!u.login ? 'NONE' : loginActive ? 'OK' : 'LOCKED'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <span className="text-sm font-medium text-gray-700">{permCount}</span>
-                        </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {u.login?.lastLoginAt ? (
-                            <div>
-                              <div className="text-xs text-gray-700">{new Date(u.login.lastLoginAt).toLocaleDateString('en-GB')}</div>
-                              <div className="text-[10px] text-gray-400">{new Date(u.login.lastLoginAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
-                            </div>
+                            <span className="text-xs text-gray-700" title={formatFullDate(new Date(u.login.lastLoginAt))}>
+                              {formatRelativeTime(new Date(u.login.lastLoginAt))}
+                            </span>
                           ) : <span className="text-gray-300 text-xs">Never</span>}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {u.login && u.login.failedLoginAttempts > 0 ? (
-                            <div>
+                            <div className="flex items-center gap-1.5">
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700">
                                 {u.login.failedLoginAttempts}x
                               </span>
                               {u.login.lastFailedLoginAt && (
-                                <div className="text-[10px] text-gray-400 mt-0.5">
-                                  {new Date(u.login.lastFailedLoginAt).toLocaleDateString('en-GB')}{' '}
-                                  {new Date(u.login.lastFailedLoginAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                                </div>
+                                <span className="text-[10px] text-gray-400" title={formatFullDate(new Date(u.login.lastFailedLoginAt))}>
+                                  {formatRelativeTime(new Date(u.login.lastFailedLoginAt))}
+                                </span>
                               )}
                             </div>
                           ) : <span className="text-gray-300 text-xs">—</span>}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="text-xs text-gray-700">{new Date(u.createdAt).toLocaleDateString('en-GB')}</div>
-                          <div className="text-[10px] text-gray-400">{new Date(u.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+                          <span className="text-xs text-gray-700" title={formatFullDate(new Date(u.createdAt))}>
+                            {formatRelativeTime(new Date(u.createdAt))}
+                          </span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-0.5">

@@ -180,7 +180,7 @@ function RunsPageContent() {
             localStorage.setItem('runs-status-filter', s);
         }
 
-        if (!newParams.page && !newParams.selectedRun) next.set('page', '1');
+        if (!('page' in newParams) && !('selectedRun' in newParams)) next.set('page', '1');
         router.push(`${pathname}?${next.toString()}`, { scroll: false });
     }, [searchParams.toString(), router, pathname]);
 
