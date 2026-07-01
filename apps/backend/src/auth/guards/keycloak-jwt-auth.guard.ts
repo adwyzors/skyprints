@@ -8,6 +8,7 @@ import {
 import * as jwt from 'jsonwebtoken';
 import { JwtHeader } from 'jsonwebtoken';
 import { JwksClient } from 'jwks-rsa';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { RequestContextStore } from '../../common/context/request-context.store';
 import { ContextLogger } from '../../common/logger/context.logger';
 import { JWKS_PROVIDER } from '../jwt/jwks.provider';
@@ -19,6 +20,7 @@ export class KeycloakJwtAuthGuard implements CanActivate {
   constructor(
     @Inject(JWKS_PROVIDER)
     private readonly jwks: JwksClient,
+    private readonly prisma: PrismaService,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -33,11 +35,20 @@ export class KeycloakJwtAuthGuard implements CanActivate {
     try {
       const decoded = await this.verify(token);
 
+      // Keycloak tokens can't be extended with our locationId claim from this
+      // codebase, so resolve it with a lightweight DB lookup (stopgap pending
+      // the Keycloak -> internal-auth migration).
+      const dbUser = await this.prisma.user.findUnique({
+        where: { id: decoded.sub as string },
+        select: { locationId: true },
+      });
+
       const user = {
         id: decoded.sub as string,
         email: decoded.email as string,
         permissions: (decoded.permissions ?? []) as string[],
         roles: (decoded.realm_access?.roles ?? []) as string[],
+        locationId: dbUser?.locationId ?? null,
       };
 
       // Attach to request (for controllers / decorators)

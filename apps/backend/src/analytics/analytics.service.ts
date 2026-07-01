@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { resolveLocationFilter } from '../auth/utils/location-scope.util';
+import { RequestContextStore } from '../common/context/request-context.store';
 import { getEffectiveLocationId } from '../runs/runs.service';
 
 @Injectable()
@@ -206,6 +208,11 @@ export class AnalyticsService {
     customStart?: string,
     customEnd?: string,
   ) {
+    const scopedLocationId = resolveLocationFilter(
+      RequestContextStore.getStore()?.user,
+      locationId,
+    );
+
     const now = new Date();
     let startDate = new Date();
 
@@ -263,12 +270,13 @@ export class AnalyticsService {
         take: 10,
       }),
       this.prisma.locationAnalytics.findMany({
+        where: scopedLocationId ? { locationId: scopedLocationId } : undefined,
         orderBy: { totalRevenue: 'desc' },
         take: 10,
       }),
       this.getActiveWorkload(),
       this.getLiveProductionState(),
-      this.getWorkflowLifecycleMatrix(locationId),
+      this.getWorkflowLifecycleMatrix(scopedLocationId),
     ]);
 
     const topCustomers = await this.prisma.orderAnalytics.groupBy({

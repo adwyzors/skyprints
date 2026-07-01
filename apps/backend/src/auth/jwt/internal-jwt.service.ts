@@ -11,6 +11,7 @@ export interface AccessTokenPayload {
   email: string;
   permissions: string[];
   tokenVersion: number;
+  locationId?: string | null;
   iss: string;
   aud: string;
 }
@@ -33,6 +34,7 @@ export class InternalJwtService {
     email: string;
     permissions: string[];
     tokenVersion: number;
+    locationId?: string | null;
   }): string {
     return this.jwt.sign(
       { ...payload, iss: ISS, aud: AUD },

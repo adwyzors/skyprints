@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string;
   permissions: string[];
   realmRoles: string[];
+  locationId?: string | null;
 }
 
 export const CurrentUser = createParamDecorator(

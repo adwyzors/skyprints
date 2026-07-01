@@ -22,6 +22,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import * as multer from 'multer';
 
+import { Permissions } from '../auth/decorators/permissions.decorator';
 import { CustomersService } from './customers.service';
 
 @Controller('customers')
@@ -32,6 +33,7 @@ export class CustomersController {
    * Export Customers to Excel
    * ========================= */
   @Get('export')
+  @Permissions('customers:view')
   async exportCustomers(@Res() res: Response) {
     return this.service.exportToExcel(res);
   }
@@ -40,6 +42,7 @@ export class CustomersController {
    * Import Customers from Excel
    * ========================= */
   @Post('import')
+  @Permissions('customers:create')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: multer.memoryStorage(),
@@ -57,6 +60,7 @@ export class CustomersController {
    * Create Customer
    * ========================= */
   @Post()
+  @Permissions('customers:create')
   create(@Body() body: unknown) {
     const dto = CreateCustomerSchema.parse(body);
     return this.service.create(dto);
@@ -66,6 +70,7 @@ export class CustomersController {
    * Update Customer
    * ========================= */
   @Patch(':id')
+  @Permissions('customers:update')
   update(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: unknown) {
     const dto = UpdateCustomerSchema.parse(body);
     return this.service.update(id, dto);
@@ -75,6 +80,7 @@ export class CustomersController {
    * List Customers
    * ========================= */
   @Get()
+  @Permissions('customers:view')
   findAll(@Query() query: unknown) {
     const parsedQuery = QueryCustomerSchema.parse(query);
     return this.service.findAll(parsedQuery);
@@ -84,6 +90,7 @@ export class CustomersController {
    * Get Customer by ID
    * ========================= */
   @Get(':id')
+  @Permissions('customers:view')
   findOne(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.findOne(id);
   }
@@ -92,6 +99,7 @@ export class CustomersController {
    * Soft Delete Customer
    * ========================= */
   @Delete(':id')
+  @Permissions('customers:delete')
   softDelete(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.softDelete(id);
   }
@@ -100,6 +108,7 @@ export class CustomersController {
    * Bulk Soft Delete Customers
    * ========================= */
   @Delete()
+  @Permissions('customers:delete')
   softDeleteMany(@Body() body: unknown) {
     const dto = BulkDeleteSchema.parse(body);
     return this.service.softDeleteMany(dto.ids);

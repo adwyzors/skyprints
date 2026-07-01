@@ -30,6 +30,7 @@ export class InternalJwtAuthGuard implements CanActivate {
       email: decoded.email,
       permissions: decoded.permissions ?? [],
       roles: [] as string[],
+      locationId: decoded.locationId ?? null,
     };
 
     req.user = user;

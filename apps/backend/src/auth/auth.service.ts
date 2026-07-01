@@ -22,12 +22,7 @@ export class AuthService {
     private readonly internalJwt: InternalJwtService,
   ) {}
 
-  setAuthCookies(
-    res: Response,
-    tokens: any,
-    req: Request,
-    rememberMe = true,
-  ) {
+  setAuthCookies(res: Response, tokens: any, req: Request, rememberMe = true) {
     this.setAccessCookie(res, tokens.access_token, req);
 
     // rememberMe=false -> session cookie, cleared when the browser closes
@@ -79,10 +74,10 @@ export class AuthService {
         where: { email: identifier, deletedAt: null },
       });
       if (user) {
-        loginRecord = await this.prisma.login.findUnique({
+        loginRecord = (await this.prisma.login.findUnique({
           where: { userId: user.id },
           include: { user: true },
-        }) as any;
+        })) as any;
       }
     }
 
@@ -138,10 +133,11 @@ export class AuthService {
       email: user.email,
       permissions: loginRecord.permissions,
       tokenVersion: loginRecord.tokenVersion,
+      locationId: user.locationId,
     });
     const refreshExpiresIn = rememberMe
-      ? process.env.JWT_REFRESH_EXPIRES ?? '7d'
-      : process.env.JWT_REFRESH_EXPIRES_SHORT ?? '1d';
+      ? (process.env.JWT_REFRESH_EXPIRES ?? '7d')
+      : (process.env.JWT_REFRESH_EXPIRES_SHORT ?? '1d');
     const refreshToken = this.internalJwt.signRefreshToken(
       { sub: user.id, tokenVersion: loginRecord.tokenVersion },
       refreshExpiresIn,
@@ -171,7 +167,9 @@ export class AuthService {
     // 2. Load Login from DB
     const loginRecord = await this.prisma.login.findUnique({
       where: { userId: decoded.sub },
-      include: { user: { select: { isActive: true, email: true } } },
+      include: {
+        user: { select: { isActive: true, email: true, locationId: true } },
+      },
     });
 
     if (!loginRecord) {
@@ -194,6 +192,7 @@ export class AuthService {
       email: loginRecord.user?.email ?? '',
       permissions: loginRecord.permissions,
       tokenVersion: loginRecord.tokenVersion,
+      locationId: loginRecord.user?.locationId ?? null,
     });
 
     this.setAccessCookie(res, newAccessToken, req);

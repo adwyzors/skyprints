@@ -5,5 +5,6 @@ export interface RequestContext {
     email: string;
     permissions: string[];
     roles: string[];
+    locationId?: string | null;
   };
 }

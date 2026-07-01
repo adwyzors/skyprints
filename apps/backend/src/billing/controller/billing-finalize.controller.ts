@@ -3,12 +3,14 @@ import { BadRequestException, Body, Controller, Post } from '@nestjs/common';
 import { BillingSnapshotIntent } from '@prisma/client';
 import { RequestContextStore } from '../../common/context/request-context.store';
 import { BillingSnapshotService } from '../services/billing-snapshot.service';
+import { Permissions } from '../../auth/decorators/permissions.decorator';
 
 @Controller('billing')
 export class BillingController {
   constructor(private readonly service: BillingSnapshotService) {}
 
   @Post('finalize/order')
+  @Permissions('billings:update')
   finalizeOrder(
     @Body()
     body: {
@@ -34,6 +36,7 @@ export class BillingController {
   }
 
   @Post('finalize/group')
+  @Permissions('billings:update')
   finalizeGroup(
     @Body()
     body: {
@@ -56,6 +59,7 @@ export class BillingController {
   }
 
   @Post('snapshots/latest')
+  @Permissions('billings:view')
   getLatestSnapshot(@Body() body: GetLatestBillingSnapshotDto) {
     return this.service.getLatestSnapshot(body);
   }

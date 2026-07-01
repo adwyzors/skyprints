@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { OrderStatus, Prisma, ProcessRunStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { resolveLocationFilter } from '../auth/utils/location-scope.util';
 import { CloudflareService } from '../common/cloudflare.service';
 import { ContextLogger } from '../common/logger/context.logger';
 import { RequestContextStore } from '../common/context/request-context.store';
@@ -208,6 +209,8 @@ export class AdminProcessService {
       }
     }
 
+    const scopedLocationId = resolveLocationFilter(ctx?.user, query.locationId);
+
     const {
       page = 1,
       limit = 20,
@@ -258,11 +261,15 @@ export class AdminProcessService {
 
     // 1. Process Filter
     if (processId) {
-      const pidList = typeof processId === 'string'
-        ? processId.split(',').map((s) => s.trim()).filter(Boolean)
-        : Array.isArray(processId)
+      const pidList =
+        typeof processId === 'string'
           ? processId
-          : [processId];
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : Array.isArray(processId)
+            ? processId
+            : [processId];
       const dtfNames = ['DTF', 'Direct to Film (DTF)'];
       if (pidList.some((p) => dtfNames.includes(p))) {
         dtfNames.forEach((n) => {
@@ -383,11 +390,11 @@ export class AdminProcessService {
       AND: combinedAnd,
       ...(executorUserId && { executorId: executorUserId }),
       ...(reviewerUserId && { reviewerId: reviewerUserId }),
-      ...(query.locationId && {
+      ...(scopedLocationId && {
         OR: [
-          { locationId: query.locationId },
-          { preProductionLocationId: query.locationId },
-          { postProductionLocationId: query.locationId },
+          { locationId: scopedLocationId },
+          { preProductionLocationId: scopedLocationId },
+          { postProductionLocationId: scopedLocationId },
         ],
       }),
       ...(createdFrom || createdTo

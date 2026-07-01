@@ -2,12 +2,14 @@ import { Controller, Get, Query, Res } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { ReportsQueryDto } from './dto/reports.query.dto';
 import { Response } from 'express';
+import { Permissions } from '../auth/decorators/permissions.decorator';
 
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get('billed-orders')
+  @Permissions('analytics:view')
   async getBilledOrders(
     @Query() query: ReportsQueryDto,
     @Res({ passthrough: true }) res: Response,
@@ -30,6 +32,7 @@ export class ReportsController {
   }
 
   @Get('billed-orders/export')
+  @Permissions('analytics:view')
   async exportBilledOrders(
     @Query() query: ReportsQueryDto,
     @Res() res: Response,

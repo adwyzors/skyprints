@@ -12,6 +12,7 @@ import {
 } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { resolveLocationFilter } from '../auth/utils/location-scope.util';
 import { CloudflareService } from '../common/cloudflare.service';
 import { RequestContextStore } from '../common/context/request-context.store';
 import { ContextLogger } from '../common/logger/context.logger';
@@ -120,6 +121,11 @@ export class OrdersService {
       throw new BadRequestException('Invalid status value');
     }
 
+    const scopedLocationId = resolveLocationFilter(
+      RequestContextStore.getStore()?.user,
+      query.locationId,
+    );
+
     const where: Prisma.OrderWhereInput = {
       deletedAt: null,
       isTest: query.isTest !== undefined ? Boolean(query.isTest) : false,
@@ -173,15 +179,15 @@ export class OrdersService {
       }),
 
       // B6: check all three location fields so pre/post-production locations are included
-      ...(query.locationId && {
+      ...(scopedLocationId && {
         processes: {
           some: {
             runs: {
               some: {
                 OR: [
-                  { locationId: query.locationId },
-                  { preProductionLocationId: query.locationId },
-                  { postProductionLocationId: query.locationId },
+                  { locationId: scopedLocationId },
+                  { preProductionLocationId: scopedLocationId },
+                  { postProductionLocationId: scopedLocationId },
                 ],
               },
             },

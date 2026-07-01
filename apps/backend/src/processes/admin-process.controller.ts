@@ -45,11 +45,13 @@ export class AdminProcessController {
   }
 
   @Post()
+  @Permissions('process:create')
   create(@Body() dto: CreateProcessDto) {
     return this.service.create(dto);
   }
 
   @Get(':processId/lifecycle-statuses')
+  @Permissions('process:view')
   async getLifecycleStatuses(
     @Param('processId') processId: string,
   ): Promise<LifeCycleStatusDto[]> {
@@ -57,11 +59,13 @@ export class AdminProcessController {
   }
 
   @Get(':id')
+  @Permissions('process:view')
   async get(@Param('id') id: string): Promise<ProcessDetailDto> {
     return toProcessDetail(await this.service.getById(id));
   }
 
   @Get()
+  @Permissions('process:view')
   async getAll(): Promise<ProcessSummaryDto[]> {
     return this.service.getAll();
   }
@@ -73,6 +77,7 @@ export class AdminProcessController {
   }
 
   @Post(':orderProcessId/runs/:processRunId/configure')
+  @Permissions('runs:update')
   async configure(
     @Param('orderProcessId') orderProcessId: string,
     @Param('processRunId') processRunId: string,
@@ -105,6 +110,7 @@ export class AdminProcessController {
   }
 
   @Delete(':orderProcessId/runs/:processRunId/configure/images')
+  @Permissions('runs:update')
   async deleteRunImage(
     @Param('orderProcessId') orderProcessId: string,
     @Param('processRunId') processRunId: string,

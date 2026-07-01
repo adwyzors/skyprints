@@ -17,17 +17,18 @@ import type { Response } from 'express';
 import { BillingContextService } from '../services/billing-context.service';
 import { Permissions } from '../../auth/decorators/permissions.decorator';
 
-
 @Controller('billing/contexts')
 export class BillingContextController {
   constructor(private readonly service: BillingContextService) {}
 
   @Post()
+  @Permissions('billings:create')
   create(@Body() dto: CreateBillingContextDto) {
     return this.service.create(dto);
   }
 
   @Post(':contextId/orders')
+  @Permissions('billings:update')
   addOrders(
     @Param('contextId') contextId: string,
     @Body() dto: AddOrdersToBillingContextDto,
@@ -36,6 +37,7 @@ export class BillingContextController {
   }
 
   @Post(':contextId/orders/:orderId')
+  @Permissions('billings:update')
   addOrder(
     @Param('contextId') contextId: string,
     @Param('orderId') orderId: string,
@@ -44,6 +46,7 @@ export class BillingContextController {
   }
 
   @Delete(':contextId/orders/:orderId')
+  @Permissions('billings:update')
   removeOrder(
     @Param('contextId') contextId: string,
     @Param('orderId') orderId: string,
@@ -52,6 +55,7 @@ export class BillingContextController {
   }
 
   @Get()
+  @Permissions('billings:view')
   async getAll(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -117,6 +121,7 @@ export class BillingContextController {
   }
 
   @Get(':contextId')
+  @Permissions('billings:view')
   getById(@Param('contextId') contextId: string) {
     return this.service.getContextById(contextId);
   }
