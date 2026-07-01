@@ -762,7 +762,9 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                 <User className="w-3 h-3" />
                                                                 {run.claimedBy
                                                                     ? <span>In progress: <span className="font-medium text-gray-700">{run.claimedBy.name}</span></span>
-                                                                    : <span className="italic">Unclaimed</span>}
+                                                                    : run.executor
+                                                                        ? <span>Completed by: <span className="font-medium text-gray-700">{run.executor.name}</span></span>
+                                                                        : <span className="italic">Unclaimed</span>}
                                                             </div>
                                                         )}
                                                         {run.comments && (
