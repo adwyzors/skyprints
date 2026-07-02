@@ -188,3 +188,21 @@ export async function getRuns(params: GetRunsParams = {}): Promise<GetRunsRespon
 export async function getRunById(processRunId: string): Promise<any> {
     return apiRequest<any>(`/process/runs/${processRunId}`);
 }
+
+/**
+ * Updates the manager attributed to a specific ProcessRunStageHistory record.
+ * Called from the billing screen when an admin corrects who worked a stage.
+ */
+export async function updateStageHistoryManager(
+    runId: string,
+    stageHistoryId: string,
+    managerId: string,
+): Promise<void> {
+    await apiRequest<void>(
+        `/process/runs/${runId}/stage-history/${stageHistoryId}/manager`,
+        {
+            method: 'PATCH',
+            body: JSON.stringify({ managerId }),
+        },
+    );
+}

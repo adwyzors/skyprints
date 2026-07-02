@@ -14,6 +14,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
@@ -125,5 +126,17 @@ export class AdminProcessController {
       processRunId,
       dto.imageUrl,
     );
+  }
+  @Patch('runs/:runId/stage-history/:stageHistoryId/manager')
+  @Permissions('runs:lifecycle:update')
+  async updateStageHistoryManager(
+    @Param('runId') _runId: string,
+    @Param('stageHistoryId') stageHistoryId: string,
+    @Body() body: { managerId: string },
+  ): Promise<void> {
+    this.logger.log(
+      `[API] updateStageHistoryManager stageHistoryId=${stageHistoryId} managerId=${body.managerId}`,
+    );
+    return this.service.updateStageHistoryManager(stageHistoryId, body.managerId);
   }
 }
