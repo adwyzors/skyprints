@@ -384,42 +384,80 @@ function ManagerRunsPage() {
                                         {processItems.length}
                                     </span>
                                 </button>
-                                {categories.map((cat) => (
-                                    <button
-                                        key={cat.key}
-                                        onClick={() => setSelectedStage(cat.key)}
-                                        className={`flex-shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
-                                            activeStage === cat.key
-                                                ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
-                                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
-                                        }`}
-                                    >
-                                        <span className="truncate">{cat.name}</span>
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold ${
-                                            activeStage === cat.key
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-gray-100 text-gray-600'
-                                        }`}>
-                                            {cat.count}
-                                        </span>
-                                    </button>
-                                ))}
+                                {categories.map((cat) => {
+                                    const isActiveJobsCat = cat.key === 'active-jobs';
+                                    const isSidebarSelected = activeStage === cat.key;
+                                    return (
+                                        <button
+                                            key={cat.key}
+                                            onClick={() => setSelectedStage(cat.key)}
+                                            className={`flex-shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                                                isActiveJobsCat
+                                                    ? isSidebarSelected
+                                                        ? 'bg-green-600 text-white border border-green-700 shadow-md'
+                                                        : 'bg-green-50 text-green-800 border border-green-200 shadow-sm hover:bg-green-100'
+                                                    : isSidebarSelected
+                                                        ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
+                                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
+                                            }`}
+                                        >
+                                            {isActiveJobsCat && (
+                                                <span className="relative flex h-2 w-2 shrink-0">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                                                </span>
+                                            )}
+                                            <span className="truncate">{cat.name}</span>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold ${
+                                                isActiveJobsCat
+                                                    ? isSidebarSelected
+                                                        ? 'bg-white text-green-700'
+                                                        : 'bg-green-200 text-green-900'
+                                                    : isSidebarSelected
+                                                        ? 'bg-blue-100 text-blue-800'
+                                                        : 'bg-gray-100 text-gray-600'
+                                            }`}>
+                                                {cat.count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
                         {/* MAIN CONTENT AREA */}
                         <div className="flex-1 min-w-0 w-full">
                             <div className="space-y-10">
-                                {displayedCategories.map((category) => (
+                                {displayedCategories.map((category) => {
+                                    const isActiveJobsSection = category.key === 'active-jobs';
+                                    return (
                                     <div key={category.key} className="scroll-mt-20">
-                                        <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
-                                            <h2 className="text-base md:text-lg font-bold text-gray-800">
-                                                {category.name}
-                                            </h2>
-                                            <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                                                {category.count}
-                                            </span>
-                                        </div>
+                                        {isActiveJobsSection ? (
+                                            <div className="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 shadow-sm">
+                                                <span className="relative flex h-3 w-3 shrink-0">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500" />
+                                                </span>
+                                                <h2 className="text-base md:text-lg font-extrabold text-green-800 tracking-wide uppercase">
+                                                    {category.name}
+                                                </h2>
+                                                <span className="bg-green-600 text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm">
+                                                    {category.count}
+                                                </span>
+                                                <span className="ml-auto text-[11px] font-semibold text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-full">
+                                                    In Progress
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                                                <h2 className="text-base md:text-lg font-bold text-gray-800">
+                                                    {category.name}
+                                                </h2>
+                                                <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                                    {category.count}
+                                                </span>
+                                            </div>
+                                        )}
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                             {category.items.map((item) => {
                                                 const isActive = 'claimedAt' in item;
@@ -441,7 +479,8 @@ function ManagerRunsPage() {
                                             })}
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
