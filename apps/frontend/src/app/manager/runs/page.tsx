@@ -194,6 +194,7 @@ function ManagerRunsPage() {
     const [active, setActive] = useState<ManagerActiveJob[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+    const [selectedProcess, setSelectedProcess] = useState<string | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const fetchAll = async (showLoading = false) => {
@@ -219,19 +220,45 @@ function ManagerRunsPage() {
         };
     }, [user?.id]);
 
+    const handleTabChange = (newTab: 'queue' | 'active') => {
+        setTab(newTab);
+        setSelectedProcess(null);
+    };
+
+    const currentItems = tab === 'queue' ? queue : active;
+
+    // Group items by processName
+    const groupedItems = currentItems.reduce<Record<string, (ManagerQueueItem | ManagerActiveJob)[]>>((acc, item) => {
+        const process = item.processName || 'Unspecified';
+        if (!acc[process]) {
+            acc[process] = [];
+        }
+        acc[process].push(item);
+        return acc;
+    }, {});
+
+    // Sort processes alphabetically
+    const sortedProcessNames = Object.keys(groupedItems).sort();
+
+    // Create process list with counts for the sidebar
+    const processes = sortedProcessNames.map((name) => ({
+        name,
+        count: groupedItems[name].length,
+    }));
+
     return (
         <div className="py-6">
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-xl font-bold">Production</h1>
                 <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                     <button
-                        onClick={() => setTab('queue')}
+                        onClick={() => handleTabChange('queue')}
                         className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'queue' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
                     >
                         Production Queue ({queue.length})
                     </button>
                     <button
-                        onClick={() => setTab('active')}
+                        onClick={() => handleTabChange('active')}
                         className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'active' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
                     >
                         My Active Jobs ({active.length})
@@ -241,37 +268,111 @@ function ManagerRunsPage() {
 
             {loading ? (
                 <div className="text-center py-20 text-gray-400">Loading…</div>
-            ) : tab === 'queue' ? (
-                queue.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
-                        <p className="text-gray-500">No runs waiting in your queue.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {queue.map((item) => (
-                            <QueueCard
-                                key={item.id}
-                                item={item}
-                                onClick={() => setSelectedRunId(item.id)}
-                                onClaimed={() => fetchAll(false)}
-                            />
-                        ))}
-                    </div>
-                )
-            ) : active.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
-                    <p className="text-gray-500">No active jobs right now.</p>
-                </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {active.map((item) => (
-                        <ActiveCard
-                            key={item.id}
-                            item={item}
-                            onClick={() => setSelectedRunId(item.id)}
-                            onChanged={() => fetchAll(false)}
-                        />
-                    ))}
+                <div className="flex flex-col md:flex-row gap-6 items-start">
+                    {/* SIDEBAR / PROCESS FILTER */}
+                    {currentItems.length > 0 && (
+                        <div className="w-full md:w-64 shrink-0 md:sticky md:top-20 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                            <div className="mb-3 pb-2 border-b border-gray-100 hidden md:block">
+                                <h2 className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
+                                    Processes
+                                </h2>
+                            </div>
+                            
+                            {/* Horizontal scroll on mobile, vertical list on desktop */}
+                            <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide max-w-full">
+                                <button
+                                    onClick={() => setSelectedProcess(null)}
+                                    className={`flex-shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                                        selectedProcess === null
+                                            ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
+                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
+                                    }`}
+                                >
+                                    <span>All Processes</span>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold ${
+                                        selectedProcess === null
+                                            ? 'bg-blue-100 text-blue-800'
+                                            : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                        {currentItems.length}
+                                    </span>
+                                </button>
+                                {processes.map((proc) => (
+                                    <button
+                                        key={proc.name}
+                                        onClick={() => setSelectedProcess(proc.name)}
+                                        className={`flex-shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                                            selectedProcess === proc.name
+                                                ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
+                                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
+                                        }`}
+                                    >
+                                        <span className="truncate">{proc.name}</span>
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold ${
+                                            selectedProcess === proc.name
+                                                ? 'bg-blue-100 text-blue-800'
+                                                : 'bg-gray-100 text-gray-600'
+                                        }`}>
+                                            {proc.count}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MAIN CONTENT AREA */}
+                    <div className="flex-1 min-w-0 w-full">
+                        {currentItems.length === 0 ? (
+                            <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
+                                <p className="text-gray-500">
+                                    {tab === 'queue'
+                                        ? 'No runs waiting in your queue.'
+                                        : 'No active jobs right now.'}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-10">
+                                {sortedProcessNames
+                                    .filter((name) => selectedProcess === null || selectedProcess === name)
+                                    .map((procName) => {
+                                        const items = groupedItems[procName];
+                                        return (
+                                            <div key={procName} className="scroll-mt-20">
+                                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                                                    <h2 className="text-base md:text-lg font-bold text-gray-800">
+                                                        {procName}
+                                                    </h2>
+                                                    <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                                        {items.length}
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                                    {items.map((item) =>
+                                                        tab === 'queue' ? (
+                                                            <QueueCard
+                                                                key={item.id}
+                                                                item={item}
+                                                                onClick={() => setSelectedRunId(item.id)}
+                                                                onClaimed={() => fetchAll(false)}
+                                                            />
+                                                        ) : (
+                                                            <ActiveCard
+                                                                key={item.id}
+                                                                item={item as ManagerActiveJob}
+                                                                onClick={() => setSelectedRunId(item.id)}
+                                                                onChanged={() => fetchAll(false)}
+                                                            />
+                                                        ),
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
