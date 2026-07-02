@@ -391,32 +391,39 @@ function ManagerRunsPage() {
                                         <button
                                             key={cat.key}
                                             onClick={() => setSelectedStage(cat.key)}
-                                            className={`flex-shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
-                                                isActiveJobsCat
-                                                    ? isSidebarSelected
-                                                        ? 'bg-green-600 text-white border border-green-700 shadow-md'
-                                                        : 'bg-green-50 text-green-800 border border-green-200 shadow-sm hover:bg-green-100'
-                                                    : isSidebarSelected
-                                                        ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
-                                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
-                                            }`}
+                                            className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+                                            style={isActiveJobsCat ? {
+                                                background: isSidebarSelected ? '#16a34a' : '#f0fdf4',
+                                                color: isSidebarSelected ? '#fff' : '#15803d',
+                                                border: '1.5px solid #86efac',
+                                                boxShadow: '0 1px 4px rgba(22,163,74,0.15)',
+                                                fontWeight: 700,
+                                            } : isSidebarSelected ? {
+                                                background: '#eff6ff',
+                                                color: '#1d4ed8',
+                                                border: '1px solid #bfdbfe',
+                                            } : {
+                                                color: '#4b5563',
+                                                border: '1px solid transparent',
+                                            }}
                                         >
-                                            {isActiveJobsCat && (
-                                                <span className="relative flex h-2 w-2 shrink-0">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-                                                </span>
-                                            )}
                                             <span className="truncate">{cat.name}</span>
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold ${
-                                                isActiveJobsCat
-                                                    ? isSidebarSelected
-                                                        ? 'bg-white text-green-700'
-                                                        : 'bg-green-200 text-green-900'
-                                                    : isSidebarSelected
-                                                        ? 'bg-blue-100 text-blue-800'
-                                                        : 'bg-gray-100 text-gray-600'
-                                            }`}>
+                                            <span
+                                                className="rounded-full text-xs font-bold"
+                                                style={isActiveJobsCat ? {
+                                                    background: isSidebarSelected ? '#fff' : '#bbf7d0',
+                                                    color: isSidebarSelected ? '#15803d' : '#166534',
+                                                    padding: '1px 8px',
+                                                } : isSidebarSelected ? {
+                                                    background: '#dbeafe',
+                                                    color: '#1e40af',
+                                                    padding: '1px 8px',
+                                                } : {
+                                                    background: '#f3f4f6',
+                                                    color: '#4b5563',
+                                                    padding: '1px 8px',
+                                                }}
+                                            >
                                                 {cat.count}
                                             </span>
                                         </button>
@@ -433,18 +440,26 @@ function ManagerRunsPage() {
                                     return (
                                     <div key={category.key} className="scroll-mt-20">
                                         {isActiveJobsSection ? (
-                                            <div className="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 shadow-sm">
-                                                <span className="relative flex h-3 w-3 shrink-0">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500" />
-                                                </span>
-                                                <h2 className="text-base md:text-lg font-extrabold text-green-800 tracking-wide uppercase">
+                                            <div
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '10px',
+                                                    marginBottom: '16px',
+                                                    padding: '10px 16px',
+                                                    borderRadius: '12px',
+                                                    background: 'linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%)',
+                                                    border: '1.5px solid #86efac',
+                                                    boxShadow: '0 1px 6px rgba(22,163,74,0.12)',
+                                                }}
+                                            >
+                                                <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
                                                     {category.name}
                                                 </h2>
-                                                <span className="bg-green-600 text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm">
+                                                <span style={{ background: '#16a34a', color: '#fff', borderRadius: '999px', padding: '1px 10px', fontSize: '12px', fontWeight: 700 }}>
                                                     {category.count}
                                                 </span>
-                                                <span className="ml-auto text-[11px] font-semibold text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-full">
+                                                <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, color: '#15803d', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '999px', padding: '2px 10px' }}>
                                                     In Progress
                                                 </span>
                                             </div>
