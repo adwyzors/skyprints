@@ -227,15 +227,15 @@ function ManagerRunsPage() {
         new Set(allItems.map((item) => item.processName))
     ).sort();
 
-    // If no process is selected yet, default to the first one available
-    const activeProcess = selectedProcess && uniqueProcesses.includes(selectedProcess)
+    // If no process is selected yet, default to "all" (displaying all processes)
+    const activeProcess = selectedProcess && (selectedProcess === 'all' || uniqueProcesses.includes(selectedProcess))
         ? selectedProcess
-        : uniqueProcesses[0] || null;
+        : 'all';
 
     // Filter items to the active process
-    const processItems = activeProcess
-        ? allItems.filter((item) => item.processName === activeProcess)
-        : [];
+    const processItems = activeProcess === 'all'
+        ? allItems
+        : allItems.filter((item) => item.processName === activeProcess);
 
     // Separate active (claimed) items and queued items for this process
     const activeItems = processItems.filter((item) => 'claimedAt' in item);
@@ -304,6 +304,29 @@ function ManagerRunsPage() {
                 <>
                     {/* PROCESS TABS */}
                     <div className="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide gap-2">
+                        {/* All Processes Tab */}
+                        <button
+                            onClick={() => {
+                                setSelectedProcess('all');
+                                setSelectedStage('all');
+                            }}
+                            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 font-medium text-sm transition-all whitespace-nowrap ${
+                                activeProcess === 'all'
+                                    ? 'border-blue-600 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            <span>All</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                activeProcess === 'all'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-600'
+                            }`}>
+                                {allItems.length}
+                            </span>
+                        </button>
+
+                        {/* Individual Process Tabs */}
                         {uniqueProcesses.map((procName) => {
                             const count = allItems.filter((item) => item.processName === procName).length;
                             const isTabActive = procName === activeProcess;
