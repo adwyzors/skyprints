@@ -189,12 +189,12 @@ function ActiveCard({ item, onClick, onChanged }: {
 
 function ManagerRunsPage() {
     const { user } = useAuth();
-    const [tab, setTab] = useState<'queue' | 'active'>('queue');
     const [queue, setQueue] = useState<ManagerQueueItem[]>([]);
     const [active, setActive] = useState<ManagerActiveJob[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
     const [selectedProcess, setSelectedProcess] = useState<string | null>(null);
+    const [selectedStage, setSelectedStage] = useState<string | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const fetchAll = async (showLoading = false) => {
@@ -220,160 +220,209 @@ function ManagerRunsPage() {
         };
     }, [user?.id]);
 
-    const handleTabChange = (newTab: 'queue' | 'active') => {
-        setTab(newTab);
-        setSelectedProcess(null);
-    };
+    const allItems = [...active, ...queue];
 
-    const currentItems = tab === 'queue' ? queue : active;
+    // Get unique processes from allItems
+    const uniqueProcesses = Array.from(
+        new Set(allItems.map((item) => item.processName))
+    ).sort();
 
-    // Group items by processName
-    const groupedItems = currentItems.reduce<Record<string, (ManagerQueueItem | ManagerActiveJob)[]>>((acc, item) => {
-        const process = item.processName || 'Unspecified';
-        if (!acc[process]) {
-            acc[process] = [];
+    // If no process is selected yet, default to the first one available
+    const activeProcess = selectedProcess && uniqueProcesses.includes(selectedProcess)
+        ? selectedProcess
+        : uniqueProcesses[0] || null;
+
+    // Filter items to the active process
+    const processItems = activeProcess
+        ? allItems.filter((item) => item.processName === activeProcess)
+        : [];
+
+    // Separate active (claimed) items and queued items for this process
+    const activeItems = processItems.filter((item) => 'claimedAt' in item);
+    const queuedItems = processItems.filter((item) => !('claimedAt' in item));
+
+    // Group queued items by lifecycleStage
+    const groupedQueued = queuedItems.reduce<Record<string, ManagerQueueItem[]>>((acc, item) => {
+        const stage = item.lifeCycleStatusCode || 'Unspecified';
+        if (!acc[stage]) {
+            acc[stage] = [];
         }
-        acc[process].push(item);
+        acc[stage].push(item);
         return acc;
     }, {});
 
-    // Sort processes alphabetically
-    const sortedProcessNames = Object.keys(groupedItems).sort();
+    // Sorted queue stage status codes
+    const sortedStages = Object.keys(groupedQueued).sort();
 
-    // Create process list with counts for the sidebar
-    const processes = sortedProcessNames.map((name) => ({
-        name,
-        count: groupedItems[name].length,
-    }));
+    // Combine into structured lifecycle categories
+    const categories: {
+        key: string;
+        name: string;
+        count: number;
+        items: (ManagerQueueItem | ManagerActiveJob)[];
+    }[] = [];
+
+    if (activeItems.length > 0) {
+        categories.push({
+            key: 'active-jobs',
+            name: 'My Active Jobs',
+            count: activeItems.length,
+            items: activeItems,
+        });
+    }
+
+    sortedStages.forEach((stage) => {
+        categories.push({
+            key: stage,
+            name: stage,
+            count: groupedQueued[stage].length,
+            items: groupedQueued[stage],
+        });
+    });
+
+    const activeStage = selectedStage && (selectedStage === 'all' || categories.some((c) => c.key === selectedStage))
+        ? selectedStage
+        : 'all';
+
+    const displayedCategories = activeStage === 'all'
+        ? categories
+        : categories.filter((c) => c.key === activeStage);
 
     return (
         <div className="py-6">
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-xl font-bold">Production</h1>
-                <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                    <button
-                        onClick={() => handleTabChange('queue')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'queue' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
-                    >
-                        Production Queue ({queue.length})
-                    </button>
-                    <button
-                        onClick={() => handleTabChange('active')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'active' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
-                    >
-                        My Active Jobs ({active.length})
-                    </button>
-                </div>
             </div>
 
             {loading ? (
                 <div className="text-center py-20 text-gray-400">Loading…</div>
+            ) : allItems.length === 0 ? (
+                <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
+                    <p className="text-gray-500">No runs waiting in your queue.</p>
+                </div>
             ) : (
-                <div className="flex flex-col md:flex-row gap-6 items-start">
-                    {/* SIDEBAR / PROCESS FILTER */}
-                    {currentItems.length > 0 && (
+                <>
+                    {/* PROCESS TABS */}
+                    <div className="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide gap-2">
+                        {uniqueProcesses.map((procName) => {
+                            const count = allItems.filter((item) => item.processName === procName).length;
+                            const isTabActive = procName === activeProcess;
+                            return (
+                                <button
+                                    key={procName}
+                                    onClick={() => {
+                                        setSelectedProcess(procName);
+                                        setSelectedStage('all');
+                                    }}
+                                    className={`flex items-center gap-2 px-4 py-2.5 border-b-2 font-medium text-sm transition-all whitespace-nowrap ${
+                                        isTabActive
+                                            ? 'border-blue-600 text-blue-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                                >
+                                    <span>{procName}</span>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                        isTabActive
+                                            ? 'bg-blue-100 text-blue-800'
+                                            : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-6 items-start">
+                        {/* LIFECYCLE SIDEBAR */}
                         <div className="w-full md:w-64 shrink-0 md:sticky md:top-20 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                             <div className="mb-3 pb-2 border-b border-gray-100 hidden md:block">
                                 <h2 className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
-                                    Processes
+                                    Stages
                                 </h2>
                             </div>
                             
                             {/* Horizontal scroll on mobile, vertical list on desktop */}
                             <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide max-w-full">
                                 <button
-                                    onClick={() => setSelectedProcess(null)}
+                                    onClick={() => setSelectedStage('all')}
                                     className={`flex-shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
-                                        selectedProcess === null
+                                        activeStage === 'all'
                                             ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
                                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
                                     }`}
                                 >
-                                    <span>All Processes</span>
+                                    <span>All Stages</span>
                                     <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold ${
-                                        selectedProcess === null
+                                        activeStage === 'all'
                                             ? 'bg-blue-100 text-blue-800'
                                             : 'bg-gray-100 text-gray-600'
                                     }`}>
-                                        {currentItems.length}
+                                        {processItems.length}
                                     </span>
                                 </button>
-                                {processes.map((proc) => (
+                                {categories.map((cat) => (
                                     <button
-                                        key={proc.name}
-                                        onClick={() => setSelectedProcess(proc.name)}
+                                        key={cat.key}
+                                        onClick={() => setSelectedStage(cat.key)}
                                         className={`flex-shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
-                                            selectedProcess === proc.name
+                                            activeStage === cat.key
                                                 ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
                                                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
                                         }`}
                                     >
-                                        <span className="truncate">{proc.name}</span>
+                                        <span className="truncate">{cat.name}</span>
                                         <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold ${
-                                            selectedProcess === proc.name
+                                            activeStage === cat.key
                                                 ? 'bg-blue-100 text-blue-800'
                                                 : 'bg-gray-100 text-gray-600'
                                         }`}>
-                                            {proc.count}
+                                            {cat.count}
                                         </span>
                                     </button>
                                 ))}
                             </div>
                         </div>
-                    )}
 
-                    {/* MAIN CONTENT AREA */}
-                    <div className="flex-1 min-w-0 w-full">
-                        {currentItems.length === 0 ? (
-                            <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
-                                <p className="text-gray-500">
-                                    {tab === 'queue'
-                                        ? 'No runs waiting in your queue.'
-                                        : 'No active jobs right now.'}
-                                </p>
-                            </div>
-                        ) : (
+                        {/* MAIN CONTENT AREA */}
+                        <div className="flex-1 min-w-0 w-full">
                             <div className="space-y-10">
-                                {sortedProcessNames
-                                    .filter((name) => selectedProcess === null || selectedProcess === name)
-                                    .map((procName) => {
-                                        const items = groupedItems[procName];
-                                        return (
-                                            <div key={procName} className="scroll-mt-20">
-                                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
-                                                    <h2 className="text-base md:text-lg font-bold text-gray-800">
-                                                        {procName}
-                                                    </h2>
-                                                    <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                                                        {items.length}
-                                                    </span>
-                                                </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                    {items.map((item) =>
-                                                        tab === 'queue' ? (
-                                                            <QueueCard
-                                                                key={item.id}
-                                                                item={item}
-                                                                onClick={() => setSelectedRunId(item.id)}
-                                                                onClaimed={() => fetchAll(false)}
-                                                            />
-                                                        ) : (
-                                                            <ActiveCard
-                                                                key={item.id}
-                                                                item={item as ManagerActiveJob}
-                                                                onClick={() => setSelectedRunId(item.id)}
-                                                                onChanged={() => fetchAll(false)}
-                                                            />
-                                                        ),
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                {displayedCategories.map((category) => (
+                                    <div key={category.key} className="scroll-mt-20">
+                                        <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                                            <h2 className="text-base md:text-lg font-bold text-gray-800">
+                                                {category.name}
+                                            </h2>
+                                            <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                                {category.count}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                            {category.items.map((item) => {
+                                                const isActive = 'claimedAt' in item;
+                                                return isActive ? (
+                                                    <ActiveCard
+                                                        key={item.id}
+                                                        item={item as ManagerActiveJob}
+                                                        onClick={() => setSelectedRunId(item.id)}
+                                                        onChanged={() => fetchAll(false)}
+                                                    />
+                                                ) : (
+                                                    <QueueCard
+                                                        key={item.id}
+                                                        item={item}
+                                                        onClick={() => setSelectedRunId(item.id)}
+                                                        onClaimed={() => fetchAll(false)}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        )}
+                        </div>
                     </div>
-                </div>
+                </>
             )}
 
             {selectedRunId && (
