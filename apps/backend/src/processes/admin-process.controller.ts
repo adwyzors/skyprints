@@ -13,6 +13,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -129,6 +130,7 @@ export class AdminProcessController {
   }
   @Patch('runs/:runId/stage-history/:stageHistoryId/manager')
   @Permissions('runs:lifecycle:update')
+  @HttpCode(204)
   async updateStageHistoryManager(
     @Param('runId') _runId: string,
     @Param('stageHistoryId') stageHistoryId: string,
