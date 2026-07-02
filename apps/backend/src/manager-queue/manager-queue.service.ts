@@ -1,15 +1,15 @@
+import type { ManagerActiveJobDto, ManagerQueueItemDto } from '@app/contracts';
 import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import type { ManagerActiveJobDto, ManagerQueueItemDto } from '@app/contracts';
 import { Prisma } from '@prisma/client';
 import { PrismaExecutor, PrismaService } from '../../prisma/prisma.service';
-import { ContextLogger } from '../common/logger/context.logger';
-import { RequestContextStore } from '../common/context/request-context.store';
 import { resolveLocationFilter } from '../auth/utils/location-scope.util';
+import { RequestContextStore } from '../common/context/request-context.store';
+import { ContextLogger } from '../common/logger/context.logger';
 import { AdminProcessService } from '../processes/admin-process.service';
 
 const QUANTITY_FIELD_CANDIDATES = [
@@ -26,7 +26,7 @@ export class ManagerQueueService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly adminProcessService: AdminProcessService,
-  ) {}
+  ) { }
 
   /* ---------------- HELPERS ---------------- */
 
