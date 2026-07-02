@@ -177,6 +177,7 @@ export class ManagerQueueService {
         code: string;
         images: string[];
         customer: { name: string };
+        jobCode: string | null;
       };
     };
   }): ManagerQueueItemDto {
@@ -193,6 +194,7 @@ export class ManagerQueueService {
       comments: run.comments,
       artworkUrl: this.resolveArtworkUrl(fields, run.orderProcess.order.images),
       createdAt: run.createdAt.toISOString(),
+      jobCode: run.orderProcess.order.jobCode,
     };
   }
 
@@ -206,6 +208,7 @@ export class ManagerQueueService {
             code: true,
             images: true,
             customer: { select: { name: true } },
+            jobCode: true,
           },
         },
       },

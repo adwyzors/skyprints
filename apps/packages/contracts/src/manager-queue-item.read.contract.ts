@@ -12,6 +12,7 @@ export const ManagerQueueItemSchema = z.object({
   comments: z.string().nullable(),
   artworkUrl: z.string().nullable(),
   createdAt: z.string(),
+  jobCode: z.string().nullable().optional(),
 });
 
 export type ManagerQueueItemDto = z.infer<typeof ManagerQueueItemSchema>;

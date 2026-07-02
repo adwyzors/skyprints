@@ -70,7 +70,14 @@ function QueueCard({ item, onClick, onClaimed }: {
                         {item.processName}
                     </span>
                 </div>
-                <div className="text-sm text-gray-600">{item.orderCode}</div>
+                <div className="flex items-center justify-between text-sm text-gray-600 gap-2">
+                    <span>{item.orderCode}</span>
+                    {item.jobCode && (
+                        <span className="text-[11px] bg-gray-50 border border-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium truncate max-w-[120px]" title={item.jobCode}>
+                            Job: {item.jobCode}
+                        </span>
+                    )}
+                </div>
                 <div className="text-sm font-medium text-gray-900">{item.customerName}</div>
                 <div className="text-xs text-gray-500 flex items-center justify-between">
                     <span>{item.lifeCycleStatusCode}</span>
@@ -145,7 +152,14 @@ function ActiveCard({ item, onClick, onChanged }: {
                     {item.processName}
                 </span>
             </div>
-            <div className="text-sm text-gray-600">{item.orderCode}</div>
+            <div className="flex items-center justify-between text-sm text-gray-600 gap-2">
+                <span>{item.orderCode}</span>
+                {item.jobCode && (
+                    <span className="text-[11px] bg-gray-50 border border-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium truncate max-w-[120px]" title={item.jobCode}>
+                        Job: {item.jobCode}
+                    </span>
+                )}
+            </div>
             <div className="text-sm font-medium text-gray-900">{item.customerName}</div>
             <div className="text-xs text-gray-500 flex items-center gap-1">
                 <Clock className="w-3 h-3" /> Elapsed: {formatElapsed(item.claimedAt)}

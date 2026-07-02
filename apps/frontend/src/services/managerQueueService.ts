@@ -12,6 +12,7 @@ export interface ManagerQueueItem {
   comments: string | null;
   artworkUrl: string | null;
   createdAt: string;
+  jobCode?: string | null;
 }
 
 export interface ManagerActiveJob extends ManagerQueueItem {
