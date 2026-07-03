@@ -947,6 +947,41 @@ export class OrdersService {
           }
         }
 
+        /* =====================================================
+         * PROPAGATE IMAGES TO ALL PROCESS RUNS
+         * If the caller explicitly opted in, overwrite (or set)
+         * fields.images on every ProcessRun that belongs to this
+         * order — even runs that had no images before.
+         * ===================================================== */
+        if (dto.useOrderImageForRuns && dto.images && dto.images.length > 0) {
+          const processRuns = await tx.processRun.findMany({
+            where: { orderProcess: { orderId } },
+            select: { id: true, fields: true },
+          });
+
+          await Promise.all(
+            processRuns.map((run) =>
+              tx.processRun.update({
+                where: { id: run.id },
+                data: {
+                  fields: {
+                    ...(typeof run.fields === 'object' &&
+                    run.fields !== null &&
+                    !Array.isArray(run.fields)
+                      ? (run.fields as Record<string, unknown>)
+                      : {}),
+                    images: dto.images,
+                  },
+                },
+              }),
+            ),
+          );
+
+          this.logger.log(
+            `[UPDATE_ORDER] Propagated ${dto.images.length} image(s) to ${processRuns.length} run(s) for order=${orderId}`,
+          );
+        }
+
         return { success: true };
       });
     } catch (err) {
@@ -962,6 +997,7 @@ export class OrdersService {
       }
     }
   }
+
 
   async addProcessToOrder(
     orderId: string,
