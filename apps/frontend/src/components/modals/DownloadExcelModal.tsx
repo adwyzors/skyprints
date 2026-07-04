@@ -28,9 +28,10 @@ export default function DownloadExcelModal({ isOpen, onClose }: Props) {
                 setLoadingPreview(true);
                 try {
                     const data = await getBillingContextsRangePreview(startDate, endDate);
-                    setBills(data);
+                    const taxInvoices = data.filter(bill => bill.latestSnapshot?.taxEnabled === true);
+                    setBills(taxInvoices);
                     // Select all by default
-                    setSelectedIds(data.map(bill => bill.id));
+                    setSelectedIds(taxInvoices.map(bill => bill.id));
                 } catch (err) {
                     console.error('Error fetching range preview:', err);
                     toast.error('Failed to load bills preview for selected range');
