@@ -5,7 +5,7 @@ export const getRunBillingMetrics = (
         billingFormula?: string;
         runTemplate?: {
             billingFormula?: string;
-            fields?: { key: string; formulaKey: string }[];
+            fields?: { key: string; formulaKey: string }[]
         }
     },
     processName: string,
