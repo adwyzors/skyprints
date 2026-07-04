@@ -271,6 +271,21 @@ export class AuthController {
     return this.auth.getProfilesFromCookies(req);
   }
 
+  @Post('switch')
+  @Public()
+  async switchAccount(
+    @Body('index') index: number | string,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.logger.log(`Switching active profile index to ${index}`);
+    res.cookie('active_account_index', String(index), {
+      ...cookieOptions(req, 7 * 24 * 60 * 60),
+      httpOnly: false,
+    });
+    return { success: true };
+  }
+
   @Get('me')
   async me(@Req() req: any) {
     const authUser = req.user;

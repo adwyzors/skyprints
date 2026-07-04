@@ -162,8 +162,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [user]);
 
-    const switchAccount = (index: number) => {
+    const switchAccount = async (index: number) => {
         if (typeof window !== 'undefined') {
+            try {
+                const API = process.env.NEXT_PUBLIC_API_URL;
+                await fetch(`${API}/auth/switch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ index }),
+                    credentials: 'include',
+                });
+            } catch (err) {
+                console.error('Error switching account on backend:', err);
+            }
             document.cookie = `active_account_index=${index}; path=/; max-age=${7 * 24 * 60 * 60}`;
             setActiveIndex(index);
             window.location.reload();
