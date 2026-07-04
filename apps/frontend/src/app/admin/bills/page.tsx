@@ -15,11 +15,12 @@ import { getRunBillingMetrics } from '@/services/billing-calculator';
 import debounce from 'lodash/debounce';
 import FilterDrawer from '@/components/layout/FilterDrawer';
 import BillsFilter from "@/components/billing/BillsFilter";
-import { ChevronLeft, Download, FileText, Filter, Loader2, Search, X, Trash2, Receipt, FileCheck } from 'lucide-react';
+import { ChevronLeft, Download, FileText, Filter, Loader2, Search, X, Trash2, Receipt, FileCheck, FileSpreadsheet } from 'lucide-react';
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
 import DeleteBillsModal from "@/components/modals/DeleteBillsModal";
+import DownloadExcelModal from "@/components/modals/DownloadExcelModal";
 
 type TabType = 'tax' | 'challan';
 
@@ -62,6 +63,7 @@ function BillsPageContent() {
     const [pageSize, setPageSize] = useState(12);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const [data, setData] = useState<GetBillingContextsResponse>(EMPTY_DATA);
@@ -330,6 +332,14 @@ function BillsPageContent() {
                         </div>
 
                         <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setIsExcelModalOpen(true)}
+                                className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-4 py-2 rounded-lg text-sm font-semibold border border-emerald-200 transition-colors shadow-sm hover:text-emerald-700"
+                            >
+                                <FileSpreadsheet className="w-4 h-4" />
+                                Download Excel
+                            </button>
+
                             {canDelete && (
                                 <button
                                     onClick={() => setIsDeleteModalOpen(true)}
@@ -542,6 +552,11 @@ function BillsPageContent() {
                     setCurrentPage(1);
                     setRefreshTrigger(prev => prev + 1);
                 }}
+            />
+
+            <DownloadExcelModal
+                isOpen={isExcelModalOpen}
+                onClose={() => setIsExcelModalOpen(false)}
             />
         </div>
     );

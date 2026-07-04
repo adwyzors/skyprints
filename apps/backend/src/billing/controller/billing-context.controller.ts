@@ -120,9 +120,22 @@ export class BillingContextController {
     return this.service.deleteContextsInRange(startDate, endDate);
   }
 
+  @Post('export-excel')
+  @Permissions('billings:view')
+  async exportExcel(
+    @Body('ids') ids: string[],
+    @Res() res: Response,
+  ) {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('ids must be a non-empty array');
+    }
+    return this.service.exportExcelForContexts(ids, res);
+  }
+
   @Get(':contextId')
   @Permissions('billings:view')
   getById(@Param('contextId') contextId: string) {
     return this.service.getContextById(contextId);
   }
 }
+
