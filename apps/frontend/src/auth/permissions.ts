@@ -42,6 +42,7 @@ export enum Permission {
     ANALYTICS_SYNC = "analytics:sync",
 
     USERS_VIEW = "users:view",
+    USERS_VIEW_BASIC = "users:view:basic",
     USERS_CREATE = "users:create",
     USERS_UPDATE = "users:update",
     USERS_DELETE = "users:delete",

@@ -8,9 +8,11 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { UsersQueryDto } from '../dto/users-query.dto';
 import { UserService } from './user.service';
@@ -51,9 +53,18 @@ export class UserController {
     return this.service.assignLocation(parsed.data);
   }
 
+  // Used by the executor/reviewer picker on Configure Run — deliberately allows
+  // either the full user-management permission or the scoped picker-only one,
+  // so granting 'users:view:basic' doesn't require also granting 'users:view'.
   @Get()
-  @Permissions('users:view')
-  async getAll(@Query() query: UsersQueryDto) {
+  async getAll(@Query() query: UsersQueryDto, @Req() req: any) {
+    const permissions: string[] = req.user?.permissions ?? [];
+    if (
+      !permissions.includes('users:view') &&
+      !permissions.includes('users:view:basic')
+    ) {
+      throw new ForbiddenException('Insufficient permissions');
+    }
     return this.service.getAll(query);
   }
 }
