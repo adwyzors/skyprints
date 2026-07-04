@@ -177,6 +177,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
             document.cookie = `active_account_index=${index}; path=/; max-age=${7 * 24 * 60 * 60}`;
             setActiveIndex(index);
+
+            // Redirect based on the role of the target profile
+            const targetProfile = profiles.find((p) => p.index === index);
+            if (targetProfile) {
+                const role = targetProfile.user.role;
+                if (['SUPER_ADMIN', 'ADMIN'].includes(role)) {
+                    window.location.href = '/admin/orders';
+                    return;
+                } else if (role === 'MANAGER') {
+                    window.location.href = '/manager/runs';
+                    return;
+                }
+            }
+
             window.location.reload();
         }
     };
