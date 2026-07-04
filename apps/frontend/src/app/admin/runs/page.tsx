@@ -4,6 +4,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
 import Pagination from '@/components/common/Pagination';
+import FilterDrawer from '@/components/layout/FilterDrawer';
 import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import ViewRunModal from '@/components/modals/ViewRunModal';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
@@ -14,7 +15,6 @@ import { STATIC_PROCESSES } from '@/constants/processes';
 import { getLocations } from '@/services/location.service';
 import { getProcessLifecycleStatuses } from '@/services/process.service';
 import { getRuns } from '@/services/run.service';
-import FilterDrawer from '@/components/layout/FilterDrawer';
 import {
     Activity,
     ArrowDown,
@@ -51,6 +51,7 @@ interface Run {
             };
         };
     };
+
     runTemplate: {
         name: string;
     };
@@ -120,8 +121,8 @@ function RunsPageContent() {
             executorId: searchParams.get('executorId') || 'all',
             reviewerId: searchParams.get('reviewerId') || 'all',
             processId: searchParams.get('processId') || 'all',
-            locationId: ((user as any)?.user?.location && !hasPermission(Permission.LOCATIONS_ALL_VIEW)) 
-                ? (user as any).user.location.id 
+            locationId: ((user as any)?.user?.location && !hasPermission(Permission.LOCATIONS_ALL_VIEW))
+                ? (user as any).user.location.id
                 : (searchParams.get('locationId') || 'all'),
             isTest: searchParams.get('isTest') || 'false',
         };
@@ -794,7 +795,7 @@ function RunsPageContent() {
                                                         </td>
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center gap-2 text-gray-700 font-semibold">
-                                                                 <Activity className="w-3.5 h-3.5 text-blue-400" />
+                                                                <Activity className="w-3.5 h-3.5 text-blue-400" />
                                                                 {displayName}
                                                                 {run.location && (
                                                                     <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">

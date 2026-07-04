@@ -224,25 +224,9 @@ function BillsPageContent() {
                         : 'NA',
                     billNumber: details.name,
                     items: details.orders.map((order, index) => {
-                        let billingQty = order.quantity;
-                        const rollOrLayoutProcess = order.processes?.find((p: any) =>
-                            p.name === 'Allover Sublimation' ||
-                            p.name === 'DTF' ||
-                            p.name === 'Direct to Film (DTF)'
-                        );
-
-                        if (rollOrLayoutProcess) {
-                            let actualQty = 0;
-                            rollOrLayoutProcess.runs?.forEach((run: any) => {
-                                const metrics = getRunBillingMetrics(run, rollOrLayoutProcess.name, order.quantity);
-                                if (metrics.quantity > actualQty) {
-                                    actualQty = metrics.quantity;
-                                }
-                            });
-                            if (actualQty > 0) {
-                                billingQty = actualQty;
-                            }
-                        }
+                        // Always use order.quantity for the invoice line — quantity is per garment/unit.
+                        // Allover Sublimation bills internally per meter, but the invoice shows pcs ordered.
+                        const billingQty = order.quantity;
 
                         return {
                             srNo: index + 1,

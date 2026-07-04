@@ -1049,7 +1049,7 @@ export class AdminProcessService {
           },
         },
         lifecycleHistories: {
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: 'asc' },
         },
         executor: {
           select: { id: true, name: true },
@@ -1086,8 +1086,13 @@ export class AdminProcessService {
       where: { processRunId: run.id },
       include: { manager: { select: { id: true, name: true } } },
     });
-    const managerByStageId = new Map(
-      stageHistories.map((h) => [h.lifecycleStageId, h.manager]),
+    // Map lifecycleStageId -> { manager, stageHistoryId } so the billing UI
+    // can reference the history record when updating the manager via PATCH.
+    const stageInfoByStageId = new Map(
+      stageHistories.map((h) => [
+        h.lifecycleStageId,
+        { manager: h.manager, stageHistoryId: h.id },
+      ]),
     );
 
     let displayProcessName = run.orderProcess.process.name;
@@ -1114,16 +1119,18 @@ export class AdminProcessService {
         run.lifeCycleStatusCode,
         run.lifecycleHistories,
       ),
-      lifecycleHistory: (run.lifecycleHistories || []).map((h: any) => ({
-        statusCode: h.statusCode,
-        expectedDate: h.expectedDate?.toISOString() || null,
-        completedAt: h.completedAt?.toISOString() || null,
-        createdAt: h.createdAt.toISOString(),
-        manager: (() => {
-          const stageId = codeToStageId.get(h.statusCode);
-          return stageId ? managerByStageId.get(stageId) : undefined;
-        })(),
-      })),
+      lifecycleHistory: (run.lifecycleHistories || []).map((h: any) => {
+        const stageId = codeToStageId.get(h.statusCode);
+        const stageInfo = stageId ? stageInfoByStageId.get(stageId) : undefined;
+        return {
+          statusCode: h.statusCode,
+          expectedDate: h.expectedDate?.toISOString() || null,
+          completedAt: h.completedAt?.toISOString() || null,
+          createdAt: h.createdAt.toISOString(),
+          manager: stageInfo?.manager ?? undefined,
+          stageHistoryId: stageInfo?.stageHistoryId ?? null,
+        };
+      }),
       fields: {
         ...((run.fields as Record<string, any>) || {}),
         images:
@@ -1492,5 +1499,42 @@ export class AdminProcessService {
     }
 
     return normalized;
+  }
+
+  /**
+   * Updates the manager attributed to a specific ProcessRunStageHistory record.
+   * Used by the billing screen admin to correct who worked a lifecycle stage.
+   */
+  async updateStageHistoryManager(
+    stageHistoryId: string,
+    managerId: string,
+  ): Promise<void> {
+    const [history, manager] = await Promise.all([
+      this.prisma.processRunStageHistory.findUnique({
+        where: { id: stageHistoryId },
+        select: { id: true },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: managerId },
+        select: { id: true, role: true },
+      }),
+    ]);
+
+    if (!history) {
+      throw new NotFoundException('Stage history record not found');
+    }
+
+    if (!manager) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (manager.role !== 'MANAGER') {
+      throw new BadRequestException('Selected user is not a Manager');
+    }
+
+    await this.prisma.processRunStageHistory.update({
+      where: { id: stageHistoryId },
+      data: { managerId },
+    });
   }
 }

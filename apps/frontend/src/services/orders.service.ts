@@ -236,6 +236,7 @@ export interface UpdateOrderPayload {
     quantity?: number;
     jobCode?: string;
     images?: string[];
+    useOrderImageForRuns?: boolean;
 }
 
 export async function updateOrder(orderId: string, payload: UpdateOrderPayload): Promise<any> {

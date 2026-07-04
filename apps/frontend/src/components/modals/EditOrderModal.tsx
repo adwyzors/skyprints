@@ -32,6 +32,7 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
     const [newImages, setNewImages] = useState<File[]>([]);
     const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
     const [existingImages, setExistingImages] = useState<string[]>(order.images || []);
+    const [useOrderImageForRuns, setUseOrderImageForRuns] = useState<boolean>(order.useOrderImageForRuns ?? false);
 
     const [processing, setProcessing] = useState(false);
 
@@ -50,6 +51,7 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
             setQuantity(order.quantity);
             setJobCode(order.jobCode || '');
             setExistingImages(order.images || []);
+            setUseOrderImageForRuns(order.useOrderImageForRuns ?? false);
             setNewImages([]);
             setNewImagePreviews([]);
         }
@@ -168,7 +170,8 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
                 customerId,
                 quantity,
                 jobCode,
-                images: finalImages
+                images: finalImages,
+                ...(useOrderImageForRuns && finalImages.length > 0 && { useOrderImageForRuns: true }),
             });
 
             onSuccess();
@@ -318,6 +321,35 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
                                 </label>
                             )}
                         </div>
+
+                        {/* Propagate to runs checkbox */}
+                        {(existingImages.length + newImages.length) > 0 && (
+                            <label className="flex items-start gap-2.5 cursor-pointer select-none group mt-1">
+                                <div className="relative flex-shrink-0 mt-0.5">
+                                    <input
+                                        type="checkbox"
+                                        id="edit-use-order-image-for-runs"
+                                        checked={useOrderImageForRuns}
+                                        onChange={(e) => setUseOrderImageForRuns(e.target.checked)}
+                                        disabled={processing}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-4 h-4 border-2 border-gray-300 rounded peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-all flex items-center justify-center">
+                                        {useOrderImageForRuns && (
+                                            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                </div>
+                                <span className="text-xs text-gray-600 group-hover:text-gray-800 leading-relaxed">
+                                    Use these images for all process runs by default
+                                    <span className="block text-gray-400 font-normal">
+                                        Overwrites any images already set on individual runs
+                                    </span>
+                                </span>
+                            </label>
+                        )}
                     </div>
                 </div>
 

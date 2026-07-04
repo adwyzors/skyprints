@@ -11,6 +11,7 @@ export interface Order {
     createdAt: Date;
     isTest: boolean;
     images: string[];
+    useOrderImageForRuns?: boolean;
 
     customer: {
         id: string;

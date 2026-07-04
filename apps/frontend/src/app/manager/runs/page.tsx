@@ -189,11 +189,12 @@ function ActiveCard({ item, onClick, onChanged }: {
 
 function ManagerRunsPage() {
     const { user } = useAuth();
-    const [tab, setTab] = useState<'queue' | 'active'>('queue');
     const [queue, setQueue] = useState<ManagerQueueItem[]>([]);
     const [active, setActive] = useState<ManagerActiveJob[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+    const [selectedProcess, setSelectedProcess] = useState<string | null>(null);
+    const [selectedStage, setSelectedStage] = useState<string | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const fetchAll = async (showLoading = false) => {
@@ -219,60 +220,286 @@ function ManagerRunsPage() {
         };
     }, [user?.id]);
 
+    const allItems = [...active, ...queue];
+
+    // Get unique processes from allItems
+    const uniqueProcesses = Array.from(
+        new Set(allItems.map((item) => item.processName))
+    ).sort();
+
+    // If no process is selected yet, default to "all" (displaying all processes)
+    const activeProcess = selectedProcess && (selectedProcess === 'all' || uniqueProcesses.includes(selectedProcess))
+        ? selectedProcess
+        : 'all';
+
+    // Filter items to the active process
+    const processItems = activeProcess === 'all'
+        ? allItems
+        : allItems.filter((item) => item.processName === activeProcess);
+
+    // Separate active (claimed) items and queued items for this process
+    const activeItems = processItems.filter((item) => 'claimedAt' in item);
+    const queuedItems = processItems.filter((item) => !('claimedAt' in item));
+
+    // Group queued items by lifecycleStage
+    const groupedQueued = queuedItems.reduce<Record<string, ManagerQueueItem[]>>((acc, item) => {
+        const stage = item.lifeCycleStatusCode || 'Unspecified';
+        if (!acc[stage]) {
+            acc[stage] = [];
+        }
+        acc[stage].push(item);
+        return acc;
+    }, {});
+
+    // Sorted queue stage status codes
+    const sortedStages = Object.keys(groupedQueued).sort();
+
+    // Combine into structured lifecycle categories
+    const categories: {
+        key: string;
+        name: string;
+        count: number;
+        items: (ManagerQueueItem | ManagerActiveJob)[];
+    }[] = [];
+
+    if (activeItems.length > 0) {
+        categories.push({
+            key: 'active-jobs',
+            name: 'My Active Jobs',
+            count: activeItems.length,
+            items: activeItems,
+        });
+    }
+
+    sortedStages.forEach((stage) => {
+        categories.push({
+            key: stage,
+            name: stage,
+            count: groupedQueued[stage].length,
+            items: groupedQueued[stage],
+        });
+    });
+
+    const activeStage = selectedStage && (selectedStage === 'all' || categories.some((c) => c.key === selectedStage))
+        ? selectedStage
+        : 'all';
+
+    const displayedCategories = activeStage === 'all'
+        ? categories
+        : categories.filter((c) => c.key === activeStage);
+
     return (
         <div className="py-6">
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-xl font-bold">Production</h1>
-                <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                    <button
-                        onClick={() => setTab('queue')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'queue' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
-                    >
-                        Production Queue ({queue.length})
-                    </button>
-                    <button
-                        onClick={() => setTab('active')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'active' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}
-                    >
-                        My Active Jobs ({active.length})
-                    </button>
-                </div>
             </div>
 
             {loading ? (
                 <div className="text-center py-20 text-gray-400">Loading…</div>
-            ) : tab === 'queue' ? (
-                queue.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
-                        <p className="text-gray-500">No runs waiting in your queue.</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {queue.map((item) => (
-                            <QueueCard
-                                key={item.id}
-                                item={item}
-                                onClick={() => setSelectedRunId(item.id)}
-                                onClaimed={() => fetchAll(false)}
-                            />
-                        ))}
-                    </div>
-                )
-            ) : active.length === 0 ? (
+            ) : allItems.length === 0 ? (
                 <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
-                    <p className="text-gray-500">No active jobs right now.</p>
+                    <p className="text-gray-500">No runs waiting in your queue.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {active.map((item) => (
-                        <ActiveCard
-                            key={item.id}
-                            item={item}
-                            onClick={() => setSelectedRunId(item.id)}
-                            onChanged={() => fetchAll(false)}
-                        />
-                    ))}
-                </div>
+                <>
+                    {/* PROCESS TABS */}
+                    <div className="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide gap-2">
+                        {/* All Processes Tab */}
+                        <button
+                            onClick={() => {
+                                setSelectedProcess('all');
+                                setSelectedStage('all');
+                            }}
+                            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 font-medium text-sm transition-all whitespace-nowrap ${
+                                activeProcess === 'all'
+                                    ? 'border-blue-600 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            <span>All</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                activeProcess === 'all'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-600'
+                            }`}>
+                                {allItems.length}
+                            </span>
+                        </button>
+
+                        {/* Individual Process Tabs */}
+                        {uniqueProcesses.map((procName) => {
+                            const count = allItems.filter((item) => item.processName === procName).length;
+                            const isTabActive = procName === activeProcess;
+                            return (
+                                <button
+                                    key={procName}
+                                    onClick={() => {
+                                        setSelectedProcess(procName);
+                                        setSelectedStage('all');
+                                    }}
+                                    className={`flex items-center gap-2 px-4 py-2.5 border-b-2 font-medium text-sm transition-all whitespace-nowrap ${
+                                        isTabActive
+                                            ? 'border-blue-600 text-blue-600'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                                >
+                                    <span>{procName}</span>
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                        isTabActive
+                                            ? 'bg-blue-100 text-blue-800'
+                                            : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-6 items-start">
+                        {/* LIFECYCLE SIDEBAR */}
+                        <div className="w-full md:w-64 shrink-0 md:sticky md:top-20 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                            <div className="mb-3 pb-2 border-b border-gray-100 hidden md:block">
+                                <h2 className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
+                                    Stages
+                                </h2>
+                            </div>
+                            
+                            {/* Horizontal scroll on mobile, vertical list on desktop */}
+                            <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide max-w-full">
+                                <button
+                                    onClick={() => setSelectedStage('all')}
+                                    className={`flex-shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                                        activeStage === 'all'
+                                            ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
+                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
+                                    }`}
+                                >
+                                    <span>All Stages</span>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold ${
+                                        activeStage === 'all'
+                                            ? 'bg-blue-100 text-blue-800'
+                                            : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                        {processItems.length}
+                                    </span>
+                                </button>
+                                {categories.map((cat) => {
+                                    const isActiveJobsCat = cat.key === 'active-jobs';
+                                    const isSidebarSelected = activeStage === cat.key;
+                                    return (
+                                        <button
+                                            key={cat.key}
+                                            onClick={() => setSelectedStage(cat.key)}
+                                            className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+                                            style={isActiveJobsCat ? {
+                                                background: isSidebarSelected ? '#16a34a' : '#f0fdf4',
+                                                color: isSidebarSelected ? '#fff' : '#15803d',
+                                                border: '1.5px solid #86efac',
+                                                boxShadow: '0 1px 4px rgba(22,163,74,0.15)',
+                                                fontWeight: 700,
+                                            } : isSidebarSelected ? {
+                                                background: '#eff6ff',
+                                                color: '#1d4ed8',
+                                                border: '1px solid #bfdbfe',
+                                            } : {
+                                                color: '#4b5563',
+                                                border: '1px solid transparent',
+                                            }}
+                                        >
+                                            <span className="truncate">{cat.name}</span>
+                                            <span
+                                                className="rounded-full text-xs font-bold"
+                                                style={isActiveJobsCat ? {
+                                                    background: isSidebarSelected ? '#fff' : '#bbf7d0',
+                                                    color: isSidebarSelected ? '#15803d' : '#166534',
+                                                    padding: '1px 8px',
+                                                } : isSidebarSelected ? {
+                                                    background: '#dbeafe',
+                                                    color: '#1e40af',
+                                                    padding: '1px 8px',
+                                                } : {
+                                                    background: '#f3f4f6',
+                                                    color: '#4b5563',
+                                                    padding: '1px 8px',
+                                                }}
+                                            >
+                                                {cat.count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* MAIN CONTENT AREA */}
+                        <div className="flex-1 min-w-0 w-full">
+                            <div className="space-y-10">
+                                {displayedCategories.map((category) => {
+                                    const isActiveJobsSection = category.key === 'active-jobs';
+                                    return (
+                                    <div key={category.key} className="scroll-mt-20">
+                                        {isActiveJobsSection ? (
+                                            <div
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '10px',
+                                                    marginBottom: '16px',
+                                                    padding: '10px 16px',
+                                                    borderRadius: '12px',
+                                                    background: 'linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%)',
+                                                    border: '1.5px solid #86efac',
+                                                    boxShadow: '0 1px 6px rgba(22,163,74,0.12)',
+                                                }}
+                                            >
+                                                <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                                                    {category.name}
+                                                </h2>
+                                                <span style={{ background: '#16a34a', color: '#fff', borderRadius: '999px', padding: '1px 10px', fontSize: '12px', fontWeight: 700 }}>
+                                                    {category.count}
+                                                </span>
+                                                <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, color: '#15803d', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '999px', padding: '2px 10px' }}>
+                                                    In Progress
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                                                <h2 className="text-base md:text-lg font-bold text-gray-800">
+                                                    {category.name}
+                                                </h2>
+                                                <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                                    {category.count}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                            {category.items.map((item) => {
+                                                const isActive = 'claimedAt' in item;
+                                                return isActive ? (
+                                                    <ActiveCard
+                                                        key={item.id}
+                                                        item={item as ManagerActiveJob}
+                                                        onClick={() => setSelectedRunId(item.id)}
+                                                        onChanged={() => fetchAll(false)}
+                                                    />
+                                                ) : (
+                                                    <QueueCard
+                                                        key={item.id}
+                                                        item={item}
+                                                        onClick={() => setSelectedRunId(item.id)}
+                                                        onClaimed={() => fetchAll(false)}
+                                                    />
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </>
             )}
 
             {selectedRunId && (
