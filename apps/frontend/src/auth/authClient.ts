@@ -2,9 +2,9 @@ import { AuthUser } from "./auth.types";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
-function log(msg: string, extra?: any) {
+function log(msg: string, ...extra: any[]) {
     if (process.env.NODE_ENV !== "production") {
-        console.log(`[AUTH] ${msg}`, extra ?? "");
+        console.log(`[AUTH] ${msg}`, ...extra);
     }
 }
 

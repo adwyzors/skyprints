@@ -70,7 +70,15 @@ export class AuthService {
   }
 
   async getProfilesFromCookies(req: Request) {
-    const profiles = [];
+    const profiles: Array<{
+      index: number;
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+      };
+    }> = [];
     for (let i = 0; i < 5; i++) {
       const cookieName = getCookieName('ACCESS_TOKEN', i);
       const token = req.cookies?.[cookieName];
