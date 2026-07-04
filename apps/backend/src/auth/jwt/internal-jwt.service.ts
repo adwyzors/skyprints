@@ -87,4 +87,9 @@ export class InternalJwtService {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }
+
+  decodeToken(token: string): any {
+    return this.jwt.decode(token);
+  }
 }
+

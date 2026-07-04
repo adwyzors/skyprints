@@ -18,6 +18,17 @@ interface AuthContextType {
     hasAllPermissions: (permissions: string[]) => boolean;
     loading: boolean;
     refresh: () => Promise<void>;
+    profiles: { index: number; user: { id: string; name: string; email: string; role: string } }[];
+    activeIndex: number;
+    switchAccount: (index: number) => void;
+    addAccount: () => void;
+    logoutAll: () => Promise<void>;
+}
+
+function getActiveIndexFromCookie(): number {
+    if (typeof window === 'undefined') return 0;
+    const match = document.cookie.match(/(^|;)\s*active_account_index\s*=\s*([^;]+)/);
+    return match ? Number(match[2]) : 0;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const [user, setUser] = useState<AuthUser | null>(null);
     const [loading, setLoading] = useState(true);
+    const [profiles, setProfiles] = useState<{ index: number; user: { id: string; name: string; email: string; role: string } }[]>([]);
+    const [activeIndex, setActiveIndex] = useState(0);
 
     const redirectedRef = useRef(false);
     const isFetchingMe = useRef(false);
@@ -43,17 +56,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isFetchingMe.current = true;
             setLoading(true);
 
+            const activeIdx = getActiveIndexFromCookie();
+            setActiveIndex(activeIdx);
+
             try {
                 const result = await fetchMe();
 
                 switch (result.status) {
                     case 'ok':
                         setUser(result.user);
+                        try {
+                            const API = process.env.NEXT_PUBLIC_API_URL;
+                            const profilesRes = await fetch(`${API}/auth/profiles`, { credentials: 'include' });
+                            if (profilesRes.ok) {
+                                const profilesData = await profilesRes.json();
+                                setProfiles(profilesData);
+                            }
+                        } catch (err) {
+                            console.error('Failed to fetch active profiles', err);
+                        }
                         break;
                     case 'unauthenticated':
                         if (!redirectedRef.current) {
                             redirectedRef.current = true;
-                            redirectToLogin(pathname);
+                            redirectToLogin(pathname, activeIdx);
                         }
                         break;
                     case 'forbidden':
@@ -61,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         if (!redirectedRef.current) {
                             redirectedRef.current = true;
                             await clearSession();
-                            redirectToLogin(pathname);
+                            redirectToLogin(pathname, activeIdx);
                         }
                         break;
                     default:
@@ -136,6 +162,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [user]);
 
+    const switchAccount = (index: number) => {
+        if (typeof window !== 'undefined') {
+            document.cookie = `active_account_index=${index}; path=/; max-age=${7 * 24 * 60 * 60}`;
+            setActiveIndex(index);
+            window.location.reload();
+        }
+    };
+
+    const addAccount = () => {
+        const loggedInIndices = profiles.map((p) => p.index);
+        let nextIndex = 0;
+        for (let i = 0; i < 5; i++) {
+            if (!loggedInIndices.includes(i)) {
+                nextIndex = i;
+                break;
+            }
+        }
+        redirectToLogin(pathname, nextIndex);
+    };
+
+    const handleLogoutAll = async () => {
+        const { logoutAll } = await import('./authClient');
+        await logoutAll();
+    };
+
     const value = useMemo(() => ({
         user,
         isAuthenticated,
@@ -144,7 +195,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasAllPermissions,
         loading,
         refresh,
-    }), [user, loading, hasPermission, hasAnyPermission, hasAllPermissions, refresh, isAuthenticated]);
+        profiles,
+        activeIndex,
+        switchAccount,
+        addAccount,
+        logoutAll: handleLogoutAll,
+    }), [user, loading, hasPermission, hasAnyPermission, hasAllPermissions, refresh, isAuthenticated, profiles, activeIndex]);
 
     return (
         <AuthContext.Provider value={value}>

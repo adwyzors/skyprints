@@ -12,6 +12,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { RequestContextStore } from '../../common/context/request-context.store';
 import { ContextLogger } from '../../common/logger/context.logger';
 import { JWKS_PROVIDER } from '../jwt/jwks.provider';
+import { getCookieName } from '../utils/cookie-domain.util';
 
 @Injectable()
 export class KeycloakJwtAuthGuard implements CanActivate {
@@ -116,8 +117,10 @@ export class KeycloakJwtAuthGuard implements CanActivate {
    * Supports cookie OR Authorization header
    */
   private extractToken(req: any): string | null {
-    if (req.cookies?.ACCESS_TOKEN) {
-      return req.cookies.ACCESS_TOKEN;
+    const activeIndex = req.cookies?.active_account_index || '0';
+    const cookieName = getCookieName('ACCESS_TOKEN', activeIndex);
+    if (req.cookies?.[cookieName]) {
+      return req.cookies[cookieName];
     }
 
     const auth = req.headers?.authorization;

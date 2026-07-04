@@ -17,6 +17,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   const redirectTo = searchParams.get('redirectTo') ?? '/admin';
+  const loginIndex = searchParams.get('loginIndex') ?? '0';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,7 +29,7 @@ function LoginForm() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, rememberMe }),
+        body: JSON.stringify({ username, password, rememberMe, loginIndex }),
       });
 
       if (!res.ok) {

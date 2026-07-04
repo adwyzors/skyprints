@@ -11,7 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import type { Request, Response } from 'express';
 import { ContextLogger } from '../common/logger/context.logger';
 import { InternalJwtService } from './jwt/internal-jwt.service';
-import { cookieOptions } from './utils/cookie-domain.util';
+import { cookieOptions, getCookieName } from './utils/cookie-domain.util';
 
 @Injectable()
 export class AuthService {
@@ -22,29 +22,87 @@ export class AuthService {
     private readonly internalJwt: InternalJwtService,
   ) {}
 
-  setAuthCookies(res: Response, tokens: any, req: Request, rememberMe = true) {
-    this.setAccessCookie(res, tokens.access_token, req);
+  setAuthCookies(res: Response, tokens: any, req: Request, rememberMe = true, loginIndex: number | string = 0) {
+    this.setAccessCookie(res, tokens.access_token, req, loginIndex);
 
     // rememberMe=false -> session cookie, cleared when the browser closes
     const refreshMaxAge = rememberMe ? 7 * 24 * 60 * 60 : undefined;
+    const cookieName = getCookieName('REFRESH_TOKEN', loginIndex);
     res.cookie(
-      'REFRESH_TOKEN',
+      cookieName,
       tokens.refresh_token,
       cookieOptions(req, refreshMaxAge),
     );
 
-    this.logger.log(`Auth cookies set (rememberMe=${rememberMe})`);
+    // Set client-readable active_account_index cookie
+    res.cookie('active_account_index', String(loginIndex), {
+      ...cookieOptions(req, refreshMaxAge),
+      httpOnly: false,
+    });
+
+    this.logger.log(`Auth cookies set for index ${loginIndex} (rememberMe=${rememberMe})`);
   }
 
-  setAccessCookie(res: Response, token: string, req: Request) {
-    res.cookie('ACCESS_TOKEN', token, cookieOptions(req, 15 * 60));
+  setAccessCookie(res: Response, token: string, req: Request, loginIndex: number | string = 0) {
+    const cookieName = getCookieName('ACCESS_TOKEN', loginIndex);
+    res.cookie(cookieName, token, cookieOptions(req, 15 * 60));
   }
 
   clearCookies(res: Response, req: Request) {
+    this.clearCookiesAtIndex(res, req, 0);
+  }
+
+  clearCookiesAtIndex(res: Response, req: Request, index: number | string = 0) {
     const options = cookieOptions(req, 0);
-    res.clearCookie('ACCESS_TOKEN', options);
-    res.clearCookie('REFRESH_TOKEN', options);
-    this.logger.log('Auth cookies cleared');
+    res.clearCookie(getCookieName('ACCESS_TOKEN', index), options);
+    res.clearCookie(getCookieName('REFRESH_TOKEN', index), options);
+    this.logger.log(`Auth cookies cleared for index ${index}`);
+  }
+
+  clearAllCookies(res: Response, req: Request) {
+    const options = cookieOptions(req, 0);
+    res.clearCookie('active_account_index', options);
+    for (let i = 0; i < 5; i++) {
+      res.clearCookie(getCookieName('ACCESS_TOKEN', i), options);
+      res.clearCookie(getCookieName('REFRESH_TOKEN', i), options);
+    }
+    this.logger.log('All auth cookies cleared');
+  }
+
+  async getProfilesFromCookies(req: Request) {
+    const profiles = [];
+    for (let i = 0; i < 5; i++) {
+      const cookieName = getCookieName('ACCESS_TOKEN', i);
+      const token = req.cookies?.[cookieName];
+      if (token) {
+        try {
+          const decoded = this.internalJwt.decodeToken(token);
+          const userId = decoded?.sub || null;
+
+          if (userId) {
+            const dbUser = await this.prisma.user.findFirst({
+              where: { id: userId, deletedAt: null, isActive: true },
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+              },
+            });
+
+            if (dbUser) {
+              profiles.push({
+                index: i,
+                user: dbUser,
+              });
+            }
+          }
+        } catch (e: any) {
+          this.logger.error(`Error decoding token for profile index ${i}: ${e.message}`);
+        }
+      }
+    }
+    return profiles;
   }
 
   async login(
@@ -53,6 +111,7 @@ export class AuthService {
     res: Response,
     req: Request,
     rememberMe = true,
+    loginIndex: number | string = 0,
   ): Promise<void> {
     if (process.env.INTERNAL_AUTH_ENABLED !== 'true') {
       throw new ServiceUnavailableException(
@@ -149,6 +208,7 @@ export class AuthService {
       { access_token: accessToken, refresh_token: refreshToken },
       req,
       rememberMe,
+      loginIndex,
     );
 
     this.logger.log(
@@ -160,6 +220,7 @@ export class AuthService {
     refreshToken: string,
     res: Response,
     req: Request,
+    loginIndex: number | string = 0,
   ): Promise<void> {
     // 1. Verify token signature + iss/aud
     const decoded = this.internalJwt.verifyRefreshToken(refreshToken);
@@ -195,7 +256,7 @@ export class AuthService {
       locationId: loginRecord.user?.locationId ?? null,
     });
 
-    this.setAccessCookie(res, newAccessToken, req);
+    this.setAccessCookie(res, newAccessToken, req, loginIndex);
     this.logger.log(`Token refreshed for userId=${decoded.sub}`);
   }
 
@@ -203,6 +264,7 @@ export class AuthService {
     userId: string,
     res: Response,
     req: Request,
+    loginIndex: number | string = 0,
   ): Promise<void> {
     // Increment tokenVersion to invalidate all outstanding refresh tokens
     await this.prisma.login.update({
@@ -210,7 +272,7 @@ export class AuthService {
       data: { tokenVersion: { increment: 1 } },
     });
 
-    this.clearCookies(res, req);
+    this.clearCookiesAtIndex(res, req, loginIndex);
     this.logger.log(`Internal logout for userId=${userId}`);
   }
 
@@ -221,6 +283,11 @@ export class AuthService {
     });
     this.logger.log(`Session revoked for userId=${userId}`);
   }
+
+  verifyAccessToken(token: string) {
+    return this.internalJwt.verifyAccessToken(token);
+  }
+
 
   async getMe(authUser: any) {
     const user = await this.prisma.user.findFirst({

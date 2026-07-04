@@ -66,13 +66,14 @@ async function refreshToken(): Promise<boolean> {
     }
 }
 
-export function redirectToLogin(redirectTo: string) {
-    log("Redirecting to login", redirectTo);
+export function redirectToLogin(redirectTo: string, loginIndex: number | string = 0) {
+    log("Redirecting to login", redirectTo, loginIndex);
 
     const isInternal = process.env.NEXT_PUBLIC_INTERNAL_AUTH_ENABLED === 'true';
+    const queryParams = `redirectTo=${encodeURIComponent(redirectTo)}&loginIndex=${loginIndex}`;
     window.location.href = isInternal
-        ? `/login?redirectTo=${encodeURIComponent(redirectTo)}`
-        : `${API}/auth/login?redirectTo=${encodeURIComponent(redirectTo)}`;
+        ? `/login?${queryParams}`
+        : `${API}/auth/login?${queryParams}`;
 }
 
 export async function clearSession(): Promise<void> {
@@ -80,7 +81,15 @@ export async function clearSession(): Promise<void> {
 }
 
 export async function logout() {
-    log("Logging out");
+    log("Logging out current account");
     await clearSession();
+    // Refresh page to allow auth provider to reload remaining session or redirect
+    window.location.reload();
+}
+
+export async function logoutAll() {
+    log("Logging out of all accounts");
+    await fetch(`${API}/auth/logout-all`, { method: "POST", credentials: "include" }).catch(() => {});
     window.location.href = "/";
 }
+

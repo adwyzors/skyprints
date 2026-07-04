@@ -7,6 +7,7 @@ import {
 import { RequestContextStore } from '../../common/context/request-context.store';
 import { ContextLogger } from '../../common/logger/context.logger';
 import { InternalJwtService } from '../jwt/internal-jwt.service';
+import { getCookieName } from '../utils/cookie-domain.util';
 
 @Injectable()
 export class InternalJwtAuthGuard implements CanActivate {
@@ -44,8 +45,10 @@ export class InternalJwtAuthGuard implements CanActivate {
   }
 
   private extractToken(req: any): string | null {
-    if (req.cookies?.ACCESS_TOKEN) {
-      return req.cookies.ACCESS_TOKEN;
+    const activeIndex = req.cookies?.active_account_index || '0';
+    const cookieName = getCookieName('ACCESS_TOKEN', activeIndex);
+    if (req.cookies?.[cookieName]) {
+      return req.cookies[cookieName];
     }
 
     const auth = req.headers?.authorization;

@@ -12,3 +12,10 @@ export function cookieOptions(req: Request, maxAgeSeconds?: number) {
     ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
   };
 }
+
+export function getCookieName(baseName: string, index: number | string | undefined | null): string {
+  const idx = Number(index);
+  if (isNaN(idx) || idx <= 0) return baseName;
+  return `${baseName}_${idx}`;
+}
+

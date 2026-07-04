@@ -3,13 +3,21 @@
 import { useAuth } from '@/auth/AuthProvider';
 import { logout } from '@/auth/authClient';
 import { Permission } from '@/auth/permissions';
-import { ChevronDown, ChevronUp, LogOut, Menu, Settings, User, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, LogOut, Menu, Settings, User, X, UserPlus, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import NotificationBell from '@/components/layout/NotificationBell';
 
 export default function AppHeader() {
-    const { hasPermission: hasAuthPermission, user: authUser } = useAuth();
+    const { 
+        hasPermission: hasAuthPermission, 
+        user: authUser,
+        profiles,
+        activeIndex,
+        switchAccount,
+        addAccount,
+        logoutAll
+    } = useAuth();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const router = useRouter();
@@ -61,6 +69,14 @@ export default function AppHeader() {
         // Add view profile logic here
         console.log('Viewing profile...');
         setShowProfileMenu(false);
+    };
+
+    const handleLogoutAll = async () => {
+        try {
+            await logoutAll();
+        } finally {
+            setShowProfileMenu(false);
+        }
     };
 
     const changeFontSize = (delta: number) => {
@@ -227,49 +243,107 @@ export default function AppHeader() {
                                     className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : ''}`}
                                 />
                             </button>
-
-                            {/* PROFILE DROPDOWN MENU */}
-                            {showProfileMenu && (
-                                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl border border-gray-200 shadow-lg py-2 z-50">
-                                    <div className="px-4 py-3 border-b border-gray-100">
-                                        <p className="font-semibold text-gray-800">{user?.name || 'User'}</p>
-                                        <p className="text-sm text-gray-500 truncate">{user?.email || ''}</p>
-                                        <p className="text-xs text-gray-400 mt-1 capitalize">{user?.role?.toLowerCase().replace('_', ' ') || ''}</p>
-                                    </div>
-
-                                    <div className="py-2">
-                                        <button
-                                            onClick={handleViewProfile}
-                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                                        >
-                                            <User className="w-4 h-4" />
-                                            <span>View Profile</span>
-                                        </button>
-                                        {hasAuthPermission(Permission.SETTINGS_VIEW) && (
-                                            <button
-                                                onClick={() => {
-                                                    router.push('/admin/settings');
-                                                    setShowProfileMenu(false);
-                                                }}
-                                                className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
-                                            >
-                                                <Settings className="w-4 h-4" />
-                                                <span>Account Settings</span>
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    <div className="border-t border-gray-100 pt-2">
-                                        <button
-                                            onClick={handleLogout}
-                                            className="w-full flex items-center gap-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
-                                        >
-                                            <LogOut className="w-4 h-4" />
-                                            <span>Logout</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                             {/* PROFILE DROPDOWN MENU */}
+                             {showProfileMenu && (
+                                 <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl border border-gray-200 shadow-xl py-2 z-50 animate-in fade-in duration-200">
+                                     {/* Active Account Info Card */}
+                                     <div className="px-4 py-4 border-b border-gray-100 flex flex-col items-center text-center">
+                                         <div className="relative mb-2">
+                                             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-xl shadow-md">
+                                                 {user?.name ? getInitials(user.name) : 'SP'}
+                                             </div>
+                                             <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
+                                         </div>
+                                         <p className="font-bold text-gray-800 text-base leading-snug">{user?.name || 'User'}</p>
+                                         <p className="text-sm text-gray-500 truncate max-w-full mb-1">{user?.email || ''}</p>
+                                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 capitalize mt-1 border border-blue-100">
+                                             {user?.role?.toLowerCase().replace('_', ' ') || ''}
+                                         </span>
+                                     </div>
+ 
+                                     {/* Actions list */}
+                                     <div className="py-1">
+                                         <button
+                                             onClick={handleViewProfile}
+                                             className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                                         >
+                                             <User className="w-4 h-4 text-gray-500" />
+                                             <span className="text-sm font-medium">View Profile</span>
+                                         </button>
+                                         {hasAuthPermission(Permission.SETTINGS_VIEW) && (
+                                             <button
+                                                 onClick={() => {
+                                                     router.push('/admin/settings');
+                                                     setShowProfileMenu(false);
+                                                 }}
+                                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                                             >
+                                                 <Settings className="w-4 h-4 text-gray-500" />
+                                                 <span className="text-sm font-medium">Account Settings</span>
+                                             </button>
+                                         )}
+                                     </div>
+ 
+                                     {/* Switch Account Section */}
+                                     {profiles && profiles.filter(p => p.index !== activeIndex).length > 0 && (
+                                         <div className="border-t border-gray-100 py-1 bg-gray-50/50">
+                                             <p className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Switch Account</p>
+                                             {profiles
+                                                 .filter(p => p.index !== activeIndex)
+                                                 .map(p => (
+                                                     <button
+                                                         key={p.index}
+                                                         onClick={() => {
+                                                             switchAccount(p.index);
+                                                             setShowProfileMenu(false);
+                                                         }}
+                                                         className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 transition-colors text-left group"
+                                                     >
+                                                         <div className="w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-semibold text-xs group-hover:scale-105 transition-transform">
+                                                             {getInitials(p.user.name)}
+                                                         </div>
+                                                         <div className="flex-1 min-w-0">
+                                                             <p className="text-xs font-bold text-gray-800 truncate">{p.user.name}</p>
+                                                             <p className="text-[10px] text-gray-500 truncate">{p.user.email}</p>
+                                                         </div>
+                                                     </button>
+                                                 ))}
+                                         </div>
+                                     )}
+ 
+                                     {/* Add Account Option */}
+                                     <div className="border-t border-gray-100 py-1">
+                                         <button
+                                             onClick={() => {
+                                                 addAccount();
+                                                 setShowProfileMenu(false);
+                                             }}
+                                             className="w-full flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors text-left"
+                                         >
+                                             <UserPlus className="w-4 h-4 text-gray-500" />
+                                             <span className="text-sm font-medium">Add another account</span>
+                                         </button>
+                                     </div>
+ 
+                                     {/* Sign out footer */}
+                                     <div className="border-t border-gray-100 pt-1.5 flex flex-col">
+                                         <button
+                                             onClick={handleLogout}
+                                             className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50/70 transition-colors text-left"
+                                         >
+                                             <LogOut className="w-4 h-4 text-red-500" />
+                                             <span className="text-xs font-semibold">Sign out of active account</span>
+                                         </button>
+                                         <button
+                                             onClick={handleLogoutAll}
+                                             className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50/70 transition-colors text-left font-bold border-t border-gray-50 mt-1 pt-2"
+                                         >
+                                             <LogOut className="w-4 h-4 text-red-500" />
+                                             <span className="text-xs">Sign out of all accounts</span>
+                                         </button>
+                                     </div>
+                                 </div>
+                             )}
                         </div>
                     </div>
                 </div>

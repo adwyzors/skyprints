@@ -11,6 +11,7 @@ import { JwksClient } from 'jwks-rsa';
 import { RequestContextStore } from '../../common/context/request-context.store';
 import { ContextLogger } from '../../common/logger/context.logger';
 import { JWKS_PROVIDER } from '../jwt/jwks.provider';
+import { getCookieName } from '../utils/cookie-domain.util';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -105,8 +106,10 @@ export class JwtAuthGuard implements CanActivate {
    * Supports cookie OR Authorization header
    */
   private extractToken(req: any): string | null {
-    if (req.cookies?.ACCESS_TOKEN) {
-      return req.cookies.ACCESS_TOKEN;
+    const activeIndex = req.cookies?.active_account_index || '0';
+    const cookieName = getCookieName('ACCESS_TOKEN', activeIndex);
+    if (req.cookies?.[cookieName]) {
+      return req.cookies[cookieName];
     }
 
     const auth = req.headers?.authorization;
