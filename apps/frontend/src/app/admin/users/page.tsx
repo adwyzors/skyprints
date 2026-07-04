@@ -49,7 +49,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'rates:update', 'rates:view', 'runs:create', 'runs:delete', 'runs:lifecycle:rollback',
     'runs:claim:override', 'runs:lifecycle:update', 'runs:transition:digital',
     'runs:transition:fusing', 'runs:update', 'runs:view', 'settings:view',
-    'users:create', 'users:delete', 'users:update', 'users:view',
+    'users:create', 'users:delete', 'users:update', 'users:view', 'users:view:basic',
     'users:permissions:manage', 'users:password:reset', 'users:session:revoke',
     'users:stage-permissions:manage',
   ],
@@ -64,7 +64,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'rates:update', 'rates:view', 'runs:create', 'runs:delete', 'runs:lifecycle:rollback',
     'runs:claim:override', 'runs:lifecycle:update', 'runs:transition:digital',
     'runs:transition:fusing', 'runs:update', 'runs:view', 'settings:view',
-    'users:create', 'users:delete', 'users:update', 'users:view',
+    'users:create', 'users:delete', 'users:update', 'users:view', 'users:view:basic',
   ],
   MANAGER: [
     'analytics:view', 'billings:create', 'billings:update', 'billings:view',
