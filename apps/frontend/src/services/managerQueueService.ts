@@ -17,6 +17,8 @@ export interface ManagerQueueItem {
 
 export interface ManagerActiveJob extends ManagerQueueItem {
   claimedAt: string;
+  pausedAt?: string | null;
+  pausedDurationSeconds?: number;
 }
 
 export async function listQueue(): Promise<ManagerQueueItem[]> {
@@ -42,6 +44,14 @@ export async function completeRun(
     `/manager-queue/${runId}/complete`,
     { method: 'POST' },
   );
+}
+
+export async function pauseRun(runId: string): Promise<void> {
+  await apiRequest<void>(`/manager-queue/${runId}/pause`, { method: 'POST' });
+}
+
+export async function resumeRun(runId: string): Promise<void> {
+  await apiRequest<void>(`/manager-queue/${runId}/resume`, { method: 'POST' });
 }
 
 export async function forceReleaseRun(runId: string): Promise<void> {

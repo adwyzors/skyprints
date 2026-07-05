@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 ///////////////////////////////
@@ -360,6 +361,8 @@ model ProcessRun {
   claimedBy     String?
   claimedAt     DateTime?
   claimedByUser User?     @relation("ProcessRunClaimedBy", fields: [claimedBy], references: [id])
+  pausedAt              DateTime?
+  pausedDurationSeconds Int       @default(0)
 
   comments String?
 

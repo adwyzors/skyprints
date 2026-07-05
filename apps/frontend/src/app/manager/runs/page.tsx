@@ -12,8 +12,10 @@ import {
     listActive,
     listQueue,
     releaseRun,
+    pauseRun,
+    resumeRun,
 } from '@/services/managerQueueService';
-import { CheckCircle, Clock, LogOut, Package, PlayCircle } from 'lucide-react';
+import { CheckCircle, Clock, LogOut, Package, PlayCircle, Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -25,6 +27,21 @@ function formatElapsed(claimedAt: string): string {
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
+function formatActiveElapsed(claimedAt: string, pausedAt?: string | null, pausedDurationSeconds = 0): string {
+    const startMs = new Date(claimedAt).getTime();
+    let currentMs = Date.now();
+    if (pausedAt) {
+        currentMs = new Date(pausedAt).getTime();
+    }
+    const ms = currentMs - startMs;
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000) - pausedDurationSeconds);
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const secs = totalSeconds % 60;
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${secs}s`;
 }
 
 function QueueCard({ item, onClick, onClaimed }: {
@@ -108,7 +125,7 @@ function ActiveCard({ item, onClick, onChanged }: {
     const [, forceTick] = useState(0);
 
     useEffect(() => {
-        const interval = setInterval(() => forceTick((t) => t + 1), 30000);
+        const interval = setInterval(() => forceTick((t) => t + 1), 1000);
         return () => clearInterval(interval);
     }, []);
 
@@ -136,6 +153,25 @@ function ActiveCard({ item, onClick, onChanged }: {
             onChanged();
         } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Failed to release job');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handlePauseToggle = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setBusy(true);
+        try {
+            if (item.pausedAt) {
+                await resumeRun(item.id);
+                toast.success(`Run #${item.runNumber} timer resumed`);
+            } else {
+                await pauseRun(item.id);
+                toast.success(`Run #${item.runNumber} timer paused`);
+            }
+            onChanged();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to toggle pause');
         } finally {
             setBusy(false);
         }
@@ -169,26 +205,51 @@ function ActiveCard({ item, onClick, onChanged }: {
                     )}
                 </div>
                 <div className="text-sm font-medium text-gray-900">{item.customerName}</div>
-                <div className="text-xs text-gray-500 flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> Elapsed: {formatElapsed(item.claimedAt)}
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-blue-500" />
+                        <span className={item.pausedAt ? 'text-amber-500 font-semibold' : 'text-gray-500'}>
+                            {formatActiveElapsed(item.claimedAt, item.pausedAt, item.pausedDurationSeconds)}
+                        </span>
+                        {item.pausedAt && <span className="bg-amber-100 text-amber-800 px-1 rounded text-[9px] font-bold uppercase">Paused</span>}
+                    </div>
+                    {item.quantity != null && <span>Qty: {item.quantity}</span>}
                 </div>
                 <div className="text-xs text-gray-500">{item.lifeCycleStatusCode}</div>
-                <div className="mt-1 flex flex-col gap-1.5">
-                    <button
-                        onClick={handleComplete}
-                        disabled={busy}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold transition-colors"
-                    >
-                        <CheckCircle className="w-4 h-4" />
-                        Complete Stage
-                    </button>
+                <div className="mt-2 flex items-center justify-between gap-2.5">
+                    {/* Release Job (Blue Square) */}
                     <button
                         onClick={handleRelease}
                         disabled={busy}
-                        className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-600 text-sm font-medium transition-colors"
+                        title="Release Job back to Queue"
+                        className="w-10 h-10 flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white transition-colors cursor-pointer shrink-0 shadow-sm"
                     >
-                        <LogOut className="w-4 h-4" />
-                        Release Job
+                        <LogOut className="w-5 h-5" />
+                    </button>
+
+                    {/* Pause/Play Timer (Red/Amber Square) */}
+                    <button
+                        onClick={handlePauseToggle}
+                        disabled={busy}
+                        title={item.pausedAt ? "Resume Timer" : "Pause Timer"}
+                        className={`w-10 h-10 flex items-center justify-center rounded-lg text-white transition-colors cursor-pointer shrink-0 shadow-sm ${
+                            item.pausedAt
+                                ? 'bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400'
+                                : 'bg-rose-500 hover:bg-rose-600 disabled:bg-rose-400'
+                        }`}
+                    >
+                        {item.pausedAt ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5 fill-current" />}
+                    </button>
+
+                    {/* Complete Stage (Green Rectangle) */}
+                    <button
+                        onClick={handleComplete}
+                        disabled={busy}
+                        title="Complete current stage"
+                        className="flex-1 h-10 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-semibold transition-colors cursor-pointer shadow-sm"
+                    >
+                        <CheckCircle className="w-5 h-5" />
+                        <span>Complete</span>
                     </button>
                 </div>
             </div>

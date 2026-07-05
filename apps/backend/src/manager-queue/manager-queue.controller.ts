@@ -38,6 +38,20 @@ export class ManagerQueueController {
     return this.service.complete(req.user.id, runId);
   }
 
+  @Post(':runId/pause')
+  @Permissions('runs:lifecycle:update')
+  async pause(@Param('runId') runId: string, @Req() req: any) {
+    await this.service.pause(req.user.id, runId);
+    return { success: true };
+  }
+
+  @Post(':runId/resume')
+  @Permissions('runs:lifecycle:update')
+  async resume(@Param('runId') runId: string, @Req() req: any) {
+    await this.service.resume(req.user.id, runId);
+    return { success: true };
+  }
+
   @Post(':runId/force-release')
   @Permissions('runs:claim:override')
   async forceRelease(@Param('runId') runId: string, @Req() req: any) {

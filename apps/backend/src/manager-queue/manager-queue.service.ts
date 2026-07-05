@@ -275,6 +275,8 @@ export class ManagerQueueService {
     return runs.map((r) => ({
       ...this.toQueueItemDto(r),
       claimedAt: (r as any).claimedAt.toISOString(),
+      pausedAt: r.pausedAt ? r.pausedAt.toISOString() : null,
+      pausedDurationSeconds: r.pausedDurationSeconds,
     }));
   }
 
@@ -358,7 +360,7 @@ export class ManagerQueueService {
 
     await this.prisma.processRun.update({
       where: { id: runId },
-      data: { claimedBy: null, claimedAt: null },
+      data: { claimedBy: null, claimedAt: null, pausedAt: null, pausedDurationSeconds: 0 },
     });
 
     this.logger.log(`Run released runId=${runId} managerId=${managerId}`);
@@ -376,7 +378,7 @@ export class ManagerQueueService {
 
     await this.prisma.processRun.update({
       where: { id: runId },
-      data: { claimedBy: null, claimedAt: null },
+      data: { claimedBy: null, claimedAt: null, pausedAt: null, pausedDurationSeconds: 0 },
     });
 
     this.logger.warn(
@@ -398,6 +400,8 @@ export class ManagerQueueService {
           lifeCycleStatusCode: true,
           claimedBy: true,
           claimedAt: true,
+          pausedAt: true,
+          pausedDurationSeconds: true,
           orderProcess: { select: { processId: true } },
         },
       });
@@ -454,9 +458,25 @@ export class ManagerQueueService {
       const completedAt = new Date();
       const claimedAt = run.claimedAt as Date;
 
+      let pauseSeconds = run.pausedDurationSeconds;
+      if (run.pausedAt) {
+        pauseSeconds += Math.round((completedAt.getTime() - run.pausedAt.getTime()) / 1000);
+      }
+
+      const totalElapsedSeconds = Math.round(
+        (completedAt.getTime() - claimedAt.getTime()) / 1000,
+      );
+      const durationSeconds = Math.max(0, totalElapsedSeconds - pauseSeconds);
+
       await tx.processRun.update({
         where: { id: run.id },
-        data: { executorId: managerId, claimedBy: null, claimedAt: null },
+        data: {
+          executorId: managerId,
+          claimedBy: null,
+          claimedAt: null,
+          pausedAt: null,
+          pausedDurationSeconds: 0,
+        },
       });
 
       await tx.processRunStageHistory.create({
@@ -467,9 +487,7 @@ export class ManagerQueueService {
           managerId,
           claimedAt,
           completedAt,
-          durationSeconds: Math.round(
-            (completedAt.getTime() - claimedAt.getTime()) / 1000,
-          ),
+          durationSeconds,
         },
       });
 
@@ -479,5 +497,65 @@ export class ManagerQueueService {
 
       return { success: true as const, status: nextStage.code };
     });
+  }
+
+  async pause(managerId: string, runId: string): Promise<void> {
+    const run = await this.prisma.processRun.findUnique({
+      where: { id: runId },
+      select: { claimedBy: true, pausedAt: true },
+    });
+
+    if (!run) {
+      throw new BadRequestException('Run not found');
+    }
+
+    if (run.claimedBy !== managerId) {
+      throw new ForbiddenException('You do not hold this claim');
+    }
+
+    if (run.pausedAt) {
+      throw new BadRequestException('Run already paused');
+    }
+
+    await this.prisma.processRun.update({
+      where: { id: runId },
+      data: { pausedAt: new Date() },
+    });
+
+    this.logger.log(`Run paused runId=${runId} managerId=${managerId}`);
+  }
+
+  async resume(managerId: string, runId: string): Promise<void> {
+    const run = await this.prisma.processRun.findUnique({
+      where: { id: runId },
+      select: { claimedBy: true, pausedAt: true, pausedDurationSeconds: true },
+    });
+
+    if (!run) {
+      throw new BadRequestException('Run not found');
+    }
+
+    if (run.claimedBy !== managerId) {
+      throw new ForbiddenException('You do not hold this claim');
+    }
+
+    if (!run.pausedAt) {
+      throw new BadRequestException('Run is not paused');
+    }
+
+    const now = new Date();
+    const pauseMs = now.getTime() - run.pausedAt.getTime();
+    const additionalPauseSeconds = Math.round(pauseMs / 1000);
+    const newPausedDurationSeconds = run.pausedDurationSeconds + additionalPauseSeconds;
+
+    await this.prisma.processRun.update({
+      where: { id: runId },
+      data: {
+        pausedAt: null,
+        pausedDurationSeconds: newPausedDurationSeconds,
+      },
+    });
+
+    this.logger.log(`Run resumed runId=${runId} managerId=${managerId}`);
   }
 }
