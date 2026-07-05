@@ -930,6 +930,11 @@ export class BillingContextService {
   async exportExcelForContexts(ids: string[], res: Response) {
     this.logger.log(`Exporting excel for billing contexts count=${ids.length}`);
 
+    const formatVoucher = (name: string): string => {
+      const match = name.match(/^([a-zA-Z]+)(\d+)(?:\/(.*))?$/);
+      return match ? `${match[1]}/${match[2]}` : name;
+    };
+
     // 1. Fetch contexts with full details, similar to getContextById
     const contexts = await this.prisma.billingContext.findMany({
       where: {
@@ -1193,7 +1198,7 @@ export class BillingContextService {
 
       worksheet.addRow({
         voucherDate: voucherDateStr,
-        voucherNumber: ctx.name,
+        voucherNumber: formatVoucher(ctx.name),
         partyName: ctx.customerName,
         jobCode: firstOrder.jobCode,
         billedQty: firstBilledQty,
