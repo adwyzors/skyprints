@@ -101,11 +101,18 @@ export class BillingContextController {
   async getRangePreview(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('tax') tax?: string,
+    @Query('challan') challan?: string,
   ) {
     if (!startDate || !endDate) {
       throw new BadRequestException('startDate and endDate are required');
     }
-    return this.service.getContextsInRange(startDate, endDate);
+    return this.service.getContextsInRange(
+      startDate,
+      endDate,
+      tax === undefined ? undefined : tax === 'true',
+      challan === undefined ? undefined : challan === 'true',
+    );
   }
 
   @Delete('range')
@@ -113,11 +120,18 @@ export class BillingContextController {
   async deleteRange(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('tax') tax?: string,
+    @Query('challan') challan?: string,
   ) {
     if (!startDate || !endDate) {
       throw new BadRequestException('startDate and endDate are required');
     }
-    return this.service.deleteContextsInRange(startDate, endDate);
+    return this.service.deleteContextsInRange(
+      startDate,
+      endDate,
+      tax === undefined ? undefined : tax === 'true',
+      challan === undefined ? undefined : challan === 'true',
+    );
   }
 
   @Post('export-excel')

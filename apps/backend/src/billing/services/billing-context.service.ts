@@ -590,11 +590,42 @@ export class BillingContextService {
     });
   }
 
-  async getContextsInRange(startDateStr: string, endDateStr: string) {
+  async getContextsInRange(
+    startDateStr: string,
+    endDateStr: string,
+    tax?: boolean,
+    challan?: boolean,
+  ) {
     const start = new Date(startDateStr);
     start.setHours(0, 0, 0, 0);
     const end = new Date(endDateStr);
     end.setHours(23, 59, 59, 999);
+
+    const filterTax = tax ?? true;
+    const filterChallan = challan ?? true;
+
+    let snapshotFilter: any = undefined;
+    if (filterTax && !filterChallan) {
+      snapshotFilter = {
+        snapshots: {
+          some: {
+            isLatest: true,
+            taxEnabled: true,
+          },
+        },
+      };
+    } else if (!filterTax && filterChallan) {
+      snapshotFilter = {
+        snapshots: {
+          some: {
+            isLatest: true,
+            taxEnabled: false,
+          },
+        },
+      };
+    } else if (!filterTax && !filterChallan) {
+      return [];
+    }
 
     const contexts = await this.prisma.billingContext.findMany({
       where: {
@@ -603,6 +634,7 @@ export class BillingContextService {
           gte: start,
           lte: end,
         },
+        ...snapshotFilter,
       },
       include: {
         _count: {
@@ -661,11 +693,42 @@ export class BillingContextService {
     });
   }
 
-  async deleteContextsInRange(startDateStr: string, endDateStr: string) {
+  async deleteContextsInRange(
+    startDateStr: string,
+    endDateStr: string,
+    tax?: boolean,
+    challan?: boolean,
+  ) {
     const start = new Date(startDateStr);
     start.setHours(0, 0, 0, 0);
     const end = new Date(endDateStr);
     end.setHours(23, 59, 59, 999);
+
+    const filterTax = tax ?? true;
+    const filterChallan = challan ?? true;
+
+    let snapshotFilter: any = undefined;
+    if (filterTax && !filterChallan) {
+      snapshotFilter = {
+        snapshots: {
+          some: {
+            isLatest: true,
+            taxEnabled: true,
+          },
+        },
+      };
+    } else if (!filterTax && filterChallan) {
+      snapshotFilter = {
+        snapshots: {
+          some: {
+            isLatest: true,
+            taxEnabled: false,
+          },
+        },
+      };
+    } else if (!filterTax && !filterChallan) {
+      return { success: true, count: 0 };
+    }
 
     // 1. Get all contexts in the range
     const contexts = await this.prisma.billingContext.findMany({
@@ -675,6 +738,7 @@ export class BillingContextService {
           gte: start,
           lte: end,
         },
+        ...snapshotFilter,
       },
       include: {
         orders: {
@@ -1016,17 +1080,10 @@ export class BillingContextService {
         const taxPercentage = groupSnapshot?.taxPercentage?.toString() || '0';
         const finalAmount = groupSnapshot?.finalAmount?.toString() || groupSnapshot?.result?.toString() || '0';
         
-        let tdsEnabled = groupSnapshot?.tdsEnabled ?? false;
-        let tdsPercentage = groupSnapshot?.tdsPercentage?.toString() || '0';
-        let tdsAmount = groupSnapshot?.tdsAmount?.toString() || '0';
-
         const snapshotInputs = groupSnapshot?.inputs as any;
-        if (!tdsEnabled && snapshotInputs?.__TDS_METADATA__) {
-          const meta = snapshotInputs.__TDS_METADATA__;
-          tdsEnabled = !!meta.tdsEnabled;
-          tdsPercentage = String(meta.tdsPercentage || '0');
-          tdsAmount = String(meta.tdsAmount || '0');
-        }
+        let tdsEnabled = snapshotInputs?.__TDS_METADATA__?.tdsEnabled ?? false;
+        let tdsPercentage = snapshotInputs?.__TDS_METADATA__?.tdsPercentage?.toString() || '0';
+        let tdsAmount = snapshotInputs?.__TDS_METADATA__?.tdsAmount?.toString() || '0';
 
         // Mathematical fallback for TDS
         if (!tdsEnabled && Number(subTotalAmount) > 0 && Number(finalAmount) > 0) {

@@ -15,20 +15,22 @@ interface Props {
 export default function DeleteBillsModal({ isOpen, onClose, onSuccess }: Props) {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [taxEnabled, setTaxEnabled] = useState(true);
+    const [challanEnabled, setChallanEnabled] = useState(true);
     const [bills, setBills] = useState<BillingContext[]>([]);
     const [loadingPreview, setLoadingPreview] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [confirmed, setConfirmed] = useState(false);
 
-    // Fetch preview when date range changes
+    // Fetch preview when date range changes or filter selection changes
     useEffect(() => {
         if (!isOpen) return;
         
-        if (startDate && endDate) {
+        if (startDate && endDate && (taxEnabled || challanEnabled)) {
             const fetchPreview = async () => {
                 setLoadingPreview(true);
                 try {
-                    const data = await getBillingContextsRangePreview(startDate, endDate);
+                    const data = await getBillingContextsRangePreview(startDate, endDate, taxEnabled, challanEnabled);
                     setBills(data);
                 } catch (err) {
                     console.error('Error fetching range preview:', err);
@@ -43,13 +45,15 @@ export default function DeleteBillsModal({ isOpen, onClose, onSuccess }: Props) 
             setBills([]);
         }
         setConfirmed(false);
-    }, [startDate, endDate, isOpen]);
+    }, [startDate, endDate, taxEnabled, challanEnabled, isOpen]);
 
     // Reset state on open/close
     useEffect(() => {
         if (isOpen) {
             setStartDate('');
             setEndDate('');
+            setTaxEnabled(true);
+            setChallanEnabled(true);
             setBills([]);
             setConfirmed(false);
         }
@@ -58,11 +62,11 @@ export default function DeleteBillsModal({ isOpen, onClose, onSuccess }: Props) 
     if (!isOpen) return null;
 
     const handleDelete = async () => {
-        if (!startDate || !endDate || bills.length === 0 || !confirmed) return;
+        if (!startDate || !endDate || bills.length === 0 || !confirmed || (!taxEnabled && !challanEnabled)) return;
 
         setDeleting(true);
         try {
-            const response = await deleteBillingContextsRange(startDate, endDate);
+            const response = await deleteBillingContextsRange(startDate, endDate, taxEnabled, challanEnabled);
             toast.success(`Successfully deleted ${response.count} bill(s) and their associated orders.`);
             onSuccess?.();
             onClose();
@@ -138,6 +142,30 @@ export default function DeleteBillsModal({ isOpen, onClose, onSuccess }: Props) 
                         </div>
                     </div>
 
+                    {/* Filter Checkboxes */}
+                    <div className="flex flex-wrap gap-6 p-4 bg-gray-50 rounded-xl border border-gray-150">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={taxEnabled}
+                                onChange={(e) => setTaxEnabled(e.target.checked)}
+                                disabled={deleting}
+                                className="rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 cursor-pointer"
+                            />
+                            <span className="text-xs font-semibold text-gray-700">Tax Invoices (R Series)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={challanEnabled}
+                                onChange={(e) => setChallanEnabled(e.target.checked)}
+                                disabled={deleting}
+                                className="rounded border-gray-300 text-red-600 focus:ring-red-500 w-4 h-4 cursor-pointer"
+                            />
+                            <span className="text-xs font-semibold text-gray-700">Delivery Challans (RC Series)</span>
+                        </label>
+                    </div>
+
                     {/* Loading Preview */}
                     {loadingPreview && (
                         <div className="flex flex-col items-center justify-center py-12 text-gray-500 space-y-3">
@@ -204,7 +232,18 @@ export default function DeleteBillsModal({ isOpen, onClose, onSuccess }: Props) 
                                             <tbody className="divide-y divide-gray-150 text-gray-700 bg-white">
                                                 {bills.map((bill) => (
                                                     <tr key={bill.id} className="hover:bg-gray-50/50">
-                                                        <td className="px-4 py-2 font-medium">{bill.name}</td>
+                                                        <td className="px-4 py-2 font-medium">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span>{bill.name}</span>
+                                                                <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${
+                                                                    bill.latestSnapshot?.taxEnabled
+                                                                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                                                        : 'bg-teal-50 text-teal-700 border border-teal-100'
+                                                                }`}>
+                                                                    {bill.latestSnapshot?.taxEnabled ? 'TAX' : 'CHALLAN'}
+                                                                </span>
+                                                            </div>
+                                                        </td>
                                                         <td className="px-4 py-2 truncate max-w-[150px]" title={bill.customerNames}>
                                                             {bill.customerNames || 'N/A'}
                                                         </td>

@@ -113,18 +113,28 @@ export const finalizeBillingGroup = async (contextId: string): Promise<void> => 
 
 export const getBillingContextsRangePreview = async (
     startDate: string,
-    endDate: string
+    endDate: string,
+    tax?: boolean,
+    challan?: boolean
 ): Promise<BillingContext[]> => {
-    return apiRequest<BillingContext[]>(`/billing/contexts/range-preview?startDate=${startDate}&endDate=${endDate}`, {
+    const query = new URLSearchParams({ startDate, endDate });
+    if (tax !== undefined) query.append('tax', String(tax));
+    if (challan !== undefined) query.append('challan', String(challan));
+    return apiRequest<BillingContext[]>(`/billing/contexts/range-preview?${query.toString()}`, {
         method: 'GET',
     });
 };
 
 export const deleteBillingContextsRange = async (
     startDate: string,
-    endDate: string
+    endDate: string,
+    tax?: boolean,
+    challan?: boolean
 ): Promise<{ success: boolean; count: number }> => {
-    return apiRequest<{ success: boolean; count: number }>(`/billing/contexts/range?startDate=${startDate}&endDate=${endDate}`, {
+    const query = new URLSearchParams({ startDate, endDate });
+    if (tax !== undefined) query.append('tax', String(tax));
+    if (challan !== undefined) query.append('challan', String(challan));
+    return apiRequest<{ success: boolean; count: number }>(`/billing/contexts/range?${query.toString()}`, {
         method: 'DELETE',
     });
 };
