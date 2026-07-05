@@ -18,7 +18,8 @@ import {
     Loader2,
     Search,
     Clock,
-    X
+    X,
+    Info
 } from 'lucide-react';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import RunLifecycleHistory from '@/components/billing/RunLifecycleHistory';
@@ -237,6 +238,7 @@ function ReportsPageContent() {
                                                     <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Rate</th>
                                                     <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Amount</th>
                                                     <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Bill Number</th>
+                                                    <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-center">Managers</th>
                                                     <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-right">Date</th>
                                                 </tr>
                                             </thead>
@@ -275,23 +277,7 @@ function ReportsPageContent() {
                                                                 {row.processName}
                                                             </span>
                                                         </td>
-                                                         <td className="px-4 py-3 text-xs text-gray-500 font-mono">
-                                                             <div className="flex items-center gap-2">
-                                                                 <span>{row.runNumbers || '-'}</span>
-                                                                 {row.runId && (
-                                                                     <button
-                                                                         onClick={() => {
-                                                                             setActiveHistoryRunId(row.runId!);
-                                                                             setActiveHistoryRunNumber(row.runNumbers || '');
-                                                                         }}
-                                                                         className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 hover:text-blue-700 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-wider"
-                                                                     >
-                                                                         <Clock className="w-2.5 h-2.5" />
-                                                                         <span>History</span>
-                                                                     </button>
-                                                                 )}
-                                                             </div>
-                                                         </td>
+                                                        <td className="px-4 py-3 text-xs text-gray-500 font-mono">{row.runNumbers || '-'}</td>
                                                         <td className="px-4 py-3 text-sm text-gray-600 max-w-[200px] truncate" title={row.description}>
                                                             {row.description || '-'}
                                                         </td>
@@ -308,6 +294,22 @@ function ReportsPageContent() {
                                                                 </Link>
                                                             ) : (
                                                                 row.billNumber
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            {row.runId ? (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setActiveHistoryRunId(row.runId!);
+                                                                        setActiveHistoryRunNumber(row.runNumbers || '');
+                                                                    }}
+                                                                    className="inline-flex items-center justify-center p-1 rounded-full text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer border border-transparent"
+                                                                    title="View manager and stage history"
+                                                                >
+                                                                    <Info className="w-4 h-4" />
+                                                                </button>
+                                                            ) : (
+                                                                <span className="text-gray-300 text-xs">-</span>
                                                             )}
                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-gray-500 text-right whitespace-nowrap">{row.date}</td>
