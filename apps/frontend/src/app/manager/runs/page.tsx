@@ -238,28 +238,26 @@ function ManagerRunsPage() {
         : allItems.filter((item) => item.processName === activeProcess);
 
     // Separate active (claimed) items and queued items for this process
-    const activeItems = processItems.filter((item) => 'claimedAt' in item);
-    const queuedItems = processItems.filter((item) => !('claimedAt' in item));
+    const activeItems = processItems.filter((item) => 'claimedAt' in item) as ManagerActiveJob[];
+    const queuedItems = processItems.filter((item) => !('claimedAt' in item)) as ManagerQueueItem[];
 
-    // Group queued items by lifecycleStage
-    const groupedQueued = queuedItems.reduce<Record<string, ManagerQueueItem[]>>((acc, item) => {
-        const stage = item.lifeCycleStatusCode || 'Unspecified';
-        if (!acc[stage]) {
-            acc[stage] = [];
-        }
-        acc[stage].push(item);
-        return acc;
-    }, {});
-
-    // Sorted queue stage status codes
-    const sortedStages = Object.keys(groupedQueued).sort();
+    // Gather all stages
+    const allStagesSet = new Set<string>();
+    activeItems.forEach(item => {
+        if (item.lifeCycleStatusCode) allStagesSet.add(item.lifeCycleStatusCode);
+    });
+    queuedItems.forEach(item => {
+        if (item.lifeCycleStatusCode) allStagesSet.add(item.lifeCycleStatusCode);
+    });
+    const sortedStages = Array.from(allStagesSet).sort();
 
     // Combine into structured lifecycle categories
     const categories: {
         key: string;
         name: string;
         count: number;
-        items: (ManagerQueueItem | ManagerActiveJob)[];
+        activeItems: ManagerActiveJob[];
+        queuedItems: ManagerQueueItem[];
     }[] = [];
 
     if (activeItems.length > 0) {
@@ -267,16 +265,20 @@ function ManagerRunsPage() {
             key: 'active-jobs',
             name: 'My Active Jobs',
             count: activeItems.length,
-            items: activeItems,
+            activeItems: activeItems,
+            queuedItems: [],
         });
     }
 
     sortedStages.forEach((stage) => {
+        const stageActive = activeItems.filter(item => item.lifeCycleStatusCode === stage);
+        const stageQueued = queuedItems.filter(item => item.lifeCycleStatusCode === stage);
         categories.push({
             key: stage,
             name: stage,
-            count: groupedQueued[stage].length,
-            items: groupedQueued[stage],
+            count: stageActive.length + stageQueued.length,
+            activeItems: stageActive,
+            queuedItems: stageQueued,
         });
     });
 
@@ -466,12 +468,12 @@ function ManagerRunsPage() {
                                                 </div>
                                                 <div className="space-y-6">
                                                     {Object.entries(
-                                                        category.items.reduce<Record<string, ManagerActiveJob[]>>((acc, item) => {
+                                                        category.activeItems.reduce<Record<string, ManagerActiveJob[]>>((acc, item) => {
                                                             const stage = item.lifeCycleStatusCode || 'Unspecified';
                                                             if (!acc[stage]) {
                                                                 acc[stage] = [];
                                                             }
-                                                            acc[stage].push(item as ManagerActiveJob);
+                                                            acc[stage].push(item);
                                                             return acc;
                                                         }, {})
                                                     ).map(([stageName, stageItems]) => (
@@ -508,15 +510,54 @@ function ManagerRunsPage() {
                                                         {category.count}
                                                     </span>
                                                 </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                    {category.items.map((item) => (
-                                                        <QueueCard
-                                                            key={item.id}
-                                                            item={item}
-                                                            onClick={() => setSelectedRunId(item.id)}
-                                                            onClaimed={() => fetchAll(false)}
-                                                        />
-                                                    ))}
+                                                <div className="space-y-6">
+                                                    {/* Active Jobs in this Stage */}
+                                                    {category.activeItems.length > 0 && (
+                                                        <div className="space-y-3">
+                                                            <div className="flex items-center gap-2 pb-1">
+                                                                <h3 className="text-xs font-bold text-green-700 uppercase tracking-wider">
+                                                                    Active Jobs
+                                                                </h3>
+                                                                <span className="bg-green-50 border border-green-200 text-green-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                                                    {category.activeItems.length}
+                                                                </span>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                                                {category.activeItems.map((item) => (
+                                                                    <ActiveCard
+                                                                        key={item.id}
+                                                                        item={item}
+                                                                        onClick={() => setSelectedRunId(item.id)}
+                                                                        onChanged={() => fetchAll(false)}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Available Jobs in this Stage */}
+                                                    {category.queuedItems.length > 0 && (
+                                                        <div className="space-y-3">
+                                                            <div className="flex items-center gap-2 pb-1">
+                                                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                                                    Available Jobs
+                                                                </h3>
+                                                                <span className="bg-gray-50 border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                                                    {category.queuedItems.length}
+                                                                </span>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                                                {category.queuedItems.map((item) => (
+                                                                    <QueueCard
+                                                                        key={item.id}
+                                                                        item={item}
+                                                                        onClick={() => setSelectedRunId(item.id)}
+                                                                        onClaimed={() => fetchAll(false)}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </>
                                         )}
