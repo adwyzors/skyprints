@@ -1,5 +1,7 @@
 import type { CreateBillingContextDto } from '@app/contracts';
 import { BadRequestException, Injectable } from '@nestjs/common';
+import type { Response } from 'express';
+import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ContextLogger } from '../../common/logger/context.logger';
 import { generateFiscalCode } from '../../common/utils/fiscal-year.utils';
@@ -859,5 +861,352 @@ export class BillingContextService {
     this.logger.log(
       `Background image cleanup finished. Deleted ${deletedCount} of ${allUrls.length} images.`,
     );
+  }
+
+  async exportExcelForContexts(ids: string[], res: Response) {
+    this.logger.log(`Exporting excel for billing contexts count=${ids.length}`);
+
+    // 1. Fetch contexts with full details, similar to getContextById
+    const contexts = await this.prisma.billingContext.findMany({
+      where: {
+        id: { in: ids },
+      },
+      include: {
+        orders: {
+          include: {
+            order: {
+              include: {
+                customer: true,
+                processes: {
+                  include: {
+                    process: true,
+                    runs: {
+                      include: {
+                        runTemplate: true,
+                      },
+                    },
+                  },
+                },
+                billingContexts: {
+                  where: {
+                    billingContext: {
+                      type: 'ORDER',
+                    },
+                  },
+                  take: 1,
+                  orderBy: {
+                    createdAt: 'desc',
+                  },
+                  include: {
+                    billingContext: {
+                      include: {
+                        snapshots: {
+                          orderBy: {
+                            createdAt: 'desc',
+                          },
+                          take: 1,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        snapshots: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // 2. Map billing context details, similar to getContextById's map
+    const detailedContexts = await Promise.all(
+      contexts.map(async (context) => {
+        const groupSnapshot = context.snapshots[0];
+        
+        const mappedOrders = await Promise.all(
+          context.orders.map(async ({ order }) => {
+            const groupInputs = groupSnapshot?.inputs as any;
+            const orderSnapshot =
+              order.billingContexts[0]?.billingContext?.snapshots[0];
+
+            let snapshotResult = orderSnapshot?.result?.toString() || '0';
+
+            if (
+              context.type === 'GROUP' &&
+              groupSnapshot &&
+              groupInputs?.[order.id]
+            ) {
+              const storedResult = groupInputs[order.id]['__ORDER_RESULT__'];
+              if (storedResult) {
+                snapshotResult = storedResult;
+              } else {
+                try {
+                  const calc = await this.calculator.calculateForOrder(
+                    order.id,
+                    groupInputs[order.id],
+                  );
+                  if (calc) {
+                    snapshotResult = calc.result.toString();
+                  }
+                } catch (e) {
+                  this.logger.error(
+                    `Recalculation fallback failed for order ${order.id}: ${e.message}`,
+                  );
+                }
+              }
+            }
+
+            const snapshotCustomerMeta =
+              (groupSnapshot?.inputs as any)?.__CUSTOMER_METADATA__ ||
+              (orderSnapshot?.inputs as any)?.__CUSTOMER_METADATA__;
+
+            let customerInfo = {
+              name: order.customer.name,
+              code: order.customer.code,
+              gstno: order.customer.gstno,
+              tax: order.customer.tax,
+              tds: order.customer.tds,
+              tdsno: order.customer.tdsno,
+              address: order.customer.address,
+            };
+
+            if (snapshotCustomerMeta) {
+              customerInfo = {
+                name: snapshotCustomerMeta.name || customerInfo.name,
+                code: snapshotCustomerMeta.code || customerInfo.code,
+                gstno: snapshotCustomerMeta.gstno || customerInfo.gstno,
+                tax:
+                  snapshotCustomerMeta.tax !== undefined
+                    ? snapshotCustomerMeta.tax
+                    : customerInfo.tax,
+                tds:
+                  snapshotCustomerMeta.tds !== undefined
+                    ? snapshotCustomerMeta.tds
+                    : customerInfo.tds,
+                tdsno:
+                  snapshotCustomerMeta.tdsno !== undefined
+                    ? snapshotCustomerMeta.tdsno
+                    : customerInfo.tdsno,
+                address: snapshotCustomerMeta.address || customerInfo.address,
+              };
+            }
+
+            return {
+              id: order.id,
+              code: order.code,
+              jobCode: order.jobCode || '',
+              quantity: order.quantity,
+              customer: customerInfo,
+              billing: {
+                result: snapshotResult,
+              },
+            };
+          }),
+        );
+
+        const subTotalAmount = groupSnapshot?.subTotalAmount?.toString() || '0';
+        const taxAmount = groupSnapshot?.taxAmount?.toString() || '0';
+        const taxEnabled = groupSnapshot?.taxEnabled ?? false;
+        const taxPercentage = groupSnapshot?.taxPercentage?.toString() || '0';
+        const finalAmount = groupSnapshot?.finalAmount?.toString() || groupSnapshot?.result?.toString() || '0';
+        
+        let tdsEnabled = groupSnapshot?.tdsEnabled ?? false;
+        let tdsPercentage = groupSnapshot?.tdsPercentage?.toString() || '0';
+        let tdsAmount = groupSnapshot?.tdsAmount?.toString() || '0';
+
+        const snapshotInputs = groupSnapshot?.inputs as any;
+        if (!tdsEnabled && snapshotInputs?.__TDS_METADATA__) {
+          const meta = snapshotInputs.__TDS_METADATA__;
+          tdsEnabled = !!meta.tdsEnabled;
+          tdsPercentage = String(meta.tdsPercentage || '0');
+          tdsAmount = String(meta.tdsAmount || '0');
+        }
+
+        // Mathematical fallback for TDS
+        if (!tdsEnabled && Number(subTotalAmount) > 0 && Number(finalAmount) > 0) {
+          const expectedWithoutTds = Number(subTotalAmount) + Number(taxAmount);
+          const diff = expectedWithoutTds - Number(finalAmount);
+          if (diff > 0.01) {
+            tdsEnabled = true;
+            tdsAmount = diff.toFixed(2);
+            tdsPercentage = ((diff / Number(subTotalAmount)) * 100).toFixed(2);
+          }
+        }
+
+        let roundedFinalTotal = Number(finalAmount);
+        if (tdsEnabled && Number(tdsAmount) > 0) {
+          const expectedWithoutTds = Number(subTotalAmount) + Number(taxAmount);
+          if (Math.abs(Number(finalAmount) - expectedWithoutTds) < 0.01) {
+            roundedFinalTotal = Number(finalAmount) - Number(tdsAmount);
+          }
+        }
+
+        const totalValue = roundedFinalTotal;
+        const roundedTotal = Math.round(totalValue);
+        const roundOff = (roundedTotal - totalValue).toFixed(2);
+
+        return {
+          id: context.id,
+          name: context.name,
+          createdAt: context.createdAt,
+          customerName: mappedOrders[0]?.customer?.name || 'N/A',
+          subTotalAmount,
+          taxAmount,
+          taxEnabled,
+          taxPercentage,
+          tdsEnabled,
+          tdsPercentage,
+          tdsAmount,
+          roundOff,
+          roundedTotal,
+          orders: mappedOrders,
+        };
+      }),
+    );
+
+    // 3. Generate Excel
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Billing Export');
+
+    // Define Excel Columns
+    worksheet.columns = [
+      { header: 'Voucher Date', key: 'voucherDate', width: 15 },
+      { header: 'Voucher Number', key: 'voucherNumber', width: 20 },
+      { header: 'Party Name', key: 'partyName', width: 25 },
+      { header: 'Job Code Description', key: 'jobCode', width: 40 },
+      { header: 'Billed Qty', key: 'billedQty', width: 12 },
+      { header: 'Item Rate', key: 'itemRate', width: 12 },
+      { header: 'Item Amount', key: 'itemAmount', width: 15 },
+      { header: 'Sub total', key: 'subTotal', width: 15 },
+      { header: 'Cgst', key: 'cgst', width: 12 },
+      { header: 'Sgst', key: 'sgst', width: 12 },
+      { header: 'Tds', key: 'tds', width: 12 },
+      { header: 'R.off', key: 'roundOff', width: 10 },
+      { header: 'Total', key: 'total', width: 15 },
+    ];
+
+    // Format headers (Gold/Yellow style, matching the image)
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF000000' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFF2C438' }, // Premium Yellow/Gold
+    };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'left' };
+    
+    // Add thin borders to header
+    headerRow.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+        left: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+        bottom: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+        right: { style: 'thin', color: { argb: 'FFD3D3D3' } },
+      };
+    });
+
+    // Populate Data
+    for (const ctx of detailedContexts) {
+      const voucherDateStr = new Date(ctx.createdAt).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+
+      const orderCount = ctx.orders.length;
+      if (orderCount === 0) continue;
+
+      // Calculate totals/taxes splits
+      const cgstAmt = ctx.taxEnabled ? (Number(ctx.taxAmount) / 2).toFixed(2) : '';
+      const sgstAmt = ctx.taxEnabled ? (Number(ctx.taxAmount) / 2).toFixed(2) : '';
+      const tdsAmt = ctx.tdsEnabled ? `-${Number(ctx.tdsAmount).toFixed(2)}` : '';
+      const roundOffVal = Number(ctx.roundOff) !== 0 ? ctx.roundOff : '';
+
+      // First item contains all voucher details
+      const firstOrder = ctx.orders[0];
+      const firstBilledQty = firstOrder.quantity;
+      const firstItemAmount = Number(firstOrder.billing.result);
+      const firstItemRate = firstBilledQty > 0 ? (firstItemAmount / firstBilledQty).toFixed(2) : '0.00';
+
+      worksheet.addRow({
+        voucherDate: voucherDateStr,
+        voucherNumber: ctx.name,
+        partyName: ctx.customerName,
+        jobCode: firstOrder.jobCode,
+        billedQty: firstBilledQty,
+        itemRate: Number(firstItemRate),
+        itemAmount: firstItemAmount,
+        subTotal: Number(ctx.subTotalAmount),
+        cgst: cgstAmt ? Number(cgstAmt) : '',
+        sgst: sgstAmt ? Number(sgstAmt) : '',
+        tds: tdsAmt ? Number(tdsAmt) : '',
+        roundOff: roundOffVal ? Number(roundOffVal) : '',
+        total: Number(ctx.roundedTotal),
+      });
+
+      // Subsequent items only populate item-specific columns
+      for (let i = 1; i < orderCount; i++) {
+        const order = ctx.orders[i];
+        const billedQty = order.quantity;
+        const itemAmount = Number(order.billing.result);
+        const itemRate = billedQty > 0 ? (itemAmount / billedQty).toFixed(2) : '0.00';
+
+        worksheet.addRow({
+          voucherDate: '',
+          voucherNumber: '',
+          partyName: '',
+          jobCode: order.jobCode,
+          billedQty: billedQty,
+          itemRate: Number(itemRate),
+          itemAmount: itemAmount,
+          subTotal: '',
+          cgst: '',
+          sgst: '',
+          tds: '',
+          roundOff: '',
+          total: '',
+        });
+      }
+    }
+
+    // Set styling for all rows and cells
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Skip header styling
+
+      row.eachCell((cell, colNumber) => {
+        cell.font = { name: 'Arial', size: 10 };
+        cell.alignment = { vertical: 'middle', horizontal: 'left' };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFEAEAEA' } },
+          left: { style: 'thin', color: { argb: 'FFEAEAEA' } },
+          bottom: { style: 'thin', color: { argb: 'FFEAEAEA' } },
+          right: { style: 'thin', color: { argb: 'FFEAEAEA' } },
+        };
+
+        // Align numbers to the right
+        const numericCols = [5, 6, 7, 8, 9, 10, 11, 12, 13];
+        if (numericCols.includes(colNumber) && typeof cell.value === 'number') {
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        }
+      });
+    });
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=billing_export_${new Date().getTime()}.xlsx`,
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
   }
 }

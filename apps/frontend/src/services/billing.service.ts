@@ -1,6 +1,6 @@
 // services/billing.service.ts
 import { BillingContext, BillingContextDetails, BillingSnapshot, GetBillingContextsResponse } from '@/domain/model/billing.model';
-import { apiRequest, apiRequestWithHeaders } from './api.service';
+import { apiRequest, apiRequestWithHeaders, apiRequestBlob } from './api.service';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -128,3 +128,10 @@ export const deleteBillingContextsRange = async (
         method: 'DELETE',
     });
 };
+
+export const exportBillingContextsExcel = async (ids: string[]): Promise<Blob> => {
+    return apiRequestBlob('/billing/contexts/export-excel', {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+    });
+};

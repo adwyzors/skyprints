@@ -163,3 +163,39 @@ export async function apiRequestWithHeaders<T>(
     const data = await response.json() as T;
     return { data, headers: response.headers };
 }
+
+/**
+ * API request helper for downloading binary data (blobs)
+ */
+export async function apiRequestBlob(
+    endpoint: string,
+    options: RequestInit = {},
+    retry = true,
+): Promise<Blob> {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        },
+    });
+
+    // 🔁 AUTO REFRESH ON 401
+    if (response.status === 401 && retry) {
+        try {
+            await refreshSession();
+            return apiRequestBlob(endpoint, options, false);
+        } catch {
+            await logout();
+            throw new Error('Session expired');
+        }
+    }
+
+    if (!response.ok) {
+        return handleResponseError(response);
+    }
+
+    return response.blob();
+}
+
