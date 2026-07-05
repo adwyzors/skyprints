@@ -144,44 +144,53 @@ function ActiveCard({ item, onClick, onChanged }: {
     return (
         <div
             onClick={onClick}
-            className="bg-white rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4 flex flex-col gap-2"
+            className="bg-white rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col"
         >
-            <div className="flex items-center justify-between">
-                <span className="font-bold text-gray-800">Run #{item.runNumber}</span>
-                <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                    {item.processName}
-                </span>
-            </div>
-            <div className="flex items-center justify-between text-sm text-gray-600 gap-2">
-                <span>{item.orderCode}</span>
-                {item.jobCode && (
-                    <span className="text-[11px] bg-gray-50 border border-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium truncate max-w-[120px]" title={item.jobCode}>
-                        Job: {item.jobCode}
+            {item.artworkUrl ? (
+                <img src={item.artworkUrl} alt="" className="w-full h-32 object-cover" />
+            ) : (
+                <div className="w-full h-32 bg-gray-50 flex items-center justify-center">
+                    <Package className="w-8 h-8 text-gray-300" />
+                </div>
+            )}
+            <div className="p-4 flex-1 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                    <span className="font-bold text-gray-800">Run #{item.runNumber}</span>
+                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                        {item.processName}
                     </span>
-                )}
-            </div>
-            <div className="text-sm font-medium text-gray-900">{item.customerName}</div>
-            <div className="text-xs text-gray-500 flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Elapsed: {formatElapsed(item.claimedAt)}
-            </div>
-            <div className="text-xs text-gray-500">{item.lifeCycleStatusCode}</div>
-            <div className="mt-1 flex flex-col gap-1.5">
-                <button
-                    onClick={handleComplete}
-                    disabled={busy}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold transition-colors"
-                >
-                    <CheckCircle className="w-4 h-4" />
-                    Complete Stage
-                </button>
-                <button
-                    onClick={handleRelease}
-                    disabled={busy}
-                    className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-600 text-sm font-medium transition-colors"
-                >
-                    <LogOut className="w-4 h-4" />
-                    Release Job
-                </button>
+                </div>
+                <div className="flex items-center justify-between text-sm text-gray-600 gap-2">
+                    <span>{item.orderCode}</span>
+                    {item.jobCode && (
+                        <span className="text-[11px] bg-gray-50 border border-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium truncate max-w-[120px]" title={item.jobCode}>
+                            Job: {item.jobCode}
+                        </span>
+                    )}
+                </div>
+                <div className="text-sm font-medium text-gray-900">{item.customerName}</div>
+                <div className="text-xs text-gray-500 flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Elapsed: {formatElapsed(item.claimedAt)}
+                </div>
+                <div className="text-xs text-gray-500">{item.lifeCycleStatusCode}</div>
+                <div className="mt-1 flex flex-col gap-1.5">
+                    <button
+                        onClick={handleComplete}
+                        disabled={busy}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white text-sm font-semibold transition-colors"
+                    >
+                        <CheckCircle className="w-4 h-4" />
+                        Complete Stage
+                    </button>
+                    <button
+                        onClick={handleRelease}
+                        disabled={busy}
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-600 text-sm font-medium transition-colors"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Release Job
+                    </button>
+                </div>
             </div>
         </div>
     );
