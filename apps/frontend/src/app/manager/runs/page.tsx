@@ -440,59 +440,86 @@ function ManagerRunsPage() {
                                     return (
                                     <div key={category.key} className="scroll-mt-20">
                                         {isActiveJobsSection ? (
-                                            <div
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '10px',
-                                                    marginBottom: '16px',
-                                                    padding: '10px 16px',
-                                                    borderRadius: '12px',
-                                                    background: 'linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%)',
-                                                    border: '1.5px solid #86efac',
-                                                    boxShadow: '0 1px 6px rgba(22,163,74,0.12)',
-                                                }}
-                                            >
-                                                <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                                                    {category.name}
-                                                </h2>
-                                                <span style={{ background: '#16a34a', color: '#fff', borderRadius: '999px', padding: '1px 10px', fontSize: '12px', fontWeight: 700 }}>
-                                                    {category.count}
-                                                </span>
-                                                <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, color: '#15803d', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '999px', padding: '2px 10px' }}>
-                                                    In Progress
-                                                </span>
-                                            </div>
+                                            <>
+                                                <div
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '10px',
+                                                        marginBottom: '16px',
+                                                        padding: '10px 16px',
+                                                        borderRadius: '12px',
+                                                        background: 'linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%)',
+                                                        border: '1.5px solid #86efac',
+                                                        boxShadow: '0 1px 6px rgba(22,163,74,0.12)',
+                                                    }}
+                                                >
+                                                    <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                                                        {category.name}
+                                                    </h2>
+                                                    <span style={{ background: '#16a34a', color: '#fff', borderRadius: '999px', padding: '1px 10px', fontSize: '12px', fontWeight: 700 }}>
+                                                        {category.count}
+                                                    </span>
+                                                    <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, color: '#15803d', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '999px', padding: '2px 10px' }}>
+                                                        In Progress
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-6">
+                                                    {Object.entries(
+                                                        category.items.reduce<Record<string, ManagerActiveJob[]>>((acc, item) => {
+                                                            const stage = item.lifeCycleStatusCode || 'Unspecified';
+                                                            if (!acc[stage]) {
+                                                                acc[stage] = [];
+                                                            }
+                                                            acc[stage].push(item as ManagerActiveJob);
+                                                            return acc;
+                                                        }, {})
+                                                    ).map(([stageName, stageItems]) => (
+                                                        <div key={stageName} className="space-y-3">
+                                                            <div className="flex items-center gap-2 border-b border-gray-100 pb-1.5">
+                                                                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                                                                    {stageName}
+                                                                </h3>
+                                                                <span className="bg-green-50 border border-green-200 text-green-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                                                    {stageItems.length}
+                                                                </span>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                                                {stageItems.map((item) => (
+                                                                    <ActiveCard
+                                                                        key={item.id}
+                                                                        item={item}
+                                                                        onClick={() => setSelectedRunId(item.id)}
+                                                                        onChanged={() => fetchAll(false)}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </>
                                         ) : (
-                                            <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
-                                                <h2 className="text-base md:text-lg font-bold text-gray-800">
-                                                    {category.name}
-                                                </h2>
-                                                <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                                                    {category.count}
-                                                </span>
-                                            </div>
+                                            <>
+                                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
+                                                    <h2 className="text-base md:text-lg font-bold text-gray-800">
+                                                        {category.name}
+                                                    </h2>
+                                                    <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
+                                                        {category.count}
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                                    {category.items.map((item) => (
+                                                        <QueueCard
+                                                            key={item.id}
+                                                            item={item}
+                                                            onClick={() => setSelectedRunId(item.id)}
+                                                            onClaimed={() => fetchAll(false)}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </>
                                         )}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                            {category.items.map((item) => {
-                                                const isActive = 'claimedAt' in item;
-                                                return isActive ? (
-                                                    <ActiveCard
-                                                        key={item.id}
-                                                        item={item as ManagerActiveJob}
-                                                        onClick={() => setSelectedRunId(item.id)}
-                                                        onChanged={() => fetchAll(false)}
-                                                    />
-                                                ) : (
-                                                    <QueueCard
-                                                        key={item.id}
-                                                        item={item}
-                                                        onClick={() => setSelectedRunId(item.id)}
-                                                        onClaimed={() => fetchAll(false)}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
                                     </div>
                                     );
                                 })}
