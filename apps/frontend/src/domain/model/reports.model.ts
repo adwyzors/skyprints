@@ -14,6 +14,7 @@ export interface BilledOrderReportRow {
     date: string;
     preProductionLocation?: string;
     postProductionLocation?: string;
+    runId?: string;
 }
 
 export interface ReportsQuery {

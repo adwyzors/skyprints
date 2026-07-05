@@ -412,6 +412,7 @@ export class ReportsService {
           reportData.push({
             orderId: order.id,
             orderCode: order.code,
+            runId: run.id,
             images: order.images || [],
             processName: orderProcess.process.name,
             runNumbers: run.runNumber.toString(),

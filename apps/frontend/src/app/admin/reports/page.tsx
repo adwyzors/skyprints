@@ -16,9 +16,12 @@ import {
     FileText,
     Filter,
     Loader2,
-    Search
+    Search,
+    Clock,
+    X
 } from 'lucide-react';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import RunLifecycleHistory from '@/components/billing/RunLifecycleHistory';
 import { useDebounce } from '@/hooks/useDebounce';
 
 export default function ReportsPage() {
@@ -71,6 +74,8 @@ function ReportsPageContent() {
     }, [debouncedSearch]);
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [activeHistoryRunId, setActiveHistoryRunId] = useState<string | null>(null);
+    const [activeHistoryRunNumber, setActiveHistoryRunNumber] = useState<string | null>(null);
 
     const fetchData = async () => {
         setLoading(true);
@@ -270,7 +275,23 @@ function ReportsPageContent() {
                                                                 {row.processName}
                                                             </span>
                                                         </td>
-                                                        <td className="px-4 py-3 text-xs text-gray-500 font-mono">{row.runNumbers || '-'}</td>
+                                                         <td className="px-4 py-3 text-xs text-gray-500 font-mono">
+                                                             <div className="flex items-center gap-2">
+                                                                 <span>{row.runNumbers || '-'}</span>
+                                                                 {row.runId && (
+                                                                     <button
+                                                                         onClick={() => {
+                                                                             setActiveHistoryRunId(row.runId!);
+                                                                             setActiveHistoryRunNumber(row.runNumbers || '');
+                                                                         }}
+                                                                         className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-100 hover:text-blue-700 transition-colors cursor-pointer text-[10px] font-bold uppercase tracking-wider"
+                                                                     >
+                                                                         <Clock className="w-2.5 h-2.5" />
+                                                                         <span>History</span>
+                                                                     </button>
+                                                                 )}
+                                                             </div>
+                                                         </td>
                                                         <td className="px-4 py-3 text-sm text-gray-600 max-w-[200px] truncate" title={row.description}>
                                                             {row.description || '-'}
                                                         </td>
@@ -313,6 +334,47 @@ function ReportsPageContent() {
                 </div>
             </div>
             <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
+
+            {activeHistoryRunId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl border border-gray-100 flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white flex-shrink-0">
+                            <div className="flex items-center gap-2.5 text-blue-600">
+                                <Clock className="w-5 h-5" />
+                                <h3 className="font-bold text-base md:text-lg text-gray-900">
+                                    Run #{activeHistoryRunNumber} History
+                                </h3>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setActiveHistoryRunId(null);
+                                    setActiveHistoryRunNumber(null);
+                                }}
+                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        {/* Content */}
+                        <div className="p-6 overflow-y-auto flex-1">
+                            <RunLifecycleHistory runId={activeHistoryRunId} />
+                        </div>
+                        {/* Footer */}
+                        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3 flex-shrink-0">
+                            <button
+                                onClick={() => {
+                                    setActiveHistoryRunId(null);
+                                    setActiveHistoryRunNumber(null);
+                                }}
+                                className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors border border-transparent shadow-sm"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
