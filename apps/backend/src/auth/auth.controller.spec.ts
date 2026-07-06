@@ -1,3 +1,4 @@
+import { UnauthorizedException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { KeycloakService } from './keycloak/keycloak.service';
@@ -22,8 +23,10 @@ describe('AuthController', () => {
       verifyAccessToken: jest.fn(),
       logoutInternal: jest.fn().mockResolvedValue(undefined),
       clearCookiesAtIndex: jest.fn(),
+      clearAllCookies: jest.fn(),
       getProfilesFromCookies: jest.fn().mockResolvedValue([]),
       refreshInternal: jest.fn(),
+      revokeSessionForTokens: jest.fn().mockResolvedValue(undefined),
     } as any;
     keycloakMock = {} as any;
 
@@ -87,6 +90,63 @@ describe('AuthController', () => {
       await controller.logout(req, res);
 
       expect(res.clearCookie).toHaveBeenCalledWith('active_account_index', expect.any(Object));
+    });
+  });
+
+  describe('switchAccount', () => {
+    it('rejects switching to an index with no live session', async () => {
+      const req = makeReq({});
+      const res = makeRes();
+
+      authMock.getProfilesFromCookies.mockResolvedValue([
+        { index: 0, user: { id: 'user-0', email: 'a@b.com', name: 'A', role: 'ADMIN' } },
+      ]);
+
+      await expect(controller.switchAccount(3, req, res)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(res.cookie).not.toHaveBeenCalled();
+    });
+
+    it('allows switching to an index that has a live session', async () => {
+      const req = makeReq({});
+      const res = makeRes();
+
+      authMock.getProfilesFromCookies.mockResolvedValue([
+        { index: 0, user: { id: 'user-0', email: 'a@b.com', name: 'A', role: 'ADMIN' } },
+        { index: 1, user: { id: 'user-1', email: 'b@b.com', name: 'B', role: 'ADMIN' } },
+      ]);
+
+      await controller.switchAccount(1, req, res);
+
+      expect(res.cookie).toHaveBeenCalledWith('active_account_index', '1', expect.any(Object));
+    });
+  });
+
+  describe('logoutAll', () => {
+    it('revokes every index with either an access or refresh token, then clears all cookies', async () => {
+      const req = makeReq({
+        ACCESS_TOKEN: 'access-0',
+        REFRESH_TOKEN_1: 'refresh-1', // access token for account 1 already expired
+      });
+      const res = makeRes();
+
+      await controller.logoutAll(req, res);
+
+      expect(authMock.revokeSessionForTokens).toHaveBeenCalledWith('access-0', undefined);
+      expect(authMock.revokeSessionForTokens).toHaveBeenCalledWith(undefined, 'refresh-1');
+      expect(authMock.revokeSessionForTokens).toHaveBeenCalledTimes(2);
+      expect(authMock.clearAllCookies).toHaveBeenCalledWith(res, req);
+    });
+
+    it('skips indices with no tokens at all', async () => {
+      const req = makeReq({ ACCESS_TOKEN: 'access-0' });
+      const res = makeRes();
+
+      await controller.logoutAll(req, res);
+
+      expect(authMock.revokeSessionForTokens).toHaveBeenCalledTimes(1);
+      expect(authMock.clearAllCookies).toHaveBeenCalledWith(res, req);
     });
   });
 });

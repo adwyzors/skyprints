@@ -294,6 +294,29 @@ export class AuthService {
     this.logger.log(`Internal logout for userId=${userId}`);
   }
 
+  // Revokes the session behind whichever token is still readable — falls back to
+  // the refresh token so an account with an already-expired access token still
+  // gets its tokenVersion bumped by logout-all, not just left to expire naturally.
+  async revokeSessionForTokens(
+    accessToken?: string,
+    refreshToken?: string,
+  ): Promise<void> {
+    try {
+      let userId: string | null = null;
+      if (accessToken) {
+        userId = this.internalJwt.verifyAccessToken(accessToken).sub;
+      } else if (refreshToken) {
+        userId = this.internalJwt.verifyRefreshToken(refreshToken).sub;
+      }
+
+      if (userId) {
+        await this.revokeSession(userId);
+      }
+    } catch (e: any) {
+      this.logger.warn(`Could not revoke session from token: ${e.message}`);
+    }
+  }
+
   async revokeSession(userId: string): Promise<void> {
     await this.prisma.login.update({
       where: { userId },

@@ -228,6 +228,53 @@ describe('AuthService', () => {
     });
   });
 
+  // ─── revokeSessionForTokens ───────────────────────────────────────────────
+
+  describe('revokeSessionForTokens', () => {
+    it('revokes the session using the access token when present', async () => {
+      (mockInternalJwt.verifyAccessToken as jest.Mock).mockReturnValue({ sub: 'u1' });
+      (mockPrisma.login.update as jest.Mock).mockResolvedValue({});
+
+      await svc.revokeSessionForTokens('access-tok', undefined);
+
+      expect(mockInternalJwt.verifyAccessToken).toHaveBeenCalledWith('access-tok');
+      expect(mockInternalJwt.verifyRefreshToken).not.toHaveBeenCalled();
+      expect(mockPrisma.login.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: 'u1' } }),
+      );
+    });
+
+    it('falls back to the refresh token when the access token has expired/is absent', async () => {
+      (mockInternalJwt.verifyRefreshToken as jest.Mock).mockReturnValue({ sub: 'u1', tokenVersion: 0 });
+      (mockPrisma.login.update as jest.Mock).mockResolvedValue({});
+
+      await svc.revokeSessionForTokens(undefined, 'refresh-tok');
+
+      expect(mockInternalJwt.verifyRefreshToken).toHaveBeenCalledWith('refresh-tok');
+      expect(mockPrisma.login.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: 'u1' } }),
+      );
+    });
+
+    it('does nothing when neither token verifies', async () => {
+      (mockInternalJwt.verifyAccessToken as jest.Mock).mockImplementation(() => {
+        throw new UnauthorizedException('expired');
+      });
+
+      await svc.revokeSessionForTokens('bad-access', undefined);
+
+      expect(mockPrisma.login.update).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when no tokens are given', async () => {
+      await svc.revokeSessionForTokens(undefined, undefined);
+
+      expect(mockInternalJwt.verifyAccessToken).not.toHaveBeenCalled();
+      expect(mockInternalJwt.verifyRefreshToken).not.toHaveBeenCalled();
+      expect(mockPrisma.login.update).not.toHaveBeenCalled();
+    });
+  });
+
   // ─── getProfilesFromCookies ───────────────────────────────────────────────
 
   describe('getProfilesFromCookies', () => {
