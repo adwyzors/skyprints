@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
+import { PERMISSIONS_KEY, ANY_PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -17,8 +17,16 @@ export class PermissionsGuard implements CanActivate {
       [ctx.getHandler(), ctx.getClass()],
     );
 
-    // No permissions required → allow
-    if (!requiredPermissions || requiredPermissions.length === 0) {
+    const anyPermissions = this.reflector.getAllAndOverride<string[]>(
+      ANY_PERMISSIONS_KEY,
+      [ctx.getHandler(), ctx.getClass()],
+    );
+
+    // No permissions required on either → check if any is present
+    const hasRequired = requiredPermissions && requiredPermissions.length > 0;
+    const hasAny = anyPermissions && anyPermissions.length > 0;
+
+    if (!hasRequired && !hasAny) {
       return true;
     }
 
@@ -27,14 +35,25 @@ export class PermissionsGuard implements CanActivate {
 
     const userPermissions: string[] = user?.permissions ?? [];
 
-    const allowed = requiredPermissions.every((p) =>
-      userPermissions.includes(p),
-    );
+    if (hasRequired) {
+      const allowed = requiredPermissions.every((p) =>
+        userPermissions.includes(p),
+      );
+      if (!allowed) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+    }
 
-    if (!allowed) {
-      throw new ForbiddenException('Insufficient permissions');
+    if (hasAny) {
+      const allowed = anyPermissions.some((p) =>
+        userPermissions.includes(p),
+      );
+      if (!allowed) {
+        throw new ForbiddenException('Insufficient permissions');
+      }
     }
 
     return true;
   }
 }
+
