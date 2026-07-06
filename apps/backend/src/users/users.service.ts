@@ -532,6 +532,20 @@ export class UsersService {
     });
 
     for (const run of candidates) {
+      if (!run.executorId) continue;
+
+      // Only backfill if the executor actually has permission for this process and stage
+      const hasPermission = await tx.managerStagePermission.findFirst({
+        where: {
+          managerId: run.executorId,
+          processId,
+          lifecycleStageId,
+        },
+        select: { id: true },
+      });
+
+      if (!hasPermission) continue;
+
       const enteredStageHistory = await tx.processRunLifecycleHistory.findFirst(
         {
           where: {
@@ -554,7 +568,7 @@ export class UsersService {
 
     if (candidates.length > 0) {
       this.logger.log(
-        `Backfilled ${candidates.length} in-flight run(s) claimedBy for processId=${processId} stage=${stage.code}`,
+        `Backfilled in-flight run(s) claimedBy for processId=${processId} stage=${stage.code}`,
       );
     }
   }

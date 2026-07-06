@@ -171,7 +171,7 @@ describe('UsersService stage permissions (integration)', () => {
         statusCode: 'IN_PROGRESS',
         lifeCycleStatusCode: 'PRODUCTION',
         fields: {},
-        executorId: admin.id,
+        executorId: manager.id,
       },
     });
 
@@ -191,7 +191,7 @@ describe('UsersService stage permissions (integration)', () => {
     const afterBackfill = await testPrisma.processRun.findUniqueOrThrow({
       where: { id: run.id },
     });
-    expect(afterBackfill.claimedBy).toBe(admin.id);
+    expect(afterBackfill.claimedBy).toBe(manager.id);
     expect(afterBackfill.claimedAt).not.toBeNull();
   });
 });
