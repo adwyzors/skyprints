@@ -226,7 +226,7 @@ function DashboardClientContent() {
                                 color="border-orange-200 bg-orange-50/30"
                             />
                             <PulseCard
-                                label="Ready"
+                                label="Awaiting Prod Start"
                                 value={stats.productionState.ready}
                                 icon={<CheckCircle2 className="w-4 h-4 text-blue-500" />}
                                 color="border-blue-200 bg-blue-50/30"
@@ -238,7 +238,7 @@ function DashboardClientContent() {
                                 color="border-amber-200 bg-amber-50/30"
                             />
                             <PulseCard
-                                label="To Be Billed"
+                                label="Rate Confirmation"
                                 value={stats.productionState.toBeBilled}
                                 icon={<DollarSign className="w-4 h-4 text-emerald-500" />}
                                 color="border-emerald-200 bg-emerald-50/30"
