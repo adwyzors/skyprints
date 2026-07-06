@@ -97,6 +97,20 @@ export class ReportsService {
               include: {
                 preProductionLocation: true,
                 postProductionLocation: true,
+                stageHistories: {
+                  include: {
+                    manager: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    lifecycleStage: {
+                      select: {
+                        code: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -409,6 +423,38 @@ export class ReportsService {
 
           const productionDate = orderProcess.lifecycleCompletedAt || date;
 
+          const sortedHistories = [...(run.stageHistories || [])].sort((a: any, b: any) => {
+            return new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime();
+          });
+
+          const managersList = sortedHistories
+            .map((h: any) => h.manager?.name)
+            .filter(Boolean);
+          const uniqueManagers = Array.from(new Set(managersList));
+          const managersStr = uniqueManagers.join(', ') || '-';
+
+          const stageHistoryList = sortedHistories.map((h: any) => {
+            const stageCode = h.lifecycleStage?.code || 'Unknown';
+            const managerName = h.manager?.name || 'Unknown';
+            const durationMin = Math.round(h.durationSeconds / 60);
+            
+            const formatTime = (dVal: any) => {
+              if (!dVal) return '';
+              const d = new Date(dVal);
+              const day = String(d.getDate()).padStart(2, '0');
+              const month = String(d.getMonth() + 1).padStart(2, '0');
+              const hours = String(d.getHours()).padStart(2, '0');
+              const minutes = String(d.getMinutes()).padStart(2, '0');
+              return `${day}/${month} ${hours}:${minutes}`;
+            };
+            
+            const start = formatTime(h.claimedAt);
+            const end = formatTime(h.completedAt);
+            
+            return `[${stageCode}] ${managerName} (${start} to ${end}, ${durationMin}m)`;
+          });
+          const stageHistoryStr = stageHistoryList.join(' | ') || '-';
+
           reportData.push({
             orderId: order.id,
             orderCode: order.code,
@@ -426,6 +472,8 @@ export class ReportsService {
             date: productionDate.toISOString().split('T')[0],
             preProductionLocation: run.preProductionLocation?.name || '-',
             postProductionLocation: run.postProductionLocation?.name || '-',
+            managers: managersStr,
+            stageHistory: stageHistoryStr,
           });
         }
       }
@@ -506,6 +554,8 @@ export class ReportsService {
         key: 'postProductionLocation',
         width: 20,
       },
+      { header: 'Managers', key: 'managers', width: 25 },
+      { header: 'Stage History', key: 'stageHistory', width: 45 },
     ];
 
     worksheet.addRows(data);
