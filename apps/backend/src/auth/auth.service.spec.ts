@@ -29,6 +29,7 @@ const mockInternalJwt: jest.Mocked<InternalJwtService> = {
   signRefreshToken: jest.fn().mockReturnValue('refresh-token'),
   verifyAccessToken: jest.fn(),
   verifyRefreshToken: jest.fn(),
+  decodeToken: jest.fn(),
 } as any;
 
 const mockRes: any = {
@@ -224,6 +225,70 @@ describe('AuthService', () => {
       expect(mockPrisma.login.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { userId: 'u2' }, data: { tokenVersion: { increment: 1 } } }),
       );
+    });
+  });
+
+  // ─── getProfilesFromCookies ───────────────────────────────────────────────
+
+  describe('getProfilesFromCookies', () => {
+    const dbUser = { id: 'user-1', email: 'a@b.com', name: 'A', role: 'ADMIN' };
+
+    it('includes an account whose access token is present and decodes', async () => {
+      (mockInternalJwt.decodeToken as jest.Mock).mockReturnValue({ sub: 'user-1' });
+      (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue(dbUser);
+
+      const req: any = { cookies: { ACCESS_TOKEN: 'access-0' } };
+      const profiles = await svc.getProfilesFromCookies(req);
+
+      expect(profiles).toEqual([{ index: 0, user: dbUser }]);
+      expect(mockInternalJwt.decodeToken).toHaveBeenCalledWith('access-0');
+    });
+
+    it('still reports the account when only its refresh token remains (access token expired)', async () => {
+      // ACCESS_TOKEN_1 absent (expired/cleared), REFRESH_TOKEN_1 still valid
+      (mockInternalJwt.verifyRefreshToken as jest.Mock).mockReturnValue({
+        sub: 'user-1',
+        tokenVersion: 0,
+      });
+      (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue(dbUser);
+
+      const req: any = { cookies: { REFRESH_TOKEN_1: 'refresh-1' } };
+      const profiles = await svc.getProfilesFromCookies(req);
+
+      expect(profiles).toEqual([{ index: 1, user: dbUser }]);
+      expect(mockInternalJwt.verifyRefreshToken).toHaveBeenCalledWith('refresh-1');
+      expect(mockInternalJwt.decodeToken).not.toHaveBeenCalled();
+    });
+
+    it('excludes an index whose refresh token is expired/invalid', async () => {
+      (mockInternalJwt.verifyRefreshToken as jest.Mock).mockImplementation(() => {
+        throw new UnauthorizedException('expired');
+      });
+
+      const req: any = { cookies: { REFRESH_TOKEN_2: 'refresh-2' } };
+      const profiles = await svc.getProfilesFromCookies(req);
+
+      expect(profiles).toEqual([]);
+      expect(mockPrisma.user.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('skips an index with neither access nor refresh token', async () => {
+      const req: any = { cookies: {} };
+      const profiles = await svc.getProfilesFromCookies(req);
+
+      expect(profiles).toEqual([]);
+      expect(mockInternalJwt.decodeToken).not.toHaveBeenCalled();
+      expect(mockInternalJwt.verifyRefreshToken).not.toHaveBeenCalled();
+    });
+
+    it('excludes an account whose user no longer exists/is inactive', async () => {
+      (mockInternalJwt.decodeToken as jest.Mock).mockReturnValue({ sub: 'user-1' });
+      (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const req: any = { cookies: { ACCESS_TOKEN: 'access-0' } };
+      const profiles = await svc.getProfilesFromCookies(req);
+
+      expect(profiles).toEqual([]);
     });
   });
 });

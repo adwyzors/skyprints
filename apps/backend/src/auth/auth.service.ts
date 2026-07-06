@@ -80,34 +80,44 @@ export class AuthService {
       };
     }> = [];
     for (let i = 0; i < 5; i++) {
-      const cookieName = getCookieName('ACCESS_TOKEN', i);
-      const token = req.cookies?.[cookieName];
-      if (token) {
-        try {
-          const decoded = this.internalJwt.decodeToken(token);
-          const userId = decoded?.sub || null;
+      const accessToken = req.cookies?.[getCookieName('ACCESS_TOKEN', i)];
+      const refreshToken = req.cookies?.[getCookieName('REFRESH_TOKEN', i)];
 
-          if (userId) {
-            const dbUser = await this.prisma.user.findFirst({
-              where: { id: userId, deletedAt: null, isActive: true },
-              select: {
-                id: true,
-                email: true,
-                name: true,
-                role: true,
-              },
-            });
+      if (!accessToken && !refreshToken) continue;
 
-            if (dbUser) {
-              profiles.push({
-                index: i,
-                user: dbUser,
-              });
-            }
-          }
-        } catch (e: any) {
-          this.logger.error(`Error decoding token for profile index ${i}: ${e.message}`);
+      try {
+        let userId: string | null = null;
+
+        if (accessToken) {
+          const decoded = this.internalJwt.decodeToken(accessToken);
+          userId = decoded?.sub || null;
+        } else {
+          // Access token expired but the refresh token is still valid — the
+          // session is alive even though there's nothing to decode a profile from yet.
+          const decoded = this.internalJwt.verifyRefreshToken(refreshToken);
+          userId = decoded.sub;
         }
+
+        if (!userId) continue;
+
+        const dbUser = await this.prisma.user.findFirst({
+          where: { id: userId, deletedAt: null, isActive: true },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+          },
+        });
+
+        if (dbUser) {
+          profiles.push({
+            index: i,
+            user: dbUser,
+          });
+        }
+      } catch (e: any) {
+        this.logger.error(`Error resolving profile for index ${i}: ${e.message}`);
       }
     }
     return profiles;
