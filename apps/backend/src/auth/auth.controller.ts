@@ -240,13 +240,10 @@ export class AuthController {
 
     if (useInternal) {
       for (let i = 0; i < 5; i++) {
-        const tokenName = getCookieName('ACCESS_TOKEN', i);
-        const token = req.cookies?.[tokenName];
-        if (token) {
-          try {
-            const decoded = this.auth.verifyAccessToken(token);
-            await this.auth.revokeSession(decoded.sub);
-          } catch {}
+        const accessToken = req.cookies?.[getCookieName('ACCESS_TOKEN', i)];
+        const refreshToken = req.cookies?.[getCookieName('REFRESH_TOKEN', i)];
+        if (accessToken || refreshToken) {
+          await this.auth.revokeSessionForTokens(accessToken, refreshToken);
         }
       }
     } else {
@@ -279,6 +276,14 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     this.logger.log(`Switching active profile index to ${index}`);
+
+    const profiles = await this.auth.getProfilesFromCookies(req);
+    const targetExists = profiles.some((p) => String(p.index) === String(index));
+    if (!targetExists) {
+      this.logger.warn(`Switch denied: no active session for index ${index}`);
+      throw new UnauthorizedException('No active session for that account');
+    }
+
     res.cookie('active_account_index', String(index), {
       ...cookieOptions(req, 7 * 24 * 60 * 60),
       httpOnly: false,
