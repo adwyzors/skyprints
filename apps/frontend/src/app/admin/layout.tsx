@@ -11,6 +11,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { ADMIN_TABS } from '@/config/navigation';
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 
 
 
@@ -20,6 +21,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const { hasPermission } = useAuth();
     const [isHydrated, setIsHydrated] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+    useKeyboardShortcut('ctrl+o', () => {
+        router.push('/admin/orders?create=true');
+    });
 
     const filteredTabs = useMemo(() => {
         return ADMIN_TABS.filter(tab => !tab.permission || hasPermission(tab.permission as any));

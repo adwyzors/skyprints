@@ -86,6 +86,17 @@ function AdminOrdersContent() {
 
     const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+    const createParam = searchParams.get('create');
+
+    useEffect(() => {
+        if (createParam === 'true') {
+            setOpenCreate(true);
+            const next = new URLSearchParams(searchParams.toString());
+            next.delete('create');
+            router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+        }
+    }, [createParam, searchParams, pathname, router]);
+
     /* ================= EFFECTS ================= */
 
     useEffect(() => {
