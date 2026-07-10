@@ -831,8 +831,8 @@ function RunsPageContent() {
                                                             )}
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-900 font-bold">
-                                                            {displayName?.toLowerCase() === 'dtf'
-                                                                ? (run.fields?.customPcs || run.fields?.pcs || '-')
+                                                            {displayName?.toLowerCase() === 'dtf' || displayName?.toLowerCase()?.includes('direct to film')
+                                                                ? (run.fields?.customPcs || run.fields?.pcs || run.fields?.Quantity || run.orderProcess.order.quantity || '-')
                                                                 : (run.fields?.Quantity || run.orderProcess.order.quantity || '-')}
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-600 font-medium">
@@ -840,10 +840,10 @@ function RunsPageContent() {
                                                                 const rate = run.fields?.['Estimated Rate'];
                                                                 if (rate) return `₹${rate}`;
                                                                 const amount = Number(run.fields?.['Estimated Amount'] || 0);
-                                                                const isDTF = displayName?.toLowerCase() === 'dtf';
+                                                                const isDTF = displayName?.toLowerCase() === 'dtf' || displayName?.toLowerCase()?.includes('direct to film');
                                                                 const qty = isDTF
-                                                                    ? Number(run.fields?.customPcs || run.fields?.pcs || 0)
-                                                                    : Number(run.fields?.Quantity || 0);
+                                                                    ? Number(run.fields?.customPcs || run.fields?.pcs || run.fields?.Quantity || run.orderProcess.order.quantity || 0)
+                                                                    : Number(run.fields?.Quantity || run.orderProcess.order.quantity || 0);
                                                                 if (amount && qty) return `₹${(amount / qty).toFixed(2).replace(/\.00$/, '')}`;
                                                                 return '-';
                                                             })()}
