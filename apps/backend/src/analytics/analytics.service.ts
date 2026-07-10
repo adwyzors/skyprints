@@ -486,12 +486,23 @@ export class AnalyticsService {
 
           // Calculate meters for DTF, Sublimation, Allover Sublimation
           if (['DTF', 'Sublimation', 'Allover Sublimation'].includes(pName)) {
-            const mtrVal = fields['Total Mtr'] || fields['total_mtr'];
+            const mtrVal = fields['Total Mtr'] || fields['total_mtr'] || fields['totalMeters'] || fields['totalMeter'] || fields['total_meters'];
             if (mtrVal !== undefined && mtrVal !== null) {
               const parsedMtrs = parseFloat(String(mtrVal).replace(/[^\d.-]/g, ''));
               if (!isNaN(parsedMtrs)) {
                 matrix[pName][matchedStatus].mtrs += parsedMtrs;
               }
+            } else if (pName === 'DTF' && Array.isArray(fields['items'])) {
+              // Fallback calculation for existing DTF runs without persisted "Total Mtr" summary
+              let dtfMtrs = 0;
+              for (const item of fields['items']) {
+                const height = parseFloat(String(item.height || 0));
+                const layouts = parseFloat(String(item.numberOfLayouts || 0));
+                if (!isNaN(height) && !isNaN(layouts)) {
+                  dtfMtrs += (height * layouts) / 39.38;
+                }
+              }
+              matrix[pName][matchedStatus].mtrs += dtfMtrs;
             }
           }
 

@@ -455,6 +455,7 @@ export default function DTFConfig({
             // Summaries
             'Total Layouts': totals.totalLayouts,
             'Total Area': totals.totalArea,
+            'Total Mtr': Number(totals.totalMeter.toFixed(2)),
             'Layout Amount': Number(totals.layoutTotalAmount.toFixed(2)),
             'Actual Meter Cost': Number(totals.actualMeter.toFixed(2)),
             'Efficiency %': Number(totals.efficiency.toFixed(2)),
