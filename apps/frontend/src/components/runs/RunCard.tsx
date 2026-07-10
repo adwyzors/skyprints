@@ -42,7 +42,10 @@ export default function RunCard({ run, active = true, onClick, context, onTransi
     const status = run.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (run.lifeCycleStatusCode || run.statusCode);
 
     // Fields from user request
-    const quantity = run.fields?.Quantity;
+    const isDTF = displayName?.toLowerCase() === 'dtf';
+    const quantity = isDTF
+        ? (run.fields?.customPcs || run.fields?.pcs)
+        : run.fields?.Quantity;
     const estimatedAmount = run.fields?.['Estimated Amount'];
 
     const executorName = run.executor?.name;

@@ -831,14 +831,19 @@ function RunsPageContent() {
                                                             )}
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-900 font-bold">
-                                                            {run.fields?.Quantity || run.orderProcess.order.quantity || '-'}
+                                                            {displayName?.toLowerCase() === 'dtf'
+                                                                ? (run.fields?.customPcs || run.fields?.pcs || '-')
+                                                                : (run.fields?.Quantity || run.orderProcess.order.quantity || '-')}
                                                         </td>
                                                         <td className="px-6 py-4 text-gray-600 font-medium">
                                                             {(() => {
                                                                 const rate = run.fields?.['Estimated Rate'];
                                                                 if (rate) return `₹${rate}`;
                                                                 const amount = Number(run.fields?.['Estimated Amount'] || 0);
-                                                                const qty = Number(run.fields?.Quantity || 0);
+                                                                const isDTF = displayName?.toLowerCase() === 'dtf';
+                                                                const qty = isDTF
+                                                                    ? Number(run.fields?.customPcs || run.fields?.pcs || 0)
+                                                                    : Number(run.fields?.Quantity || 0);
                                                                 if (amount && qty) return `₹${(amount / qty).toFixed(2).replace(/\.00$/, '')}`;
                                                                 return '-';
                                                             })()}
