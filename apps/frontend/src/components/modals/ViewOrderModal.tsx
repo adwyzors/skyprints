@@ -48,6 +48,8 @@ import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { transitionLifeCycle } from '@/services/run.service';
 import EditOrderModal from './EditOrderModal';
+import SearchableManagerSelect from '@/components/common/SearchableManagerSelect';
+import { getManagers } from '@/services/user.service';
 
 export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: ViewOrderModalProps) {
     const [order, setOrder] = useState<Order | null>(null);
@@ -69,6 +71,8 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
     const [expectedDate, setExpectedDate] = useState<string>(
         new Date().toISOString().split('T')[0]
     );
+    const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
+    const [transitionManagers, setTransitionManagers] = useState<Record<string, string>>({});
 
     const router = useRouter();
     const hasFetchedRef = useRef(false);
@@ -126,6 +130,39 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
         fetchOrder();
     }, [orderId]);
 
+    // Fetch managers on component mount
+    useEffect(() => {
+        const fetchManagers = async () => {
+            try {
+                const mgrs = await getManagers();
+                setManagers(mgrs);
+            } catch (err) {
+                console.error('Failed to fetch managers:', err);
+            }
+        };
+        fetchManagers();
+    }, []);
+
+    // Reset and initialize transition managers when the prompt opens
+    useEffect(() => {
+        if (transitionPrompt) {
+            const run = order?.processes
+                .find(p => p.id === transitionPrompt.processId)
+                ?.runs.find(r => r.id === transitionPrompt.runId);
+            const stages = run ? getCompletedStages(run, transitionPrompt.targetStatusCode) : [];
+            
+            const initialManagers: Record<string, string> = {};
+            stages.forEach((stage: any) => {
+                if (stage.manager?.id) {
+                    initialManagers[stage.code] = stage.manager.id;
+                }
+            });
+            setTransitionManagers(initialManagers);
+        } else {
+            setTransitionManagers({});
+        }
+    }, [transitionPrompt, order]);
+
     /* =================================================
        DOMAIN HELPERS (PURE FUNCTIONS)
        ================================================= */
@@ -166,6 +203,27 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
     // Function to check if a lifecycle step is the current step
     const isLifecycleStepCurrent = (run: any, stepCode: string): boolean => {
         return run.lifecycleStatus === stepCode && !isLifecycleStepCompleted(run, stepCode);
+    };
+
+    const getCompletedStages = (run: any, targetStatusCode?: string) => {
+        if (!run || !run.lifecycle) return [];
+        // Filter out terminal stage codes like COMPLETE/BILLED from manager assignment
+        const steps = (run.lifecycle || []).filter(
+            (s: any) => s.code !== 'COMPLETE' && s.code !== 'BILLED'
+        );
+        const currentIndex = steps.findIndex((s: any) => s.code === run.lifecycleStatus);
+        if (currentIndex === -1) return [];
+
+        let targetIndex = -1;
+        if (targetStatusCode) {
+            targetIndex = steps.findIndex((s: any) => s.code === targetStatusCode);
+        } else {
+            targetIndex = currentIndex + 1;
+        }
+
+        if (targetIndex === -1 || targetIndex <= currentIndex || targetIndex > steps.length) return [];
+
+        return steps.slice(currentIndex, targetIndex);
     };
 
     const refreshOrder = async () => {
@@ -300,7 +358,13 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
         setTransitionPrompt({ processId, runId, targetStatusCode, stepName });
     };
 
-    const handleTransition = async (processId: string, runId: string, targetStatusCode?: string, overrideExpectedDate?: string) => {
+    const handleTransition = async (
+        processId: string,
+        runId: string,
+        targetStatusCode?: string,
+        overrideExpectedDate?: string,
+        managersPayload?: Record<string, string>,
+    ) => {
         if (!order) return;
 
         // Find the run
@@ -336,6 +400,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
             const response = await transitionLifeCycle(order.id, processId, runId, {
                 statusCode: nextStatusCode,
                 expectedDate: overrideExpectedDate,
+                managers: managersPayload,
             });
 
             if (response.success) {
@@ -996,52 +1061,98 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
             )}
 
             {/* TRANSITION EXPECTED DATE MODAL */}
-            {transitionPrompt && (
-                <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
-                        <div className="p-5">
-                            <h3 className="text-lg font-bold text-gray-800 mb-2">
-                                {transitionPrompt.stepName ? (
-                                    <>
-                                        Moving from <span className="text-blue-600 font-semibold">{getStatusDisplayName(
-                                            (order?.processes.find(p => p.id === transitionPrompt.processId)?.runs.find(r => r.id === transitionPrompt.runId)?.lifecycleStatus) || ''
-                                        )}</span> to <span className="text-green-600 font-semibold">{transitionPrompt.stepName}</span>
-                                    </>
-                                ) : 'Move to Next Step'}
-                            </h3>
-                            <p className="text-sm text-gray-500 mb-4">
-                                Please confirm or update the expected completion date for <span className="font-medium text-gray-700">{transitionPrompt.stepName || 'this step'}</span>.
-                            </p>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Completion Date
-                            </label>
-                            <input
-                                type="date"
-                                value={expectedDate}
-                                onChange={(e) => setExpectedDate(e.target.value)}
-                                max={new Date().toISOString().split('T')[0]}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                        </div>
-                        <div className="px-5 py-3 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">
-                            <button
-                                onClick={() => setTransitionPrompt(null)}
-                                disabled={updating}
-                                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => handleTransition(transitionPrompt.processId, transitionPrompt.runId, transitionPrompt.targetStatusCode, expectedDate)}
-                                disabled={updating}
-                                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
-                            >
-                                {updating ? 'Updating...' : 'Confirm'}
-                            </button>
+            {transitionPrompt && (() => {
+                const run = order?.processes
+                    .find(p => p.id === transitionPrompt.processId)
+                    ?.runs.find(r => r.id === transitionPrompt.runId);
+                const completedStages = run ? getCompletedStages(run, transitionPrompt.targetStatusCode) : [];
+
+                return (
+                    <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                            <div className="p-5 max-h-[75vh] overflow-y-auto">
+                                <h3 className="text-lg font-bold text-gray-800 mb-2">
+                                    {transitionPrompt.stepName ? (
+                                        <>
+                                            Moving from <span className="text-blue-600 font-semibold">{getStatusDisplayName(
+                                                run?.lifecycleStatus || ''
+                                            )}</span> to <span className="text-green-600 font-semibold">{transitionPrompt.stepName}</span>
+                                        </>
+                                    ) : 'Move to Next Step'}
+                                </h3>
+                                <p className="text-sm text-gray-500 mb-4">
+                                    Please confirm or update the expected completion date and select managers for the completed stages.
+                                </p>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Completion Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={expectedDate}
+                                            onChange={(e) => setExpectedDate(e.target.value)}
+                                            max={new Date().toISOString().split('T')[0]}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        />
+                                    </div>
+
+                                    {completedStages.length > 0 && (
+                                        <div className="border-t border-gray-100 pt-3">
+                                            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                                Assign Managers for Completed Stages (Optional)
+                                            </h4>
+                                            <div className="space-y-3">
+                                                {completedStages.map((stage: any) => (
+                                                    <div key={stage.code} className="flex flex-col gap-1">
+                                                        <SearchableManagerSelect
+                                                            label={`Manager for ${getStatusDisplayName(stage.code)}`}
+                                                            users={managers}
+                                                            selectedUserId={transitionManagers[stage.code] || null}
+                                                            onSelect={(userId) => {
+                                                                setTransitionManagers(prev => ({
+                                                                    ...prev,
+                                                                    [stage.code]: userId
+                                                                }));
+                                                            }}
+                                                            placeholder={`Select manager for ${getStatusDisplayName(stage.code)}`}
+                                                            className="text-xs"
+                                                            inputClassName="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:opacity-50"
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="px-5 py-3 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">
+                                <button
+                                    onClick={() => setTransitionPrompt(null)}
+                                    disabled={updating}
+                                    className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => handleTransition(
+                                        transitionPrompt.processId,
+                                        transitionPrompt.runId,
+                                        transitionPrompt.targetStatusCode,
+                                        expectedDate,
+                                        transitionManagers
+                                    )}
+                                    disabled={updating}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                    {updating ? 'Updating...' : 'Confirm'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {order && (
                 <EditOrderModal

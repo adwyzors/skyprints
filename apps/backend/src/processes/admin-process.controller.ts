@@ -108,6 +108,7 @@ export class AdminProcessController {
       processRunId,
       dto.statusCode,
       dto.expectedDate,
+      dto.managers,
     );
   }
 

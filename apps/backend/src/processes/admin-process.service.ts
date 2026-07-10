@@ -1190,6 +1190,7 @@ export class AdminProcessService {
     processRunId: string,
     targetStatusCode: string,
     expectedDate?: string,
+    managers?: Record<string, string>,
     tx?: PrismaExecutor,
   ) {
     this.logger.log(
@@ -1302,6 +1303,61 @@ export class AdminProcessService {
         where: { id: processRun.id },
         data: { lifeCycleStatusCode: target.code },
       });
+
+      // Create new stage histories or update existing ones for the specified stages completed by this transition
+      if (managers) {
+        // Fetch all workflow statuses for this workflow type to map status codes to database stage IDs
+        const allWorkflowStatuses = await executor.workflowStatus.findMany({
+          where: { workflowTypeId: template.lifecycleWorkflowTypeId },
+          select: { id: true, code: true },
+        });
+        const statusMap = new Map(allWorkflowStatuses.map((s) => [s.code, s.id]));
+
+        for (const [stageCode, managerId] of Object.entries(managers)) {
+          if (!managerId) continue;
+          const stageId = statusMap.get(stageCode);
+          if (!stageId) {
+            this.logger.warn(`Workflow status code ${stageCode} not found for template ${processRun.runTemplateId}`);
+            continue;
+          }
+
+          // Validate that the manager user exists and has the MANAGER role
+          const managerUser = await executor.user.findUnique({
+            where: { id: managerId },
+            select: { role: true },
+          });
+          if (!managerUser || managerUser.role !== 'MANAGER') {
+            this.logger.warn(`User ${managerId} not found or is not a MANAGER`);
+            continue;
+          }
+
+          const existingHistory = await executor.processRunStageHistory.findFirst({
+            where: {
+              processRunId: processRun.id,
+              lifecycleStageId: stageId,
+            },
+          });
+
+          if (existingHistory) {
+            await executor.processRunStageHistory.update({
+              where: { id: existingHistory.id },
+              data: { managerId },
+            });
+          } else {
+            await executor.processRunStageHistory.create({
+              data: {
+                processRunId: processRun.id,
+                processId: processRun.orderProcess.processId,
+                lifecycleStageId: stageId,
+                managerId,
+                claimedAt: transitionDate,
+                completedAt: transitionDate,
+                durationSeconds: 0,
+              },
+            });
+          }
+        }
+      }
 
       // Mark previous state as completed
       await executor.processRunLifecycleHistory.updateMany({
