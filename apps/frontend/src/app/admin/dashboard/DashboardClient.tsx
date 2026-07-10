@@ -726,7 +726,7 @@ function PulseCard({ label, value, icon, color, dark = false }: PulseCardProps) 
 }
 
 function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChange, visibility }: {
-    matrix: Record<string, Record<string, { count: number, value: number, mtrs?: number }>>,
+    matrix: Record<string, Record<string, { count: number, value: number, mtrs?: number, totalQty?: number }>>,
     locationId?: string,
     locations: Location[],
     onLocationChange: (id: string) => void,
@@ -851,17 +851,10 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                                         const hasValue = data && data.value > 0;
 
                                         const isMeterProcess = ['dtf', 'sublimation', 'allover sublimation', 'all over sublimation'].includes(process.toLowerCase());
-                                        const isProductionStage = [
-                                            'PRODUCTION',
-                                            'WAITING',
-                                            'CUTTING/WEEDING',
-                                            'CURING',
-                                            'FUSING',
-                                            'QC & COUNTING',
-                                            'Var Kata and Kg',
-                                            'COMPLETE'
-                                        ].includes(status.toUpperCase());
-                                        const showMtrs = isMeterProcess && isProductionStage && data && data.mtrs && data.mtrs > 0;
+                                        const isMtrStage = status.toUpperCase() === 'PRODUCTION';
+                                        const isQtyStage = ['CURING', 'FUSING', 'QC & COUNTING'].includes(status.toUpperCase());
+                                        const showMtrs = isMeterProcess && isMtrStage && data && data.mtrs && data.mtrs > 0;
+                                        const showTotalQty = isMeterProcess && isQtyStage && data && data.totalQty && data.totalQty > 0;
 
                                         return (
                                             <td
@@ -872,10 +865,11 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                                                 {hasData ? (
                                                     <div className="flex flex-col items-center">
                                                         <span className="text-sm font-black text-gray-900 group-hover:text-blue-600">{data.count}</span>
-                                                        {(hasValue || showMtrs) && (
+                                                        {(hasValue || showMtrs || showTotalQty) && (
                                                             <span className="text-[9px] font-bold text-blue-600 opacity-60 group-hover:opacity-100 whitespace-nowrap">
                                                                 ₹{Math.round(data.value || 0).toLocaleString()}
                                                                 {showMtrs && ` / ${parseFloat((data.mtrs || 0).toFixed(1))} mtr`}
+                                                                {showTotalQty && ` / ${Math.round(data.totalQty || 0).toLocaleString()} pcs`}
                                                             </span>
                                                         )}
                                                     </div>

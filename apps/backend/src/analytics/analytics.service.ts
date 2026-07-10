@@ -404,14 +404,14 @@ export class AnalyticsService {
 
       const matrix: Record<
         string,
-        Record<string, { count: number; value: number; mtrs: number }>
+        Record<string, { count: number; value: number; mtrs: number; totalQty: number }>
       > = {};
 
       // Initialize matrix
       processes.forEach((p) => {
         matrix[p] = {};
         statuses.forEach((s) => {
-          matrix[p][s] = { count: 0, value: 0, mtrs: 0 };
+          matrix[p][s] = { count: 0, value: 0, mtrs: 0, totalQty: 0 };
         });
       });
 
@@ -483,6 +483,20 @@ export class AnalyticsService {
 
         if (matrix[pName] && matchedStatus) {
           matrix[pName][matchedStatus].count += 1;
+
+          // Accumulate total quantity (pieces) for meter-based processes
+          if (['DTF', 'Sublimation', 'Allover Sublimation'].includes(pName)) {
+            const qtyVal =
+              fields['pcs'] ||
+              fields['Total Quantity'] ||
+              fields['totalQuantity'] ||
+              fields['total_quantity'] ||
+              fields['Quantity'] || 0;
+            const parsedQty = parseFloat(String(qtyVal).replace(/[^\d.-]/g, ''));
+            if (!isNaN(parsedQty)) {
+              matrix[pName][matchedStatus].totalQty += parsedQty;
+            }
+          }
 
           // Calculate meters for DTF, Sublimation, Allover Sublimation
           if (['DTF', 'Sublimation', 'Allover Sublimation'].includes(pName)) {
