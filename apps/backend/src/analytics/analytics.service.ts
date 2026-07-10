@@ -492,33 +492,53 @@ export class AnalyticsService {
               if (!isNaN(parsedMtrs)) {
                 matrix[pName][matchedStatus].mtrs += parsedMtrs;
               }
-            } else if (pName === 'DTF' && Array.isArray(fields['items'])) {
-              // Fallback calculation for existing DTF runs without persisted "Total Mtr" summary
-              let dtfMtrs = 0;
-              for (const item of fields['items']) {
-                const height = parseFloat(String(item.height || 0));
-                const layouts = parseFloat(String(item.numberOfLayouts || 0));
-                if (!isNaN(height) && !isNaN(layouts)) {
-                  dtfMtrs += (height * layouts) / 39.38;
+            } else if (pName === 'DTF') {
+              let items = fields['items'];
+              if (typeof items === 'string') {
+                try {
+                  items = JSON.parse(items);
+                } catch {
+                  items = [];
                 }
               }
-              matrix[pName][matchedStatus].mtrs += dtfMtrs;
-            } else if (pName === 'Sublimation' && Array.isArray(fields['items'])) {
-              // Fallback calculation for existing Sublimation runs without persisted "totalMeters" summary
-              let subMtrs = 0;
-              for (const item of fields['items']) {
-                const height = parseFloat(String(item.height || 0));
-                let qtySum = 0;
-                if (Array.isArray(item.quantities)) {
-                  qtySum = item.quantities.reduce((sum: number, q: any) => sum + (parseFloat(String(q)) || 0), 0);
-                } else {
-                  qtySum = parseFloat(String(item.sum || item.quantity || 0));
+              if (Array.isArray(items)) {
+                // Fallback calculation for existing DTF runs without persisted "Total Mtr" summary
+                let dtfMtrs = 0;
+                for (const item of items) {
+                  const height = parseFloat(String(item.height || 0));
+                  const layouts = parseFloat(String(item.numberOfLayouts || 0));
+                  if (!isNaN(height) && !isNaN(layouts)) {
+                    dtfMtrs += (height * layouts) / 39.38;
+                  }
                 }
-                if (!isNaN(height) && !isNaN(qtySum)) {
-                  subMtrs += (height * qtySum) / 39.38;
+                matrix[pName][matchedStatus].mtrs += dtfMtrs;
+              }
+            } else if (pName === 'Sublimation') {
+              let items = fields['items'];
+              if (typeof items === 'string') {
+                try {
+                  items = JSON.parse(items);
+                } catch {
+                  items = [];
                 }
               }
-              matrix[pName][matchedStatus].mtrs += subMtrs;
+              if (Array.isArray(items)) {
+                // Fallback calculation for existing Sublimation runs without persisted "totalMeters" summary
+                let subMtrs = 0;
+                for (const item of items) {
+                  const height = parseFloat(String(item.height || 0));
+                  let qtySum = 0;
+                  if (Array.isArray(item.quantities)) {
+                    qtySum = item.quantities.reduce((sum: number, q: any) => sum + (parseFloat(String(q)) || 0), 0);
+                  } else {
+                    qtySum = parseFloat(String(item.sum || item.quantity || 0));
+                  }
+                  if (!isNaN(height) && !isNaN(qtySum)) {
+                    subMtrs += (height * qtySum) / 39.38;
+                  }
+                }
+                matrix[pName][matchedStatus].mtrs += subMtrs;
+              }
             }
           }
 
