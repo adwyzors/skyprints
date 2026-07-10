@@ -751,6 +751,19 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
     ];
     const processes = Object.keys(matrix);
 
+    const getStatusTotals = (status: string) => {
+        let totalCount = 0;
+        let totalValue = 0;
+        for (const process of processes) {
+            const data = matrix[process]?.[status];
+            if (data) {
+                totalCount += data.count || 0;
+                totalValue += data.value || 0;
+            }
+        }
+        return { totalCount, totalValue };
+    };
+
     const handleCellClick = (process: string, status: string) => {
         const params = new URLSearchParams();
         params.set('processId', process);
@@ -795,11 +808,22 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
                             <th className="px-4 py-3 font-bold text-gray-600 border-r border-gray-100">Process / Stage</th>
-                            {statuses.map(status => (
-                                <th key={status} className="px-4 py-3 font-bold text-gray-600 text-center border-r border-gray-100 last:border-r-0">
-                                    {status}
-                                </th>
-                            ))}
+                            {statuses.map(status => {
+                                const { totalCount, totalValue } = getStatusTotals(status);
+                                return (
+                                    <th key={status} className="px-4 py-3 font-bold text-gray-600 text-center border-r border-gray-100 last:border-r-0">
+                                        <div className="flex flex-col items-center">
+                                            <span>{status}</span>
+                                            {totalCount > 0 && (
+                                                <div className="mt-1 flex flex-col items-center">
+                                                    <span className="text-[10px] font-black text-blue-700">{totalCount.toLocaleString()}</span>
+                                                    <span className="text-[9px] font-bold text-emerald-600">₹{Math.round(totalValue).toLocaleString()}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </th>
+                                );
+                            })}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
