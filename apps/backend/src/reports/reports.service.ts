@@ -22,7 +22,7 @@ export class ReportsService {
     } = query;
 
     const whereClause: any = {
-      statusCode: { in: ['BILLED', 'GROUP_BILLED'] },
+      statusCode: 'GROUP_BILLED',
       deletedAt: null,
     };
 
