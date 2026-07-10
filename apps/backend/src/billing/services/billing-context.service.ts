@@ -990,7 +990,7 @@ export class BillingContextService {
           take: 1,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
 
     // 2. Map billing context details, similar to getContextById's map
