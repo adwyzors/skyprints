@@ -503,6 +503,22 @@ export class AnalyticsService {
                 }
               }
               matrix[pName][matchedStatus].mtrs += dtfMtrs;
+            } else if (pName === 'Sublimation' && Array.isArray(fields['items'])) {
+              // Fallback calculation for existing Sublimation runs without persisted "totalMeters" summary
+              let subMtrs = 0;
+              for (const item of fields['items']) {
+                const height = parseFloat(String(item.height || 0));
+                let qtySum = 0;
+                if (Array.isArray(item.quantities)) {
+                  qtySum = item.quantities.reduce((sum: number, q: any) => sum + (parseFloat(String(q)) || 0), 0);
+                } else {
+                  qtySum = parseFloat(String(item.sum || item.quantity || 0));
+                }
+                if (!isNaN(height) && !isNaN(qtySum)) {
+                  subMtrs += (height * qtySum) / 39.38;
+                }
+              }
+              matrix[pName][matchedStatus].mtrs += subMtrs;
             }
           }
 
