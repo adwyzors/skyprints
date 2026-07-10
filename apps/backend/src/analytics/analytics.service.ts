@@ -404,14 +404,14 @@ export class AnalyticsService {
 
       const matrix: Record<
         string,
-        Record<string, { count: number; value: number }>
+        Record<string, { count: number; value: number; mtrs: number }>
       > = {};
 
       // Initialize matrix
       processes.forEach((p) => {
         matrix[p] = {};
         statuses.forEach((s) => {
-          matrix[p][s] = { count: 0, value: 0 };
+          matrix[p][s] = { count: 0, value: 0, mtrs: 0 };
         });
       });
 
@@ -483,6 +483,17 @@ export class AnalyticsService {
 
         if (matrix[pName] && matchedStatus) {
           matrix[pName][matchedStatus].count += 1;
+
+          // Calculate meters for DTF, Sublimation, Allover Sublimation
+          if (['DTF', 'Sublimation', 'Allover Sublimation'].includes(pName)) {
+            const mtrVal = fields['Total Mtr'] || fields['total_mtr'];
+            if (mtrVal !== undefined && mtrVal !== null) {
+              const parsedMtrs = parseFloat(String(mtrVal).replace(/[^\d.-]/g, ''));
+              if (!isNaN(parsedMtrs)) {
+                matrix[pName][matchedStatus].mtrs += parsedMtrs;
+              }
+            }
+          }
 
           // Calculate value similarly to Run Activity Page
           // 1. Try "Estimated Amount" field first
