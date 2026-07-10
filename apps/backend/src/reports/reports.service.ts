@@ -472,6 +472,12 @@ export class ReportsService {
           });
           const stageHistoryStr = stageHistoryList.join(' | ') || '-';
 
+          const stageDetails = sortedHistories.map((h: any) => ({
+            stageCode: h.lifecycleStage?.code || 'Unknown',
+            managerName: h.manager?.name || 'Unknown',
+            durationMin: Math.round(h.durationSeconds / 60),
+          }));
+
           reportData.push({
             orderId: order.id,
             orderCode: order.code,
@@ -491,6 +497,7 @@ export class ReportsService {
             postProductionLocation: run.postProductionLocation?.name || '-',
             managers: managersStr,
             stageHistory: stageHistoryStr,
+            stageDetails,
           });
         }
       }
@@ -551,10 +558,24 @@ export class ReportsService {
     });
     const data = (report as any).data;
 
+    // Dynamically identify all unique lifecycle stage codes across report rows
+    const uniqueStageCodes = new Set<string>();
+    for (const row of data) {
+      if (row.stageDetails) {
+        for (const detail of row.stageDetails) {
+          if (detail.stageCode) {
+            uniqueStageCodes.add(detail.stageCode);
+          }
+        }
+      }
+    }
+    // Sort stage codes alphabetically for consistent column ordering
+    const stageCodes = Array.from(uniqueStageCodes).sort();
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Billed Orders Report');
 
-    worksheet.columns = [
+    const columns: any[] = [
       { header: 'Order Code', key: 'orderCode', width: 15 },
       { header: 'Process Name', key: 'processName', width: 20 },
       { header: 'Run No', key: 'runNumbers', width: 15 },
@@ -571,11 +592,53 @@ export class ReportsService {
         key: 'postProductionLocation',
         width: 20,
       },
-      { header: 'Managers', key: 'managers', width: 25 },
-      { header: 'Stage History', key: 'stageHistory', width: 45 },
     ];
 
-    worksheet.addRows(data);
+    // Append stage codes as columns
+    for (const stageCode of stageCodes) {
+      columns.push({
+        header: stageCode,
+        key: `stage_${stageCode}`,
+        width: 20,
+      });
+    }
+
+    worksheet.columns = columns;
+
+    // Map each report row to include the managers & time per stage column
+    const rows = data.map((row: any) => {
+      const excelRow: any = {
+        orderCode: row.orderCode,
+        processName: row.processName,
+        runNumbers: row.runNumbers,
+        description: row.description,
+        customerName: row.customerName,
+        quantity: row.quantity,
+        rate: row.rate,
+        amount: row.amount,
+        billNumber: row.billNumber,
+        date: row.date,
+        preProductionLocation: row.preProductionLocation,
+        postProductionLocation: row.postProductionLocation,
+      };
+
+      for (const stageCode of stageCodes) {
+        const matchingDetails = row.stageDetails?.filter(
+          (d: any) => d.stageCode === stageCode,
+        );
+        if (matchingDetails && matchingDetails.length > 0) {
+          excelRow[`stage_${stageCode}`] = matchingDetails
+            .map((d: any) => `${d.managerName} (${d.durationMin}m)`)
+            .join(', ');
+        } else {
+          excelRow[`stage_${stageCode}`] = '-';
+        }
+      }
+
+      return excelRow;
+    });
+
+    worksheet.addRows(rows);
 
     // Styling headers
     worksheet.getRow(1).font = { bold: true };

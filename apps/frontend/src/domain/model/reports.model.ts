@@ -15,6 +15,11 @@ export interface BilledOrderReportRow {
     preProductionLocation?: string;
     postProductionLocation?: string;
     runId?: string;
+    stageDetails?: {
+        stageCode: string;
+        managerName: string;
+        durationMin: number;
+    }[];
 }
 
 export interface ReportsQuery {
