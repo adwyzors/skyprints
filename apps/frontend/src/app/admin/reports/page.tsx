@@ -59,6 +59,9 @@ function ReportsPageContent() {
     const [query, setQuery] = useState<ReportsQuery>({
         customerId: '',
         processId: '',
+        preProductionLocationId: '',
+        postProductionLocationId: '',
+        managerId: '',
         startDate: '',
         endDate: '',
         page: 1,

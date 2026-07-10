@@ -4,9 +4,11 @@ import { Filter, X, Calendar, User, Activity, MapPin } from 'lucide-react';
 import SearchableCustomerSelect from '../common/SearchableCustomerSelect';
 import SearchableProcessSelect from '../common/SearchableProcessSelect';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
+import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import { ReportsQuery } from '@/domain/model/reports.model';
 import { useEffect, useRef, useState } from 'react';
 import { getCustomers } from '@/services/customer.service';
+import { listUsers } from '@/services/usersService';
 import { getProcesses } from '@/services/process.service';
 import { getLocations } from '@/services/location.service';
 import { Customer } from '@/domain/model/customer.model';
@@ -23,6 +25,7 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [processes, setProcesses] = useState<ProcessSummary[]>([]);
     const [locations, setLocations] = useState<Location[]>([]);
+    const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
     const hasFetchedRef = useRef(false);
 
     useEffect(() => {
@@ -30,14 +33,21 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
         hasFetchedRef.current = true;
         const loadFilterData = async () => {
             try {
-                const [customerData, processData, locationData] = await Promise.all([
+                const [customerData, processData, locationData, userData] = await Promise.all([
                     getCustomers(),
                     getProcesses(),
-                    getLocations()
+                    getLocations(),
+                    listUsers()
                 ]);
                 setCustomers(customerData);
                 setProcesses(processData);
                 setLocations(locationData);
+                
+                // Show all active users as managers involved in the dropdown
+                const activeManagers = userData
+                    .filter(u => u.isActive)
+                    .map(u => ({ id: u.id, name: u.name }));
+                setManagers(activeManagers);
             } catch (error) {
                 console.error('Failed to load filter data:', error);
             }
@@ -67,12 +77,13 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
             processId: '',
             preProductionLocationId: '',
             postProductionLocationId: '',
+            managerId: '',
             startDate: '',
             endDate: ''
         });
     };
 
-    const hasFilters = query.customerId || query.processId || query.preProductionLocationId || query.postProductionLocationId || query.startDate || query.endDate;
+    const hasFilters = query.customerId || query.processId || query.preProductionLocationId || query.postProductionLocationId || query.managerId || query.startDate || query.endDate;
 
     return (
         <div className="flex flex-col h-full bg-white">
@@ -141,6 +152,22 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
                         locations={locations}
                         valueId={query.postProductionLocationId || ''}
                         onChange={(id) => handleLocationChange('postProductionLocationId', id)}
+                    />
+                </div>
+
+                {/* Manager Filter */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <User className="w-3 h-3" />
+                        Manager Involved
+                    </label>
+                    <SearchableManagerSelect
+                        users={managers}
+                        selectedUserId={query.managerId || null}
+                        onSelect={(id) => onQueryChange({ ...query, managerId: id })}
+                        placeholder="Search managers..."
+                        allowClear={true}
+                        inputClassName="w-full text-sm border border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50/50 px-3 py-2"
                     />
                 </div>
 

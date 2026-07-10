@@ -27,6 +27,10 @@ export class ReportsQueryDto {
 
   @IsOptional()
   @IsString()
+  managerId?: string;
+
+  @IsOptional()
+  @IsString()
   search?: string;
 
   @IsOptional()

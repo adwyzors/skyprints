@@ -16,6 +16,7 @@ export class ReportsService {
       processId,
       preProductionLocationId,
       postProductionLocationId,
+      managerId,
       search,
       page,
       limit,
@@ -33,12 +34,20 @@ export class ReportsService {
     const processWhere: any = {};
     if (processId) processWhere.processId = processId;
 
-    if (preProductionLocationId || postProductionLocationId) {
-      const runWhere: any = {};
-      if (preProductionLocationId)
-        runWhere.preProductionLocationId = preProductionLocationId;
-      if (postProductionLocationId)
-        runWhere.postProductionLocationId = postProductionLocationId;
+    const runWhere: any = {};
+    if (preProductionLocationId)
+      runWhere.preProductionLocationId = preProductionLocationId;
+    if (postProductionLocationId)
+      runWhere.postProductionLocationId = postProductionLocationId;
+    if (managerId) {
+      runWhere.stageHistories = {
+        some: {
+          managerId: managerId,
+        },
+      };
+    }
+
+    if (Object.keys(runWhere).length > 0) {
       processWhere.runs = { some: runWhere };
     }
 
@@ -238,6 +247,14 @@ export class ReportsService {
               !postProductionLocationId ||
               run.postProductionLocationId === postProductionLocationId;
             if (!preMatch || !postMatch) continue;
+          }
+
+          // Manager filtering
+          if (managerId) {
+            const managerMatch = run.stageHistories.some(
+              (h: any) => h.managerId === managerId,
+            );
+            if (!managerMatch) continue;
           }
 
           // Extract run-specific billing data

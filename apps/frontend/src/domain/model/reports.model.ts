@@ -24,6 +24,7 @@ export interface ReportsQuery {
     processId?: string;
     preProductionLocationId?: string;
     postProductionLocationId?: string;
+    managerId?: string;
     search?: string;
     page?: number;
     limit?: number;
