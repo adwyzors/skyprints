@@ -47,7 +47,6 @@
         "exceljs": "^4.4.0",
         "json-logic-js": "^2.0.5",
         "jsonwebtoken": "^9.0.3",
-        "jwks-rsa": "^3.2.0",
         "jwt-decode": "^4.0.0",
         "lru-memoizer": "^3.0.0",
         "mathjs": "^15.1.0",

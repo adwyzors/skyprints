@@ -1,12 +1,16 @@
 # Backend — CLAUDE.md
 
-NestJS 11 + Prisma + PostgreSQL. Feature modules under `src/`. Deployed as Vercel serverless via `api/index.ts`.
+NestJS 11 + Prisma + PostgreSQL. Feature modules under `src/`. Runs as a persistent PM2
+process (`ecosystem.config.js`) on a DigitalOcean droplet behind nginx, reachable at
+`api.adwyzors.com`. (The Vercel serverless entrypoint, `api/index.ts` /
+`main.serverless.ts`, is being kept temporarily as a rollback fallback during the cutover —
+do not build new features against it.)
 
 ## Module map
 
 | Module | Purpose |
 |---|---|
-| `auth` | Keycloak OAuth + cookie auth. See [rules/auth.md](../../rules/auth.md) |
+| `auth` | Internal bcrypt+JWT cookie auth (Keycloak removed). See [rules/auth.md](../../rules/auth.md) |
 | `orders` | Order CRUD, status machine, credit-limit enforcement |
 | `runs` | ProcessRun configure/lifecycle updates |
 | `run-templates` | Templates that define run fields + billing formula |
@@ -23,8 +27,10 @@ NestJS 11 + Prisma + PostgreSQL. Feature modules under `src/`. Deployed as Verce
 ## Auth guards (order matters)
 
 Two global `APP_GUARD`s registered in `app.module.ts`:
-1. `AuthGuard` — checks `@Public()`, else delegates to `JwtAuthGuard` (validates Keycloak JWT via JWKS)
-2. `PermissionsGuard` — reads `@Permissions(...)` metadata, checks `req.user.permissions`
+1. `AuthGuard` — checks `@Public()`, else delegates to `InternalJwtAuthGuard` (validates the
+   internal HS256 JWT, secret = `JWT_SECRET`)
+2. `PermissionsGuard` — reads `@Permissions(...)` / `@AnyPermissions(...)` metadata, checks
+   `req.user.permissions`
 
 **When adding a protected endpoint:** use `@Permissions('resource:action')`. The permission string must also exist in the frontend `Permission` enum (`apps/frontend/src/auth/permissions.ts`). Do not check roles manually.
 
@@ -58,18 +64,19 @@ Pagination metadata goes into response headers (`x-total-count`, `x-total-pages`
 
 ```
 DATABASE_URL
-KEYCLOAK_TOKEN_URL, KEYCLOAK_AUTH_URL, KEYCLOAK_LOGOUT_URL
-KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
-JWKS_URI
-TOKEN_ISSUER, TOKEN_AUDIENCE
-APP_BASE_URL           # backend public URL (used for OAuth callback redirect_uri)
-FRONT_END_BASE_URL     # frontend URL (used for post-login redirect)
+JWT_SECRET              # min 32 chars, validated at startup — app refuses to boot without it
+JWT_ACCESS_EXPIRES, JWT_REFRESH_EXPIRES
+FRONT_END_BASE_URL      # frontend URL — used for CORS origin
 COOKIE_HTTP_ONLY, COOKIE_SECURE, COOKIE_SAMESITE, COOKIE_DOMAIN, COOKIE_PATH
-PORT                   # defaults to 3001
-CRON_SECRET, IMAGE_RETENTION_SECRET, IMAGE_RETENTION_DAYS
-ORDER_RETENTION_ENABLED, ORDER_RETENTION_CRON, ORDER_RETENTION_DAYS
+PORT                    # defaults to 3001
+NODE_ENV                # 'prod' gates cron execution + CRON_SECRET auth checks
+IMAGE_RETENTION_DAYS    # cleanup now runs via @Cron in image-retention.service.ts (daily
+                         # 02:00), only when NODE_ENV=prod
+CRON_SECRET, IMAGE_RETENTION_SECRET   # still used to auth manual POST /internal/image-retention/cleanup calls
+ORDER_RETENTION_ENABLED, ORDER_RETENTION_CRON, ORDER_RETENTION_DAYS   # order-retention job (currently disabled/commented out)
 JOBS_ENABLED
 MAX_ORDERS_PER_RUN
+CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_BUCKET_NAME, CLOUDFLARE_PUBLIC_URL, CLOUDFLARE_ENDPOINT
 ```
 
 ## Testing

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
@@ -14,6 +15,29 @@ export class ImageRetentionService {
     private readonly prisma: PrismaService,
     private readonly cloudflare: CloudflareService,
   ) {}
+
+  /**
+   * Runs daily at 02:00 server time — replaces the Vercel Cron HTTP hook that
+   * used to call POST /internal/image-retention/cleanup.
+   */
+  @Cron('0 2 * * *', { name: 'image-retention-cleanup' })
+  async scheduledCleanup() {
+    if (process.env.NODE_ENV !== 'prod') {
+      return;
+    }
+
+    this.logger.log('[CRON] Starting scheduled image retention cleanup');
+
+    try {
+      const result = await this.cleanup({});
+      this.logger.log(`[CRON] Cleanup finished: ${JSON.stringify(result)}`);
+    } catch (error) {
+      this.logger.error(
+        '[CRON] Scheduled cleanup failed',
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
 
   async cleanup({
     limit,

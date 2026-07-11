@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
@@ -22,7 +21,13 @@ export class AuthService {
     private readonly internalJwt: InternalJwtService,
   ) {}
 
-  setAuthCookies(res: Response, tokens: any, req: Request, rememberMe = true, loginIndex: number | string = 0) {
+  setAuthCookies(
+    res: Response,
+    tokens: any,
+    req: Request,
+    rememberMe = true,
+    loginIndex: number | string = 0,
+  ) {
     this.setAccessCookie(res, tokens.access_token, req, loginIndex);
 
     // rememberMe=false -> session cookie, cleared when the browser closes
@@ -40,10 +45,17 @@ export class AuthService {
       httpOnly: false,
     });
 
-    this.logger.log(`Auth cookies set for index ${loginIndex} (rememberMe=${rememberMe})`);
+    this.logger.log(
+      `Auth cookies set for index ${loginIndex} (rememberMe=${rememberMe})`,
+    );
   }
 
-  setAccessCookie(res: Response, token: string, req: Request, loginIndex: number | string = 0) {
+  setAccessCookie(
+    res: Response,
+    token: string,
+    req: Request,
+    loginIndex: number | string = 0,
+  ) {
     const cookieName = getCookieName('ACCESS_TOKEN', loginIndex);
     res.cookie(cookieName, token, cookieOptions(req, 15 * 60));
   }
@@ -117,7 +129,9 @@ export class AuthService {
           });
         }
       } catch (e: any) {
-        this.logger.error(`Error resolving profile for index ${i}: ${e.message}`);
+        this.logger.error(
+          `Error resolving profile for index ${i}: ${e.message}`,
+        );
       }
     }
     return profiles;
@@ -131,12 +145,6 @@ export class AuthService {
     rememberMe = true,
     loginIndex: number | string = 0,
   ): Promise<void> {
-    if (process.env.INTERNAL_AUTH_ENABLED !== 'true') {
-      throw new ServiceUnavailableException(
-        'Internal auth is not enabled. Use Keycloak login.',
-      );
-    }
-
     // 1. Look up login record by username first, then fall back to user email
     let loginRecord = await this.prisma.login.findFirst({
       where: {
@@ -328,7 +336,6 @@ export class AuthService {
   verifyAccessToken(token: string) {
     return this.internalJwt.verifyAccessToken(token);
   }
-
 
   async getMe(authUser: any) {
     const user = await this.prisma.user.findFirst({

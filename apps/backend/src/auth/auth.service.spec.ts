@@ -1,7 +1,4 @@
-import {
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InternalJwtService } from './jwt/internal-jwt.service';
@@ -70,21 +67,9 @@ describe('AuthService', () => {
     };
 
     beforeEach(() => {
-      process.env.INTERNAL_AUTH_ENABLED = 'true';
       // Default: username lookup misses; email lookup misses
       (mockPrisma.login.findFirst as jest.Mock).mockResolvedValue(null);
       (mockPrisma.user.findFirst as jest.Mock).mockResolvedValue(null);
-    });
-
-    afterEach(() => {
-      delete process.env.INTERNAL_AUTH_ENABLED;
-    });
-
-    it('throws ServiceUnavailableException when flag is off', async () => {
-      process.env.INTERNAL_AUTH_ENABLED = 'false';
-      await expect(svc.login('a@b.com', 'pass', mockRes, mockReq)).rejects.toThrow(
-        ServiceUnavailableException,
-      );
     });
 
     it('throws UnauthorizedException for unknown identifier', async () => {

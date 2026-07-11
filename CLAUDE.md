@@ -10,7 +10,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `apps/frontend` — Next.js 14 App Router, deployed on Vercel serverless (free tier)
 - `apps/packages/contracts` — `@app/contracts`, Zod schemas + inferred DTO types shared between both apps
 
-Auth: Keycloak hosted on DigitalOcean. DB: hosted PostgreSQL. Image storage: Cloudflare R2.
+Auth: internal bcrypt+JWT (Keycloak removed). Backend runs on a DigitalOcean droplet behind
+nginx (`api.adwyzors.com`) via PM2; the Vercel serverless deployment is kept temporarily as a
+rollback fallback. DB: hosted PostgreSQL. Image storage: Cloudflare R2.
 
 **This project is live in production. Never change externally observable behaviour without explicit approval.**
 
@@ -52,7 +54,7 @@ npm run lint    # next lint (no test runner configured)
 
 ## Reference rules
 
-- [Auth / Keycloak — flow, security notes, things to fix](rules/auth.md)
+- [Auth — internal JWT flow, security notes, things to fix](rules/auth.md)
 - [Known issues &amp; patterns to avoid](rules/known-issues.md)
 - [Vercel serverless deployment constraints](rules/deployment.md)
 - [Domain knowledge — processes, workflows, billing, fiscal sequences](rules/domain.md)

@@ -1,7 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { KeycloakService } from './keycloak/keycloak.service';
 
 function makeReq(cookies: Record<string, string>): any {
   return { cookies };
@@ -13,12 +12,9 @@ function makeRes(): any {
 
 describe('AuthController', () => {
   let authMock: jest.Mocked<AuthService>;
-  let keycloakMock: jest.Mocked<KeycloakService>;
   let controller: AuthController;
 
   beforeEach(() => {
-    process.env.INTERNAL_AUTH_ENABLED = 'true';
-
     authMock = {
       verifyAccessToken: jest.fn(),
       logoutInternal: jest.fn().mockResolvedValue(undefined),
@@ -28,13 +24,8 @@ describe('AuthController', () => {
       refreshInternal: jest.fn(),
       revokeSessionForTokens: jest.fn().mockResolvedValue(undefined),
     } as any;
-    keycloakMock = {} as any;
 
-    controller = new AuthController(authMock, keycloakMock);
-  });
-
-  afterEach(() => {
-    delete process.env.INTERNAL_AUTH_ENABLED;
+    controller = new AuthController(authMock);
   });
 
   describe('logout', () => {
