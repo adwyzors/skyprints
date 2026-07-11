@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Order } from '@/domain/model/order.model';
 import { completeProduction, getOrderById, startProduction } from '@/services/orders.service';
+import { getRunBillingMetrics } from '@/services/billing-calculator';
 import {
     CheckCircle,
     ChevronRight,
@@ -284,6 +285,22 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
             };
         });
     };
+
+    const getRunPcs = (run: any, processName: string): number => {
+        try {
+            const metrics = getRunBillingMetrics(run, processName, order?.quantity || 0);
+            return metrics.quantity;
+        } catch (err) {
+            console.error('Error calculating run pcs:', err);
+            return 0;
+        }
+    };
+
+    const getProcessPcs = (process: any): number => {
+        return process.runs.reduce((sum: number, run: any) => sum + getRunPcs(run, process.name), 0);
+    };
+
+    const totalPcs = order?.processes.reduce((sum, process) => sum + getProcessPcs(process), 0) || 0;
 
     /* =================================================
        RBAC HELPERS
@@ -595,6 +612,11 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
 
                         <div className="mt-8">
                             <h3 className="font-semibold text-gray-700 mb-3">Processes</h3>
+                            {(order.status === 'IN_PRODUCTION' || order.status === 'COMPLETED' || order.status === 'COMPLETE') && (
+                                <div className="text-xs font-semibold text-gray-500 mb-2">
+                                    Total: {totalPcs} pcs
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 {order.processes.map((process) => (
                                     <div
@@ -605,7 +627,14 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                             onClick={() => toggleProcessExpansion(process.id)}
                                             className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
                                         >
-                                            <span className="font-medium text-gray-800">{process.name}</span>
+                                            <span className="font-medium text-gray-800">
+                                                {process.name}
+                                                {(order.status === 'IN_PRODUCTION' || order.status === 'COMPLETED' || order.status === 'COMPLETE') && (
+                                                    <span className="text-xs font-normal text-gray-500 ml-1.5">
+                                                        ({getProcessPcs(process)} pcs)
+                                                    </span>
+                                                )}
+                                            </span>
                                             <ChevronRight
                                                 className={`w-4 h-4 transition-transform ${expandedProcesses.has(process.id) ? 'rotate-90' : ''
                                                     }`}
@@ -637,6 +666,9 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                                 <div className="flex items-center justify-between">
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="text-gray-600">Run {run.runNumber}</span>
+                                                                        {(order.status === 'IN_PRODUCTION' || order.status === 'COMPLETED' || order.status === 'COMPLETE') && (
+                                                                            <span className="text-xs text-gray-400">({getRunPcs(run, process.name)} pcs)</span>
+                                                                        )}
                                                                     </div>
                                                                     <span
                                                                         className={`px-2 py-1 rounded text-xs font-medium ${run.lifecycleStatus === 'COMPLETE' ||
@@ -762,15 +794,22 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                     {/* EXECUTION MODE */}
                     {(order.status === 'IN_PRODUCTION' ||
                         order.status === 'COMPLETED' ||
-                        order.status === 'COMPLETE') &&
-                        order.processes.map((process) => (
-                            <div key={process.id} className="mb-8">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-lg font-bold text-gray-800">{process.name}</h3>
-                                    <span className="text-sm text-gray-500">
-                                        {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
-                                    </span>
+                        order.status === 'COMPLETE') && (
+                        <>
+                            <div className="border-b border-gray-200 pb-3 mb-6">
+                                <h3 className="text-xl font-bold text-gray-800">Lifecycle</h3>
+                                <div className="text-sm font-semibold text-gray-500 mt-1">
+                                    Total: {totalPcs} pcs
                                 </div>
+                            </div>
+                            {order.processes.map((process) => (
+                                <div key={process.id} className="mb-8">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-lg font-bold text-gray-800">{process.name} ({getProcessPcs(process)} pcs)</h3>
+                                        <span className="text-sm text-gray-500">
+                                            {process.runs.length} run{process.runs.length !== 1 ? 's' : ''}
+                                        </span>
+                                    </div>
 
                                 {process.runs.map((run) => {
                                     const isOpen = activeRunId === run.id;
@@ -813,7 +852,7 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                                     />
                                                     <div className="text-left">
                                                         <div className="font-semibold text-gray-800 flex items-center gap-2">
-                                                            Run {run.runNumber}
+                                                            Run {run.runNumber} ({getRunPcs(run, process.name)} pcs)
                                                         </div>
                                                         <div className="text-sm text-gray-600">
                                                             {isRunComplete
@@ -1045,6 +1084,8 @@ export default function ViewOrderModal({ orderId, onClose, onOrderUpdate }: View
                                 })}
                             </div>
                         ))}
+                        </>
+                    )}
                 </div>
                 </div>{/* /PANELS */}
             </div>
