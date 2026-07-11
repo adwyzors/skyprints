@@ -1,0 +1,52 @@
+name: Deploy Backend (Production Droplet)
+
+# NOTE: triggers on feature/keycloak-removal for now — this branch is being
+# treated as the DigitalOcean droplet's production tracking branch during the
+# Vercel -> droplet migration. Change the branch below to `main` once
+# feature/keycloak-removal has been merged and verified.
+on:
+  push:
+    branches: [feature/keycloak-removal]
+    paths:
+      - 'apps/backend/**'
+      - 'apps/packages/contracts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+      - 'deploy/**'
+      - '.github/workflows/deploy-backend-prod.yml'
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set release id
+        run: echo "RELEASE_ID=$(date +%Y%m%d%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_DROPLET_SSH_KEY }}
+
+      - name: Add droplet to known hosts
+        run: ssh-keyscan -H ${{ secrets.PROD_DROPLET_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Rsync source to new release directory
+        run: |
+          ssh ${{ secrets.PROD_DROPLET_USER }}@${{ secrets.PROD_DROPLET_HOST }} \
+            "mkdir -p /opt/skyprints/releases/$RELEASE_ID"
+          rsync -az \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='apps/frontend' \
+            --exclude='apps/backend/dist' \
+            --exclude='apps/backend/.env' \
+            ./ ${{ secrets.PROD_DROPLET_USER }}@${{ secrets.PROD_DROPLET_HOST }}:/opt/skyprints/releases/$RELEASE_ID/
+
+      - name: Build, migrate, and cut over (auto-rollback on failure)
+        run: |
+          ssh ${{ secrets.PROD_DROPLET_USER }}@${{ secrets.PROD_DROPLET_HOST }} \
+            "bash /opt/skyprints/releases/$RELEASE_ID/deploy/finish-deploy.sh $RELEASE_ID"
