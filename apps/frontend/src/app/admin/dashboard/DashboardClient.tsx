@@ -852,7 +852,7 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
 
                                         const isMeterProcess = ['dtf', 'sublimation', 'allover sublimation', 'all over sublimation'].includes(process.toLowerCase());
                                         const isMtrStage = status.toUpperCase() === 'PRODUCTION';
-                                        const isQtyStage = ['CURING', 'FUSING', 'QC & COUNTING'].includes(status.toUpperCase());
+                                        const isQtyStage = ['CURING', 'FUSING', 'QC & COUNTING', 'VAR KATA AND KG', 'WAITING', 'CUTTING/WEEDING'].includes(status.toUpperCase());
                                         const showMtrs = isMeterProcess && isMtrStage && data && data.mtrs && data.mtrs > 0;
                                         const showTotalQty = isMeterProcess && isQtyStage && data && data.totalQty && data.totalQty > 0;
 
