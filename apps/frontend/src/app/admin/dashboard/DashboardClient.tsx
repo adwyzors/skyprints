@@ -754,14 +754,16 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
     const getStatusTotals = (status: string) => {
         let totalCount = 0;
         let totalValue = 0;
+        let totalQty = 0;
         for (const process of processes) {
             const data = matrix[process]?.[status];
             if (data) {
                 totalCount += data.count || 0;
                 totalValue += data.value || 0;
+                totalQty += data.totalQty || 0;
             }
         }
-        return { totalCount, totalValue };
+        return { totalCount, totalValue, totalQty };
     };
 
     const handleCellClick = (process: string, status: string) => {
@@ -809,7 +811,8 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                         <tr className="bg-gray-50 border-b border-gray-100">
                             <th className="px-4 py-3 font-bold text-gray-600 border-r border-gray-100">Process / Stage</th>
                             {statuses.map(status => {
-                                const { totalCount, totalValue } = getStatusTotals(status);
+                                const { totalCount, totalValue, totalQty } = getStatusTotals(status);
+                                const isQtyStage = ['WAITING', 'CUTTING/WEEDING', 'CURING', 'FUSING', 'QC & COUNTING', 'VAR KATA AND KG', 'COMPLETE'].includes(status.toUpperCase());
                                 return (
                                     <th key={status} className="px-4 py-3 font-bold text-gray-600 text-center border-r border-gray-100 last:border-r-0">
                                         <div className="flex flex-col items-center">
@@ -818,6 +821,11 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
                                                 <div className="mt-1 flex flex-col items-center">
                                                     <span className="text-[10px] font-black text-blue-700">{totalCount.toLocaleString()}</span>
                                                     <span className="text-[9px] font-bold text-emerald-600">₹{Math.round(totalValue).toLocaleString()}</span>
+                                                    {isQtyStage && totalQty > 0 && (
+                                                        <span className="text-[9px] font-bold text-blue-600 whitespace-nowrap">
+                                                            {Math.round(totalQty).toLocaleString()} pcs
+                                                        </span>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -852,9 +860,9 @@ function WorkflowLifecycleMatrix({ matrix, locationId, locations, onLocationChan
 
                                         const isMeterProcess = ['dtf', 'sublimation', 'allover sublimation', 'all over sublimation'].includes(process.toLowerCase());
                                         const isMtrStage = status.toUpperCase() === 'PRODUCTION';
-                                        const isQtyStage = ['CURING', 'FUSING', 'QC & COUNTING', 'VAR KATA AND KG', 'WAITING', 'CUTTING/WEEDING'].includes(status.toUpperCase());
+                                        const isQtyStage = ['WAITING', 'CUTTING/WEEDING', 'CURING', 'FUSING', 'QC & COUNTING', 'VAR KATA AND KG', 'COMPLETE'].includes(status.toUpperCase());
                                         const showMtrs = isMeterProcess && isMtrStage && data && data.mtrs && data.mtrs > 0;
-                                        const showTotalQty = isMeterProcess && isQtyStage && data && data.totalQty && data.totalQty > 0;
+                                        const showTotalQty = isQtyStage && data && data.totalQty && data.totalQty > 0;
 
                                         return (
                                             <td
