@@ -71,7 +71,7 @@ function QueueCard({ item, onClick, onClaimed }: {
     return (
         <div
             onClick={onClick}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col"
+            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col shrink-0"
         >
             {item.artworkUrl ? (
                 <img src={item.artworkUrl} alt="" className="w-full h-32 object-cover" />
@@ -180,7 +180,7 @@ function ActiveCard({ item, onClick, onChanged }: {
     return (
         <div
             onClick={onClick}
-            className="bg-white rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col"
+            className="bg-white rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col shrink-0"
         >
             {item.artworkUrl ? (
                 <img src={item.artworkUrl} alt="" className="w-full h-32 object-cover" />
