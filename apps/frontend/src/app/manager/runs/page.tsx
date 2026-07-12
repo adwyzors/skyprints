@@ -15,7 +15,7 @@ import {
     pauseRun,
     resumeRun,
 } from '@/services/managerQueueService';
-import { CheckCircle, Clock, LogOut, Package, PlayCircle, Pause, Play } from 'lucide-react';
+import { CheckCircle, Clock, LogOut, Package, PlayCircle, Pause, Play, ChevronDown, ChevronRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -264,7 +264,8 @@ function ManagerRunsPage() {
     const [loading, setLoading] = useState(true);
     const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
     const [selectedProcess, setSelectedProcess] = useState<string | null>(null);
-    const [selectedStage, setSelectedStage] = useState<string | null>(null);
+    const [activeTasksExpanded, setActiveTasksExpanded] = useState(true);
+    const [chooseTaskExpanded, setChooseTaskExpanded] = useState(true);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const fetchAll = async (showLoading = false) => {
@@ -310,7 +311,6 @@ function ManagerRunsPage() {
     // Separate active (claimed) items and queued items for this process
     const activeItems = processItems.filter((item) => 'claimedAt' in item) as ManagerActiveJob[];
     const queuedItems = processItems.filter((item) => !('claimedAt' in item)) as ManagerQueueItem[];
-
     // Gather all stages
     const allStagesSet = new Set<string>();
     activeItems.forEach(item => {
@@ -320,45 +320,6 @@ function ManagerRunsPage() {
         if (item.lifeCycleStatusCode) allStagesSet.add(item.lifeCycleStatusCode);
     });
     const sortedStages = Array.from(allStagesSet).sort();
-
-    // Combine into structured lifecycle categories
-    const categories: {
-        key: string;
-        name: string;
-        count: number;
-        activeItems: ManagerActiveJob[];
-        queuedItems: ManagerQueueItem[];
-    }[] = [];
-
-    if (activeItems.length > 0) {
-        categories.push({
-            key: 'active-jobs',
-            name: 'My Active Jobs',
-            count: activeItems.length,
-            activeItems: activeItems,
-            queuedItems: [],
-        });
-    }
-
-    sortedStages.forEach((stage) => {
-        const stageActive = activeItems.filter(item => item.lifeCycleStatusCode === stage);
-        const stageQueued = queuedItems.filter(item => item.lifeCycleStatusCode === stage);
-        categories.push({
-            key: stage,
-            name: stage,
-            count: stageActive.length + stageQueued.length,
-            activeItems: stageActive,
-            queuedItems: stageQueued,
-        });
-    });
-
-    const activeStage = selectedStage && (selectedStage === 'all' || categories.some((c) => c.key === selectedStage))
-        ? selectedStage
-        : 'all';
-
-    const displayedCategories = activeStage === 'all'
-        ? categories
-        : categories.filter((c) => c.key === activeStage);
 
     return (
         <div className="py-6">
@@ -380,7 +341,6 @@ function ManagerRunsPage() {
                         <button
                             onClick={() => {
                                 setSelectedProcess('all');
-                                setSelectedStage('all');
                             }}
                             className={`flex items-center gap-2 px-4 py-2.5 border-b-2 font-medium text-sm transition-all whitespace-nowrap ${
                                 activeProcess === 'all'
@@ -407,7 +367,6 @@ function ManagerRunsPage() {
                                     key={procName}
                                     onClick={() => {
                                         setSelectedProcess(procName);
-                                        setSelectedStage('all');
                                     }}
                                     className={`flex items-center gap-2 px-4 py-2.5 border-b-2 font-medium text-sm transition-all whitespace-nowrap ${
                                         isTabActive
@@ -428,213 +387,143 @@ function ManagerRunsPage() {
                         })}
                     </div>
 
-                    <div className="flex flex-col md:flex-row gap-6 items-start">
-                        {/* LIFECYCLE SIDEBAR */}
-                        <div className="w-full md:w-64 shrink-0 md:sticky md:top-20 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                            <div className="mb-3 pb-2 border-b border-gray-100 hidden md:block">
-                                <h2 className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
-                                    Stages
-                                </h2>
-                            </div>
-                            
-                            {/* Horizontal scroll on mobile, vertical list on desktop */}
-                            <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide max-w-full">
-                                <button
-                                    onClick={() => setSelectedStage('all')}
-                                    className={`flex-shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
-                                        activeStage === 'all'
-                                            ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
-                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
-                                    }`}
-                                >
-                                    <span>All Stages</span>
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold ${
-                                        activeStage === 'all'
-                                            ? 'bg-blue-100 text-blue-800'
-                                            : 'bg-gray-100 text-gray-600'
-                                    }`}>
-                                        {processItems.length}
+                    <div className="space-y-8">
+                        {/* ROW 1: ACTIVE TASKS */}
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <button
+                                onClick={() => setActiveTasksExpanded(!activeTasksExpanded)}
+                                className="w-full flex items-center justify-between p-4 bg-emerald-50/40 hover:bg-emerald-50/70 border-b border-gray-100 transition-colors text-left"
+                            >
+                                <div className="flex items-center gap-3">
+                                    {activeTasksExpanded ? (
+                                        <ChevronDown className="w-5 h-5 text-gray-500" />
+                                    ) : (
+                                        <ChevronRight className="w-5 h-5 text-gray-500" />
+                                    )}
+                                    <h2 className="text-base font-bold text-emerald-800 uppercase tracking-wider">
+                                        Active Tasks
+                                    </h2>
+                                    <span className="bg-emerald-600 text-white rounded-full px-2.5 py-0.5 text-xs font-bold">
+                                        {activeItems.length}
                                     </span>
-                                </button>
-                                {categories.map((cat) => {
-                                    const isActiveJobsCat = cat.key === 'active-jobs';
-                                    const isSidebarSelected = activeStage === cat.key;
-                                    return (
-                                        <button
-                                            key={cat.key}
-                                            onClick={() => setSelectedStage(cat.key)}
-                                            className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-                                            style={isActiveJobsCat ? {
-                                                background: isSidebarSelected ? '#16a34a' : '#f0fdf4',
-                                                color: isSidebarSelected ? '#fff' : '#15803d',
-                                                border: '1.5px solid #86efac',
-                                                boxShadow: '0 1px 4px rgba(22,163,74,0.15)',
-                                                fontWeight: 700,
-                                            } : isSidebarSelected ? {
-                                                background: '#eff6ff',
-                                                color: '#1d4ed8',
-                                                border: '1px solid #bfdbfe',
-                                            } : {
-                                                color: '#4b5563',
-                                                border: '1px solid transparent',
-                                            }}
-                                        >
-                                            <span className="truncate">{cat.name}</span>
-                                            <span
-                                                className="rounded-full text-xs font-bold"
-                                                style={isActiveJobsCat ? {
-                                                    background: isSidebarSelected ? '#fff' : '#bbf7d0',
-                                                    color: isSidebarSelected ? '#15803d' : '#166534',
-                                                    padding: '1px 8px',
-                                                } : isSidebarSelected ? {
-                                                    background: '#dbeafe',
-                                                    color: '#1e40af',
-                                                    padding: '1px 8px',
-                                                } : {
-                                                    background: '#f3f4f6',
-                                                    color: '#4b5563',
-                                                    padding: '1px 8px',
-                                                }}
-                                            >
-                                                {cat.count}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                                </div>
+                                <span className="text-xs font-semibold text-emerald-700 bg-emerald-100/60 border border-emerald-200/50 rounded-full px-3 py-1">
+                                    In Progress
+                                </span>
+                            </button>
+                            
+                            {activeTasksExpanded && (
+                                <div className="p-6 overflow-x-auto">
+                                    <div className="flex flex-col lg:flex-row gap-6 pb-2">
+                                        {sortedStages.map((stage) => {
+                                            const stageActive = activeItems.filter(item => item.lifeCycleStatusCode === stage);
+                                            return (
+                                                <div
+                                                    key={stage}
+                                                    className="w-full lg:w-80 lg:shrink-0 bg-gray-50/50 rounded-xl p-4 border border-gray-200/60 flex flex-col gap-4"
+                                                >
+                                                    {/* Column Header */}
+                                                    <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                                                        <span className="font-bold text-xs uppercase tracking-wider text-gray-700">
+                                                            {stage}
+                                                        </span>
+                                                        <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                                                            {stageActive.length}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {/* Column Content */}
+                                                    <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-1">
+                                                        {stageActive.length > 0 ? (
+                                                            stageActive.map((item) => (
+                                                                <ActiveCard
+                                                                    key={item.id}
+                                                                    item={item}
+                                                                    onClick={() => setSelectedRunId(item.id)}
+                                                                    onChanged={() => fetchAll(false)}
+                                                                />
+                                                            ))
+                                                        ) : (
+                                                            <div className="border border-dashed border-gray-200 rounded-xl p-6 text-center text-gray-400 text-xs flex flex-col items-center justify-center bg-white/50 min-h-[100px]">
+                                                                No active tasks
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        {/* MAIN CONTENT AREA */}
-                        <div className="flex-1 min-w-0 w-full">
-                            <div className="space-y-10">
-                                {displayedCategories.map((category) => {
-                                    const isActiveJobsSection = category.key === 'active-jobs';
-                                    return (
-                                    <div key={category.key} className="scroll-mt-20">
-                                        {isActiveJobsSection ? (
-                                            <>
-                                                <div
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '10px',
-                                                        marginBottom: '16px',
-                                                        padding: '10px 16px',
-                                                        borderRadius: '12px',
-                                                        background: 'linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%)',
-                                                        border: '1.5px solid #86efac',
-                                                        boxShadow: '0 1px 6px rgba(22,163,74,0.12)',
-                                                    }}
-                                                >
-                                                    <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                                                        {category.name}
-                                                    </h2>
-                                                    <span style={{ background: '#16a34a', color: '#fff', borderRadius: '999px', padding: '1px 10px', fontSize: '12px', fontWeight: 700 }}>
-                                                        {category.count}
-                                                    </span>
-                                                    <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, color: '#15803d', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '999px', padding: '2px 10px' }}>
-                                                        In Progress
-                                                    </span>
-                                                </div>
-                                                <div className="space-y-6">
-                                                    {Object.entries(
-                                                        category.activeItems.reduce<Record<string, ManagerActiveJob[]>>((acc, item) => {
-                                                            const stage = item.lifeCycleStatusCode || 'Unspecified';
-                                                            if (!acc[stage]) {
-                                                                acc[stage] = [];
-                                                            }
-                                                            acc[stage].push(item);
-                                                            return acc;
-                                                        }, {})
-                                                    ).map(([stageName, stageItems]) => (
-                                                        <div key={stageName} className="space-y-3">
-                                                            <div className="flex items-center gap-2 border-b border-gray-100 pb-1.5">
-                                                                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-                                                                    {stageName}
-                                                                </h3>
-                                                                <span className="bg-green-50 border border-green-200 text-green-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                                                    {stageItems.length}
-                                                                </span>
-                                                            </div>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                                {stageItems.map((item) => (
-                                                                    <ActiveCard
-                                                                        key={item.id}
-                                                                        item={item}
-                                                                        onClick={() => setSelectedRunId(item.id)}
-                                                                        onChanged={() => fetchAll(false)}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
-                                                    <h2 className="text-base md:text-lg font-bold text-gray-800">
-                                                        {category.name}
-                                                    </h2>
-                                                    <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                                                        {category.count}
-                                                    </span>
-                                                </div>
-                                                <div className="space-y-6">
-                                                    {/* Active Jobs in this Stage */}
-                                                    {category.activeItems.length > 0 && (
-                                                        <div className="space-y-3">
-                                                            <div className="flex items-center gap-2 pb-1">
-                                                                <h3 className="text-xs font-bold text-green-700 uppercase tracking-wider">
-                                                                    Active Jobs
-                                                                </h3>
-                                                                <span className="bg-green-50 border border-green-200 text-green-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                                                    {category.activeItems.length}
-                                                                </span>
-                                                            </div>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                                {category.activeItems.map((item) => (
-                                                                    <ActiveCard
-                                                                        key={item.id}
-                                                                        item={item}
-                                                                        onClick={() => setSelectedRunId(item.id)}
-                                                                        onChanged={() => fetchAll(false)}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
+                        {/* ROW 2: AVAILABLE TASKS */}
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <button
+                                onClick={() => setChooseTaskExpanded(!chooseTaskExpanded)}
+                                className="w-full flex items-center justify-between p-4 bg-blue-50/40 hover:bg-blue-50/70 border-b border-gray-100 transition-colors text-left"
+                            >
+                                <div className="flex items-center gap-3">
+                                    {chooseTaskExpanded ? (
+                                        <ChevronDown className="w-5 h-5 text-gray-500" />
+                                    ) : (
+                                        <ChevronRight className="w-5 h-5 text-gray-500" />
+                                    )}
+                                    <h2 className="text-base font-bold text-blue-800 uppercase tracking-wider">
+                                        Choose Task (Available Queue)
+                                    </h2>
+                                    <span className="bg-blue-600 text-white rounded-full px-2.5 py-0.5 text-xs font-bold">
+                                        {queuedItems.length}
+                                    </span>
+                                </div>
+                                <span className="text-xs font-semibold text-blue-700 bg-blue-100/60 border border-blue-200/50 rounded-full px-3 py-1">
+                                    Shared Queue
+                                </span>
+                            </button>
 
-                                                    {/* Available Jobs in this Stage */}
-                                                    {category.queuedItems.length > 0 && (
-                                                        <div className="space-y-3">
-                                                            <div className="flex items-center gap-2 pb-1">
-                                                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                                                    Available Jobs
-                                                                </h3>
-                                                                <span className="bg-gray-50 border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                                                    {category.queuedItems.length}
-                                                                </span>
+                            {chooseTaskExpanded && (
+                                <div className="p-6 overflow-x-auto">
+                                    <div className="flex flex-col lg:flex-row gap-6 pb-2">
+                                        {sortedStages.map((stage) => {
+                                            const stageQueued = queuedItems.filter(item => item.lifeCycleStatusCode === stage);
+                                            return (
+                                                <div
+                                                    key={stage}
+                                                    className="w-full lg:w-80 lg:shrink-0 bg-gray-50/50 rounded-xl p-4 border border-gray-200/60 flex flex-col gap-4"
+                                                >
+                                                    {/* Column Header */}
+                                                    <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                                                        <span className="font-bold text-xs uppercase tracking-wider text-gray-700">
+                                                            {stage}
+                                                        </span>
+                                                        <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                                                            {stageQueued.length}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Column Content */}
+                                                    <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-1">
+                                                        {stageQueued.length > 0 ? (
+                                                            stageQueued.map((item) => (
+                                                                <QueueCard
+                                                                    key={item.id}
+                                                                    item={item}
+                                                                    onClick={() => setSelectedRunId(item.id)}
+                                                                    onClaimed={() => fetchAll(false)}
+                                                                />
+                                                            ))
+                                                        ) : (
+                                                            <div className="border border-dashed border-gray-200 rounded-xl p-6 text-center text-gray-400 text-xs flex flex-col items-center justify-center bg-white/50 min-h-[100px]">
+                                                                No tasks available
                                                             </div>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                                {category.queuedItems.map((item) => (
-                                                                    <QueueCard
-                                                                        key={item.id}
-                                                                        item={item}
-                                                                        onClick={() => setSelectedRunId(item.id)}
-                                                                        onClaimed={() => fetchAll(false)}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </>
-                                        )}
+                                            );
+                                        })}
                                     </div>
-                                    );
-                                })}
-                            </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </>
