@@ -1,12 +1,8 @@
 name: Deploy Backend (Production Droplet)
 
-# NOTE: triggers on feature/keycloak-removal for now — this branch is being
-# treated as the DigitalOcean droplet's production tracking branch during the
-# Vercel -> droplet migration. Change the branch below to `main` once
-# feature/keycloak-removal has been merged and verified.
 on:
   push:
-    branches: [feature/keycloak-removal]
+    branches: [main]
     paths:
       - 'apps/backend/**'
       - 'apps/packages/contracts/**'
