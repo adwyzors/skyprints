@@ -6,6 +6,6 @@ export class HealthController {
   @Get()
   @Public()
   health() {
-    return { status: 'All good Bro', timestamp: new Date().toISOString() };
+    return { status: 'Itz Ok Bro', timestamp: new Date().toISOString() };
   }
 }
