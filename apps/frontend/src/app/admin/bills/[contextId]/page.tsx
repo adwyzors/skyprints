@@ -355,7 +355,9 @@ function BillingContextDetailPage() {
                                     const rate = draftInputs[order.id]?.[r.id]?.new_rate ?? input?.new_rate ?? baseRate;
                                     const qty = p.name === 'Allover Sublimation'
                                         ? (input?.total_mtr ?? metrics.quantity)
-                                        : (input?.quantity ?? metrics.quantity);
+                                        : (p.name === 'Sublimation'
+                                            ? (input?.totalquantity ?? input?.total_quantity ?? input?.['totalquantity'] ?? input?.['total_quantity'] ?? metrics.quantity)
+                                            : (input?.quantity ?? metrics.quantity));
                                     orderCurrentTotal += Number((rate * qty).toFixed(2));
                                 });
                             });
