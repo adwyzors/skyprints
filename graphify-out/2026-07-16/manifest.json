@@ -1120,8 +1120,8 @@
     "semantic_hash": "11b46eeb15209558ce0e84a574fa1f31"
   },
   "apps/frontend/src/app/manager/runs/page.tsx": {
-    "mtime": 1784206844.352629,
-    "ast_hash": "68aab83fb146bc25544d059c80e35a42",
+    "mtime": 1783871444.4122777,
+    "ast_hash": "14914665521f3ac606ebd0885e799566",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/not-found.tsx": {
