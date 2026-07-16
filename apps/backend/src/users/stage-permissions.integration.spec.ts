@@ -91,7 +91,7 @@ describe('UsersService stage permissions (integration)', () => {
     admin = await seedUser(testPrisma, {
       email: 'sp-admin@test.com',
       name: 'SP Admin',
-      role: 'ADMIN',
+      role: 'SUPER_ADMIN',
     });
   });
 
@@ -100,7 +100,7 @@ describe('UsersService stage permissions (integration)', () => {
     await disconnectTestPrisma();
   });
 
-  it('rejects assigning stage permissions to a non-MANAGER user', async () => {
+  it('rejects assigning stage permissions to a non-MANAGER/non-ADMIN user', async () => {
     await expect(
       service.updateStagePermissions(admin.id, [
         { processId: processA.id, lifecycleStageId: stageA1.id },

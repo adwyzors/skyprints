@@ -4,6 +4,7 @@ import {
     BarChart3,
     Bell,
     CheckCircle,
+    ClipboardList,
     CreditCard,
     FileText,
     MapPin,
@@ -22,6 +23,13 @@ export interface NavTab {
 }
 
 export const ADMIN_TABS: NavTab[] = [
+    {
+        label: 'My Tasks',
+        path: '/admin/my-tasks',
+        icon: <ClipboardList className="w-4 h-4" />,
+        badge: null,
+        permission: Permission.RUNS_VIEW,
+    },
     {
         label: 'Dashboard',
         path: '/admin/dashboard',

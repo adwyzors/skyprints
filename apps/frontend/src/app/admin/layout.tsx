@@ -12,23 +12,53 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { ADMIN_TABS } from '@/config/navigation';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { listActive } from '@/services/managerQueueService';
 
 
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { hasPermission } = useAuth();
+    const { hasPermission, user } = useAuth();
     const [isHydrated, setIsHydrated] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [activeCount, setActiveCount] = useState<number | null>(null);
 
     useKeyboardShortcut('ctrl+o', () => {
         router.push('/admin/orders?create=true');
     });
 
+    useEffect(() => {
+        let active = true;
+        async function fetchActiveCount() {
+            if (!user) return;
+            try {
+                const activeJobs = await listActive();
+                if (active) {
+                    setActiveCount(activeJobs.length);
+                }
+            } catch (err) {
+                console.error('Failed to fetch active tasks count:', err);
+            }
+        }
+        fetchActiveCount();
+
+        const interval = setInterval(fetchActiveCount, 10000);
+        return () => {
+            active = false;
+            clearInterval(interval);
+        };
+    }, [pathname, user]);
+
     const filteredTabs = useMemo(() => {
-        return ADMIN_TABS.filter(tab => !tab.permission || hasPermission(tab.permission as any));
-    }, [hasPermission]);
+        const tabs = ADMIN_TABS.filter(tab => !tab.permission || hasPermission(tab.permission as any));
+        return tabs.map(tab => {
+            if (tab.path === '/admin/my-tasks') {
+                return { ...tab, badge: activeCount };
+            }
+            return tab;
+        });
+    }, [hasPermission, activeCount]);
 
     useEffect(() => {
         setIsHydrated(true);
@@ -68,7 +98,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2 scrollbar-hide">
                                 {filteredTabs.map((tab) => {
                                     const active = pathname.startsWith(tab.path);
-                                    const hasBadge = tab.badge !== null;
+                                    const hasBadge = tab.badge !== null && tab.badge !== undefined && tab.badge > 0;
 
                                     return (
                                         <button
@@ -153,7 +183,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <div className="flex items-center justify-between px-2 py-1 min-w-max">
                                 {filteredTabs.map((tab) => {
                                     const active = pathname.startsWith(tab.path);
-                                    const hasBadge = tab.badge !== null;
+                                    const hasBadge = tab.badge !== null && tab.badge !== undefined && tab.badge > 0;
 
                                     return (
                                         <button

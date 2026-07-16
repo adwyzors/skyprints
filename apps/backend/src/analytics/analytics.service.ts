@@ -688,7 +688,7 @@ export class AnalyticsService {
           where: {
             isActive: true,
             deletedAt: null,
-            role: 'MANAGER',
+            role: { in: ['MANAGER', 'ADMIN'] },
           },
           select: { id: true, name: true },
         }),

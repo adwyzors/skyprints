@@ -195,7 +195,7 @@ export default function RunLifecycleHistory({ runId }: RunLifecycleHistoryProps)
                         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
                 );
                 setHistory(sorted);
-                setManagers(users.filter((u) => u.role === 'MANAGER'));
+                setManagers(users.filter((u) => u.role === 'MANAGER' || u.role === 'ADMIN'));
             })
             .catch((err) => {
                 console.error('Failed to load run lifecycle history:', err);

@@ -840,7 +840,7 @@ function UsersClient({ users, locations, loading, onRefresh, currentUserId }: Us
                                 <Shield className="w-4 h-4" />
                               </button>
                             )}
-                            {canManageStagePermissions && u.role === 'MANAGER' && (
+                            {canManageStagePermissions && (u.role === 'MANAGER' || u.role === 'ADMIN') && (
                               <button title="Assign stage permissions" onClick={() => setStageTarget(u)}
                                 className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                                 <ListTree className="w-4 h-4" />

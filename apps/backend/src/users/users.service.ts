@@ -439,9 +439,9 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.role !== 'MANAGER') {
+    if (user.role !== 'MANAGER' && user.role !== 'ADMIN') {
       throw new BadRequestException(
-        'Stage permissions can only be assigned to MANAGER-role users',
+        'Stage permissions can only be assigned to MANAGER or ADMIN-role users',
       );
     }
 
