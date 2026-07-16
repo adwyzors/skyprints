@@ -222,7 +222,9 @@ function BillingContextDetailPage() {
                     // For Allover Sublimation, use total_mtr; for others, use quantity
                     const qty = p.name === 'Allover Sublimation'
                         ? (snapshotInput?.total_mtr ?? metrics.quantity)
-                        : (snapshotInput?.quantity ?? metrics.quantity);
+                        : (p.name === 'Sublimation'
+                            ? (snapshotInput?.totalquantity ?? snapshotInput?.total_quantity ?? snapshotInput?.['totalquantity'] ?? snapshotInput?.['total_quantity'] ?? metrics.quantity)
+                            : (snapshotInput?.quantity ?? metrics.quantity));
                     displayTotalAmount += rate * qty;
                 });
             });
