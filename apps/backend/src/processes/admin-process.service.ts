@@ -1321,13 +1321,13 @@ export class AdminProcessService {
             continue;
           }
 
-          // Validate that the manager user exists and has the MANAGER role
+          // Validate that the manager user exists and has the MANAGER or ADMIN role
           const managerUser = await executor.user.findUnique({
             where: { id: managerId },
             select: { role: true },
           });
-          if (!managerUser || managerUser.role !== 'MANAGER') {
-            this.logger.warn(`User ${managerId} not found or is not a MANAGER`);
+          if (!managerUser || (managerUser.role !== 'MANAGER' && managerUser.role !== 'ADMIN')) {
+            this.logger.warn(`User ${managerId} not found or is not a MANAGER or ADMIN`);
             continue;
           }
 
@@ -1584,8 +1584,8 @@ export class AdminProcessService {
       throw new NotFoundException('User not found');
     }
 
-    if (manager.role !== 'MANAGER') {
-      throw new BadRequestException('Selected user is not a Manager');
+    if (manager.role !== 'MANAGER' && manager.role !== 'ADMIN') {
+      throw new BadRequestException('Selected user is not a Manager or Admin');
     }
 
     await this.prisma.processRunStageHistory.update({
