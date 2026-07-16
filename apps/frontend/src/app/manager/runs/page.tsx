@@ -643,7 +643,7 @@ function ManagerRunsPage() {
                                         </div>
 
                                         {/* Column Content */}
-                                        <div className="flex flex-col gap-4 overflow-y-auto max-h-[600px] pr-1 min-h-[150px] scrollbar-thin">
+                                        <div className="flex flex-col gap-4 pr-1 min-h-[150px]">
                                             {totalPendingJobs > 0 ? (
                                                 <>
                                                     {/* Active items first */}
