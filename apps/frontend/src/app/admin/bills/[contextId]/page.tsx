@@ -433,11 +433,11 @@ function BillingContextDetailPage() {
                                                                 // Use snapshot rate if it exists, otherwise use calculated baseRate
                                                                 const currentRate = input.new_rate ?? baseRate;
 
-                                                                // If input doesn't have quantity, we fallback to metrics.quantity
-                                                                // For Allover Sublimation, prefer total_mtr over total_quantity
                                                                 const qty = process.name === 'Allover Sublimation'
                                                                     ? (input.total_mtr ?? input['total_mtr'] ?? metrics.quantity)
-                                                                    : (input.quantity ?? input.total_quantity ?? input['total_quantity'] ?? input['quantity'] ?? metrics.quantity);
+                                                                    : (process.name === 'Sublimation'
+                                                                        ? (input.totalquantity ?? input.total_quantity ?? input['totalquantity'] ?? input['total_quantity'] ?? metrics.quantity)
+                                                                        : (input.quantity ?? input.total_quantity ?? input['total_quantity'] ?? input['quantity'] ?? metrics.quantity));
 
                                                                 const draftVal = draftInputs[order.id]?.[run.id]?.new_rate;
                                                                 const displayRate =
