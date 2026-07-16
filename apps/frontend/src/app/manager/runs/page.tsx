@@ -15,7 +15,31 @@ import {
     pauseRun,
     resumeRun,
 } from '@/services/managerQueueService';
-import { CheckCircle, Clock, LogOut, Package, PlayCircle, Pause, Play } from 'lucide-react';
+import { getStagePermissions } from '@/services/usersService';
+import {
+    CheckCircle,
+    Clock,
+    LogOut,
+    Package,
+    PlayCircle,
+    Pause,
+    Play,
+    ChevronDown,
+    ChevronRight,
+    ClipboardList,
+    Edit,
+    ShieldCheck,
+    Truck,
+    Layers,
+    Printer,
+    Scissors,
+    Flame,
+    Layout,
+    HelpCircle,
+    Palette,
+    Search,
+    Filter,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -71,7 +95,7 @@ function QueueCard({ item, onClick, onClaimed }: {
     return (
         <div
             onClick={onClick}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col"
+            className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col shrink-0"
         >
             {item.artworkUrl ? (
                 <img src={item.artworkUrl} alt="" className="w-full h-32 object-cover" />
@@ -180,7 +204,7 @@ function ActiveCard({ item, onClick, onChanged }: {
     return (
         <div
             onClick={onClick}
-            className="bg-white rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col"
+            className="bg-white rounded-xl border-2 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)] ring-2 ring-emerald-500/10 hover:shadow-[0_0_20px_rgba(16,185,129,0.35)] transition-all cursor-pointer overflow-hidden flex flex-col shrink-0"
         >
             {item.artworkUrl ? (
                 <img src={item.artworkUrl} alt="" className="w-full h-32 object-cover" />
@@ -257,14 +281,170 @@ function ActiveCard({ item, onClick, onChanged }: {
     );
 }
 
+const STAGE_ORDER: Record<string, number> = {
+    'ORDERS': 10,
+    'PENDING': 10,
+    'CONFIGURE': 15,
+    'DESIGN': 20,
+    'APPROVAL': 30,
+    'PRODUCTION': 40,
+    'FUSING': 42,
+    'CURING': 44,
+    'QC': 50,
+    'QC & COUNTING': 51,
+    'QC & PACKING': 52,
+    'DISPATCH': 60,
+    'COMPLETE': 70,
+    'COMPLETED': 70,
+};
+
+const STAGE_DISPLAY_NAMES: Record<string, string> = {
+    'ORDERS': 'Orders',
+    'PENDING': 'Orders',
+    'CONFIGURE': 'Configure',
+    'DESIGN': 'Design',
+    'APPROVAL': 'Approval',
+    'PRODUCTION': 'Production',
+    'FUSING': 'Fusing',
+    'CURING': 'Curing',
+    'QC': 'QC',
+    'QC & COUNTING': 'QC & Counting',
+    'QC & PACKING': 'QC',
+    'DISPATCH': 'Dispatch',
+    'COMPLETE': 'Completed',
+    'COMPLETED': 'Completed',
+};
+
+const STAGE_ICONS: Record<string, React.ComponentType<any>> = {
+    'ORDERS': ClipboardList,
+    'PENDING': ClipboardList,
+    'CONFIGURE': ClipboardList,
+    'DESIGN': Edit,
+    'APPROVAL': CheckCircle,
+    'PRODUCTION': Package,
+    'FUSING': Package,
+    'CURING': Package,
+    'QC': ShieldCheck,
+    'QC & COUNTING': ShieldCheck,
+    'QC & PACKING': ShieldCheck,
+    'DISPATCH': Truck,
+    'COMPLETE': CheckCircle,
+    'COMPLETED': CheckCircle,
+};
+
+const PROCESS_COLORS: Record<string, { text: string; border: string; bg: string; badge: string; indicator: string }> = {
+    'SCREEN PRINTING': {
+        text: 'text-emerald-600',
+        border: 'border-emerald-500',
+        bg: 'bg-emerald-50/50',
+        badge: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+        indicator: 'bg-emerald-500',
+    },
+    'SUBLIMATION': {
+        text: 'text-purple-600',
+        border: 'border-purple-500',
+        bg: 'bg-purple-50/50',
+        badge: 'bg-purple-50 text-purple-700 border-purple-100',
+        indicator: 'bg-purple-500',
+    },
+    'PLOTTER': {
+        text: 'text-amber-600',
+        border: 'border-amber-500',
+        bg: 'bg-amber-50/50',
+        badge: 'bg-amber-50 text-amber-700 border-amber-100',
+        indicator: 'bg-amber-500',
+    },
+    'DTF': {
+        text: 'text-blue-600',
+        border: 'border-blue-500',
+        bg: 'bg-blue-50/50',
+        badge: 'bg-blue-50 text-blue-700 border-blue-100',
+        indicator: 'bg-blue-500',
+    },
+    'ALLOVER SUBLIMATION': {
+        text: 'text-cyan-600',
+        border: 'border-cyan-500',
+        bg: 'bg-cyan-50/50',
+        badge: 'bg-cyan-50 text-cyan-700 border-cyan-100',
+        indicator: 'bg-cyan-500',
+    },
+    'EMBELLISHMENT': {
+        text: 'text-rose-600',
+        border: 'border-rose-500',
+        bg: 'bg-rose-50/50',
+        badge: 'bg-rose-50 text-rose-700 border-rose-100',
+        indicator: 'bg-rose-500',
+    },
+    'EMBROIDERY': {
+        text: 'text-rose-600',
+        border: 'border-rose-500',
+        bg: 'bg-rose-50/50',
+        badge: 'bg-rose-50 text-rose-700 border-rose-100',
+        indicator: 'bg-rose-500',
+    },
+    'QC & PACKING': {
+        text: 'text-indigo-600',
+        border: 'border-indigo-500',
+        bg: 'bg-indigo-50/50',
+        badge: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+        indicator: 'bg-indigo-500',
+    },
+};
+
+function getStageConfig(stageCode: string) {
+    const code = stageCode.toUpperCase();
+    return {
+        label: STAGE_DISPLAY_NAMES[code] || stageCode,
+        icon: STAGE_ICONS[code] || ClipboardList
+    };
+}
+
+function getProcessColorScheme(processName: string) {
+    const key = processName.toUpperCase();
+    for (const k of Object.keys(PROCESS_COLORS)) {
+        if (key.includes(k)) {
+            return PROCESS_COLORS[k];
+        }
+    }
+    return {
+        text: 'text-blue-600',
+        border: 'border-blue-500',
+        bg: 'bg-blue-50/50',
+        badge: 'bg-blue-50 text-blue-700 border-blue-100',
+        indicator: 'bg-blue-500',
+    };
+}
+
+const PROCESS_ICONS: Record<string, React.ComponentType<any>> = {
+    'SCREEN PRINTING': Printer,
+    'SUBLIMATION': Palette,
+    'PLOTTER': Scissors,
+    'DTF': Layers,
+    'ALLOVER SUBLIMATION': Flame,
+    'EMBELLISHMENT': Layout,
+    'EMBROIDERY': Palette,
+    'QC & PACKING': ShieldCheck,
+};
+
+function getProcessIcon(processName: string) {
+    const key = processName.toUpperCase();
+    for (const k of Object.keys(PROCESS_ICONS)) {
+        if (key.includes(k)) {
+            return PROCESS_ICONS[k];
+        }
+    }
+    return HelpCircle;
+}
+
 function ManagerRunsPage() {
     const { user } = useAuth();
     const [queue, setQueue] = useState<ManagerQueueItem[]>([]);
     const [active, setActive] = useState<ManagerActiveJob[]>([]);
+    const [stagePermissions, setStagePermissions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-    const [selectedProcess, setSelectedProcess] = useState<string | null>(null);
     const [selectedStage, setSelectedStage] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const fetchAll = async (showLoading = false) => {
@@ -284,6 +464,11 @@ function ManagerRunsPage() {
         if (!user?.id) return;
         fetchAll(true);
 
+        // Fetch stage permissions to know all assigned lifecycle stages
+        getStagePermissions(user.id)
+            .then(setStagePermissions)
+            .catch(err => console.error('Failed to fetch stage permissions', err));
+
         intervalRef.current = setInterval(() => fetchAll(false), POLL_INTERVAL_MS);
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
@@ -292,349 +477,215 @@ function ManagerRunsPage() {
 
     const allItems = [...active, ...queue];
 
-    // Get unique processes from allItems
-    const uniqueProcesses = Array.from(
-        new Set(allItems.map((item) => item.processName))
-    ).sort();
-
-    // If no process is selected yet, default to "all" (displaying all processes)
-    const activeProcess = selectedProcess && (selectedProcess === 'all' || uniqueProcesses.includes(selectedProcess))
-        ? selectedProcess
-        : 'all';
-
-    // Filter items to the active process
-    const processItems = activeProcess === 'all'
-        ? allItems
-        : allItems.filter((item) => item.processName === activeProcess);
-
-    // Separate active (claimed) items and queued items for this process
-    const activeItems = processItems.filter((item) => 'claimedAt' in item) as ManagerActiveJob[];
-    const queuedItems = processItems.filter((item) => !('claimedAt' in item)) as ManagerQueueItem[];
-
-    // Gather all stages
+    // Gather all stages: from permissions and from items
     const allStagesSet = new Set<string>();
-    activeItems.forEach(item => {
+    stagePermissions.forEach(p => {
+        if (p.stageCode) allStagesSet.add(p.stageCode);
+    });
+    allItems.forEach(item => {
         if (item.lifeCycleStatusCode) allStagesSet.add(item.lifeCycleStatusCode);
     });
-    queuedItems.forEach(item => {
-        if (item.lifeCycleStatusCode) allStagesSet.add(item.lifeCycleStatusCode);
-    });
-    const sortedStages = Array.from(allStagesSet).sort();
 
-    // Combine into structured lifecycle categories
-    const categories: {
-        key: string;
-        name: string;
-        count: number;
-        activeItems: ManagerActiveJob[];
-        queuedItems: ManagerQueueItem[];
-    }[] = [];
-
-    if (activeItems.length > 0) {
-        categories.push({
-            key: 'active-jobs',
-            name: 'My Active Jobs',
-            count: activeItems.length,
-            activeItems: activeItems,
-            queuedItems: [],
-        });
-    }
-
-    sortedStages.forEach((stage) => {
-        const stageActive = activeItems.filter(item => item.lifeCycleStatusCode === stage);
-        const stageQueued = queuedItems.filter(item => item.lifeCycleStatusCode === stage);
-        categories.push({
-            key: stage,
-            name: stage,
-            count: stageActive.length + stageQueued.length,
-            activeItems: stageActive,
-            queuedItems: stageQueued,
-        });
+    // Sort stages based on the custom flow sequence
+    const sortedStages = Array.from(allStagesSet).sort((a, b) => {
+        const orderA = STAGE_ORDER[a.toUpperCase()] || 100;
+        const orderB = STAGE_ORDER[b.toUpperCase()] || 100;
+        return orderA - orderB;
     });
 
-    const activeStage = selectedStage && (selectedStage === 'all' || categories.some((c) => c.key === selectedStage))
+    // Determine the active lifecycle stage
+    const activeStage = selectedStage && sortedStages.includes(selectedStage)
         ? selectedStage
-        : 'all';
+        : (sortedStages.includes('PRODUCTION') ? 'PRODUCTION' : (sortedStages[0] || null));
 
-    const displayedCategories = activeStage === 'all'
-        ? categories
-        : categories.filter((c) => c.key === activeStage);
+    // Filter items to the active lifecycle stage
+    const stageItems = allItems.filter(item => item.lifeCycleStatusCode === activeStage);
+
+    // Search filter candidate check
+    const matchesSearch = (item: any) => {
+        if (!searchQuery) return true;
+        const s = searchQuery.toLowerCase();
+        return (
+            item.orderCode.toLowerCase().includes(s) ||
+            (item.jobCode && item.jobCode.toLowerCase().includes(s)) ||
+            item.customerName.toLowerCase().includes(s) ||
+            item.processName.toLowerCase().includes(s) ||
+            item.runNumber.toString().includes(s)
+        );
+    };
+
+    // Gather unique processes for the active stage
+    const processesSet = new Set<string>();
+    stagePermissions.filter(p => p.stageCode === activeStage).forEach(p => {
+        if (p.processName) processesSet.add(p.processName);
+    });
+    stageItems.forEach(item => {
+        if (item.processName) processesSet.add(item.processName);
+    });
+    const stageProcesses = Array.from(processesSet).sort();
+
+    // Filter active items and queued items for display
+    const stageActiveItems = active.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
+    const stageQueuedItems = queue.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
 
     return (
         <div className="py-6">
-            <div className="flex items-center justify-between mb-6">
-                <h1 className="text-xl font-bold">Production</h1>
-            </div>
-
-            {loading ? (
+            {loading && allItems.length === 0 ? (
                 <div className="text-center py-20 text-gray-400">Loading…</div>
-            ) : allItems.length === 0 ? (
+            ) : allStagesSet.size === 0 ? (
                 <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
                     <p className="text-gray-500">No runs waiting in your queue.</p>
                 </div>
             ) : (
                 <>
-                    {/* PROCESS TABS */}
-                    <div className="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide gap-2">
-                        {/* All Processes Tab */}
-                        <button
-                            onClick={() => {
-                                setSelectedProcess('all');
-                                setSelectedStage('all');
-                            }}
-                            className={`flex items-center gap-2 px-4 py-2.5 border-b-2 font-medium text-sm transition-all whitespace-nowrap ${
-                                activeProcess === 'all'
-                                    ? 'border-blue-600 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
-                        >
-                            <span>All</span>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                activeProcess === 'all'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : 'bg-gray-100 text-gray-600'
-                            }`}>
-                                {allItems.length}
-                            </span>
-                        </button>
+                    {/* LIFECYCLE STAGE TABS */}
+                    <div className="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide gap-2 bg-white px-4 py-1.5 rounded-xl border border-gray-100">
+                        {sortedStages.map((stage) => {
+                            const config = getStageConfig(stage);
+                            const Icon = config.icon;
+                            const isActive = stage === activeStage;
+                            const count = allItems.filter(item => item.lifeCycleStatusCode === stage).length;
 
-                        {/* Individual Process Tabs */}
-                        {uniqueProcesses.map((procName) => {
-                            const count = allItems.filter((item) => item.processName === procName).length;
-                            const isTabActive = procName === activeProcess;
                             return (
                                 <button
-                                    key={procName}
-                                    onClick={() => {
-                                        setSelectedProcess(procName);
-                                        setSelectedStage('all');
-                                    }}
-                                    className={`flex items-center gap-2 px-4 py-2.5 border-b-2 font-medium text-sm transition-all whitespace-nowrap ${
-                                        isTabActive
+                                    key={stage}
+                                    onClick={() => setSelectedStage(stage)}
+                                    className={`flex items-center gap-2.5 px-4 py-3 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
+                                        isActive
                                             ? 'border-blue-600 text-blue-600'
                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                                 >
-                                    <span>{procName}</span>
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                        isTabActive
-                                            ? 'bg-blue-100 text-blue-800'
-                                            : 'bg-gray-100 text-gray-600'
-                                    }`}>
-                                        {count}
-                                    </span>
+                                    <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                                    <span>{config.label}</span>
+                                    {count > 0 && (
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                            isActive
+                                                ? 'bg-blue-100 text-blue-800'
+                                                : 'bg-gray-100 text-gray-600'
+                                        }`}>
+                                            {count}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}
                     </div>
 
-                    <div className="flex flex-col md:flex-row gap-6 items-start">
-                        {/* LIFECYCLE SIDEBAR */}
-                        <div className="w-full md:w-64 shrink-0 md:sticky md:top-20 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                            <div className="mb-3 pb-2 border-b border-gray-100 hidden md:block">
-                                <h2 className="font-semibold text-gray-700 text-xs uppercase tracking-wider">
-                                    Stages
-                                </h2>
-                            </div>
-                            
-                            {/* Horizontal scroll on mobile, vertical list on desktop */}
-                            <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide max-w-full">
-                                <button
-                                    onClick={() => setSelectedStage('all')}
-                                    className={`flex-shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
-                                        activeStage === 'all'
-                                            ? 'bg-blue-50 text-blue-700 border border-blue-100 shadow-sm'
-                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
-                                    }`}
-                                >
-                                    <span>All Stages</span>
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold ${
-                                        activeStage === 'all'
-                                            ? 'bg-blue-100 text-blue-800'
-                                            : 'bg-gray-100 text-gray-600'
-                                    }`}>
-                                        {processItems.length}
-                                    </span>
-                                </button>
-                                {categories.map((cat) => {
-                                    const isActiveJobsCat = cat.key === 'active-jobs';
-                                    const isSidebarSelected = activeStage === cat.key;
-                                    return (
-                                        <button
-                                            key={cat.key}
-                                            onClick={() => setSelectedStage(cat.key)}
-                                            className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-                                            style={isActiveJobsCat ? {
-                                                background: isSidebarSelected ? '#16a34a' : '#f0fdf4',
-                                                color: isSidebarSelected ? '#fff' : '#15803d',
-                                                border: '1.5px solid #86efac',
-                                                boxShadow: '0 1px 4px rgba(22,163,74,0.15)',
-                                                fontWeight: 700,
-                                            } : isSidebarSelected ? {
-                                                background: '#eff6ff',
-                                                color: '#1d4ed8',
-                                                border: '1px solid #bfdbfe',
-                                            } : {
-                                                color: '#4b5563',
-                                                border: '1px solid transparent',
-                                            }}
-                                        >
-                                            <span className="truncate">{cat.name}</span>
-                                            <span
-                                                className="rounded-full text-xs font-bold"
-                                                style={isActiveJobsCat ? {
-                                                    background: isSidebarSelected ? '#fff' : '#bbf7d0',
-                                                    color: isSidebarSelected ? '#15803d' : '#166534',
-                                                    padding: '1px 8px',
-                                                } : isSidebarSelected ? {
-                                                    background: '#dbeafe',
-                                                    color: '#1e40af',
-                                                    padding: '1px 8px',
-                                                } : {
-                                                    background: '#f3f4f6',
-                                                    color: '#4b5563',
-                                                    padding: '1px 8px',
-                                                }}
-                                            >
-                                                {cat.count}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                    {/* STAGE HEADER & SEARCH BAR */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h1 className="text-2xl font-bold uppercase tracking-tight text-gray-900">
+                                {activeStage ? (STAGE_DISPLAY_NAMES[activeStage.toUpperCase()] || activeStage) : 'Production'}
+                            </h1>
+                            <p className="text-sm text-gray-500 mt-1">
+                                Track all jobs across {activeStage ? (STAGE_DISPLAY_NAMES[activeStage.toUpperCase()] || activeStage).toLowerCase() : 'production'} processes
+                            </p>
                         </div>
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                            <div className="relative flex-1 md:flex-none">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search job, order or customer..."
+                                    className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full md:w-64 bg-white shadow-xs transition-all"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <button className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 bg-white shadow-xs" title="Filter list">
+                                <Filter className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
 
-                        {/* MAIN CONTENT AREA */}
-                        <div className="flex-1 min-w-0 w-full">
-                            <div className="space-y-10">
-                                {displayedCategories.map((category) => {
-                                    const isActiveJobsSection = category.key === 'active-jobs';
-                                    return (
-                                    <div key={category.key} className="scroll-mt-20">
-                                        {isActiveJobsSection ? (
-                                            <>
-                                                <div
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '10px',
-                                                        marginBottom: '16px',
-                                                        padding: '10px 16px',
-                                                        borderRadius: '12px',
-                                                        background: 'linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%)',
-                                                        border: '1.5px solid #86efac',
-                                                        boxShadow: '0 1px 6px rgba(22,163,74,0.12)',
-                                                    }}
-                                                >
-                                                    <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
-                                                        {category.name}
-                                                    </h2>
-                                                    <span style={{ background: '#16a34a', color: '#fff', borderRadius: '999px', padding: '1px 10px', fontSize: '12px', fontWeight: 700 }}>
-                                                        {category.count}
-                                                    </span>
-                                                    <span style={{ marginLeft: 'auto', fontSize: '11px', fontWeight: 600, color: '#15803d', background: '#dcfce7', border: '1px solid #86efac', borderRadius: '999px', padding: '2px 10px' }}>
-                                                        In Progress
+                    {/* KANBAN BOARD */}
+                    <div className="overflow-x-auto pb-6 scrollbar-hide">
+                        <div className="flex gap-6 pb-2 min-w-max">
+                            {stageProcesses.map((processName) => {
+                                const activeForProcess = stageActiveItems.filter(item => item.processName === processName);
+                                const queuedForProcess = stageQueuedItems.filter(item => item.processName === processName);
+
+                                const totalPendingJobs = activeForProcess.length + queuedForProcess.length;
+                                const totalQty = [...activeForProcess, ...queuedForProcess].reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+                                const colorScheme = getProcessColorScheme(processName);
+                                const Icon = getProcessIcon(processName);
+
+                                return (
+                                    <div
+                                        key={processName}
+                                        className="w-80 shrink-0 bg-gray-50/50 rounded-2xl border border-gray-200/60 flex flex-col gap-4 p-4"
+                                    >
+                                        {/* Column Header */}
+                                        <div className="flex flex-col gap-2 pb-3 border-b border-gray-200/80">
+                                            <div className={`h-1 w-full rounded-full ${colorScheme.indicator}`} />
+                                            <div className="flex items-center justify-between mt-1">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`p-1.5 rounded-lg border ${colorScheme.badge}`}>
+                                                        <Icon className="w-4 h-4" />
+                                                    </div>
+                                                    <span className="font-extrabold text-xs tracking-wider text-gray-800 uppercase">
+                                                        {processName}
                                                     </span>
                                                 </div>
-                                                <div className="space-y-6">
-                                                    {Object.entries(
-                                                        category.activeItems.reduce<Record<string, ManagerActiveJob[]>>((acc, item) => {
-                                                            const stage = item.lifeCycleStatusCode || 'Unspecified';
-                                                            if (!acc[stage]) {
-                                                                acc[stage] = [];
-                                                            }
-                                                            acc[stage].push(item);
-                                                            return acc;
-                                                        }, {})
-                                                    ).map(([stageName, stageItems]) => (
-                                                        <div key={stageName} className="space-y-3">
-                                                            <div className="flex items-center gap-2 border-b border-gray-100 pb-1.5">
-                                                                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-                                                                    {stageName}
-                                                                </h3>
-                                                                <span className="bg-green-50 border border-green-200 text-green-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                                                    {stageItems.length}
-                                                                </span>
-                                                            </div>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                                {stageItems.map((item) => (
-                                                                    <ActiveCard
-                                                                        key={item.id}
-                                                                        item={item}
-                                                                        onClick={() => setSelectedRunId(item.id)}
-                                                                        onChanged={() => fetchAll(false)}
-                                                                    />
-                                                                ))}
-                                                            </div>
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${colorScheme.badge}`}>
+                                                    {totalPendingJobs}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex flex-col mt-1">
+                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Pending</span>
+                                                <span className={`text-xl font-black mt-0.5 ${colorScheme.text}`}>
+                                                    {totalQty.toLocaleString()} <span className="text-xs font-bold text-gray-500">pcs</span>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Column Content */}
+                                        <div className="flex flex-col gap-4 pr-1 min-h-[150px]">
+                                            {totalPendingJobs > 0 ? (
+                                                <>
+                                                    {/* Active items first */}
+                                                    {activeForProcess.map((item) => (
+                                                        <ActiveCard
+                                                            key={item.id}
+                                                            item={item}
+                                                            onClick={() => setSelectedRunId(item.id)}
+                                                            onChanged={() => fetchAll(false)}
+                                                        />
+                                                    ))}
+
+                                                    {/* Queued items with 70% opacity, placed below active items */}
+                                                    {queuedForProcess.map((item) => (
+                                                        <div
+                                                            key={item.id}
+                                                            className="opacity-70 hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <QueueCard
+                                                                item={item}
+                                                                onClick={() => setSelectedRunId(item.id)}
+                                                                onClaimed={() => fetchAll(false)}
+                                                            />
                                                         </div>
                                                     ))}
+                                                </>
+                                            ) : (
+                                                /* Empty state matching the reference UI */
+                                                <div className="border border-dashed border-gray-200/80 rounded-2xl p-8 text-center text-gray-400 text-xs flex flex-col items-center justify-center bg-white/40 min-h-[220px] gap-3">
+                                                    <div className="w-12 h-12 rounded-full border border-dashed border-gray-200 flex items-center justify-center text-blue-500 bg-white shadow-xs">
+                                                        <Package className="w-5 h-5 text-gray-400" />
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="font-bold text-gray-700">No jobs yet</span>
+                                                        <span className="text-[10px] text-gray-400 max-w-[150px] mx-auto">Jobs will appear here once started</span>
+                                                    </div>
                                                 </div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
-                                                    <h2 className="text-base md:text-lg font-bold text-gray-800">
-                                                        {category.name}
-                                                    </h2>
-                                                    <span className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
-                                                        {category.count}
-                                                    </span>
-                                                </div>
-                                                <div className="space-y-6">
-                                                    {/* Active Jobs in this Stage */}
-                                                    {category.activeItems.length > 0 && (
-                                                        <div className="space-y-3">
-                                                            <div className="flex items-center gap-2 pb-1">
-                                                                <h3 className="text-xs font-bold text-green-700 uppercase tracking-wider">
-                                                                    Active Jobs
-                                                                </h3>
-                                                                <span className="bg-green-50 border border-green-200 text-green-700 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                                                    {category.activeItems.length}
-                                                                </span>
-                                                            </div>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                                {category.activeItems.map((item) => (
-                                                                    <ActiveCard
-                                                                        key={item.id}
-                                                                        item={item}
-                                                                        onClick={() => setSelectedRunId(item.id)}
-                                                                        onChanged={() => fetchAll(false)}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Available Jobs in this Stage */}
-                                                    {category.queuedItems.length > 0 && (
-                                                        <div className="space-y-3">
-                                                            <div className="flex items-center gap-2 pb-1">
-                                                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                                                    Available Jobs
-                                                                </h3>
-                                                                <span className="bg-gray-50 border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                                                    {category.queuedItems.length}
-                                                                </span>
-                                                            </div>
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                                                {category.queuedItems.map((item) => (
-                                                                    <QueueCard
-                                                                        key={item.id}
-                                                                        item={item}
-                                                                        onClick={() => setSelectedRunId(item.id)}
-                                                                        onClaimed={() => fetchAll(false)}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
-                                    );
-                                })}
-                            </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </>
