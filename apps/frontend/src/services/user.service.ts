@@ -10,13 +10,15 @@ export interface User {
 }
 
 export async function getManagers(): Promise<User[]> {
-    return apiRequest<User[]>('/internal/users?role=MANAGER', {
+    const res = await apiRequest<{ data: User[] }>('/internal/users?role=MANAGER', {
         method: 'GET',
     });
+    return res.data || [];
 }
 
 export async function getManagersAndAdmins(): Promise<User[]> {
-    return apiRequest<User[]>('/internal/users?role=MANAGER,ADMIN', {
+    const res = await apiRequest<{ data: User[] }>('/internal/users?role=MANAGER,ADMIN,SUPER_ADMIN', {
         method: 'GET',
     });
+    return res.data || [];
 }

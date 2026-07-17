@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ChevronDown, Clock, Loader2, UserPen } from 'lucide-react';
 import { getRunById, updateStageHistoryManager } from '@/services/run.service';
-import { listUsers, UserListItem } from '@/services/usersService';
+import { getManagersAndAdmins, User } from '@/services/user.service';
 import { toast } from 'sonner';
 
 interface RunLifecycleHistoryProps {
@@ -44,7 +44,8 @@ interface ManagerDropdownProps {
     runId: string;
     stageHistoryId: string;
     currentManagerId: string | null;
-    managers: UserListItem[];
+    currentManagerName?: string | null;
+    managers: User[];
     onUpdated: (newManager: { id: string; name: string }) => void;
 }
 
@@ -52,6 +53,7 @@ function ManagerDropdown({
     runId,
     stageHistoryId,
     currentManagerId,
+    currentManagerName,
     managers,
     onUpdated,
 }: ManagerDropdownProps) {
@@ -84,7 +86,7 @@ function ManagerDropdown({
 
     const currentManager = managers.find((m) => m.id === currentManagerId);
 
-    const handleSelect = async (manager: UserListItem) => {
+    const handleSelect = async (manager: User) => {
         if (manager.id === currentManagerId) { setOpen(false); return; }
         setSaving(true);
         setOpen(false);
@@ -120,7 +122,7 @@ function ManagerDropdown({
                     ? <Loader2 className="w-3 h-3 animate-spin" />
                     : <UserPen className="w-3 h-3 opacity-70" />
                 }
-                <span>{currentManager?.name ?? 'Unknown'}</span>
+                <span>{currentManager?.name ?? currentManagerName ?? 'Unknown'}</span>
                 {!saving && (
                     <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
                 )}
@@ -179,7 +181,7 @@ function ManagerDropdown({
 // ─────────────────────────────────────────────────────────────────────────────
 export default function RunLifecycleHistory({ runId }: RunLifecycleHistoryProps) {
     const [history, setHistory] = useState<HistoryEntry[] | null>(null);
-    const [managers, setManagers] = useState<UserListItem[]>([]);
+    const [managers, setManagers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -201,9 +203,9 @@ export default function RunLifecycleHistory({ runId }: RunLifecycleHistoryProps)
             }
 
             try {
-                const users = await listUsers();
+                const users = await getManagersAndAdmins();
                 if (cancelled) return;
-                setManagers(users.filter((u) => u.role === 'MANAGER' || u.role === 'ADMIN'));
+                setManagers(users);
             } catch (err) {
                 console.error('Failed to load users for lifecycle history:', err);
             } finally {
@@ -278,6 +280,7 @@ export default function RunLifecycleHistory({ runId }: RunLifecycleHistoryProps)
                                                 runId={runId}
                                                 stageHistoryId={h.stageHistoryId}
                                                 currentManagerId={h.manager?.id ?? null}
+                                                currentManagerName={h.manager?.name ?? null}
                                                 managers={managers}
                                                 onUpdated={(nm) => handleManagerUpdated(i, nm)}
                                             />
