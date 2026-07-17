@@ -37,6 +37,7 @@ import {
     Palette,
     Search,
     Filter,
+    RefreshCw,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -432,6 +433,7 @@ function AdminMyTasksPage() {
     const [active, setActive] = useState<ManagerActiveJob[]>([]);
     const [stagePermissions, setStagePermissions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
     const [selectedStage, setSelectedStage] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -450,6 +452,15 @@ function AdminMyTasksPage() {
         }
     };
 
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await fetchAll(true);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     useEffect(() => {
         if (!user?.user?.id) return;
         fetchAll(true);
@@ -459,11 +470,15 @@ function AdminMyTasksPage() {
             .then(setStagePermissions)
             .catch(err => console.error('Failed to fetch stage permissions', err));
 
-        intervalRef.current = setInterval(() => fetchAll(false), POLL_INTERVAL_MS);
+        const role = user.user.role;
+        const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+        const intervalMs = isAdmin ? 15 * 60 * 1000 : 7000; // 15 mins for admins, 7 seconds for managers
+
+        intervalRef.current = setInterval(() => fetchAll(false), intervalMs);
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [user?.user?.id]);
+    }, [user?.user?.id, user?.user?.role]);
 
     const allItems = [...active, ...queue];
 
@@ -520,11 +535,21 @@ function AdminMyTasksPage() {
 
     return (
         <div className="py-6 px-4 sm:px-6 lg:px-8">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight text-gray-900">My Tasks</h1>
-                <p className="text-sm text-gray-500 mt-1">
-                    Manage and update task stages assigned to you.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">My Tasks</h1>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Manage and update task stages assigned to you.
+                    </p>
+                </div>
+                <button
+                    onClick={handleRefresh}
+                    disabled={refreshing || loading}
+                    className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-xs w-full sm:w-auto cursor-pointer h-10 shrink-0"
+                >
+                    <RefreshCw className={`w-4 h-4 text-gray-500 ${(refreshing || loading) ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                </button>
             </div>
 
             {loading && allItems.length === 0 ? (

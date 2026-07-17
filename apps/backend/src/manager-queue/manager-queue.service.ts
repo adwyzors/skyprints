@@ -67,60 +67,62 @@ export class ManagerQueueService {
     executor: PrismaExecutor,
     workflowTypeId: string,
     stageCode: string,
-    cache: Map<string, 'PRE' | 'POST' | null>,
+    cache: Map<string, Promise<'PRE' | 'POST' | null>>,
   ): Promise<'PRE' | 'POST' | null> {
     const cacheKey = `${workflowTypeId}::${stageCode}`;
-    if (cache.has(cacheKey)) return cache.get(cacheKey) ?? null;
+    if (cache.has(cacheKey)) return cache.get(cacheKey)!;
 
     if (stageCode === 'PRODUCTION') {
-      cache.set(cacheKey, 'PRE');
+      const promise = Promise.resolve('PRE' as const);
+      cache.set(cacheKey, promise);
       return 'PRE';
     }
 
-    const [statuses, transitions] = await Promise.all([
-      executor.workflowStatus.findMany({
-        where: { workflowTypeId },
-        select: { id: true, code: true },
-      }),
-      executor.workflowTransition.findMany({
-        where: { workflowTypeId },
-        select: { fromStatusId: true, toStatusId: true },
-      }),
-    ]);
+    const promise = (async (): Promise<'PRE' | 'POST' | null> => {
+      const [statuses, transitions] = await Promise.all([
+        executor.workflowStatus.findMany({
+          where: { workflowTypeId },
+          select: { id: true, code: true },
+        }),
+        executor.workflowTransition.findMany({
+          where: { workflowTypeId },
+          select: { fromStatusId: true, toStatusId: true },
+        }),
+      ]);
 
-    const codeById = new Map(statuses.map((s) => [s.id, s.code]));
-    const forward = new Map<string, string[]>();
-    for (const t of transitions) {
-      const from = codeById.get(t.fromStatusId);
-      const to = codeById.get(t.toStatusId);
-      if (!from || !to) continue;
-      forward.set(from, [...(forward.get(from) ?? []), to]);
-    }
-
-    const reaches = (start: string, target: string): boolean => {
-      const seen = new Set<string>();
-      const queue = [start];
-      while (queue.length > 0) {
-        const code = queue.shift() as string;
-        if (code === target) return true;
-        if (seen.has(code)) continue;
-        seen.add(code);
-        queue.push(...(forward.get(code) ?? []));
+      const codeById = new Map(statuses.map((s) => [s.id, s.code]));
+      const forward = new Map<string, string[]>();
+      for (const t of transitions) {
+        const from = codeById.get(t.fromStatusId);
+        const to = codeById.get(t.toStatusId);
+        if (!from || !to) continue;
+        forward.set(from, [...(forward.get(from) ?? []), to]);
       }
-      return false;
-    };
 
-    let result: 'PRE' | 'POST' | null;
-    if (reaches(stageCode, 'PRODUCTION')) {
-      result = 'PRE';
-    } else if (reaches('PRODUCTION', stageCode)) {
-      result = 'POST';
-    } else {
-      result = null;
-    }
+      const reaches = (start: string, target: string): boolean => {
+        const seen = new Set<string>();
+        const queue = [start];
+        while (queue.length > 0) {
+          const code = queue.shift() as string;
+          if (code === target) return true;
+          if (seen.has(code)) continue;
+          seen.add(code);
+          queue.push(...(forward.get(code) ?? []));
+        }
+        return false;
+      };
 
-    cache.set(cacheKey, result);
-    return result;
+      if (reaches(stageCode, 'PRODUCTION')) {
+        return 'PRE';
+      } else if (reaches('PRODUCTION', stageCode)) {
+        return 'POST';
+      } else {
+        return null;
+      }
+    })();
+
+    cache.set(cacheKey, promise);
+    return promise;
   }
 
   private async matchesLocation(
@@ -133,7 +135,7 @@ export class ManagerQueueService {
       postProductionLocationId: string | null;
     },
     scopedLocationId: string | undefined,
-    cache: Map<string, 'PRE' | 'POST' | null>,
+    cache: Map<string, Promise<'PRE' | 'POST' | null>>,
   ): Promise<boolean> {
     if (!scopedLocationId) return true;
 
@@ -255,7 +257,7 @@ export class ManagerQueueService {
       orderBy: { createdAt: 'asc' },
     });
 
-    const cache = new Map<string, 'PRE' | 'POST' | null>();
+    const cache = new Map<string, Promise<'PRE' | 'POST' | null>>();
     const scoped = await Promise.all(
       runs.map((r) =>
         this.matchesLocation(this.prisma, r, scopedLocationId, cache),
