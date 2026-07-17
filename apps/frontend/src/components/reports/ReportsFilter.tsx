@@ -8,7 +8,7 @@ import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import { ReportsQuery } from '@/domain/model/reports.model';
 import { useEffect, useRef, useState } from 'react';
 import { getCustomers } from '@/services/customer.service';
-import { listUsers } from '@/services/usersService';
+import { getManagersAndAdmins } from '@/services/user.service';
 import { getProcesses } from '@/services/process.service';
 import { getLocations } from '@/services/location.service';
 import { Customer } from '@/domain/model/customer.model';
@@ -54,7 +54,7 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
             }
 
             try {
-                const userData = await listUsers();
+                const userData = await getManagersAndAdmins();
                 // Show all active users as managers involved in the dropdown
                 const activeManagers = userData
                     .filter(u => u.isActive)

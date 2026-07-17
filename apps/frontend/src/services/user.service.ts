@@ -14,3 +14,9 @@ export async function getManagers(): Promise<User[]> {
         method: 'GET',
     });
 }
+
+export async function getManagersAndAdmins(): Promise<User[]> {
+    return apiRequest<User[]>('/internal/users?role=MANAGER,ADMIN', {
+        method: 'GET',
+    });
+}
