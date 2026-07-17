@@ -186,24 +186,31 @@ export default function RunLifecycleHistory({ runId }: RunLifecycleHistoryProps)
         let cancelled = false;
         setLoading(true);
 
-        Promise.all([getRunById(runId), listUsers()])
-            .then(([run, users]) => {
+        const loadData = async () => {
+            try {
+                const run = await getRunById(runId);
                 if (cancelled) return;
-                // Sort chronologically (oldest first); backend also returns asc now.
                 const sorted = [...(run.lifecycleHistory ?? [])].sort(
                     (a: HistoryEntry, b: HistoryEntry) =>
                         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
                 );
                 setHistory(sorted);
-                setManagers(users.filter((u) => u.role === 'MANAGER' || u.role === 'ADMIN'));
-            })
-            .catch((err) => {
+            } catch (err) {
                 console.error('Failed to load run lifecycle history:', err);
                 if (!cancelled) setHistory([]);
-            })
-            .finally(() => {
+            }
+
+            try {
+                const users = await listUsers();
+                if (cancelled) return;
+                setManagers(users.filter((u) => u.role === 'MANAGER' || u.role === 'ADMIN'));
+            } catch (err) {
+                console.error('Failed to load users for lifecycle history:', err);
+            } finally {
                 if (!cancelled) setLoading(false);
-            });
+            }
+        };
+        loadData();
 
         return () => { cancelled = true; };
     }, [runId]);

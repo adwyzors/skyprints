@@ -33,23 +33,35 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
         hasFetchedRef.current = true;
         const loadFilterData = async () => {
             try {
-                const [customerData, processData, locationData, userData] = await Promise.all([
-                    getCustomers(),
-                    getProcesses(),
-                    getLocations(),
-                    listUsers()
-                ]);
+                const customerData = await getCustomers();
                 setCustomers(customerData);
+            } catch (error) {
+                console.error('Failed to load customer filter data:', error);
+            }
+
+            try {
+                const processData = await getProcesses();
                 setProcesses(processData);
+            } catch (error) {
+                console.error('Failed to load process filter data:', error);
+            }
+
+            try {
+                const locationData = await getLocations();
                 setLocations(locationData);
-                
+            } catch (error) {
+                console.error('Failed to load location filter data:', error);
+            }
+
+            try {
+                const userData = await listUsers();
                 // Show all active users as managers involved in the dropdown
                 const activeManagers = userData
                     .filter(u => u.isActive)
                     .map(u => ({ id: u.id, name: u.name }));
                 setManagers(activeManagers);
             } catch (error) {
-                console.error('Failed to load filter data:', error);
+                console.error('Failed to load managers filter data:', error);
             }
         };
         loadFilterData();

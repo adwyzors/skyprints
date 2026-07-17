@@ -119,6 +119,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     'customers:view',
     'analytics:view',
     'locations:view',
+    'users:view:basic',
   ],
 };
 

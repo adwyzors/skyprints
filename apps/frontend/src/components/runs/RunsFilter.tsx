@@ -61,14 +61,17 @@ export default function RunsFilter({ filters, locations, onChange, onClear, onCl
         hasFetchedRef.current = true;
         const fetchData = async () => {
             try {
-                const [custs, mgrs] = await Promise.all([
-                    getCustomers(),
-                    getManagers(),
-                ]);
+                const custs = await getCustomers();
                 setCustomers(custs);
+            } catch (error) {
+                console.error("Failed to fetch customers filter data", error);
+            }
+
+            try {
+                const mgrs = await getManagers();
                 setManagers(mgrs);
             } catch (error) {
-                console.error("Failed to fetch filter data", error);
+                console.error("Failed to fetch managers filter data", error);
             }
         };
         fetchData();
