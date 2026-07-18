@@ -32,37 +32,34 @@ export default function ReportsFilter({ onClose, query, onQueryChange }: Reports
         if (hasFetchedRef.current) return;
         hasFetchedRef.current = true;
         const loadFilterData = async () => {
-            try {
-                const customerData = await getCustomers();
-                setCustomers(customerData);
-            } catch (error) {
-                console.error('Failed to load customer filter data:', error);
-            }
+            const [customerData, processData, locationData, userData] = await Promise.all([
+                getCustomers().catch(error => {
+                    console.error('Failed to load customer filter data:', error);
+                    return [] as Customer[];
+                }),
+                getProcesses().catch(error => {
+                    console.error('Failed to load process filter data:', error);
+                    return [] as ProcessSummary[];
+                }),
+                getLocations().catch(error => {
+                    console.error('Failed to load location filter data:', error);
+                    return [] as Location[];
+                }),
+                getManagersAndAdmins().catch(error => {
+                    console.error('Failed to load managers filter data:', error);
+                    return [];
+                })
+            ]);
 
-            try {
-                const processData = await getProcesses();
-                setProcesses(processData);
-            } catch (error) {
-                console.error('Failed to load process filter data:', error);
-            }
+            setCustomers(customerData);
+            setProcesses(processData);
+            setLocations(locationData);
 
-            try {
-                const locationData = await getLocations();
-                setLocations(locationData);
-            } catch (error) {
-                console.error('Failed to load location filter data:', error);
-            }
-
-            try {
-                const userData = await getManagersAndAdmins();
-                // Show all active users as managers involved in the dropdown
-                const activeManagers = userData
-                    .filter(u => u.isActive)
-                    .map(u => ({ id: u.id, name: u.name }));
-                setManagers(activeManagers);
-            } catch (error) {
-                console.error('Failed to load managers filter data:', error);
-            }
+            // Show all active users as managers involved in the dropdown
+            const activeManagers = userData
+                .filter(u => u.isActive)
+                .map(u => ({ id: u.id, name: u.name }));
+            setManagers(activeManagers);
         };
         loadFilterData();
     }, []);
