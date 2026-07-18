@@ -145,6 +145,7 @@
   "143": "Phase 3 — Drop Keycloak, shift backend to Droplet",
   "144": "Deployment — Vercel Serverless (Free Tier)",
   "145": "Frontend",
+  "146": "KeycloakService",
   "147": "Backend (serverless via `api/index.ts`)",
   "148": "CLAUDE.md",
   "149": "DigitalOcean Droplet setup (Phase 3)",
@@ -169,5 +170,8 @@
   "168": "Permissions system",
   "169": "result.js",
   "170": "SKILL.md",
+  "171": "workflow.engine.ts",
+  "172": "OH",
+  "173": "run-fields.validator.ts",
   "174": "ConfigurationModal.tsx"
 }
