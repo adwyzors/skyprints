@@ -86,23 +86,23 @@ function OrderConfigPage() {
         setLoading(true);
 
         try {
-            // Fetch order data
-            const orderData = await getOrderById(orderId);
+            // Fetch order data, managers, and locations concurrently
+            const [orderData, managersResult, locationsResult] = await Promise.all([
+                getOrderById(orderId),
+                getManagers().catch(err => {
+                    console.error('Failed to load managers:', err);
+                    return [];
+                }),
+                getLocationsWithHeaders({ limit: 100, isActive: true }).catch(err => {
+                    console.error('Failed to load locations:', err);
+                    return { locations: [] } as any;
+                })
+            ]);
+
             if (!orderData) throw new Error('Order not found');
-
             setOrder(orderData);
-
-            // Fetch managers and locations once per page
-            try {
-                const [managersData, locationsData] = await Promise.all([
-                    getManagers(),
-                    getLocationsWithHeaders({ limit: 100, isActive: true })
-                ]);
-                setManagers(managersData);
-                setLocations(locationsData.locations);
-            } catch (err) {
-                console.error('Failed to load shared configuration data:', err);
-            }
+            setManagers(managersResult);
+            setLocations(locationsResult.locations);
 
             // Fetch billing data for billed/completed orders
             if (['BILLED', 'COMPLETE'].includes(orderData.status.toUpperCase())) {
