@@ -51,15 +51,36 @@ export class NotificationsService {
     }
   }
 
+  private readonly userAdminCache = new Map<
+    string,
+    { isAdmin: boolean; expiresAt: number }
+  >();
+
   private async assertAdmin(userId: string): Promise<void> {
+    const cached = this.userAdminCache.get(userId);
+    if (cached && cached.expiresAt > Date.now()) {
+      if (!cached.isAdmin) {
+        throw new ForbiddenException(
+          'Only admin accounts can access notifications',
+        );
+      }
+      return;
+    }
+
     const dbUser = await this.prisma.user.findUnique({
       where: { id: userId, deletedAt: null },
+      select: { role: true },
     });
 
-    if (
-      !dbUser ||
-      !(dbUser.role === 'ADMIN' || dbUser.role === 'SUPER_ADMIN')
-    ) {
+    const isAdmin =
+      !!dbUser && (dbUser.role === 'ADMIN' || dbUser.role === 'SUPER_ADMIN');
+
+    this.userAdminCache.set(userId, {
+      isAdmin,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    });
+
+    if (!isAdmin) {
       throw new ForbiddenException(
         'Only admin accounts can access notifications',
       );
@@ -69,8 +90,12 @@ export class NotificationsService {
   async getUnreadCount(userId: string): Promise<{ count: number }> {
     await this.assertAdmin(userId);
 
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const count = await this.prisma.notification.count({
-      where: { NOT: { readByUserIds: { has: userId } } },
+      where: {
+        createdAt: { gte: thirtyDaysAgo },
+        NOT: { readByUserIds: { has: userId } },
+      },
     });
 
     return { count };
@@ -80,10 +105,14 @@ export class NotificationsService {
     await this.assertAdmin(userId);
 
     const skip = (page - 1) * limit;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     const [total, list] = await Promise.all([
-      this.prisma.notification.count(),
+      this.prisma.notification.count({
+        where: { createdAt: { gte: thirtyDaysAgo } },
+      }),
       this.prisma.notification.findMany({
+        where: { createdAt: { gte: thirtyDaysAgo } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,

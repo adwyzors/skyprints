@@ -121,11 +121,11 @@ export default function NotificationBell() {
       const date = new Date(dateStr);
       const diffMs = Date.now() - date.getTime();
       const diffMin = Math.floor(diffMs / 60000);
-      const diffHr = Math.floor(diffMin / 600);
+      const diffHr = Math.floor(diffMin / 60);
       
       if (diffMin < 1) return 'Just now';
       if (diffMin < 60) return `${diffMin}m ago`;
-      if (diffHr < 24) return `${Math.floor(diffMin / 60)}h ago`;
+      if (diffHr < 24) return `${diffHr}h ago`;
       return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
     } catch {
       return '';
