@@ -42,8 +42,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 
-const POLL_INTERVAL_MS = 7000;
+const POLL_INTERVAL_MS = 20000;
 
 function formatElapsed(claimedAt: string): string {
     const ms = Date.now() - new Date(claimedAt).getTime();
@@ -468,12 +469,10 @@ function ManagerRunsPage() {
         getStagePermissions(user.id)
             .then(setStagePermissions)
             .catch(err => console.error('Failed to fetch stage permissions', err));
-
-        intervalRef.current = setInterval(() => fetchAll(false), POLL_INTERVAL_MS);
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-        };
     }, [user?.id]);
+
+    // Poll every 20s only when the browser tab is focused and active
+    useVisibleInterval(() => fetchAll(false), POLL_INTERVAL_MS, { enabled: Boolean(user?.id) });
 
     const allItems = [...active, ...queue];
 

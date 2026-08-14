@@ -12,8 +12,9 @@ import {
 } from '@/services/notifications.service';
 import { Bell, Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 
 const HEADER_NOTIFICATION_LIMIT = 10;
 
@@ -31,7 +32,7 @@ export default function NotificationBell() {
   // Notifications are only for Admin/Super Admin
   const isAdmin = user?.user?.role === 'ADMIN' || user?.user?.role === 'SUPER_ADMIN';
 
-  const loadNotifications = async (showLoading = false) => {
+  const loadNotifications = useCallback(async (showLoading = false) => {
     if (!isAdmin) return;
     if (showLoading) setLoading(true);
     try {
@@ -46,21 +47,16 @@ export default function NotificationBell() {
     } finally {
       if (showLoading) setLoading(false);
     }
-  };
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
-
     // Load initially
     loadNotifications(true);
+  }, [isAdmin, loadNotifications]);
 
-    // Poll every 30 seconds for new notifications
-    const interval = setInterval(() => {
-      loadNotifications(false);
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [isAdmin]);
+  // Poll every 20s only when the browser tab is focused and active
+  useVisibleInterval(() => loadNotifications(false), 20000, { enabled: isAdmin });
 
   // Click outside to close
   useEffect(() => {

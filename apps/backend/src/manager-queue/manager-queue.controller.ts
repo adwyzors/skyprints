@@ -12,6 +12,13 @@ export class ManagerQueueController {
     return this.service.listQueue(req.user.id);
   }
 
+  @Get('active/count')
+  @Permissions('runs:view')
+  async countActive(@Req() req: any) {
+    const count = await this.service.countActive(req.user.id);
+    return { count };
+  }
+
   @Get('active')
   @Permissions('runs:view')
   async listActive(@Req() req: any) {

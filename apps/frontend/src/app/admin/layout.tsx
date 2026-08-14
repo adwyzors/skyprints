@@ -8,13 +8,12 @@ import {
     ChevronUp
 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ADMIN_TABS } from '@/config/navigation';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
-import { listActive } from '@/services/managerQueueService';
-
-
+import { useVisibleInterval } from '@/hooks/useVisibleInterval';
+import { getActiveCount } from '@/services/managerQueueService';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -28,27 +27,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         router.push('/admin/orders?create=true');
     });
 
-    useEffect(() => {
-        let active = true;
-        async function fetchActiveCount() {
-            if (!user) return;
-            try {
-                const activeJobs = await listActive();
-                if (active) {
-                    setActiveCount(activeJobs.length);
-                }
-            } catch (err) {
-                console.error('Failed to fetch active tasks count:', err);
-            }
+    const fetchActiveCount = useCallback(async () => {
+        if (!user) return;
+        try {
+            const count = await getActiveCount();
+            setActiveCount(count);
+        } catch (err) {
+            console.error('Failed to fetch active tasks count:', err);
         }
-        fetchActiveCount();
+    }, [user]);
 
-        const interval = setInterval(fetchActiveCount, 10000);
-        return () => {
-            active = false;
-            clearInterval(interval);
-        };
-    }, [pathname, user]);
+    useEffect(() => {
+        fetchActiveCount();
+    }, [pathname, fetchActiveCount]);
+
+    // Poll every 20s only when the browser tab is focused and active
+    useVisibleInterval(fetchActiveCount, 20000, { enabled: Boolean(user) });
 
     const filteredTabs = useMemo(() => {
         const tabs = ADMIN_TABS.filter(tab => !tab.permission || hasPermission(tab.permission as any));

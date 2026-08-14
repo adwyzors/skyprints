@@ -41,8 +41,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 
-const POLL_INTERVAL_MS = 7000;
+const POLL_INTERVAL_MS = 20000;
 
 function formatActiveElapsed(claimedAt: string, pausedAt?: string | null, pausedDurationSeconds = 0): string {
     const startMs = new Date(claimedAt).getTime();
@@ -469,16 +470,14 @@ function AdminMyTasksPage() {
         getStagePermissions(user.user.id)
             .then(setStagePermissions)
             .catch(err => console.error('Failed to fetch stage permissions', err));
+    }, [user?.user?.id]);
 
-        const role = user.user.role;
-        const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-        const intervalMs = isAdmin ? 15 * 60 * 1000 : 7000; // 15 mins for admins, 7 seconds for managers
+    const role = user?.user?.role;
+    const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+    const intervalMs = isAdmin ? 15 * 60 * 1000 : 20000; // 15 mins for admins, 20s for managers
 
-        intervalRef.current = setInterval(() => fetchAll(false), intervalMs);
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-        };
-    }, [user?.user?.id, user?.user?.role]);
+    // Poll only when the browser tab is focused and active
+    useVisibleInterval(() => fetchAll(false), intervalMs, { enabled: Boolean(user?.user?.id) });
 
     const allItems = [...active, ...queue];
 

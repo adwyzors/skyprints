@@ -29,6 +29,11 @@ export async function listActive(): Promise<ManagerActiveJob[]> {
   return apiRequest<ManagerActiveJob[]>('/manager-queue/active');
 }
 
+export async function getActiveCount(): Promise<number> {
+  const res = await apiRequest<{ count: number }>('/manager-queue/active/count');
+  return res.count;
+}
+
 export async function claimRun(runId: string): Promise<void> {
   await apiRequest<void>(`/manager-queue/${runId}/claim`, { method: 'POST' });
 }

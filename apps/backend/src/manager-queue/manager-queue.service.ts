@@ -282,6 +282,12 @@ export class ManagerQueueService {
     }));
   }
 
+  async countActive(managerId: string): Promise<number> {
+    return this.prisma.processRun.count({
+      where: { claimedBy: managerId },
+    });
+  }
+
   /* ---------------- ACTIONS ---------------- */
 
   async claim(managerId: string, runId: string): Promise<void> {
