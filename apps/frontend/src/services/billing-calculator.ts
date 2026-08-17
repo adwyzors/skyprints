@@ -45,6 +45,10 @@ export const getRunBillingMetrics = (
                 if (foundKey) val = values[foundKey];
             }
 
+            if ((val === undefined || val === null || Number(val) === 0) && baseKey.toLowerCase() === 'quantity') {
+                val = orderQuantity;
+            }
+
             quantity = Number(val) || 0;
         }
 
@@ -119,6 +123,10 @@ export const getRunBillingMetrics = (
             case 'Embellishment':
                 quantity = Number(values['Quantity']) || Number(values['quantity']) || Number(values['pcs']) || orderQuantity || 0;
                 amount = Number(values['Estimated Amount']) || Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['estimated_amount']) || Number(values['Actual Total']) || 0;
+                break;
+            case 'Laser':
+                quantity = Number(values['Quantity']) || Number(values['quantity']) || Number(values['pcs']) || orderQuantity || 0;
+                amount = Number(values['Total Amount']) || Number(values['total_amount']) || Number(values['totalAmount']) || Number(values['Estimated Amount']) || Number(values['estimated_amount']) || 0;
                 break;
             case 'DTF':
             case 'Direct to Film (DTF)':
