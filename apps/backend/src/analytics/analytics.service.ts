@@ -40,7 +40,7 @@ export class AnalyticsService {
         },
       });
 
-      if (!order) return;
+      if (!order || order.isTest || order.deletedAt || order.statusCode !== OrderStatus.GROUP_BILLED) return;
 
       const date = timestamp ? new Date(timestamp) : new Date();
       date.setHours(0, 0, 0, 0);
@@ -363,6 +363,7 @@ export class AnalyticsService {
           orderProcess: {
             order: {
               deletedAt: null,
+              isTest: false,
               statusCode: { notIn: ['BILLED', 'GROUP_BILLED'] },
             },
           },
@@ -595,11 +596,16 @@ export class AnalyticsService {
       const [orderCounts, pendingRuns] = await Promise.all([
         this.prisma.order.groupBy({
           by: ['statusCode'],
-          where: { deletedAt: null },
+          where: { deletedAt: null, isTest: false },
           _count: { _all: true },
         }),
         this.prisma.processRun.count({
-          where: { statusCode: { in: ['CONFIGURE', 'IN_PROGRESS'] } },
+          where: {
+            statusCode: { in: ['CONFIGURE', 'IN_PROGRESS'] },
+            orderProcess: {
+              order: { deletedAt: null, isTest: false },
+            },
+          },
         }),
       ]);
 
@@ -641,6 +647,8 @@ export class AnalyticsService {
           where: {
             orderProcess: {
               order: {
+                deletedAt: null,
+                isTest: false,
                 statusCode: { in: activeOrderStatuses },
               },
             },
@@ -658,6 +666,8 @@ export class AnalyticsService {
             reviewerId: { not: null },
             orderProcess: {
               order: {
+                deletedAt: null,
+                isTest: false,
                 statusCode: { in: activeOrderStatuses },
               },
             },
@@ -670,6 +680,8 @@ export class AnalyticsService {
             executorId: { not: null },
             orderProcess: {
               order: {
+                deletedAt: null,
+                isTest: false,
                 statusCode: { in: activeOrderStatuses },
               },
             },
@@ -755,13 +767,14 @@ export class AnalyticsService {
       this.prisma.locationAnalytics.deleteMany(),
     ]);
 
-    // 2. Fetch all FINAL snapshots for GROUP contexts only (as requested)
+    // 2. Fetch all FINAL snapshots for GROUP contexts only (excluding test contexts)
     const snapshots = await this.prisma.billingSnapshot.findMany({
       where: {
         intent: 'FINAL',
         isLatest: true,
         billingContext: {
           type: 'GROUP',
+          isTest: false,
         },
       },
       include: {
@@ -785,6 +798,11 @@ export class AnalyticsService {
       const inputs = snapshot.inputs as any;
 
       for (const contextOrder of snapshot.billingContext.orders) {
+        const order = contextOrder.order;
+        if (!order || order.isTest || order.deletedAt || order.statusCode !== OrderStatus.GROUP_BILLED) {
+          continue; // Exclude test, deleted, or non-GROUP_BILLED orders
+        }
+
         const orderId = contextOrder.orderId;
         let amount =
           Number(snapshot.result) /
