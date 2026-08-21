@@ -794,26 +794,74 @@ export class AnalyticsService {
     this.logger.log(`Found ${snapshots.length} final snapshots to process.`);
 
     for (const snapshot of snapshots) {
-      // Process each order in the context
       const inputs = snapshot.inputs as any;
+      const contextName = snapshot.billingContext?.name || '';
+
+      // Determine if this snapshot is a Tax Bill (R series / taxEnabled) or Delivery Challan (RC series)
+      const isTaxBill =
+        snapshot.taxEnabled ??
+        (contextName.startsWith('R') && !contextName.startsWith('RC')) ??
+        inputs?.__CUSTOMER_METADATA__?.tax ??
+        false;
+
+      // Delivery Challans (RC series) do NOT count towards revenue
+      if (!isTaxBill) {
+        for (const contextOrder of snapshot.billingContext.orders) {
+          const order = contextOrder.order;
+          if (
+            !order ||
+            order.isTest ||
+            order.deletedAt ||
+            order.statusCode !== OrderStatus.GROUP_BILLED
+          ) {
+            continue;
+          }
+          // Pass 0 revenue for challans so revenue is 0, but order/unit volume is tracked
+          await this.trackOrderFinalized(
+            contextOrder.orderId,
+            0,
+            snapshot.createdAt,
+          );
+        }
+        continue;
+      }
+
+      // Tax Bill calculation: Gross Billed Revenue = Subtotal + Tax (do not subtract TDS)
+      const subtotal = Number(snapshot.subTotalAmount || snapshot.result || 0);
+      const taxAmount = snapshot.taxAmount
+        ? Number(snapshot.taxAmount)
+        : subtotal * 0.12;
+
+      const grossGroupRevenue = subtotal + taxAmount;
+      const ordersCount = snapshot.billingContext.orders.length || 1;
 
       for (const contextOrder of snapshot.billingContext.orders) {
         const order = contextOrder.order;
-        if (!order || order.isTest || order.deletedAt || order.statusCode !== OrderStatus.GROUP_BILLED) {
-          continue; // Exclude test, deleted, or non-GROUP_BILLED orders
+        if (
+          !order ||
+          order.isTest ||
+          order.deletedAt ||
+          order.statusCode !== OrderStatus.GROUP_BILLED
+        ) {
+          continue;
         }
 
         const orderId = contextOrder.orderId;
-        let amount =
-          Number(snapshot.result) /
-          (snapshot.billingContext.orders.length || 1);
-
-        // 🔑 Use specific result if available in the group snapshot
+        let orderSubtotal = subtotal / ordersCount;
         if (inputs?.[orderId] && inputs[orderId]['__ORDER_RESULT__']) {
-          amount = Number(inputs[orderId]['__ORDER_RESULT__']);
+          orderSubtotal = Number(inputs[orderId]['__ORDER_RESULT__']);
         }
 
-        await this.trackOrderFinalized(orderId, amount, snapshot.createdAt);
+        const orderRevenue =
+          subtotal > 0
+            ? orderSubtotal * (grossGroupRevenue / subtotal)
+            : grossGroupRevenue / ordersCount;
+
+        await this.trackOrderFinalized(
+          orderId,
+          orderRevenue,
+          snapshot.createdAt,
+        );
       }
     }
 
