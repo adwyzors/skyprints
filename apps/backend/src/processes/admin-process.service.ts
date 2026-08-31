@@ -194,6 +194,50 @@ export class AdminProcessService {
     return { OR: conditions };
   }
 
+  private async getPostProductionStatusCodes(): Promise<string[]> {
+    const transitions = await this.prisma.workflowTransition.findMany({
+      select: {
+        fromStatus: { select: { code: true } },
+        toStatus: { select: { code: true } },
+      },
+    });
+
+    const forwardMap = new Map<string, Set<string>>();
+    for (const t of transitions) {
+      const from = t.fromStatus.code;
+      const to = t.toStatus.code;
+      if (!forwardMap.has(from)) forwardMap.set(from, new Set());
+      forwardMap.get(from)!.add(to);
+    }
+
+    const postProdStatuses = new Set<string>(['BILLED']);
+    const queue = Array.from(forwardMap.get('PRODUCTION') || []);
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const status = queue.shift()!;
+      if (visited.has(status)) continue;
+      visited.add(status);
+      postProdStatuses.add(status);
+
+      const nextSet = forwardMap.get(status);
+      if (nextSet) {
+        for (const nextS of nextSet) {
+          queue.push(nextS);
+        }
+      }
+    }
+
+    const expandedPostProd = new Set<string>();
+    for (const s of postProdStatuses) {
+      expandedPostProd.add(s);
+      expandedPostProd.add(s.toUpperCase());
+      expandedPostProd.add(s.toLowerCase());
+    }
+
+    return Array.from(expandedPostProd);
+  }
+
   async getAllRuns(query: ProcessRunsQueryDto) {
     // NOTE: MANAGER no longer gets special-cased here (executor-only / PRODUCTION-only).
     // Manager visibility is now driven by ManagerStagePermission + claim state via the
@@ -376,18 +420,30 @@ export class AdminProcessService {
       });
     }
 
+    // 6. Stage-Aware Location Filter
+    if (scopedLocationId) {
+      const postProdStatuses = await this.getPostProductionStatusCodes();
+      combinedAnd.push({
+        OR: [
+          // Post-production stages (after PRODUCTION) -> strictly match postProductionLocationId
+          {
+            lifeCycleStatusCode: { in: postProdStatuses },
+            postProductionLocationId: scopedLocationId,
+          },
+          // Pre-production stages (till and including PRODUCTION) -> strictly match preProductionLocationId
+          {
+            lifeCycleStatusCode: { notIn: postProdStatuses },
+            preProductionLocationId: scopedLocationId,
+          },
+        ],
+      });
+    }
+
     // Top-level property logic (these usually don't clash as they are unique fields)
     const where: Prisma.ProcessRunWhereInput = {
       AND: combinedAnd,
       ...(executorUserId && { executorId: executorUserId }),
       ...(reviewerUserId && { reviewerId: reviewerUserId }),
-      ...(scopedLocationId && {
-        OR: [
-          { locationId: scopedLocationId },
-          { preProductionLocationId: scopedLocationId },
-          { postProductionLocationId: scopedLocationId },
-        ],
-      }),
       ...(createdFrom || createdTo
         ? {
             createdAt: {
