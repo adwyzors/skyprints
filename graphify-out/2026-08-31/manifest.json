@@ -195,8 +195,8 @@
     "semantic_hash": "ea253637c547afcc5ffd2aeaf4dc8e6f"
   },
   "apps/backend/src/analytics/analytics.service.ts": {
-    "mtime": 1787294188.9003546,
-    "ast_hash": "9ad34a077c21220fd299f4bb7505605f",
+    "mtime": 1784231717.3162107,
+    "ast_hash": "345da09e539ac48721c448272e1347e7",
     "semantic_hash": ""
   },
   "apps/backend/src/app.controller.ts": {
@@ -385,9 +385,9 @@
     "semantic_hash": "98fe4abc377d63324744a4a6abf18416"
   },
   "apps/backend/src/billing/services/billing-snapshot.service.ts": {
-    "mtime": 1787294209.3965588,
-    "ast_hash": "0e517b4154541545e7e8d052aa0cd803",
-    "semantic_hash": ""
+    "mtime": 1783859504.7726774,
+    "ast_hash": "f5cb507f0f0bc434fab5de3c91c03309",
+    "semantic_hash": "f5cb507f0f0bc434fab5de3c91c03309"
   },
   "apps/backend/src/billing/services/billing.service.ts": {
     "mtime": 1783859504.7741716,
@@ -725,8 +725,8 @@
     "semantic_hash": ""
   },
   "apps/backend/src/processes/admin-process.service.ts": {
-    "mtime": 1788154428.3671877,
-    "ast_hash": "184c4639fdbcc703808abeffa323b611",
+    "mtime": 1784231717.3731632,
+    "ast_hash": "466cdc62b349815e82ae2a57bc8f8524",
     "semantic_hash": ""
   },
   "apps/backend/src/processes/processes.module.ts": {
@@ -1545,9 +1545,9 @@
     "semantic_hash": "a4bc35d2b74a2a6d67da97870b9555b4"
   },
   "apps/frontend/src/services/billing-calculator.ts": {
-    "mtime": 1786951538.2659824,
-    "ast_hash": "b134fee6413572faf3b94ad839a16920",
-    "semantic_hash": ""
+    "mtime": 1783859505.0583992,
+    "ast_hash": "e6f19c8a5ac28a03bfa1585502ce8ed0",
+    "semantic_hash": "e6f19c8a5ac28a03bfa1585502ce8ed0"
   },
   "apps/frontend/src/services/billing.service.ts": {
     "mtime": 1783859505.0604124,
@@ -1915,7 +1915,7 @@
     "semantic_hash": "f15aaa42d5d299d091b1171097ea56ad"
   },
   "apps/test-report/index.html": {
-    "mtime": 1788154660.6656446,
+    "mtime": 1784360352.0240924,
     "ast_hash": "5929af530492acd2e3e4fcfb96b7a0a3",
     "semantic_hash": "5929af530492acd2e3e4fcfb96b7a0a3"
   },
@@ -1990,13 +1990,13 @@
     "semantic_hash": ""
   },
   "apps/test-report/jest-html-reporters-attach/index/index.js": {
-    "mtime": 1788154661.9556217,
+    "mtime": 1784360352.580896,
     "ast_hash": "31598c169dccea2095224ef0c3070d39",
     "semantic_hash": ""
   },
   "apps/test-report/jest-html-reporters-attach/index/result.js": {
-    "mtime": 1788154660.4986036,
-    "ast_hash": "21ed9f27f2382582fb275c442ade9b29",
+    "mtime": 1784360351.956745,
+    "ast_hash": "308e36790a79e573c66fc9c426e07773",
     "semantic_hash": ""
   },
   "apps/backend/ecosystem.config.js": {

@@ -1,16 +1,16 @@
-# Graph Report - skyprints  (2026-08-31)
+# Graph Report - skyprints  (2026-08-14)
 
 ## Corpus Check
-- 396 files · ~301,571 words
+- 396 files · ~301,099 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3008 nodes · 8199 edges · 173 communities (143 shown, 30 thin omitted)
-- Extraction: 85% EXTRACTED · 15% INFERRED · 0% AMBIGUOUS · INFERRED: 1265 edges (avg confidence: 0.53)
+- 3007 nodes · 8196 edges · 174 communities (142 shown, 32 thin omitted)
+- Extraction: 85% EXTRACTED · 15% INFERRED · 0% AMBIGUOUS · INFERRED: 1264 edges (avg confidence: 0.53)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1261543b`
+- Built from commit: `4dad7968`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -125,6 +125,7 @@
 - [[_COMMUNITY_RunStatusFilter.tsx|RunStatusFilter.tsx]]
 - [[_COMMUNITY_Spec Run Card UI Consistency — All Process Config Components|Spec: Run Card UI Consistency — All Process Config Components]]
 - [[_COMMUNITY_notifications.service.ts|notifications.service.ts]]
+- [[_COMMUNITY_keycloak.types.ts|keycloak.types.ts]]
 - [[_COMMUNITY_create-location.dto.ts|create-location.dto.ts]]
 - [[_COMMUNITY_locations.query.dto.ts|locations.query.dto.ts]]
 - [[_COMMUNITY_update-location.dto.ts|update-location.dto.ts]]
@@ -172,6 +173,7 @@
 - [[_COMMUNITY_Database migration strategy|Database migration strategy]]
 - [[_COMMUNITY_Permissions system|Permissions system]]
 - [[_COMMUNITY_calculate-billing.read.contract.ts|calculate-billing.read.contract.ts]]
+- [[_COMMUNITY_process.contract.ts|process.contract.ts]]
 - [[_COMMUNITY_hr|hr]]
 
 ## God Nodes (most connected - your core abstractions)
@@ -183,7 +185,7 @@
 6. `i()` - 117 edges
 7. `e()` - 96 edges
 8. `PrismaService` - 87 edges
-9. `s()` - 86 edges
+9. `s()` - 85 edges
 10. `useAuth()` - 82 edges
 
 ## Surprising Connections (you probably didn't know these)
@@ -201,23 +203,23 @@
 ## Import Cycles
 - None detected.
 
-## Communities (173 total, 30 thin omitted)
+## Communities (174 total, 32 thin omitted)
 
 ### Community 0 - "AuthProvider.tsx"
 Cohesion: 0.09
 Nodes (26): SettingsPage(), geistMono, geistSans, metadata, AuthUser, clearSession(), fetchMe(), FetchMeResult (+18 more)
 
 ### Community 1 - "page.tsx"
-Cohesion: 0.13
-Nodes (44): Permission, CreditLimitErrorDialog(), CreditLimitErrorDialogProps, SearchableLocationSelectProps, SearchableManagerSelect(), AlloverSublimationConfigProps, ComingSoonConfig(), ComingSoonConfigProps (+36 more)
+Cohesion: 0.11
+Nodes (66): WorkflowLifecycleMatrix(), useAuth(), Permission, CreditLimitErrorDialog(), CreditLimitErrorDialogProps, SearchableLocationSelect(), SearchableLocationSelectProps, Props (+58 more)
 
 ### Community 2 - "UsersController"
 Cohesion: 0.24
 Nodes (12): Body, Controller, Delete, Get, HttpCode, Param, Patch, Permissions (+4 more)
 
 ### Community 3 - "CustomersRepository"
-Cohesion: 0.06
-Nodes (28): CustomersController, Body, Controller, Delete, Get, Param, Patch, Permissions (+20 more)
+Cohesion: 0.10
+Nodes (21): CustomersController, Body, Controller, Delete, Get, Param, Patch, Permissions (+13 more)
 
 ### Community 4 - "page.tsx"
 Cohesion: 0.09
@@ -228,32 +230,32 @@ Cohesion: 0.07
 Nodes (24): LocationsController, Body, Controller, Delete, Get, Param, Patch, Permissions (+16 more)
 
 ### Community 6 - "prisma.service.ts"
-Cohesion: 0.11
-Nodes (41): UnwrapPrismaPromise, UnwrapTuple, BillingFormulaEngine, FormulaCompiler, Injectable, MathOnlyFormulaEngine, Injectable, BillingCalculatorService (+33 more)
+Cohesion: 0.12
+Nodes (37): BillingFormulaEngine, FormulaCompiler, Injectable, MathOnlyFormulaEngine, Injectable, BillingCalculatorService, Injectable, buildScaffold() (+29 more)
 
 ### Community 7 - "workflow.engine.ts"
-Cohesion: 0.22
+Cohesion: 0.23
 Nodes (5): evalCondition(), DynamicWorkflowEngine, Injectable, Injectable, WorkflowRepository
 
 ### Community 8 - "apiRequest"
-Cohesion: 0.07
-Nodes (38): BillingContextDetailPage(), finalizeBillingGroupWithInputs(), BillsPageContent(), EMPTY_DATA, ProtectedBillsPageContent, TabType, OrderConfigPage(), BillingContextCardProps (+30 more)
+Cohesion: 0.08
+Nodes (35): BillingContextDetailPage(), finalizeBillingGroupWithInputs(), BillsPageContent(), EMPTY_DATA, ProtectedBillsPageContent, TabType, BillingContextCardProps, BillingContextTableProps (+27 more)
 
 ### Community 9 - "page.tsx"
-Cohesion: 0.07
-Nodes (32): DashboardClientContent(), PERIODS, ProtectedDashboardContent, PulseCardProps, StatCardProps, metadata, LocationModal(), LocationModalProps (+24 more)
+Cohesion: 0.11
+Nodes (15): DashboardClientContent(), PERIODS, ProtectedDashboardContent, PulseCardProps, StatCardProps, metadata, CustomerAnalytics, DailyAnalytics (+7 more)
 
 ### Community 10 - "BillingSnapshotService"
-Cohesion: 0.10
-Nodes (32): EditOrderModal(), Props, ViewOrderModal(), ViewOrderModalProps, OrderCard(), OrderCardProps, OrderTableRow(), OrderTableRowProps (+24 more)
+Cohesion: 0.11
+Nodes (32): OrderConfigPage(), BillingModal(), BillingRates, Props, EditOrderModal(), Props, ViewOrderModal(), ViewOrderModalProps (+24 more)
 
 ### Community 11 - "dependencies"
 Cohesion: 0.06
 Nodes (35): dependencies, @app/contracts, browser-image-compression, clsx, geist, jwt-decode, lodash, lucide-react (+27 more)
 
 ### Community 12 - "orders.service.ts"
-Cohesion: 0.06
-Nodes (30): BillingContent(), ProtectedBillingContent, CompletedContent(), ProtectedCompletedContent, AdminOrdersContent(), ProtectedOrdersContent, ProtectedRunsPageContent, Run (+22 more)
+Cohesion: 0.05
+Nodes (40): BillingContent(), ProtectedBillingContent, CompletedContent(), ProtectedCompletedContent, AdminOrdersContent(), ProtectedOrdersContent, ProtectedReportsPageContent, ReportsPageContent() (+32 more)
 
 ### Community 13 - ".calculateForOrder"
 Cohesion: 0.15
@@ -264,16 +266,16 @@ Cohesion: 0.02
 Nodes (129): aB(), aD(), bD(), bM(), Bn(), Bu(), BW(), bz() (+121 more)
 
 ### Community 15 - "useAuth"
-Cohesion: 0.21
-Nodes (27): WorkflowLifecycleMatrix(), DIGITAL_PROCESS_NAMES, RunsPageContent(), useAuth(), SearchableLocationSelect(), OrderGroupItem(), AlloverSublimationConfig(), DiamondConfig() (+19 more)
+Cohesion: 0.13
+Nodes (18): LocationModal(), LocationModalProps, LocationClient(), LocationClientProps, LocationClientWrapper(), OrdersFilter(), OrdersFilterProps, getFieldIcon() (+10 more)
 
 ### Community 16 - "RequestContextStore"
-Cohesion: 0.12
-Nodes (14): AccessTokenPayload, RefreshTokenPayload, LocationScopedUser, resolveLocationFilter(), RequestContext, RequestContextStore, ContextLogger, LOG_FILE (+6 more)
+Cohesion: 0.08
+Nodes (24): PrismaExecutor, UnwrapPrismaPromise, UnwrapTuple, main(), LocationScopedUser, resolveLocationFilter(), RequestContext, RequestContextStore (+16 more)
 
 ### Community 17 - "AuthController"
-Cohesion: 0.19
-Nodes (10): AuthController, Body, Controller, Get, HttpCode, Post, Public, Req (+2 more)
+Cohesion: 0.20
+Nodes (9): AuthController, Body, Controller, Get, HttpCode, Post, Public, Req (+1 more)
 
 ### Community 18 - "dependencies"
 Cohesion: 0.07
@@ -288,24 +290,20 @@ Cohesion: 0.11
 Nodes (15): toRunTemplateDetail(), validateBillingFormula(), RunTemplatesController, Body, Controller, Get, Param, Permissions (+7 more)
 
 ### Community 21 - "auth.module.ts"
-Cohesion: 0.18
-Nodes (7): AuthGuard, Injectable, InternalJwtAuthGuard, mockDecoded, Injectable, PublicAuthGuard, Injectable
+Cohesion: 0.22
+Nodes (6): AuthGuard, Injectable, InternalJwtAuthGuard, Injectable, PublicAuthGuard, Injectable
 
 ### Community 22 - "ManagerQueueService"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (9): ManagerQueueController, Controller, Get, Param, Permissions, Post, Req, ManagerQueueService (+1 more)
 
 ### Community 23 - "PrismaService"
-Cohesion: 0.04
-Nodes (15): PrismaService, Injectable, ALL_PERMISSIONS, ROLE_PERMISSIONS, mockAdminProcessService, mockPrisma, mockTx, NotificationsService (+7 more)
-
-### Community 24 - "OrdersService"
-Cohesion: 0.19
-Nodes (17): CustomerClient(), CustomerClientProps, CustomerClientWrapper(), CustomerModal(), CustomerModalProps, PASTE_FIELD_LABELS, PASTE_FIELD_ORDER, Props (+9 more)
+Cohesion: 0.05
+Nodes (13): PrismaService, Injectable, NotificationsController, Controller, Get, Param, Post, Query (+5 more)
 
 ### Community 25 - "OrdersController"
-Cohesion: 0.07
-Nodes (25): AnyPermissions, main(), OrdersQueryDto, IsInt, IsOptional, IsString, Min, Transform (+17 more)
+Cohesion: 0.19
+Nodes (11): AnyPermissions, OrdersController, Body, Controller, Delete, Get, Param, Patch (+3 more)
 
 ### Community 26 - "ImageRetentionService"
 Cohesion: 0.14
@@ -316,16 +314,16 @@ Cohesion: 0.17
 Nodes (10): BillingContextController, Body, Controller, Delete, Get, Param, Permissions, Post (+2 more)
 
 ### Community 28 - "NotificationsController"
-Cohesion: 0.16
-Nodes (7): NotificationsController, Controller, Get, Param, Post, Query, Req
+Cohesion: 0.12
+Nodes (7): CustomersModule, Module, CustomersRepository, Injectable, CustomersService, Injectable, toCustomerSummary()
 
 ### Community 29 - "customer.service.ts"
-Cohesion: 0.08
-Nodes (41): ProtectedReportsPageContent, ReportsPageContent(), BillingFilter(), BillingFilterProps, CustomerLike, Props, SearchableCustomerSelect(), Props (+33 more)
+Cohesion: 0.06
+Nodes (55): CustomerClient(), CustomerClientProps, CustomerClientWrapper(), BillingFilter(), BillingFilterProps, CustomerLike, Props, SearchableCustomerSelect() (+47 more)
 
 ### Community 30 - "AnalyticsService"
-Cohesion: 0.07
-Nodes (19): AnalyticsController, Controller, Get, Permissions, Post, Query, AnalyticsService, Injectable (+11 more)
+Cohesion: 0.06
+Nodes (23): AnalyticsController, Controller, Get, Permissions, Post, Query, AnalyticsService, Injectable (+15 more)
 
 ### Community 31 - "ReportsQueryDto"
 Cohesion: 0.16
@@ -340,20 +338,16 @@ Cohesion: 0.09
 Nodes (19): TransitionDto, IsObject, IsOptional, IsString, WorkflowEngine, Body, Controller, Param (+11 more)
 
 ### Community 34 - "app.module.ts"
-Cohesion: 0.08
-Nodes (29): PrismaModule, Module, AnalyticsModule, Module, AuthModule, Module, AnyPermissions(), Permissions() (+21 more)
+Cohesion: 0.10
+Nodes (25): PrismaModule, Module, AnalyticsModule, Module, AuthModule, Module, BillingModule, Module (+17 more)
 
 ### Community 35 - "AuthService"
-Cohesion: 0.15
-Nodes (4): AuthService, Injectable, InternalJwtService, Injectable
-
-### Community 36 - "InternalJwtService"
-Cohesion: 0.33
-Nodes (3): LoginBody, cookieOptions(), getCookieName()
+Cohesion: 0.18
+Nodes (4): AuthService, Injectable, cookieOptions(), getCookieName()
 
 ### Community 37 - "AdminProcessService"
-Cohesion: 0.07
-Nodes (22): ProcessRunsQueryDto, IsInt, IsOptional, IsString, Min, Transform, Type, toProcessDetail() (+14 more)
+Cohesion: 0.21
+Nodes (11): AdminProcessController, Body, Controller, Delete, Get, HttpCode, Param, Patch (+3 more)
 
 ### Community 39 - "scripts"
 Cohesion: 0.11
@@ -368,12 +362,12 @@ Cohesion: 0.48
 Nodes (5): mapOrderProcessDto(), mapOrderSummaryDtoToOrder(), mapProcessRunDto(), mapRunField(), RunField
 
 ### Community 42 - "runs.service.ts"
-Cohesion: 0.13
-Nodes (8): PrismaExecutor, RunFieldsValidator, TemplateField, Injectable, getEffectiveLocationId(), POST_PROD_STAGES, RunsService, Injectable
+Cohesion: 0.11
+Nodes (12): RunFieldsValidator, TemplateField, Injectable, RunsController, Controller, Get, Param, Permissions (+4 more)
 
 ### Community 43 - "UserService"
-Cohesion: 0.08
-Nodes (23): IsOptional, IsString, UsersQueryDto, Body, Controller, Delete, Get, Permissions (+15 more)
+Cohesion: 0.07
+Nodes (24): IsOptional, IsString, UsersQueryDto, Body, Controller, Delete, Get, Permissions (+16 more)
 
 ### Community 44 - "compilerOptions"
 Cohesion: 0.12
@@ -400,8 +394,8 @@ Cohesion: 0.12
 Nodes (15): devDependencies, prisma, typescript, engines, node, name, private, scripts (+7 more)
 
 ### Community 50 - "getCustomers"
-Cohesion: 0.28
-Nodes (5): Public(), HealthController, Controller, Get, Public
+Cohesion: 0.17
+Nodes (6): LoginBody, Public(), HealthController, Controller, Get, Public
 
 ### Community 51 - "a"
 Cohesion: 0.07
@@ -421,7 +415,7 @@ Nodes (69): ae(), aj(), aP(), av(), be(), bq(), cl(), Cn() (+61 more)
 
 ### Community 56 - "index.ts"
 Cohesion: 0.07
-Nodes (21): CalculateBillingDto, CalculateBillingSchema, StrictNumber, CustomerSummaryDto, CustomerSummarySchema, DeleteRunImageDto, DeleteRunImageSchema, LifeCycleStatusDto (+13 more)
+Nodes (21): CalculateBillingDto, CalculateBillingSchema, StrictNumber, CustomerSummaryDto, DeleteRunImageDto, DeleteRunImageSchema, LifeCycleStatusDto, LifeCycleStatusSchema (+13 more)
 
 ### Community 57 - "page.tsx"
 Cohesion: 0.10
@@ -440,8 +434,8 @@ Cohesion: 0.33
 Nodes (6): InvoiceData, InvoiceItem, InvoicePDF(), InvoicePDFProps, numberToWords(), styles
 
 ### Community 61 - "CreateOrderModal.tsx"
-Cohesion: 0.36
-Nodes (5): RunsController, Controller, Get, Param, Permissions
+Cohesion: 0.16
+Nodes (10): OrdersQueryDto, IsInt, IsOptional, IsString, Min, Transform, Type, buildLifecycleProgress() (+2 more)
 
 ### Community 62 - "order.read.contract.ts"
 Cohesion: 0.22
@@ -472,8 +466,8 @@ Cohesion: 0.29
 Nodes (6): author, description, license, name, private, version
 
 ### Community 69 - "JwtAuthGuard"
-Cohesion: 0.40
-Nodes (4): ConfigureProcessRunDto, ConfigureProcessRunSchema, TransitionProcessRunDto, TransitionProcessRunSchema
+Cohesion: 0.19
+Nodes (6): ALL_PERMISSIONS, ROLE_PERMISSIONS, BCRYPT_ROUNDS, bcryptHash, mockPrisma, mockTx
 
 ### Community 70 - "Spec: <feature_title>"
 Cohesion: 0.09
@@ -564,12 +558,12 @@ Cohesion: 0.12
 Nodes (16): Acceptance Criteria, Backward Compatibility, Calculation Change (getTotals), Data Model Change, `DTFRunValues` (run.model.ts), Edit-form initialisation (useEffect on openRunId), Fusing Cost display (bottom summary panel), Goal (+8 more)
 
 ### Community 96 - "calculate-billing.read.contract.ts"
-Cohesion: 0.29
-Nodes (5): bcryptCompare, mockInternalJwt, mockPrisma, mockReq, mockRes
+Cohesion: 0.12
+Nodes (10): bcryptCompare, mockInternalJwt, mockPrisma, mockReq, mockRes, mockDecoded, AccessTokenPayload, InternalJwtService (+2 more)
 
 ### Community 97 - "process.contract.ts"
-Cohesion: 0.18
-Nodes (15): formatDate(), getStatusDisplayName(), HistoryEntry, ManagerDropdown(), ManagerDropdownProps, RunLifecycleHistory(), RunLifecycleHistoryProps, ViewRunModal() (+7 more)
+Cohesion: 0.17
+Nodes (16): formatDate(), getStatusDisplayName(), HistoryEntry, ManagerDropdown(), ManagerDropdownProps, RunLifecycleHistory(), RunLifecycleHistoryProps, ViewRunModal() (+8 more)
 
 ### Community 109 - "Spec: Run Card UI Consistency — All Process Config Components"
 Cohesion: 0.13
@@ -578,6 +572,10 @@ Nodes (14): 1. SpangleConfig — `src/components/orders/SpangleConfig.tsx`, 2. S
 ### Community 110 - "notifications.service.ts"
 Cohesion: 0.40
 Nodes (11): NotificationsPageWrapper(), NotificationBell(), AppNotification, fetchNotifications(), fetchNotificationsPage(), fetchUnreadNotificationCount(), markAllNotificationsAsRead(), markNotificationAsRead() (+3 more)
+
+### Community 111 - "keycloak.types.ts"
+Cohesion: 0.29
+Nodes (7): ProcessRunsQueryDto, IsInt, IsOptional, IsString, Min, Transform, Type
 
 ### Community 130 - "Phase 3 — Implementation rules (follow all of these)"
 Cohesion: 0.14
@@ -711,6 +709,10 @@ Nodes (3): JWT payload, New auth flow (internal) — same UX, no Keycloak, Passw
 Cohesion: 0.50
 Nodes (3): CalculateBillingResponseDto, CalculateBillingResponseSchema, StrictNumber
 
+### Community 172 - "process.contract.ts"
+Cohesion: 0.50
+Nodes (3): CreateProcessDto, CreateProcessRunSchema, CreateProcessSchema
+
 ### Community 173 - "hr"
 Cohesion: 0.50
 Nodes (4): cR(), dr(), fr(), hr()
@@ -718,17 +720,17 @@ Nodes (4): cR(), dr(), fr(), hr()
 ## Knowledge Gaps
 - **814 isolated node(s):** `$schema`, `collection`, `sourceRoot`, `deleteOutDir`, `name` (+809 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **30 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **32 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `PrismaService` connect `PrismaService` to `CustomersRepository`, `LocationsRepository`, `prisma.service.ts`, `workflow.engine.ts`, `.calculateForOrder`, `useAuth`, `RequestContextStore`, `run-templates.service.ts`, `ManagerQueueService`, `OrdersService`, `OrdersController`, `ImageRetentionService`, `AnalyticsService`, `ReportsQueryDto`, `app.module.ts`, `AuthService`, `runs.service.ts`, `UserService`, `UsersService`, `calculate-billing.read.contract.ts`?**
+- **Why does `PrismaService` connect `PrismaService` to `page.tsx`, `LocationsRepository`, `prisma.service.ts`, `workflow.engine.ts`, `.calculateForOrder`, `RequestContextStore`, `run-templates.service.ts`, `ManagerQueueService`, `OrdersService`, `ImageRetentionService`, `NotificationsController`, `customer.service.ts`, `AnalyticsService`, `ReportsQueryDto`, `app.module.ts`, `runs.service.ts`, `UserService`, `getCustomers`, `JwtAuthGuard`, `UsersService`, `calculate-billing.read.contract.ts`?**
   _High betweenness centrality (0.091) - this node is a cross-community bridge._
-- **Why does `RequestContextStore` connect `RequestContextStore` to `app.module.ts`, `AdminProcessService`, `prisma.service.ts`, `AppModule`, `useAuth`, `auth.module.ts`, `ManagerQueueService`, `OrdersController`, `AnalyticsService`?**
-  _High betweenness centrality (0.058) - this node is a cross-community bridge._
-- **Why does `r()` connect `r` to `AdminProcessService`, `apiRequest`, `i`, `hr`, `index.js`, `bt`, `a`, `ManagerQueueService`, `t`, `AnalyticsService`, `e`?**
-  _High betweenness centrality (0.053) - this node is a cross-community bridge._
+- **Why does `RequestContextStore` connect `RequestContextStore` to `InternalJwtService`, `prisma.service.ts`, `orders.service.ts`, `AppModule`, `auth.module.ts`, `ManagerQueueService`, `OrdersService`, `OrdersController`, `CreateOrderModal.tsx`, `AnalyticsService`?**
+  _High betweenness centrality (0.059) - this node is a cross-community bridge._
+- **Why does `r()` connect `r` to `InternalJwtService`, `apiRequest`, `i`, `hr`, `index.js`, `bt`, `a`, `ManagerQueueService`, `t`, `AnalyticsService`, `e`?**
+  _High betweenness centrality (0.055) - this node is a cross-community bridge._
 - **Are the 166 inferred relationships involving `r()` (e.g. with `.getWorkflowLifecycleMatrix()` and `.listActive()`) actually correct?**
   _`r()` has 166 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 140 inferred relationships involving `n()` (e.g. with `.getAllRuns()` and `ac()`) actually correct?**
