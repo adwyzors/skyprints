@@ -113,7 +113,11 @@ export class UsersService {
 
     // Super Admin accounts are invisible to non-Super-Admins — a 404 (rather
     // than 403) avoids confirming that the account even exists.
-    if (!user || (user.role === 'SUPER_ADMIN' && !(await this.isSuperAdmin(requestingUserId)))) {
+    if (
+      !user ||
+      (user.role === 'SUPER_ADMIN' &&
+        !(await this.isSuperAdmin(requestingUserId)))
+    ) {
       throw new NotFoundException('User not found');
     }
 

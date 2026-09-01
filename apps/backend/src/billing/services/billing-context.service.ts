@@ -997,7 +997,7 @@ export class BillingContextService {
     const detailedContexts = await Promise.all(
       contexts.map(async (context) => {
         const groupSnapshot = context.snapshots[0];
-        
+
         const mappedOrders = await Promise.all(
           context.orders.map(async ({ order }) => {
             const groupInputs = groupSnapshot?.inputs as any;
@@ -1083,15 +1083,24 @@ export class BillingContextService {
         const taxAmount = groupSnapshot?.taxAmount?.toString() || '0';
         const taxEnabled = groupSnapshot?.taxEnabled ?? false;
         const taxPercentage = groupSnapshot?.taxPercentage?.toString() || '0';
-        const finalAmount = groupSnapshot?.finalAmount?.toString() || groupSnapshot?.result?.toString() || '0';
-        
+        const finalAmount =
+          groupSnapshot?.finalAmount?.toString() ||
+          groupSnapshot?.result?.toString() ||
+          '0';
+
         const snapshotInputs = groupSnapshot?.inputs as any;
         let tdsEnabled = snapshotInputs?.__TDS_METADATA__?.tdsEnabled ?? false;
-        let tdsPercentage = snapshotInputs?.__TDS_METADATA__?.tdsPercentage?.toString() || '0';
-        let tdsAmount = snapshotInputs?.__TDS_METADATA__?.tdsAmount?.toString() || '0';
+        let tdsPercentage =
+          snapshotInputs?.__TDS_METADATA__?.tdsPercentage?.toString() || '0';
+        let tdsAmount =
+          snapshotInputs?.__TDS_METADATA__?.tdsAmount?.toString() || '0';
 
         // Mathematical fallback for TDS
-        if (!tdsEnabled && Number(subTotalAmount) > 0 && Number(finalAmount) > 0) {
+        if (
+          !tdsEnabled &&
+          Number(subTotalAmount) > 0 &&
+          Number(finalAmount) > 0
+        ) {
           const expectedWithoutTds = Number(subTotalAmount) + Number(taxAmount);
           const diff = expectedWithoutTds - Number(finalAmount);
           if (diff > 0.01) {
@@ -1155,14 +1164,19 @@ export class BillingContextService {
 
     // Format headers (Gold/Yellow style, matching the image)
     const headerRow = worksheet.getRow(1);
-    headerRow.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF000000' } };
+    headerRow.font = {
+      name: 'Arial',
+      size: 10,
+      bold: true,
+      color: { argb: 'FF000000' },
+    };
     headerRow.fill = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFF2C438' }, // Premium Yellow/Gold
     };
     headerRow.alignment = { vertical: 'middle', horizontal: 'left' };
-    
+
     // Add thin borders to header
     headerRow.eachCell((cell) => {
       cell.border = {
@@ -1175,26 +1189,38 @@ export class BillingContextService {
 
     // Populate Data
     for (const ctx of detailedContexts) {
-      const voucherDateStr = new Date(ctx.createdAt).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      });
+      const voucherDateStr = new Date(ctx.createdAt).toLocaleDateString(
+        'en-IN',
+        {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        },
+      );
 
       const orderCount = ctx.orders.length;
       if (orderCount === 0) continue;
 
       // Calculate totals/taxes splits
-      const cgstAmt = ctx.taxEnabled ? (Number(ctx.taxAmount) / 2).toFixed(2) : '';
-      const sgstAmt = ctx.taxEnabled ? (Number(ctx.taxAmount) / 2).toFixed(2) : '';
-      const tdsAmt = ctx.tdsEnabled ? `-${Number(ctx.tdsAmount).toFixed(2)}` : '';
+      const cgstAmt = ctx.taxEnabled
+        ? (Number(ctx.taxAmount) / 2).toFixed(2)
+        : '';
+      const sgstAmt = ctx.taxEnabled
+        ? (Number(ctx.taxAmount) / 2).toFixed(2)
+        : '';
+      const tdsAmt = ctx.tdsEnabled
+        ? `-${Number(ctx.tdsAmount).toFixed(2)}`
+        : '';
       const roundOffVal = Number(ctx.roundOff) !== 0 ? ctx.roundOff : '';
 
       // First item contains all voucher details
       const firstOrder = ctx.orders[0];
       const firstBilledQty = firstOrder.quantity;
       const firstItemAmount = Number(firstOrder.billing.result);
-      const firstItemRate = firstBilledQty > 0 ? (firstItemAmount / firstBilledQty).toFixed(2) : '0.00';
+      const firstItemRate =
+        firstBilledQty > 0
+          ? (firstItemAmount / firstBilledQty).toFixed(2)
+          : '0.00';
 
       worksheet.addRow({
         voucherDate: voucherDateStr,
@@ -1217,7 +1243,8 @@ export class BillingContextService {
         const order = ctx.orders[i];
         const billedQty = order.quantity;
         const itemAmount = Number(order.billing.result);
-        const itemRate = billedQty > 0 ? (itemAmount / billedQty).toFixed(2) : '0.00';
+        const itemRate =
+          billedQty > 0 ? (itemAmount / billedQty).toFixed(2) : '0.00';
 
         worksheet.addRow({
           voucherDate: '',

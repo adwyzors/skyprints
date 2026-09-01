@@ -140,6 +140,9 @@ export class AdminProcessController {
     this.logger.log(
       `[API] updateStageHistoryManager stageHistoryId=${stageHistoryId} managerId=${body.managerId}`,
     );
-    return this.service.updateStageHistoryManager(stageHistoryId, body.managerId);
+    return this.service.updateStageHistoryManager(
+      stageHistoryId,
+      body.managerId,
+    );
   }
 }

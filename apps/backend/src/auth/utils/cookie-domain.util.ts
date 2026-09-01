@@ -13,9 +13,11 @@ export function cookieOptions(req: Request, maxAgeSeconds?: number) {
   };
 }
 
-export function getCookieName(baseName: string, index: number | string | undefined | null): string {
+export function getCookieName(
+  baseName: string,
+  index: number | string | undefined | null,
+): string {
   const idx = Number(index);
   if (isNaN(idx) || idx <= 0) return baseName;
   return `${baseName}_${idx}`;
 }
-

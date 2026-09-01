@@ -440,9 +440,14 @@ export class ReportsService {
 
           const productionDate = orderProcess.lifecycleCompletedAt || date;
 
-          const sortedHistories = [...(run.stageHistories || [])].sort((a: any, b: any) => {
-            return new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime();
-          });
+          const sortedHistories = [...(run.stageHistories || [])].sort(
+            (a: any, b: any) => {
+              return (
+                new Date(a.completedAt).getTime() -
+                new Date(b.completedAt).getTime()
+              );
+            },
+          );
 
           const managersList = sortedHistories
             .map((h: any) => h.manager?.name)
@@ -454,7 +459,7 @@ export class ReportsService {
             const stageCode = h.lifecycleStage?.code || 'Unknown';
             const managerName = h.manager?.name || 'Unknown';
             const durationMin = Math.round(h.durationSeconds / 60);
-            
+
             const formatTime = (dVal: any) => {
               if (!dVal) return '';
               const d = new Date(dVal);
@@ -464,10 +469,10 @@ export class ReportsService {
               const minutes = String(d.getMinutes()).padStart(2, '0');
               return `${day}/${month} ${hours}:${minutes}`;
             };
-            
+
             const start = formatTime(h.claimedAt);
             const end = formatTime(h.completedAt);
-            
+
             return `[${stageCode}] ${managerName} (${start} to ${end}, ${durationMin}m)`;
           });
           const stageHistoryStr = stageHistoryList.join(' | ') || '-';

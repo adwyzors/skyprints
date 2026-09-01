@@ -136,10 +136,7 @@ export class BillingContextController {
 
   @Post('export-excel')
   @Permissions('billings:view')
-  async exportExcel(
-    @Body('ids') ids: string[],
-    @Res() res: Response,
-  ) {
+  async exportExcel(@Body('ids') ids: string[], @Res() res: Response) {
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       throw new BadRequestException('ids must be a non-empty array');
     }
@@ -152,4 +149,3 @@ export class BillingContextController {
     return this.service.getContextById(contextId);
   }
 }
-

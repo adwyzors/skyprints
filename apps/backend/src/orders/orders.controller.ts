@@ -11,7 +11,10 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { Permissions, AnyPermissions } from '../auth/decorators/permissions.decorator';
+import {
+  Permissions,
+  AnyPermissions,
+} from '../auth/decorators/permissions.decorator';
 import { CloudflareService } from '../common/cloudflare.service';
 import { RequestContextStore } from '../common/context/request-context.store';
 import { ContextLogger } from '../common/logger/context.logger';

@@ -1369,13 +1369,17 @@ export class AdminProcessService {
           where: { workflowTypeId: template.lifecycleWorkflowTypeId },
           select: { id: true, code: true },
         });
-        const statusMap = new Map(allWorkflowStatuses.map((s) => [s.code, s.id]));
+        const statusMap = new Map(
+          allWorkflowStatuses.map((s) => [s.code, s.id]),
+        );
 
         for (const [stageCode, managerId] of Object.entries(managers)) {
           if (!managerId) continue;
           const stageId = statusMap.get(stageCode);
           if (!stageId) {
-            this.logger.warn(`Workflow status code ${stageCode} not found for template ${processRun.runTemplateId}`);
+            this.logger.warn(
+              `Workflow status code ${stageCode} not found for template ${processRun.runTemplateId}`,
+            );
             continue;
           }
 
@@ -1384,17 +1388,23 @@ export class AdminProcessService {
             where: { id: managerId },
             select: { role: true },
           });
-          if (!managerUser || (managerUser.role !== 'MANAGER' && managerUser.role !== 'ADMIN')) {
-            this.logger.warn(`User ${managerId} not found or is not a MANAGER or ADMIN`);
+          if (
+            !managerUser ||
+            (managerUser.role !== 'MANAGER' && managerUser.role !== 'ADMIN')
+          ) {
+            this.logger.warn(
+              `User ${managerId} not found or is not a MANAGER or ADMIN`,
+            );
             continue;
           }
 
-          const existingHistory = await executor.processRunStageHistory.findFirst({
-            where: {
-              processRunId: processRun.id,
-              lifecycleStageId: stageId,
-            },
-          });
+          const existingHistory =
+            await executor.processRunStageHistory.findFirst({
+              where: {
+                processRunId: processRun.id,
+                lifecycleStageId: stageId,
+              },
+            });
 
           if (existingHistory) {
             await executor.processRunStageHistory.update({

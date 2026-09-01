@@ -5,7 +5,10 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PERMISSIONS_KEY, ANY_PERMISSIONS_KEY } from '../decorators/permissions.decorator';
+import {
+  PERMISSIONS_KEY,
+  ANY_PERMISSIONS_KEY,
+} from '../decorators/permissions.decorator';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -45,9 +48,7 @@ export class PermissionsGuard implements CanActivate {
     }
 
     if (hasAny) {
-      const allowed = anyPermissions.some((p) =>
-        userPermissions.includes(p),
-      );
+      const allowed = anyPermissions.some((p) => userPermissions.includes(p));
       if (!allowed) {
         throw new ForbiddenException('Insufficient permissions');
       }
@@ -56,4 +57,3 @@ export class PermissionsGuard implements CanActivate {
     return true;
   }
 }
-

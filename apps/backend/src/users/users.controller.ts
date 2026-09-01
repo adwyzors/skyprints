@@ -49,12 +49,20 @@ export class UsersController {
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
     }
-    return this.service.create(parsed.data, req.user.permissions ?? [], req.user.id);
+    return this.service.create(
+      parsed.data,
+      req.user.permissions ?? [],
+      req.user.id,
+    );
   }
 
   @Patch(':id')
   @Permissions('users:update')
-  async update(@Param('id') id: string, @Body() body: unknown, @Req() req: any) {
+  async update(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: any,
+  ) {
     const parsed = UpdateUserSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());
@@ -94,7 +102,11 @@ export class UsersController {
   @Post(':id/reset-password')
   @Permissions('users:password:reset')
   @HttpCode(204)
-  async resetPassword(@Param('id') id: string, @Body() body: unknown, @Req() req: any) {
+  async resetPassword(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: any,
+  ) {
     const parsed = ResetPasswordSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten());

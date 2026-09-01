@@ -433,7 +433,7 @@ export class BillingSnapshotService {
       const isTaxBill = snapshot.taxEnabled;
       const subtotalNum = calc.result.toNumber();
       const taxAmountNum = snapshot.taxAmount.toNumber();
-      const grossGroupRevenue = isTaxBill ? (subtotalNum + taxAmountNum) : 0;
+      const grossGroupRevenue = isTaxBill ? subtotalNum + taxAmountNum : 0;
 
       for (const orderId of orderIds) {
         const orderCalc = calc.perOrderCalculations[orderId];
@@ -448,11 +448,7 @@ export class BillingSnapshotService {
           }
 
           await this.analyticsService
-            .trackOrderFinalized(
-              orderId,
-              orderRevenue,
-              snapshot.createdAt,
-            )
+            .trackOrderFinalized(orderId, orderRevenue, snapshot.createdAt)
             .catch((err) =>
               this.logger.error(
                 `Failed to track analytics for order ${orderId}`,
@@ -707,9 +703,9 @@ export class BillingSnapshotService {
     // 📊 Track analytics (OUTSIDE TX to avoid connection pool exhaustion)
     if (snapshot.version === 1) {
       const orderRevenue = snapshot.taxEnabled
-        ? (snapshot.subTotalAmount
-            ? snapshot.subTotalAmount.plus(snapshot.taxAmount).toNumber()
-            : Number(calc.result))
+        ? snapshot.subTotalAmount
+          ? snapshot.subTotalAmount.plus(snapshot.taxAmount).toNumber()
+          : Number(calc.result)
         : 0;
       await this.analyticsService
         .trackOrderFinalized(orderId, orderRevenue, snapshot.createdAt)

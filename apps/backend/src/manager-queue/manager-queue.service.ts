@@ -26,7 +26,7 @@ export class ManagerQueueService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly adminProcessService: AdminProcessService,
-  ) { }
+  ) {}
 
   /* ---------------- HELPERS ---------------- */
 
@@ -368,7 +368,12 @@ export class ManagerQueueService {
 
     await this.prisma.processRun.update({
       where: { id: runId },
-      data: { claimedBy: null, claimedAt: null, pausedAt: null, pausedDurationSeconds: 0 },
+      data: {
+        claimedBy: null,
+        claimedAt: null,
+        pausedAt: null,
+        pausedDurationSeconds: 0,
+      },
     });
 
     this.logger.log(`Run released runId=${runId} managerId=${managerId}`);
@@ -386,7 +391,12 @@ export class ManagerQueueService {
 
     await this.prisma.processRun.update({
       where: { id: runId },
-      data: { claimedBy: null, claimedAt: null, pausedAt: null, pausedDurationSeconds: 0 },
+      data: {
+        claimedBy: null,
+        claimedAt: null,
+        pausedAt: null,
+        pausedDurationSeconds: 0,
+      },
     });
 
     this.logger.warn(
@@ -469,7 +479,9 @@ export class ManagerQueueService {
 
       let pauseSeconds = run.pausedDurationSeconds;
       if (run.pausedAt) {
-        pauseSeconds += Math.round((completedAt.getTime() - run.pausedAt.getTime()) / 1000);
+        pauseSeconds += Math.round(
+          (completedAt.getTime() - run.pausedAt.getTime()) / 1000,
+        );
       }
 
       const totalElapsedSeconds = Math.round(
@@ -555,7 +567,8 @@ export class ManagerQueueService {
     const now = new Date();
     const pauseMs = now.getTime() - run.pausedAt.getTime();
     const additionalPauseSeconds = Math.round(pauseMs / 1000);
-    const newPausedDurationSeconds = run.pausedDurationSeconds + additionalPauseSeconds;
+    const newPausedDurationSeconds =
+      run.pausedDurationSeconds + additionalPauseSeconds;
 
     await this.prisma.processRun.update({
       where: { id: runId },

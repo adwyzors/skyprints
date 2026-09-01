@@ -40,7 +40,13 @@ export class AnalyticsService {
         },
       });
 
-      if (!order || order.isTest || order.deletedAt || order.statusCode !== OrderStatus.GROUP_BILLED) return;
+      if (
+        !order ||
+        order.isTest ||
+        order.deletedAt ||
+        order.statusCode !== OrderStatus.GROUP_BILLED
+      )
+        return;
 
       const date = timestamp ? new Date(timestamp) : new Date();
       date.setHours(0, 0, 0, 0);
@@ -405,7 +411,10 @@ export class AnalyticsService {
 
       const matrix: Record<
         string,
-        Record<string, { count: number; value: number; mtrs: number; totalQty: number }>
+        Record<
+          string,
+          { count: number; value: number; mtrs: number; totalQty: number }
+        >
       > = {};
 
       // Initialize matrix
@@ -492,7 +501,8 @@ export class AnalyticsService {
             fields['totalQuantity'] ||
             fields['total_quantity'] ||
             fields['Quantity'] ||
-            fields['quantity'] || 0;
+            fields['quantity'] ||
+            0;
           const parsedQty = parseFloat(String(qtyVal).replace(/[^\d.-]/g, ''));
           if (!isNaN(parsedQty)) {
             matrix[pName][matchedStatus].totalQty += parsedQty;
@@ -500,9 +510,16 @@ export class AnalyticsService {
 
           // Calculate meters for DTF, Sublimation, Allover Sublimation
           if (['DTF', 'Sublimation', 'Allover Sublimation'].includes(pName)) {
-            const mtrVal = fields['Total Mtr'] || fields['total_mtr'] || fields['totalMeters'] || fields['totalMeter'] || fields['total_meters'];
+            const mtrVal =
+              fields['Total Mtr'] ||
+              fields['total_mtr'] ||
+              fields['totalMeters'] ||
+              fields['totalMeter'] ||
+              fields['total_meters'];
             if (mtrVal !== undefined && mtrVal !== null) {
-              const parsedMtrs = parseFloat(String(mtrVal).replace(/[^\d.-]/g, ''));
+              const parsedMtrs = parseFloat(
+                String(mtrVal).replace(/[^\d.-]/g, ''),
+              );
               if (!isNaN(parsedMtrs)) {
                 matrix[pName][matchedStatus].mtrs += parsedMtrs;
               }
@@ -543,7 +560,11 @@ export class AnalyticsService {
                   const height = parseFloat(String(item.height || 0));
                   let qtySum = 0;
                   if (Array.isArray(item.quantities)) {
-                    qtySum = item.quantities.reduce((sum: number, q: any) => sum + (parseFloat(String(q)) || 0), 0);
+                    qtySum = item.quantities.reduce(
+                      (sum: number, q: any) =>
+                        sum + (parseFloat(String(q)) || 0),
+                      0,
+                    );
                   } else {
                     qtySum = parseFloat(String(item.sum || item.quantity || 0));
                   }
