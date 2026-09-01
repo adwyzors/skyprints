@@ -462,42 +462,20 @@ export class AdminProcessService {
      * ========================== */
     const total = await this.prisma.processRun.count({ where });
 
-    // If we are just filtering/searching and relying on default sort (createdAt)
-    // we could optimize, but user requested PRIORITY sort specifically as primary.
-    // We fetch minimal data to sort in memory.
     const allCandidates = await this.prisma.processRun.findMany({
       where,
       select: {
         id: true,
         statusCode: true,
         createdAt: true,
-        fields: true,
         orderProcess: {
           select: {
             lifecycleCompletedRuns: true,
             totalRuns: true,
             order: {
               select: {
-                id: true,
                 quantity: true,
-                totalProcesses: true,
-                billingContexts: {
-                  orderBy: { createdAt: 'desc' },
-                  take: 5, // Fetch a few to find the finalized one
-                  select: {
-                    billingContext: {
-                      select: {
-                        type: true,
-                        snapshots: {
-                          where: { intent: 'FINAL' },
-                          orderBy: { version: 'desc' },
-                          take: 1,
-                          select: { result: true, inputs: true },
-                        },
-                      },
-                    },
-                  },
-                },
+                estimatedAmount: true,
               },
             },
           },
@@ -576,21 +554,21 @@ export class AdminProcessService {
           },
           orderProcess: {
             select: {
-              // name: true, // REMOVED: Name is on Process, not OrderProcess
+              id: true,
               process: {
                 select: { name: true },
               },
-              totalRuns: true,
-              lifecycleCompletedRuns: true,
-              remainingRuns: true,
               order: {
                 select: {
                   id: true,
                   code: true,
                   quantity: true,
+                  jobCode: true,
                   images: true,
-                  useOrderImageForRuns: true,
-                  customer: { select: { name: true } },
+                  statusCode: true,
+                  customer: {
+                    select: { name: true },
+                  },
                   billingContexts: {
                     orderBy: { createdAt: 'desc' },
                     take: 5,
@@ -615,23 +593,19 @@ export class AdminProcessService {
         },
       });
 
-      // Re-sort to match the slicedCandidates order
       const runMap = new Map<string, any>(
         unsortedRuns.map((r) => [String(r.id), r]),
       );
       runs = slicedIds.map((id) => runMap.get(String(id))).filter(Boolean);
     }
 
-    /* ==========================
-     * MAP → DTO
-     * ========================== */
-    const data: ProcessRunListItemDto[] = runs.map((run) => {
+    const data = runs.map((run) => {
       // Pick only used fields
       const relevantFields: Record<string, any> = {};
       let displayProcessName = run.orderProcess.process.name;
 
       if (run.fields) {
-        const f = run.fields;
+        const f = run.fields as any;
         const orderSnapshot = run.orderProcess.order;
 
         const runImages =
@@ -672,17 +646,15 @@ export class AdminProcessService {
       return {
         ...run,
         fields: relevantFields,
-        // Exclude createdAt and orderProcess stats from payload
-        // but keep structure required by DTO (which is now optional)
         orderProcess: {
           name: displayProcessName,
           order: {
             ...run.orderProcess.order,
-            billingContexts: undefined, // Create a cleaner response
+            billingContexts: undefined,
             amount: amount ? Number(amount) : undefined,
           },
         },
-        createdAt: undefined, // remove from JSON
+        createdAt: undefined,
         priority: this.resolvePriority(
           run.orderProcess.remainingRuns,
           run.orderProcess.lifecycleCompletedRuns,
@@ -700,36 +672,10 @@ export class AdminProcessService {
         total,
         totalPages: Math.ceil(total / limit),
         totalEstimatedAmount: allCandidates.reduce((sum, run) => {
-          const fields = (run.fields as any) || {};
-          let runValue = 0;
-
-          // 1. Try "Estimated Amount" field
-          const amt = fields['Estimated Amount'];
-          if (amt !== undefined && amt !== null) {
-            const cleanAmt = String(amt).replace(/[^0-9.-]+/g, '');
-            const val = parseFloat(cleanAmt);
-            if (!isNaN(val)) runValue = val;
-          }
-
-          // 2. Fallback to Billing Context
-          if (runValue <= 0) {
-            const order = run.orderProcess.order;
-            const billingResult =
-              order.billingContexts?.[0]?.billingContext?.snapshots?.[0]
-                ?.result;
-            if (billingResult) {
-              const orderVal = Number(billingResult);
-              const processCount = order.totalProcesses || 1;
-              runValue = orderVal / processCount;
-            }
-          }
-
-          return sum + runValue;
+          return sum + (Number(run.orderProcess.order.estimatedAmount) || 0);
         }, 0),
         totalQuantity: allCandidates.reduce((sum, run) => {
-          const fields = (run.fields as any) || {};
-          const qty = fields['Quantity'] || run.orderProcess.order.quantity;
-          return sum + (Number(qty) || 0);
+          return sum + (Number(run.orderProcess.order.quantity) || 0);
         }, 0),
       },
     };
