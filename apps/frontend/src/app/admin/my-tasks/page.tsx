@@ -43,7 +43,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 
-const POLL_INTERVAL_MS = 20000;
+const POLL_INTERVAL_MS = 45000;
 
 function formatActiveElapsed(claimedAt: string, pausedAt?: string | null, pausedDurationSeconds = 0): string {
     const startMs = new Date(claimedAt).getTime();

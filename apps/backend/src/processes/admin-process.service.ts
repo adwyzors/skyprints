@@ -566,6 +566,7 @@ export class AdminProcessService {
           },
           lifecycleHistories: {
             orderBy: { createdAt: 'desc' },
+            take: 10,
           },
           executor: {
             select: { name: true },
@@ -1106,6 +1107,7 @@ export class AdminProcessService {
         },
         lifecycleHistories: {
           orderBy: { createdAt: 'asc' },
+          take: 10,
         },
         executor: {
           select: { id: true, name: true },

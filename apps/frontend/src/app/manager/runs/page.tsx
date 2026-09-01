@@ -44,7 +44,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 
-const POLL_INTERVAL_MS = 20000;
+const POLL_INTERVAL_MS = 45000;
 
 function formatElapsed(claimedAt: string): string {
     const ms = Date.now() - new Date(claimedAt).getTime();

@@ -303,6 +303,7 @@ export class OrdersService {
                     },
                     lifecycleHistories: {
                       orderBy: { createdAt: 'desc' },
+                      take: 10,
                     },
                     executor: {
                       select: { id: true, name: true },
@@ -476,6 +477,7 @@ export class OrdersService {
                 },
                 lifecycleHistories: {
                   orderBy: { createdAt: 'desc' },
+                  take: 10,
                 },
                 stageHistories: {
                   select: {

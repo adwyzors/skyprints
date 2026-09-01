@@ -55,8 +55,8 @@ export default function NotificationBell() {
     loadNotifications(true);
   }, [isAdmin, loadNotifications]);
 
-  // Poll every 20s only when the browser tab is focused and active
-  useVisibleInterval(() => loadNotifications(false), 20000, { enabled: isAdmin });
+  // Poll every 60s only when the browser tab is focused and active
+  useVisibleInterval(() => loadNotifications(false), 60000, { enabled: isAdmin });
 
   // Click outside to close
   useEffect(() => {

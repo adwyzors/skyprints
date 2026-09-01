@@ -41,8 +41,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         fetchActiveCount();
     }, [pathname, fetchActiveCount]);
 
-    // Poll every 20s only when the browser tab is focused and active
-    useVisibleInterval(fetchActiveCount, 20000, { enabled: Boolean(user) });
+    // Poll every 60s only when the browser tab is focused and active
+    useVisibleInterval(fetchActiveCount, 60000, { enabled: Boolean(user) });
 
     const filteredTabs = useMemo(() => {
         const tabs = ADMIN_TABS.filter(tab => !tab.permission || hasPermission(tab.permission as any));
