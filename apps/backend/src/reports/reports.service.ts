@@ -95,27 +95,46 @@ export class ReportsService {
       }
     }
 
-    const orders = await this.prisma.order.findMany({
-      where: whereClause,
-      include: {
-        customer: true,
-        processes: {
-          include: {
-            process: true,
-            runs: {
-              include: {
-                preProductionLocation: true,
-                postProductionLocation: true,
-                stageHistories: {
-                  include: {
-                    manager: {
-                      select: {
-                        name: true,
+    const pageNum = page ? parseInt(String(page), 10) : undefined;
+    const limitNum = limit ? parseInt(String(limit), 10) : undefined;
+    const isPaginated = pageNum !== undefined && limitNum !== undefined && pageNum > 0 && limitNum > 0;
+
+    const [totalCount, totalsAgg, orders] = await Promise.all([
+      this.prisma.order.count({ where: whereClause }),
+      this.prisma.order.aggregate({
+        where: whereClause,
+        _sum: {
+          estimatedAmount: true,
+          quantity: true,
+        },
+      }),
+      this.prisma.order.findMany({
+        where: whereClause,
+        ...(isPaginated && {
+          skip: (pageNum - 1) * limitNum,
+          take: limitNum,
+        }),
+        include: {
+          customer: true,
+          processes: {
+            include: {
+              process: true,
+              runs: {
+                include: {
+                  preProductionLocation: true,
+                  postProductionLocation: true,
+                  stageHistories: {
+                    take: 10,
+                    include: {
+                      manager: {
+                        select: {
+                          name: true,
+                        },
                       },
-                    },
-                    lifecycleStage: {
-                      select: {
-                        code: true,
+                      lifecycleStage: {
+                        select: {
+                          code: true,
+                        },
                       },
                     },
                   },
@@ -123,23 +142,25 @@ export class ReportsService {
               },
             },
           },
-        },
-        billingContexts: {
-          orderBy: { createdAt: 'desc' },
-          include: {
-            billingContext: {
-              include: {
-                snapshots: {
-                  where: { intent: 'FINAL' },
-                  orderBy: { version: 'desc' },
+          billingContexts: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: {
+              billingContext: {
+                include: {
+                  snapshots: {
+                    where: { intent: 'FINAL' },
+                    orderBy: { version: 'desc' },
+                    take: 1,
+                  },
                 },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
     // 3. Fetch analytics separately (since the relation is not in the schema)
     const orderIds = orders.map((o) => o.id);
@@ -529,27 +550,34 @@ export class ReportsService {
       totalQty += isNaN(qty) ? 0 : qty;
     }
 
-    const total = reportData.length;
+    const finalTotal = isPaginated ? totalCount : reportData.length;
+    const finalTotalAmount = isPaginated
+      ? Number(totalsAgg._sum.estimatedAmount || totalAmount)
+      : totalAmount;
+    const finalTotalQty = isPaginated
+      ? Number(totalsAgg._sum.quantity || totalQty)
+      : totalQty;
 
-    // Apply pagination
     let paginatedData = reportData;
-    const pageNum = page ? parseInt(page) : 1;
-    const limitNum = limit ? parseInt(limit) : total;
+    const effectivePage = pageNum || 1;
+    const effectiveLimit = limitNum || finalTotal;
 
-    if (page && limit) {
-      const skip = (pageNum - 1) * limitNum;
-      paginatedData = reportData.slice(skip, skip + limitNum);
+    if (!isPaginated && page && limit) {
+      const p = parseInt(String(page), 10);
+      const l = parseInt(String(limit), 10);
+      const skip = (p - 1) * l;
+      paginatedData = reportData.slice(skip, skip + l);
     }
 
     return {
       data: paginatedData,
       meta: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        totalPages: limitNum > 0 ? Math.ceil(total / limitNum) : 1,
-        totalAmount: totalAmount,
-        totalQty: totalQty,
+        total: finalTotal,
+        page: effectivePage,
+        limit: effectiveLimit,
+        totalPages: effectiveLimit > 0 ? Math.ceil(finalTotal / effectiveLimit) : 1,
+        totalAmount: finalTotalAmount,
+        totalQty: finalTotalQty,
       },
     };
   }
