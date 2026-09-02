@@ -43,7 +43,7 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
     const [dataLoading, setDataLoading] = useState(false);
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-    const [useOrderImageForRuns, setUseOrderImageForRuns] = useState(false);
+    const [useOrderImageForRuns, setUseOrderImageForRuns] = useState(true);
     const [creditLimitError, setCreditLimitError] = useState<string | null>(null);
 
     const { hasPermission } = useAuth();

@@ -565,6 +565,7 @@ export class AdminProcessService {
                   quantity: true,
                   jobCode: true,
                   images: true,
+                  useOrderImageForRuns: true,
                   statusCode: true,
                   customer: {
                     select: { name: true },
@@ -611,7 +612,7 @@ export class AdminProcessService {
         const runImages =
           f.images && f.images.length > 0
             ? f.images
-            : orderSnapshot.useOrderImageForRuns
+            : orderSnapshot.useOrderImageForRuns || (orderSnapshot.images && orderSnapshot.images.length > 0)
               ? orderSnapshot.images
               : [];
 
@@ -1140,7 +1141,7 @@ export class AdminProcessService {
         images:
           (run.fields as any)?.images?.length > 0
             ? (run.fields as any).images
-            : run.orderProcess.order.useOrderImageForRuns
+            : run.orderProcess.order.useOrderImageForRuns || (run.orderProcess.order.images && run.orderProcess.order.images.length > 0)
               ? run.orderProcess.order.images
               : [],
       },

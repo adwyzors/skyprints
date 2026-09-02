@@ -42,7 +42,7 @@ export function toOrderSummary(order: any): OrderSummaryDto {
         const runImages =
           runFields.images && runFields.images.length > 0
             ? runFields.images
-            : order.useOrderImageForRuns
+            : order.useOrderImageForRuns || (order.images && order.images.length > 0)
               ? order.images
               : [];
 
