@@ -104,10 +104,13 @@ export const getBillingContextById = async (id: string): Promise<BillingContextD
     });
 };
 
-export const finalizeBillingGroup = async (contextId: string): Promise<void> => {
+export const finalizeBillingGroup = async (payload: {
+    billingContextId: string;
+    inputs?: Record<string, Record<string, { new_rate: number }>>;
+}): Promise<void> => {
     return apiRequest<void>('/billing/finalize/group', {
         method: 'POST',
-        body: JSON.stringify({ billingContextId: contextId }),
+        body: JSON.stringify(payload),
     });
 };
 

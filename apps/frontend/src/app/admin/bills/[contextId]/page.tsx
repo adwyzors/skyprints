@@ -5,7 +5,7 @@ import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
 import { BillingContextDetails } from '@/domain/model/billing.model';
 import { getRunBillingMetrics } from '@/services/billing-calculator';
-import { getBillingContextById } from '@/services/billing.service';
+import { getBillingContextById, finalizeBillingGroup } from '@/services/billing.service';
 import {
     AlertCircle,
     ArrowLeft,
@@ -33,9 +33,9 @@ function BillingContextDetailPage() {
     const [finalizing, setFinalizing] = useState(false);
     const { hasPermission } = useAuth();
 
-    // Track editable inputs: { orderId: { runId: { new_rate: number } } }
+    // Track editable inputs: { orderId: { runId: { new_rate: string | number } } }
     const [draftInputs, setDraftInputs] = useState<
-        Record<string, Record<string, { new_rate: number }>>
+        Record<string, Record<string, { new_rate: string | number }>>
     >({});
 
     // Expanded state for order cards
@@ -59,17 +59,12 @@ function BillingContextDetailPage() {
         fetchDetails();
     }, [safeContextId]);
 
-
-
     const handleRateChange = (orderId: string, runId: string, val: string) => {
-        const rate = parseFloat(val);
-        if (isNaN(rate)) return;
-
         setDraftInputs((prev) => ({
             ...prev,
             [orderId]: {
                 ...(prev[orderId] || {}),
-                [runId]: { new_rate: rate },
+                [runId]: { new_rate: val },
             },
         }));
     };
@@ -87,11 +82,6 @@ function BillingContextDetailPage() {
         setFinalizing(true);
         try {
             const inputsToSend: Record<string, Record<string, { new_rate: number }>> = {};
-            const modifiedOrderIds = Object.keys(draftInputs);
-
-            // Always include all orders/runs in payload if they are part of the context?
-            // The logic: if finalizing, we probably want to save whatever state is current.
-            // But optimal payload is inputs for all runs.
 
             details.orders.forEach((order) => {
                 inputsToSend[order.id] = {};
@@ -99,18 +89,17 @@ function BillingContextDetailPage() {
                     process.runs.forEach(run => {
                         const metrics = getRunBillingMetrics(run, process.name, order.quantity);
 
-                        // Check draft
-                        const draftValue = draftInputs[order.id]?.[run.id];
+                        const draftValue = draftInputs[order.id]?.[run.id]?.new_rate;
+                        const parsedDraft = draftValue !== undefined && draftValue !== '' ? parseFloat(String(draftValue)) : NaN;
 
-                        // Check snapshot
                         const snapshotInputs = order.billing?.inputs || {};
                         const currentInput = snapshotInputs[run.id];
 
-                        if (draftValue) {
-                            inputsToSend[order.id][run.id] = { new_rate: draftValue.new_rate };
+                        if (!isNaN(parsedDraft)) {
+                            inputsToSend[order.id][run.id] = { new_rate: parsedDraft };
                         } else if (currentInput) {
                             const rate = currentInput.new_rate ?? currentInput['new_rate'] ?? 0;
-                            inputsToSend[order.id][run.id] = { new_rate: rate };
+                            inputsToSend[order.id][run.id] = { new_rate: Number(rate) };
                         } else {
                             inputsToSend[order.id][run.id] = { new_rate: metrics.ratePerPc };
                         }
@@ -118,18 +107,16 @@ function BillingContextDetailPage() {
                 });
             });
 
-            const payload = {
+            await finalizeBillingGroup({
                 billingContextId: safeContextId,
                 inputs: inputsToSend,
-            };
-
-            await finalizeBillingGroupWithInputs(payload);
+            });
             setDraftInputs({});
             await fetchDetails();
             toast.success('Billing group finalized successfully!');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to finalize group:', error);
-            toast.error('Failed to finalize billing group');
+            toast.error(error.message || 'Failed to finalize billing group');
         } finally {
             setFinalizing(false);
         }
@@ -214,10 +201,9 @@ function BillingContextDetailPage() {
                     // Actually, preferring baseRate for drafts ensures we match backend results.
                     const currentInputRate = snapshotInput?.new_rate;
 
-                    // If the draft input exists, use it.
-                    // Otherwise, use snapshotInput if it's FINALized or if it's different from run's raw rate.
-                    // But to keep it simple and fix the UI discrepancy:
-                    const rate = draftInputs[order.id]?.[r.id]?.new_rate ?? currentInputRate ?? baseRate;
+                    const draftVal = draftInputs[order.id]?.[r.id]?.new_rate;
+                    const parsedDraft = draftVal !== undefined && draftVal !== '' ? parseFloat(String(draftVal)) : undefined;
+                    const rate = (parsedDraft !== undefined && !isNaN(parsedDraft)) ? parsedDraft : (currentInputRate ?? baseRate);
 
                     // For Allover Sublimation, use total_mtr; for others, use quantity
                     const qty = p.name === 'Allover Sublimation'
@@ -351,8 +337,9 @@ function BillingContextDetailPage() {
                                     const input = orderSnapshot?.inputs?.[r.id];
                                     const baseRate = metrics.ratePerPc;
 
-                                    // Match the logic used in displayRate below
-                                    const rate = draftInputs[order.id]?.[r.id]?.new_rate ?? input?.new_rate ?? baseRate;
+                                    const draftVal = draftInputs[order.id]?.[r.id]?.new_rate;
+                                    const parsedDraft = draftVal !== undefined && draftVal !== '' ? parseFloat(String(draftVal)) : undefined;
+                                    const rate = (parsedDraft !== undefined && !isNaN(parsedDraft)) ? parsedDraft : (input?.new_rate ?? baseRate);
                                     const qty = p.name === 'Allover Sublimation'
                                         ? (input?.total_mtr ?? metrics.quantity)
                                         : (p.name === 'Sublimation'
@@ -444,11 +431,11 @@ function BillingContextDetailPage() {
                                                                         : (input.quantity ?? input.total_quantity ?? input['total_quantity'] ?? input['quantity'] ?? metrics.quantity));
 
                                                                 const draftVal = draftInputs[order.id]?.[run.id]?.new_rate;
-                                                                const displayRate =
-                                                                    draftVal !== undefined ? draftVal : currentRate;
-                                                                const displayTotal = Number((displayRate * qty).toFixed(2));
-                                                                const isEdited =
-                                                                    draftVal !== undefined && (Math.abs(draftVal - currentRate) > 0.01);
+                                                                const parsedDraft = draftVal !== undefined && draftVal !== '' ? parseFloat(String(draftVal)) : undefined;
+                                                                const numericRate = (parsedDraft !== undefined && !isNaN(parsedDraft)) ? parsedDraft : currentRate;
+                                                                const displayRate = draftVal !== undefined ? draftVal : currentRate;
+                                                                const displayTotal = Number((numericRate * qty).toFixed(2));
+                                                                const isEdited = draftVal !== undefined && (parsedDraft === undefined || Math.abs(parsedDraft - currentRate) > 0.00001);
 
                                                                 const values = run.values || {};
                                                                 const items = parseJsonItems(values.items);
