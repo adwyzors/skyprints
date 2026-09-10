@@ -58,14 +58,9 @@ export const getRunBillingMetrics = (
             if (totalMtr > 0) {
                 quantity = totalMtr;
             }
-        }
-
-        // Override: For DTF, always use pcs as the billing quantity so rate aligns with Per PC Cost
-        if (processName === 'DTF' || processName === 'Direct to Film (DTF)') {
-            const pcs = Number(values['pcs']) || 0;
-            if (pcs > 0) {
-                quantity = pcs;
-            }
+        } else if (orderQuantity > 0) {
+            // For all garment-based processes (Plotter, DTF, Diamond, Screen Printing, Laser, Spangle, etc.), quantity is orderQuantity
+            quantity = orderQuantity;
         }
 
         // Attempt to find total amount from typical keys

@@ -342,9 +342,7 @@ function BillingContextDetailPage() {
                                     const rate = (parsedDraft !== undefined && !isNaN(parsedDraft)) ? parsedDraft : (input?.new_rate ?? baseRate);
                                     const qty = p.name === 'Allover Sublimation'
                                         ? (input?.total_mtr ?? metrics.quantity)
-                                        : (p.name === 'Sublimation'
-                                            ? (input?.totalquantity ?? input?.total_quantity ?? input?.['totalquantity'] ?? input?.['total_quantity'] ?? metrics.quantity)
-                                            : (input?.quantity ?? metrics.quantity));
+                                        : order.quantity;
                                     orderCurrentTotal += Number((rate * qty).toFixed(2));
                                 });
                             });
@@ -426,9 +424,7 @@ function BillingContextDetailPage() {
 
                                                                 const qty = process.name === 'Allover Sublimation'
                                                                     ? (input.total_mtr ?? input['total_mtr'] ?? metrics.quantity)
-                                                                    : (process.name === 'Sublimation'
-                                                                        ? (input.totalquantity ?? input.total_quantity ?? input['totalquantity'] ?? input['total_quantity'] ?? metrics.quantity)
-                                                                        : (input.quantity ?? input.total_quantity ?? input['total_quantity'] ?? input['quantity'] ?? metrics.quantity));
+                                                                    : order.quantity;
 
                                                                 const draftVal = draftInputs[order.id]?.[run.id]?.new_rate;
                                                                 const parsedDraft = draftVal !== undefined && draftVal !== '' ? parseFloat(String(draftVal)) : undefined;
