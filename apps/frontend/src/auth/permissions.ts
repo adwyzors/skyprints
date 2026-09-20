@@ -58,4 +58,13 @@ export enum Permission {
     LOCATIONS_ALL_VIEW = "locations:all:view",
 
     SETTINGS_VIEW = "settings:view",
+
+    SIDE_TASKS_VIEW = "side_tasks:view",
+    SIDE_TASKS_VIEW_ALL = "side_tasks:view_all",
+    SIDE_TASKS_CREATE = "side_tasks:create",
+    SIDE_TASKS_ASSIGN = "side_tasks:assign",
+    SIDE_TASKS_EDIT = "side_tasks:edit",
+    SIDE_TASKS_REVIEW = "side_tasks:review",
+    SIDE_TASKS_ABANDON = "side_tasks:abandon",
+    SIDE_TASKS_MANAGE_HISTORY = "side_tasks:manage_history",
 }

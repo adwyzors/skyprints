@@ -46,12 +46,14 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'orders:create', 'orders:create-test', 'orders:delete', 'orders:reorder',
     'orders:start-production', 'orders:update', 'orders:view', 'process:create',
     'process:delete', 'process:update', 'process:view', 'rates:create', 'rates:delete',
-    'rates:update', 'rates:view', 'runs:create', 'runs:delete', 'runs:lifecycle:rollback',
-    'runs:claim:override', 'runs:lifecycle:update', 'runs:transition:digital',
+    'rates:update', 'rates:view', 'runs:claim:override', 'runs:create', 'runs:delete',
+    'runs:lifecycle:rollback', 'runs:lifecycle:update', 'runs:transition:digital',
     'runs:transition:fusing', 'runs:update', 'runs:view', 'settings:view',
-    'users:create', 'users:delete', 'users:update', 'users:view', 'users:view:basic',
-    'users:permissions:manage', 'users:password:reset', 'users:session:revoke',
-    'users:stage-permissions:manage',
+    'side_tasks:abandon', 'side_tasks:assign', 'side_tasks:create', 'side_tasks:edit',
+    'side_tasks:manage_history', 'side_tasks:review', 'side_tasks:view', 'side_tasks:view_all',
+    'users:create', 'users:delete', 'users:password:reset', 'users:permissions:manage',
+    'users:session:revoke', 'users:stage-permissions:manage', 'users:update',
+    'users:view', 'users:view:basic',
   ],
   ADMIN: [
     'analytics:sync', 'analytics:view', 'billings:create', 'billings:create-test',
@@ -63,6 +65,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'process:delete', 'process:view', 'runs:create', 'runs:delete', 'runs:lifecycle:rollback',
     'runs:lifecycle:update', 'runs:transition:digital',
     'runs:transition:fusing', 'runs:update', 'runs:view', 'settings:view',
+    'side_tasks:abandon', 'side_tasks:assign', 'side_tasks:create', 'side_tasks:edit',
+    'side_tasks:manage_history', 'side_tasks:review', 'side_tasks:view', 'side_tasks:view_all',
     'users:view:basic',
   ],
   MANAGER: [
@@ -71,6 +75,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'orders:start-production', 'orders:update', 'orders:view', 'process:view',
     'rates:view', 'runs:create', 'runs:lifecycle:update', 'runs:transition:digital',
     'runs:transition:fusing', 'runs:update', 'runs:view',
+    'side_tasks:assign', 'side_tasks:create', 'side_tasks:edit',
+    'side_tasks:review', 'side_tasks:view', 'users:view:basic',
   ],
 };
 
