@@ -10,8 +10,9 @@ import {
     X,
     ClipboardPaste
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useImagePaste } from '@/hooks/useImagePaste';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import RunCommentEditor from './RunCommentEditor';
 import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
@@ -93,11 +94,9 @@ export default function PositiveConfig({
         }
     );
 
-    const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
+    const processImagesForRun = useCallback(async (runId: string, fileArray: File[]) => {
+        if (fileArray.length === 0) return;
 
-        const fileArray = Array.from(files);
         const currentNewImages = runImages[runId] || [];
         const currentExisting = existingRunImages[runId] || [];
         const totalCurrent = currentNewImages.length + currentExisting.length;
@@ -124,8 +123,6 @@ export default function PositiveConfig({
             return;
         }
 
-        //console.log(`Processing ${fileArray.length} images for run ${runId}...`);
-
         try {
             const compressedFilesPromises = fileArray.map(async (file) => {
                 const options = {
@@ -142,7 +139,7 @@ export default function PositiveConfig({
                     const compressedFile = new File(
                         [compressedBlob],
                         file.name.replace(/\.[^/.]+$/, '') + '.webp',
-                        { type: 'image/webp', lastModified: Date.now() }
+                        { type: 'image/webp', lastModified: Date.now() },
                     );
                     return compressedFile;
                 } catch (error) {
@@ -174,7 +171,22 @@ export default function PositiveConfig({
             console.error('Image processing error', err);
             toast.error('Failed to process images');
         }
+    }, [runImages, existingRunImages]);
+
+    const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        await processImagesForRun(runId, Array.from(files));
     };
+
+    useImagePaste({
+        onFilesPasted: (files) => {
+            if (editingRunId) {
+                processImagesForRun(editingRunId, files);
+            }
+        },
+        enabled: !!editingRunId,
+    });
 
     const removeImage = (runId: string, index: number) => {
         setRunImages((prev) => ({
@@ -669,8 +681,9 @@ export default function PositiveConfig({
                                         htmlFor={`img-upload-${run.id}`}
                                         className="flex flex-col items-center justify-center w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
                                     >
-                                        <span className="text-gray-400 text-2xl">+</span>
-                                        <span className="text-[10px] text-gray-500 mt-1">Add Image</span>
+                                        <span className="text-gray-400 text-xl">+</span>
+                                        <span className="text-[10px] text-gray-500 font-medium">Add / Paste</span>
+                                        <span className="text-[9px] text-gray-400">(Ctrl+V)</span>
                                     </label>
                                 </div>
                             )}

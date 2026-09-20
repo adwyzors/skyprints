@@ -16,8 +16,9 @@ import {
     User,
     X
 } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useImagePaste } from '@/hooks/useImagePaste';
 
 import { apiRequest } from "@/services/api.service";
 import { configureRun } from '@/services/run.service';
@@ -211,14 +212,11 @@ export default function RunConfigForm({
         getLocations().then(setLocations).catch(console.error);
     }, []);
 
-    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
-
-        const fileArray = Array.from(files);
+    const processImages = useCallback(async (fileArray: File[]) => {
+        if (fileArray.length === 0) return;
 
         if (existingImages.length + images.length + fileArray.length > 2) {
-            alert('Maximum 2 photos allowed per run');
+            toast.error('Maximum 2 photos allowed per run');
             return;
         }
 
@@ -261,7 +259,18 @@ export default function RunConfigForm({
             console.error("Image processing error", err);
             toast.error('Failed to process images');
         }
+    }, [existingImages.length, images.length]);
+
+    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        await processImages(Array.from(files));
     };
+
+    useImagePaste({
+        onFilesPasted: processImages,
+        enabled: existingImages.length + images.length < 2,
+    });
 
     const removeNewImage = (index: number) => {
         setImages(prev => prev.filter((_, i) => i !== index));
@@ -649,8 +658,9 @@ export default function RunConfigForm({
                         {existingImages.length + images.length < 2 && (
                             <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
                                 <div className="text-center">
-                                    <span className="text-2xl text-gray-400">+</span>
-                                    <span className="block text-xs text-gray-500 mt-1">Add Photo</span>
+                                    <span className="text-xl text-gray-400">+</span>
+                                    <span className="block text-xs text-gray-500 font-medium">Add / Paste</span>
+                                    <span className="block text-[10px] text-gray-400">(Ctrl+V)</span>
                                 </div>
                                 <input
                                     type="file"

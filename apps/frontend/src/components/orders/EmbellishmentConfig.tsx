@@ -21,8 +21,9 @@ import {
     X,
     ClipboardPaste,
 } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useImagePaste } from '@/hooks/useImagePaste';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
@@ -254,11 +255,9 @@ export default function EmbellishmentConfig({
 
     /* ================= IMAGE HANDLING ================= */
 
-    const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
+    const processImagesForRun = useCallback(async (runId: string, fileArray: File[]) => {
+        if (fileArray.length === 0) return;
 
-        const fileArray = Array.from(files);
         const currentNewImages = runImages[runId] || [];
         const currentExisting = existingRunImages[runId] || [];
         const totalCurrent = currentNewImages.length + currentExisting.length;
@@ -285,11 +284,6 @@ export default function EmbellishmentConfig({
             return;
         }
 
-        // Temporarily set loading/saving state if you had a global loading state,
-        // but here we might just have to handle it async.
-        // For better UX, we could set a local loading state for this run, but for now we'll just process.
-        console.log(`Processing ${fileArray.length} images for run ${runId}...`);
-
         try {
             const compressedFilesPromises = fileArray.map(async (file) => {
                 const options = {
@@ -302,7 +296,6 @@ export default function EmbellishmentConfig({
 
                 try {
                     const imageCompression = (await import('browser-image-compression')).default;
-                    console.log(`Compressing ${file.name} (${(file.size / 1024).toFixed(2)} KB)...`);
                     const compressedBlob = await imageCompression(file, options);
 
                     const compressedFile = new File(
@@ -312,10 +305,6 @@ export default function EmbellishmentConfig({
                             type: 'image/webp',
                             lastModified: Date.now(),
                         },
-                    );
-
-                    console.log(
-                        `Compressed to ${compressedFile.name} (${(compressedFile.size / 1024).toFixed(2)} KB)`,
                     );
                     return compressedFile;
                 } catch (error) {
@@ -347,7 +336,22 @@ export default function EmbellishmentConfig({
             console.error('Image processing error', err);
             toast.error('Failed to process images');
         }
+    }, [runImages, existingRunImages]);
+
+    const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        await processImagesForRun(runId, Array.from(files));
     };
+
+    useImagePaste({
+        onFilesPasted: (files) => {
+            if (editingRunId) {
+                processImagesForRun(editingRunId, files);
+            }
+        },
+        enabled: !!editingRunId,
+    });
 
     const removeImage = (runId: string, index: number) => {
         setRunImages((prev) => ({
@@ -1162,8 +1166,9 @@ export default function EmbellishmentConfig({
                                             htmlFor={`img-upload-${run.id}`}
                                             className="flex flex-col items-center justify-center w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
                                         >
-                                            <span className="text-gray-400 text-2xl">+</span>
-                                            <span className="text-[10px] text-gray-500 mt-1">Add Image</span>
+                                            <span className="text-gray-400 text-xl">+</span>
+                                            <span className="text-[10px] text-gray-500 font-medium">Add / Paste</span>
+                                            <span className="text-[9px] text-gray-400">(Ctrl+V)</span>
                                         </label>
                                     </div>
                                 )}

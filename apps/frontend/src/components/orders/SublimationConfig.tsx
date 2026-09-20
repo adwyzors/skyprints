@@ -2,8 +2,9 @@ import SearchableLocationSelect from '@/components/common/SearchableLocationSele
 import SearchableManagerSelect from '@/components/common/SearchableManagerSelect';
 import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
 import { AlertCircle, CheckCircle, ChevronRight, Edit, Eye, FileText, Loader2, MapPin, Palette, Plus, Trash2, X, ClipboardPaste } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useImagePaste } from '@/hooks/useImagePaste';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -255,15 +256,34 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
         }));
     };
 
+    const addImagesToRun = useCallback((runId: string, files: File[]) => {
+        if (files.length === 0) return;
+        const currentCount = (runImages[runId] || []).length;
+        if (currentCount + files.length > 2) {
+            toast.error('Maximum 2 photos allowed per run');
+            return;
+        }
+
+        setRunImages(prev => ({ ...prev, [runId]: [...(prev[runId] || []), ...files] }));
+
+        const newPreviews = files.map(file => URL.createObjectURL(file));
+        setImagePreviews(prev => ({ ...prev, [runId]: [...(prev[runId] || []), ...newPreviews] }));
+    }, [runImages]);
+
     const handleImageSelect = (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            const files = Array.from(e.target.files);
-            setRunImages(prev => ({ ...prev, [runId]: [...(prev[runId] || []), ...files] }));
-
-            const newPreviews = files.map(file => URL.createObjectURL(file));
-            setImagePreviews(prev => ({ ...prev, [runId]: [...(prev[runId] || []), ...newPreviews] }));
+            addImagesToRun(runId, Array.from(e.target.files));
         }
     };
+
+    useImagePaste({
+        onFilesPasted: (files) => {
+            if (editingRunId) {
+                addImagesToRun(editingRunId, files);
+            }
+        },
+        enabled: !!editingRunId,
+    });
 
     const removeImage = (runId: string, index: number) => {
         setRunImages(prev => {
@@ -794,8 +814,9 @@ export default function SublimationConfig({ order, locations, managers, onSaveSu
                                     <div className="relative">
                                         <input type="file" id={`img-upload-${run.id}`} className="hidden" accept="image/jpeg,image/jpg,image/png,image/webp" multiple onChange={(e) => handleImageSelect(run.id, e)} />
                                         <label htmlFor={`img-upload-${run.id}`} className="flex flex-col items-center justify-center w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors">
-                                            <span className="text-gray-400 text-2xl">+</span>
-                                            <span className="text-[10px] text-gray-500 mt-1">Add</span>
+                                            <span className="text-gray-400 text-xl">+</span>
+                                            <span className="text-[10px] text-gray-500 font-medium">Add / Paste</span>
+                                            <span className="text-[9px] text-gray-400">(Ctrl+V)</span>
                                         </label>
                                     </div>
                                 )}

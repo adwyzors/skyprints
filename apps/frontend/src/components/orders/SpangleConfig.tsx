@@ -16,8 +16,9 @@ import {
     X,
     ClipboardPaste
 } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useImagePaste } from '@/hooks/useImagePaste';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import RunCommentEditor from './RunCommentEditor';
@@ -230,14 +231,33 @@ export default function SpangleConfig({
         }));
     };
 
+    const addImagesToRun = useCallback((runId: string, files: File[]) => {
+        if (files.length === 0) return;
+        const currentCount = (runImages[runId] || []).length + (existingRunImages[runId] || []).length;
+        if (currentCount + files.length > 2) {
+            toast.error('Maximum 2 photos allowed per run');
+            return;
+        }
+
+        setRunImages(prev => ({ ...prev, [runId]: [...(prev[runId] || []), ...files] }));
+        const newPreviews = files.map(file => URL.createObjectURL(file));
+        setImagePreviews(prev => ({ ...prev, [runId]: [...(prev[runId] || []), ...newPreviews] }));
+    }, [runImages, existingRunImages]);
+
     const handleImageSelect = (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            const files = Array.from(e.target.files);
-            setRunImages(prev => ({ ...prev, [runId]: [...(prev[runId] || []), ...files] }));
-            const newPreviews = files.map(file => URL.createObjectURL(file));
-            setImagePreviews(prev => ({ ...prev, [runId]: [...(prev[runId] || []), ...newPreviews] }));
+            addImagesToRun(runId, Array.from(e.target.files));
         }
     };
+
+    useImagePaste({
+        onFilesPasted: (files) => {
+            if (editingRunId) {
+                addImagesToRun(editingRunId, files);
+            }
+        },
+        enabled: !!editingRunId,
+    });
 
     const removeImage = (runId: string, index: number) => {
         setRunImages(prev => {
@@ -833,8 +853,9 @@ export default function SpangleConfig({
                             <div className="flex flex-wrap gap-2">
                                 <input type="file" id={`img-${run.id}`} className="hidden" multiple accept="image/*" onChange={e => handleImageSelect(run.id, e)} />
                                 {((runImages[run.id] || []).length + (existingRunImages[run.id] || []).length) < 2 && (
-                                    <label htmlFor={`img-${run.id}`} className="w-16 h-16 border-2 border-dashed bg-white rounded flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
+                                    <label htmlFor={`img-${run.id}`} title="Click to upload or press Ctrl+V to paste" className="w-16 h-16 border-2 border-dashed bg-white rounded flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
                                         <Plus className="w-4 h-4 text-gray-400" />
+                                        <span className="text-[9px] text-gray-400 mt-0.5">Ctrl+V</span>
                                     </label>
                                 )}
                                 {/* New Previews */}

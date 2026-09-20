@@ -6,8 +6,9 @@ import { apiRequest } from '@/services/api.service';
 import { getCustomers } from '@/services/customer.service';
 import { updateOrder } from '@/services/orders.service';
 import { Loader2, Save, Upload, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useImagePaste } from '@/hooks/useImagePaste';
 
 interface Props {
     open: boolean;
@@ -64,11 +65,8 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
     );
 
     // Image Handling
-    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
-
-        const fileArray = Array.from(files);
+    const processImages = useCallback(async (fileArray: File[]) => {
+        if (fileArray.length === 0) return;
 
         // Limits
         if (existingImages.length + newImages.length + fileArray.length > 2) {
@@ -77,12 +75,6 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
         }
 
         try {
-            // Process images (simple compression if needed, here just basic check)
-            // Reusing logic from RunConfigForm roughly for compression if desired, 
-            // but for now let's stick to simple file handling to minimize dependencies issues
-            // unless user insists on compression immediately. 
-            // User asked for "Production level", so let's include the compression.
-
             const compressedFilesPromises = fileArray.map(async (file) => {
                 const options = {
                     maxSizeMB: 0.1,
@@ -122,7 +114,18 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
             console.error(err);
             toast.error('Failed to process images');
         }
+    }, [existingImages.length, newImages.length]);
+
+    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        await processImages(Array.from(files));
     };
+
+    useImagePaste({
+        onFilesPasted: processImages,
+        enabled: open && (existingImages.length + newImages.length < 2),
+    });
 
     const removeNewImage = (index: number) => {
         setNewImages(prev => prev.filter((_, i) => i !== index));
@@ -309,7 +312,8 @@ export default function EditOrderModal({ open, onClose, onSuccess, order }: Prop
                             {existingImages.length + newImages.length < 2 && (
                                 <label className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all text-gray-400 hover:text-blue-500">
                                     <Upload className="w-6 h-6 mb-1" />
-                                    <span className="text-xs font-medium">Upload</span>
+                                    <span className="text-xs font-medium">Upload / Paste</span>
+                                    <span className="text-[10px] text-gray-400">(Ctrl+V)</span>
                                     <input
                                         type="file"
                                         accept="image/*"

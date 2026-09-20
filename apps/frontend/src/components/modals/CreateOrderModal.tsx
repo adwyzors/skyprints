@@ -9,9 +9,10 @@ import { getCustomers } from '@/services/customer.service';
 import { createOrder } from '@/services/orders.service';
 import { getProcesses } from '@/services/process.service';
 import { NewOrderPayload } from '@/types/planning';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import CustomerSelector from '../orders/CustomerSelector';
+import { useImagePaste } from '@/hooks/useImagePaste';
 
 /* ================= TYPES ================= */
 
@@ -105,11 +106,8 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
 
     /* ================= IMAGE HANDLING ================= */
 
-    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
-
-        const fileArray = Array.from(files);
+    const processImages = useCallback(async (fileArray: File[]) => {
+        if (fileArray.length === 0) return;
 
         // Restrict to 2 photos
         if (selectedImages.length + fileArray.length > 2) {
@@ -183,7 +181,18 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
         } finally {
             setLoading(false);
         }
+    }, [selectedImages.length]);
+
+    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        await processImages(Array.from(files));
     };
+
+    useImagePaste({
+        onFilesPasted: processImages,
+        enabled: open && selectedImages.length < 2,
+    });
 
     const removeImage = (index: number) => {
         setSelectedImages(prev => prev.filter((_, i) => i !== index));
@@ -427,10 +436,10 @@ export default function CreateOrderModal({ open, onClose, onCreate }: Props) {
                                                                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                                                             />
                                                         </svg>
-                                                        Upload Images ({selectedImages.length}/2)
+                                                        Upload or Paste Images ({selectedImages.length}/2)
                                                     </label>
                                                     <p className="text-xs text-gray-500 mt-1">
-                                                        Max 2 photos • JPEG, PNG, WebP • Max 5MB each
+                                                        Max 2 photos • Upload or Paste (Ctrl+V) • JPEG, PNG, WebP • Max 5MB each
                                                     </p>
                                                 </div>
                                             )}

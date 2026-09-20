@@ -13,8 +13,9 @@ import {
     X,
     ClipboardPaste
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useImagePaste } from '@/hooks/useImagePaste';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
@@ -74,12 +75,8 @@ export default function DTFConfig({
         }
     );
 
-    const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-        // ... (Same standard image upload logic)
-        const files = e.target.files;
-        if (!files) return;
-
-        const fileArray = Array.from(files);
+    const processImagesForRun = useCallback(async (runId: string, fileArray: File[]) => {
+        if (fileArray.length === 0) return;
         const currentImages = runImages[runId] || [];
 
         if (currentImages.length + fileArray.length > 2) {
@@ -145,7 +142,22 @@ export default function DTFConfig({
             console.error('Image processing error', err);
             toast.error('Failed to process images');
         }
+    }, [runImages]);
+
+    const handleImageSelect = async (runId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        await processImagesForRun(runId, Array.from(files));
     };
+
+    useImagePaste({
+        onFilesPasted: (files) => {
+            if (editingRunId) {
+                processImagesForRun(editingRunId, files);
+            }
+        },
+        enabled: !!editingRunId,
+    });
 
     const removeImage = (runId: string, index: number) => {
         setRunImages((prev) => ({
@@ -1138,8 +1150,9 @@ export default function DTFConfig({
                                             htmlFor={`img-upload-${run.id}`}
                                             className="flex flex-col items-center justify-center w-20 h-20 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 cursor-pointer transition-colors"
                                         >
-                                            <span className="text-gray-400 text-2xl">+</span>
-                                            <span className="text-[10px] text-gray-500 mt-1">Add</span>
+                                            <span className="text-gray-400 text-xl">+</span>
+                                            <span className="text-[10px] text-gray-500 font-medium">Add / Paste</span>
+                                            <span className="text-[9px] text-gray-400">(Ctrl+V)</span>
                                         </label>
                                     </div>
                                 )}
