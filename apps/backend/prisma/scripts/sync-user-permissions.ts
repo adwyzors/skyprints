@@ -4,7 +4,7 @@ import { ROLE_PERMISSIONS } from '../../src/auth/permissions.map';
 async function main() {
   const prisma = new PrismaClient();
 
-  console.log('Syncing Login permissions for all active user roles...');
+  console.log('Stripping side_tasks permissions from DB for non-SuperAdmin accounts...');
 
   const logins = await prisma.login.findMany({
     include: {
@@ -20,26 +20,29 @@ async function main() {
     const role = loginRecord.user?.role;
     if (!role) continue;
 
-    const targetPermissions = ROLE_PERMISSIONS[role] ?? [];
-    if (targetPermissions.length === 0) continue;
+    let currentPerms = loginRecord.permissions ?? [];
 
-    // Merge existing permissions with target role permissions to ensure super admins and users get all permissions
-    const mergedPermissions = Array.from(
-      new Set([...(loginRecord.permissions ?? []), ...targetPermissions]),
-    ).sort();
+    if (role === 'SUPER_ADMIN') {
+      // Ensure SUPER_ADMIN has all side_tasks permissions
+      const superAdminPerms = ROLE_PERMISSIONS.SUPER_ADMIN ?? [];
+      currentPerms = Array.from(new Set([...currentPerms, ...superAdminPerms])).sort();
+    } else {
+      // Strip any side_tasks permissions from DB for non-SuperAdmin users
+      currentPerms = currentPerms.filter((p) => !p.startsWith('side_tasks:'));
+    }
 
     await prisma.login.update({
       where: { id: loginRecord.id },
       data: {
-        permissions: mergedPermissions,
+        permissions: currentPerms,
       },
     });
 
-    console.log(`✓ Updated ${loginRecord.user.email} (${role}): ${mergedPermissions.length} permissions`);
+    console.log(`✓ Updated DB permissions for ${loginRecord.user.email} (${role}): ${currentPerms.length} active permissions`);
     updatedCount++;
   }
 
-  console.log(`Successfully synced permissions for ${updatedCount} user login record(s).`);
+  console.log(`Successfully updated ${updatedCount} user login record(s) in the database.`);
   await prisma.$disconnect();
 }
 
