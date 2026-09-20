@@ -36,21 +36,33 @@ export function CreateSideTaskModal({
 
     async function loadData() {
       try {
-        const [types, userList] = await Promise.all([
+        const [typesResult, usersResult] = await Promise.allSettled([
           listStageTypes(),
           listUsers(),
         ]);
-        setStageTypes(types);
-        setUsers(userList.filter((u) => u.isActive));
 
-        if (types.length > 0 && !initialStageTypeId) {
+        const types = typesResult.status === 'fulfilled' ? typesResult.value : [];
+        const userList = usersResult.status === 'fulfilled' ? usersResult.value : [];
+
+        if (typesResult.status === 'rejected') {
+          console.error('Failed to load stage types:', typesResult.reason);
+        }
+        if (usersResult.status === 'rejected') {
+          console.error('Failed to load user list:', usersResult.reason);
+        }
+
+        setStageTypes(types);
+        const activeUsers = userList.filter((u) => u.isActive);
+        setUsers(activeUsers);
+
+        if (types.length > 0) {
           setInitialStageTypeId(types[0].id);
         }
-        if (userList.length > 0 && !initialAssigneeId) {
-          setInitialAssigneeId(userList[0].id);
+        if (activeUsers.length > 0) {
+          setInitialAssigneeId(activeUsers[0].id);
         }
-      } catch (err) {
-        toast.error('Failed to load initial form data');
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to load initial form data');
       }
     }
 

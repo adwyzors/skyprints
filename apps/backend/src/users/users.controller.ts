@@ -18,7 +18,7 @@ import {
   UpdatePermissionsSchema,
   UpdateUserSchema,
 } from '@app/contracts';
-import { Permissions } from '../auth/decorators/permissions.decorator';
+import { AnyPermissions, Permissions } from '../auth/decorators/permissions.decorator';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -26,7 +26,7 @@ export class UsersController {
   constructor(private readonly service: UsersService) {}
 
   @Get()
-  @Permissions('users:view')
+  @AnyPermissions('users:view', 'users:view:basic')
   list(@Req() req: any) {
     return this.service.list(req.user.id);
   }
