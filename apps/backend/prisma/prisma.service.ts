@@ -148,6 +148,18 @@ export class PrismaService {
         return prisma.processRunStageHistory;
     }
 
+    get sideTask() {
+        return prisma.sideTask;
+    }
+
+    get sideTaskStageType() {
+        return prisma.sideTaskStageType;
+    }
+
+    get sideTaskStageHistory() {
+        return prisma.sideTaskStageHistory;
+    }
+
     /* ---------- TRANSACTIONS ---------- */
 
     // Functional transaction

@@ -29,6 +29,7 @@ import { ReportsModule } from './reports/reports.module';
 import { UsersModule } from './users/users.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ManagerQueueModule } from './manager-queue/manager-queue.module';
+import { SideTasksModule } from './side-tasks/side-tasks.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { ManagerQueueModule } from './manager-queue/manager-queue.module';
     UsersModule,
     NotificationsModule,
     ManagerQueueModule,
+    SideTasksModule,
   ],
   providers: [
     AppService,

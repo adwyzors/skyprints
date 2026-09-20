@@ -38,6 +38,10 @@ model User {
   claimedRuns             ProcessRun[]             @relation("ProcessRunClaimedBy")
   stageHistories          ProcessRunStageHistory[] @relation("ManagerStageHistory")
 
+  createdSideTasks       SideTask[]             @relation("SideTaskCreator")
+  assignedSideTasks      SideTask[]             @relation("SideTaskAssignee")
+  sideTaskStageHistories SideTaskStageHistory[] @relation("SideTaskUserHistory")
+
   @@index([locationId])
   @@index([role, isActive, deletedAt])
   @@index([name, isActive, deletedAt])
@@ -76,7 +80,8 @@ model Customer {
   address  String?
   isActive Boolean @default(true)
 
-  orders Order[]
+  orders    Order[]
+  sideTasks SideTask[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -668,3 +673,114 @@ model Notification {
   @@index([createdAt])
   @@index([orderId])
 }
+
+///////////////////////////////
+// SIDE TASKS
+///////////////////////////////
+
+enum SideTaskStatus {
+  ASSIGNED
+  IN_PROGRESS
+  IN_REVIEW
+  COMPLETED
+  ABANDONED
+}
+
+enum SideTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum SideTaskStageOutcome {
+  COMPLETED
+  REASSIGNED
+  SUBMITTED_FOR_REVIEW
+  RETURNED
+  ABANDONED
+}
+
+model SideTaskStageType {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stageHistories SideTaskStageHistory[]
+
+  @@index([isActive])
+}
+
+model SideTask {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  title       String
+  description String?
+  priority    SideTaskPriority @default(MEDIUM)
+  status      SideTaskStatus   @default(ASSIGNED)
+  requiredBy  DateTime?
+  images      String[]         @default([])
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("SideTaskCreator", fields: [createdById], references: [id])
+
+  currentAssigneeId String?
+  currentAssignee   User?   @relation("SideTaskAssignee", fields: [currentAssigneeId], references: [id])
+
+  currentStageTypeId String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  abandonedAt DateTime?
+
+  stageHistories SideTaskStageHistory[]
+
+  @@index([status, requiredBy])
+  @@index([currentAssigneeId, status])
+  @@index([customerId])
+  @@index([createdById])
+  @@index([completedAt])
+}
+
+model SideTaskStageHistory {
+  id             String   @id @default(uuid())
+  sideTaskId     String
+  stageTypeId    String
+  assignedUserId String
+
+  assignedAt    DateTime  @default(now())
+  startedAt     DateTime?
+  lastStartedAt DateTime?
+  pausedAt      DateTime?
+
+  totalPausedSeconds Int @default(0)
+  totalTimeSeconds   Int @default(0)
+
+  completedAt    DateTime?
+  completionNote String?
+
+  outcome SideTaskStageOutcome?
+
+  reassignmentReason String?
+  reviewReturnReason String?
+
+  sideTask     SideTask          @relation(fields: [sideTaskId], references: [id], onDelete: Cascade)
+  stageType    SideTaskStageType @relation(fields: [stageTypeId], references: [id])
+  assignedUser User              @relation("SideTaskUserHistory", fields: [assignedUserId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sideTaskId])
+  @@index([assignedUserId])
+  @@index([stageTypeId])
+}
+

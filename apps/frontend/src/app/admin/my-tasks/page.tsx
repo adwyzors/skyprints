@@ -42,6 +42,15 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useVisibleInterval } from '@/hooks/useVisibleInterval';
+import { SideTaskCard } from '@/components/side-tasks/SideTaskCard';
+import { CreateSideTaskModal } from '@/components/side-tasks/CreateSideTaskModal';
+import { PassSideTaskModal } from '@/components/side-tasks/PassSideTaskModal';
+import { ReassignSideTaskModal } from '@/components/side-tasks/ReassignSideTaskModal';
+import { ReviewSideTaskModal } from '@/components/side-tasks/ReviewSideTaskModal';
+import { SideTaskHistoryModal } from '@/components/side-tasks/SideTaskHistoryModal';
+import { getAllSideTasks, getMySideTasks } from '@/services/sideTaskService';
+import { SideTask } from '@/types/sideTask';
+import { Plus } from 'lucide-react';
 
 const POLL_INTERVAL_MS = 45000;
 
@@ -430,6 +439,7 @@ function getProcessIcon(processName: string) {
 
 function AdminMyTasksPage() {
     const { user } = useAuth();
+    const [mainTab, setMainTab] = useState<'PROCESS_RUNS' | 'SIDE_TASKS'>('PROCESS_RUNS');
     const [queue, setQueue] = useState<ManagerQueueItem[]>([]);
     const [active, setActive] = useState<ManagerActiveJob[]>([]);
     const [stagePermissions, setStagePermissions] = useState<any[]>([]);
@@ -438,7 +448,17 @@ function AdminMyTasksPage() {
     const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
     const [selectedStage, setSelectedStage] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Side Tasks state
+    const [sideTasks, setSideTasks] = useState<SideTask[]>([]);
+    const [sideTaskFilter, setSideTaskFilter] = useState<'MY' | 'ALL'>('MY');
+    const [sideTaskSearch, setSideTaskSearch] = useState('');
+    const [isCreateSideTaskOpen, setIsCreateSideTaskOpen] = useState(false);
+    const [passTaskTarget, setPassTaskTarget] = useState<SideTask | null>(null);
+    const [reassignTaskTarget, setReassignTaskTarget] = useState<SideTask | null>(null);
+    const [reviewTaskTarget, setReviewTaskTarget] = useState<SideTask | null>(null);
+    const [reviewMode, setReviewMode] = useState<'submit' | 'review'>('submit');
+    const [historyTaskTarget, setHistoryTaskTarget] = useState<SideTask | null>(null);
 
     const fetchAll = async (showLoading = false) => {
         if (showLoading) setLoading(true);
@@ -453,10 +473,25 @@ function AdminMyTasksPage() {
         }
     };
 
+    const fetchSideTasks = async () => {
+        try {
+            const data = sideTaskFilter === 'ALL'
+                ? await getAllSideTasks({ search: sideTaskSearch })
+                : await getMySideTasks();
+            setSideTasks(data);
+        } catch (err) {
+            console.error('Failed to fetch side tasks', err);
+        }
+    };
+
     const handleRefresh = async () => {
         setRefreshing(true);
         try {
-            await fetchAll(true);
+            if (mainTab === 'PROCESS_RUNS') {
+                await fetchAll(true);
+            } else {
+                await fetchSideTasks();
+            }
         } finally {
             setRefreshing(false);
         }
@@ -465,23 +500,30 @@ function AdminMyTasksPage() {
     useEffect(() => {
         if (!user?.user?.id) return;
         fetchAll(true);
+        fetchSideTasks();
 
-        // Fetch stage permissions to know all assigned lifecycle stages
         getStagePermissions(user.user.id)
             .then(setStagePermissions)
             .catch(err => console.error('Failed to fetch stage permissions', err));
     }, [user?.user?.id]);
 
+    useEffect(() => {
+        if (mainTab === 'SIDE_TASKS') {
+            fetchSideTasks();
+        }
+    }, [mainTab, sideTaskFilter, sideTaskSearch]);
+
     const role = user?.user?.role;
     const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
-    const intervalMs = isAdmin ? 15 * 60 * 1000 : 20000; // 15 mins for admins, 20s for managers
+    const intervalMs = isAdmin ? 15 * 60 * 1000 : 20000;
 
-    // Poll only when the browser tab is focused and active
-    useVisibleInterval(() => fetchAll(false), intervalMs, { enabled: Boolean(user?.user?.id) });
+    useVisibleInterval(() => {
+        if (mainTab === 'PROCESS_RUNS') fetchAll(false);
+        else fetchSideTasks();
+    }, intervalMs, { enabled: Boolean(user?.user?.id) });
 
     const allItems = [...active, ...queue];
 
-    // Gather all stages: from permissions and from items
     const allStagesSet = new Set<string>();
     stagePermissions.forEach(p => {
         if (p.stageCode) allStagesSet.add(p.stageCode);
@@ -490,22 +532,18 @@ function AdminMyTasksPage() {
         if (item.lifeCycleStatusCode) allStagesSet.add(item.lifeCycleStatusCode);
     });
 
-    // Sort stages based on the custom flow sequence
     const sortedStages = Array.from(allStagesSet).sort((a, b) => {
         const orderA = STAGE_ORDER[a.toUpperCase()] || 100;
         const orderB = STAGE_ORDER[b.toUpperCase()] || 100;
         return orderA - orderB;
     });
 
-    // Determine the active lifecycle stage
     const activeStage = selectedStage && sortedStages.includes(selectedStage)
         ? selectedStage
         : (sortedStages.includes('PRODUCTION') ? 'PRODUCTION' : (sortedStages[0] || null));
 
-    // Filter items to the active lifecycle stage
     const stageItems = allItems.filter(item => item.lifeCycleStatusCode === activeStage);
 
-    // Search filter candidate check
     const matchesSearch = (item: any) => {
         if (!searchQuery) return true;
         const s = searchQuery.toLowerCase();
@@ -518,7 +556,6 @@ function AdminMyTasksPage() {
         );
     };
 
-    // Gather unique processes for the active stage
     const processesSet = new Set<string>();
     stagePermissions.filter(p => p.stageCode === activeStage).forEach(p => {
         if (p.processName) processesSet.add(p.processName);
@@ -528,7 +565,6 @@ function AdminMyTasksPage() {
     });
     const stageProcesses = Array.from(processesSet).sort();
 
-    // Filter active items and queued items for display
     const stageActiveItems = active.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
     const stageQueuedItems = queue.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
 
@@ -538,26 +574,149 @@ function AdminMyTasksPage() {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-gray-900">My Tasks</h1>
                     <p className="text-sm text-gray-500 mt-1">
-                        Manage and update task stages assigned to you.
+                        Manage production runs and dynamic side tasks assigned to you.
                     </p>
                 </div>
+                <div className="flex items-center gap-3">
+                    {mainTab === 'SIDE_TASKS' && (
+                        <button
+                            onClick={() => setIsCreateSideTaskOpen(true)}
+                            className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm h-10 shrink-0"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>Create Side Task</span>
+                        </button>
+                    )}
+                    <button
+                        onClick={handleRefresh}
+                        disabled={refreshing || loading}
+                        className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-xs h-10 shrink-0"
+                    >
+                        <RefreshCw className={`w-4 h-4 text-gray-500 ${(refreshing || loading) ? 'animate-spin' : ''}`} />
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* TOP LEVEL TAB SWITCHER: PROCESS RUNS VS SIDE TASKS */}
+            <div className="flex border-b border-gray-200 mb-6">
                 <button
-                    onClick={handleRefresh}
-                    disabled={refreshing || loading}
-                    className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-xs w-full sm:w-auto cursor-pointer h-10 shrink-0"
+                    onClick={() => setMainTab('PROCESS_RUNS')}
+                    className={`px-6 py-3 font-bold text-sm border-b-2 transition-all flex items-center gap-2 ${
+                        mainTab === 'PROCESS_RUNS'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
                 >
-                    <RefreshCw className={`w-4 h-4 text-gray-500 ${(refreshing || loading) ? 'animate-spin' : ''}`} />
-                    <span>Refresh</span>
+                    <Package className="w-4 h-4" />
+                    <span>Order Production Runs</span>
+                    {allItems.length > 0 && (
+                        <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                            {allItems.length}
+                        </span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setMainTab('SIDE_TASKS')}
+                    className={`px-6 py-3 font-bold text-sm border-b-2 transition-all flex items-center gap-2 ${
+                        mainTab === 'SIDE_TASKS'
+                            ? 'border-indigo-600 text-indigo-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                >
+                    <Layers className="w-4 h-4" />
+                    <span>Side Tasks</span>
+                    {sideTasks.length > 0 && (
+                        <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-800">
+                            {sideTasks.length}
+                        </span>
+                    )}
                 </button>
             </div>
 
-            {loading && allItems.length === 0 ? (
-                <div className="text-center py-20 text-gray-400">Loading…</div>
-            ) : allStagesSet.size === 0 ? (
-                <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
-                    <p className="text-gray-500">No runs waiting in your queue.</p>
+            {/* MAIN TAB CONTENT: SIDE TASKS */}
+            {mainTab === 'SIDE_TASKS' ? (
+                <div className="space-y-6">
+                    {/* Filters & Search */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setSideTaskFilter('MY')}
+                                className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
+                                    sideTaskFilter === 'MY'
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                Assigned to Me ({sideTasks.filter((t) => t.currentAssigneeId === user?.id).length})
+                            </button>
+                            {isAdmin && (
+                                <button
+                                    onClick={() => setSideTaskFilter('ALL')}
+                                    className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
+                                        sideTaskFilter === 'ALL'
+                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    All Active Side Tasks
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="relative w-full md:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search side tasks..."
+                                value={sideTaskSearch}
+                                onChange={(e) => setSideTaskSearch(e.target.value)}
+                                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full bg-white shadow-xs"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Side Tasks Cards Grid */}
+                    {sideTasks.length === 0 ? (
+                        <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+                            <Layers className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-gray-500 font-medium text-sm">No active side tasks found.</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                                Click "Create Side Task" to create a new task.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {sideTasks.map((t) => (
+                                <SideTaskCard
+                                    key={t.id}
+                                    task={t}
+                                    onRefresh={fetchSideTasks}
+                                    onPass={(task) => setPassTaskTarget(task)}
+                                    onReassign={(task) => setReassignTaskTarget(task)}
+                                    onSubmitReview={(task) => {
+                                        setReviewTaskTarget(task);
+                                        setReviewMode('submit');
+                                    }}
+                                    onReview={(task) => {
+                                        setReviewTaskTarget(task);
+                                        setReviewMode('review');
+                                    }}
+                                    onOpenHistory={(task) => setHistoryTaskTarget(task)}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
-            ) : (
+            ) :
+                /* MAIN TAB CONTENT: PROCESS RUNS (ORIGINAL CODE) */
+                loading && allItems.length === 0 ? (
+                    <div className="text-center py-20 text-gray-400">Loading…</div>
+                ) : allStagesSet.size === 0 ? (
+                    <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
+                        <p className="text-gray-500">No runs waiting in your queue.</p>
+                    </div>
+                ) : (
                 <>
                     {/* LIFECYCLE STAGE TABS */}
                     <div className="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide gap-2 bg-white px-4 py-1.5 rounded-xl border border-gray-100">
@@ -725,6 +884,41 @@ function AdminMyTasksPage() {
                     }}
                 />
             )}
+
+            {/* SIDE TASKS MODALS */}
+            <CreateSideTaskModal
+                isOpen={isCreateSideTaskOpen}
+                onClose={() => setIsCreateSideTaskOpen(false)}
+                onSuccess={fetchSideTasks}
+            />
+
+            <PassSideTaskModal
+                task={passTaskTarget}
+                isOpen={Boolean(passTaskTarget)}
+                onClose={() => setPassTaskTarget(null)}
+                onSuccess={fetchSideTasks}
+            />
+
+            <ReassignSideTaskModal
+                task={reassignTaskTarget}
+                isOpen={Boolean(reassignTaskTarget)}
+                onClose={() => setReassignTaskTarget(null)}
+                onSuccess={fetchSideTasks}
+            />
+
+            <ReviewSideTaskModal
+                task={reviewTaskTarget}
+                mode={reviewMode}
+                isOpen={Boolean(reviewTaskTarget)}
+                onClose={() => setReviewTaskTarget(null)}
+                onSuccess={fetchSideTasks}
+            />
+
+            <SideTaskHistoryModal
+                task={historyTaskTarget}
+                isOpen={Boolean(historyTaskTarget)}
+                onClose={() => setHistoryTaskTarget(null)}
+            />
         </div>
     );
 }

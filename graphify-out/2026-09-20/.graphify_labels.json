@@ -95,6 +95,7 @@
   "93": "token.ts",
   "94": "tsconfig.json",
   "95": "Spec: DTF Variable Fusing Cost Inputs",
+  "96": "order.mapper.ts",
   "97": "process.contract.ts",
   "98": "backfill-usernames.js",
   "99": "run-legacy-billing-migration.ts",
@@ -109,6 +110,7 @@
   "108": "RunStatusFilter.tsx",
   "109": "Spec: Run Card UI Consistency — All Process Config Components",
   "110": "notifications.service.ts",
+  "111": "users.service.spec.ts",
   "112": "create-location.dto.ts",
   "113": "locations.query.dto.ts",
   "114": "update-location.dto.ts",
@@ -166,6 +168,6 @@
   "166": "graphify.md",
   "167": "Database migration strategy",
   "168": "Permissions system",
-  "170": "SKILL.md",
-  "171": "calculate-billing.read.contract.ts"
+  "169": "calculate-billing.contract.ts",
+  "170": "SKILL.md"
 }

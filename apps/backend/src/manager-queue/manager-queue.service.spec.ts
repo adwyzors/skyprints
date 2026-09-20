@@ -113,7 +113,12 @@ describe('ManagerQueueService', () => {
       await svc.release('mgr-1', 'run-1');
       expect(mockPrisma.processRun.update).toHaveBeenCalledWith({
         where: { id: 'run-1' },
-        data: { claimedBy: null, claimedAt: null },
+        data: {
+          claimedBy: null,
+          claimedAt: null,
+          pausedAt: null,
+          pausedDurationSeconds: 0,
+        },
       });
     });
   });
@@ -126,7 +131,12 @@ describe('ManagerQueueService', () => {
       await svc.forceRelease('admin-1', 'run-1');
       expect(mockPrisma.processRun.update).toHaveBeenCalledWith({
         where: { id: 'run-1' },
-        data: { claimedBy: null, claimedAt: null },
+        data: {
+          claimedBy: null,
+          claimedAt: null,
+          pausedAt: null,
+          pausedDurationSeconds: 0,
+        },
       });
     });
   });
@@ -196,11 +206,18 @@ describe('ManagerQueueService', () => {
         'run-1',
         'WAITING',
         undefined,
+        undefined,
         mockTx,
       );
       expect(mockTx.processRun.update).toHaveBeenCalledWith({
         where: { id: 'run-1' },
-        data: { executorId: 'mgr-1', claimedBy: null, claimedAt: null },
+        data: {
+          executorId: 'mgr-1',
+          claimedBy: null,
+          claimedAt: null,
+          pausedAt: null,
+          pausedDurationSeconds: 0,
+        },
       });
       expect(mockTx.processRunStageHistory.create).toHaveBeenCalledWith(
         expect.objectContaining({

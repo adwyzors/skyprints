@@ -11,9 +11,12 @@ import { Order } from "@/domain/model/order.model";
 import { GetOrdersParams, getOrders } from "@/services/orders.service";
 import debounce from 'lodash/debounce';
 import FilterDrawer from '@/components/layout/FilterDrawer';
-import { Calendar, CheckSquare, ChevronLeft, FileText, Filter, Loader2, Search, Users } from "lucide-react";
+import { Calendar, CheckSquare, ChevronLeft, FileText, Filter, Loader2, Search, Users, Layers, Clock, CheckCircle2, XCircle, User as UserIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { getCompletedSideTasks } from '@/services/sideTaskService';
+import { SideTaskHistoryModal } from '@/components/side-tasks/SideTaskHistoryModal';
+import { SideTask } from '@/types/sideTask';
 
 function CompletedContent() {
     const router = useRouter();
@@ -57,6 +60,30 @@ function CompletedContent() {
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedOrders, setSelectedOrders] = useState<Map<string, Order>>(new Map());
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+    // Side Tasks state
+    const [mainTab, setMainTab] = useState<'BILLED' | 'SIDE_TASKS'>('BILLED');
+    const [completedSideTasks, setCompletedSideTasks] = useState<SideTask[]>([]);
+    const [loadingSideTasks, setLoadingSideTasks] = useState(false);
+    const [sideTaskSearch, setSideTaskSearch] = useState('');
+    const [historyTaskTarget, setHistoryTaskTarget] = useState<SideTask | null>(null);
+
+    const fetchCompletedSideTasks = useCallback(async () => {
+        setLoadingSideTasks(true);
+        try {
+            const data = await getCompletedSideTasks();
+            setCompletedSideTasks(data);
+        } catch (err) {
+            console.error('Failed to fetch completed side tasks', err);
+        } finally {
+            setLoadingSideTasks(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (mainTab === 'SIDE_TASKS') {
+            fetchCompletedSideTasks();
+        }
+    }, [mainTab, fetchCompletedSideTasks]);
 
     useEffect(() => {
         setIsMounted(true);
@@ -345,8 +372,119 @@ function CompletedContent() {
                     </div>
                 </div>
 
+                {/* TOP MAIN TAB SWITCHER */}
+                <div className="flex border-b border-gray-200 px-4 bg-white">
+                    <button
+                        onClick={() => setMainTab('BILLED')}
+                        className={`px-5 py-3 font-bold text-sm border-b-2 transition-all flex items-center gap-2 ${
+                            mainTab === 'BILLED'
+                                ? 'border-blue-600 text-blue-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        <FileText className="w-4 h-4" />
+                        <span>Billed Production Orders</span>
+                    </button>
+                    <button
+                        onClick={() => setMainTab('SIDE_TASKS')}
+                        className={`px-5 py-3 font-bold text-sm border-b-2 transition-all flex items-center gap-2 ${
+                            mainTab === 'SIDE_TASKS'
+                                ? 'border-indigo-600 text-indigo-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                    >
+                        <Layers className="w-4 h-4" />
+                        <span>Completed Side Tasks</span>
+                    </button>
+                </div>
+
                 {/* CONTENT */}
                 <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
+                    {mainTab === 'SIDE_TASKS' ? (
+                        <div className="space-y-6">
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
+                                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                    Completed & Closed Side Tasks ({completedSideTasks.length})
+                                </h2>
+                                <div className="relative w-full sm:w-64">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search task code, title..."
+                                        value={sideTaskSearch}
+                                        onChange={(e) => setSideTaskSearch(e.target.value)}
+                                        className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full bg-white shadow-xs"
+                                    />
+                                </div>
+                            </div>
+
+                            {loadingSideTasks ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                                    <span className="ml-3 text-gray-600">Loading completed side tasks...</span>
+                                </div>
+                            ) : completedSideTasks.length === 0 ? (
+                                <div className="bg-white rounded-xl border border-gray-100 p-12 text-center text-gray-500 shadow-sm">
+                                    <Layers className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                                    <h3 className="text-xl font-semibold text-gray-700 mb-2">No completed side tasks</h3>
+                                    <p className="text-gray-500 text-sm">Completed side tasks will appear here once finalized.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {completedSideTasks
+                                        .filter((t) => {
+                                            if (!sideTaskSearch) return true;
+                                            const s = sideTaskSearch.toLowerCase();
+                                            return (
+                                                t.code.toLowerCase().includes(s) ||
+                                                t.title.toLowerCase().includes(s) ||
+                                                (t.customer?.name && t.customer.name.toLowerCase().includes(s))
+                                            );
+                                        })
+                                        .map((t) => (
+                                            <div key={t.id} className="bg-white rounded-2xl border border-gray-200 p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between gap-4">
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">
+                                                            {t.code}
+                                                        </span>
+                                                        <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                                                            t.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                                        }`}>
+                                                            {t.status}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="font-bold text-gray-900 text-base line-clamp-1">{t.title}</h3>
+                                                    {t.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{t.description}</p>}
+
+                                                    {t.customer && (
+                                                        <div className="mt-3 flex items-center gap-1.5 text-xs text-gray-600">
+                                                            <UserIcon className="w-3.5 h-3.5 text-gray-400" />
+                                                            <span className="font-medium">{t.customer.name}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="border-t border-gray-100 pt-3 flex items-center justify-between text-xs text-gray-500">
+                                                    <div className="flex items-center gap-1">
+                                                        <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                                                        <span>Time: <strong className="text-gray-800">{Math.floor(((t.totalTimeSeconds ?? t.stageHistories?.reduce((sum, h) => sum + (h.totalTimeSeconds || 0), 0)) || 0) / 60)} mins</strong></span>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setHistoryTaskTarget(t)}
+                                                        className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold rounded-lg border border-gray-200 text-xs transition"
+                                                    >
+                                                        History
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <>
                     {/* Results Summary */}
                     <div className="flex items-center justify-between mb-6">
                         <p className="text-sm text-gray-600">
@@ -442,6 +580,8 @@ function CompletedContent() {
                             />
                         </>
                     )}
+                </>
+            )}
                 </div>
             </div>
 
@@ -455,6 +595,12 @@ function CompletedContent() {
                 onClose={() => setShowCreateGroupModal(false)}
                 selectedOrders={Array.from(selectedOrders.values())}
                 onSuccess={handleGroupCreated}
+            />
+
+            <SideTaskHistoryModal
+                task={historyTaskTarget}
+                isOpen={Boolean(historyTaskTarget)}
+                onClose={() => setHistoryTaskTarget(null)}
             />
 
         </div>
