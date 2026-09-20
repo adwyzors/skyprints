@@ -30,8 +30,9 @@ export function SideTaskTimer({
   status,
   size = 'md',
 }: SideTaskTimerProps) {
-  const isRunning = Boolean(lastStartedAt && !pausedAt && status === 'IN_PROGRESS');
-  const isPaused = Boolean(pausedAt && status === 'IN_PROGRESS');
+  const isActiveStatus = status === 'IN_PROGRESS' || status === 'ASSIGNED';
+  const isRunning = Boolean(lastStartedAt && !pausedAt && isActiveStatus);
+  const isPaused = Boolean(pausedAt && isActiveStatus);
 
   const [nowMs, setNowMs] = useState<number>(Date.now());
 

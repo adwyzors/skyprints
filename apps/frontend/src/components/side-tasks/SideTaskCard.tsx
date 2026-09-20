@@ -54,9 +54,10 @@ export function SideTaskCard({
   const lastStartedAt = currentHistory?.lastStartedAt ?? null;
   const pausedAt = currentHistory?.pausedAt ?? null;
 
-  const isRunning = Boolean(lastStartedAt && !pausedAt && task.status === 'IN_PROGRESS');
-  const isPaused = Boolean(pausedAt && task.status === 'IN_PROGRESS');
-  const isUnstarted = !lastStartedAt && task.status === 'ASSIGNED';
+  const isActiveStatus = task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS';
+  const isRunning = Boolean(isActiveStatus && lastStartedAt && !pausedAt);
+  const isPaused = Boolean(isActiveStatus && pausedAt);
+  const isUnstarted = Boolean(isActiveStatus && !lastStartedAt);
 
   const handleStart = async (e: React.MouseEvent) => {
     e.stopPropagation();

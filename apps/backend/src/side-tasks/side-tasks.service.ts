@@ -540,7 +540,7 @@ export class SideTasksService {
         data: {
           currentStageTypeId: dto.nextStageTypeId,
           currentAssigneeId: dto.nextAssigneeId,
-          status: SideTaskStatus.IN_PROGRESS,
+          status: SideTaskStatus.ASSIGNED,
         },
       });
 
@@ -599,10 +599,13 @@ export class SideTasksService {
         },
       });
 
-      // Update current assignee
+      // Update current assignee and set status to ASSIGNED for unstarted stage
       await tx.sideTask.update({
         where: { id },
-        data: { currentAssigneeId: dto.newAssigneeId },
+        data: {
+          currentAssigneeId: dto.newAssigneeId,
+          status: SideTaskStatus.ASSIGNED,
+        },
       });
 
       return tx.sideTask.findUnique({
@@ -686,7 +689,7 @@ export class SideTasksService {
   }
 
   /**
-   * Send back review -> returns task to IN_PROGRESS with optional target user
+   * Send back review -> returns task to ASSIGNED with optional target user
    */
   async sendBackReview(id: string, reviewerId: string, dto: SendBackReviewDto) {
     return this.prisma.transaction(async (tx) => {
@@ -729,7 +732,7 @@ export class SideTasksService {
         data: {
           currentAssigneeId: targetUserId,
           currentStageTypeId: lastHistory.stageTypeId,
-          status: SideTaskStatus.IN_PROGRESS,
+          status: SideTaskStatus.ASSIGNED,
         },
       });
 
