@@ -52,19 +52,17 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                     .print-page-grid {
                         display: grid !important;
                         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-                        grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
-                        gap: 0.35rem !important;
-                        padding: 0.15rem !important;
+                        grid-template-rows: auto !important;
+                        gap: 3px !important;
+                        padding: 2px !important;
                         background: white !important;
                         box-sizing: border-box !important;
                         width: 100% !important;
-                        height: 194mm !important;
-                        max-height: 194mm !important;
+                        align-content: start !important;
                         page-break-after: always !important;
                         break-after: page !important;
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
-                        overflow: hidden !important;
                     }
                     .print-page-grid.print-last-page {
                         page-break-after: auto !important;
@@ -73,23 +71,21 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                     .print-card-box {
                         break-inside: avoid !important;
                         page-break-inside: avoid !important;
-                        height: 100% !important;
                         box-sizing: border-box !important;
                     }
                     .print-card-box .group {
-                        border-radius: 0.5rem !important;
-                        border: 1px solid #e5e7eb !important;
+                        border-radius: 0.375rem !important;
+                        border: 1px solid #d1d5db !important;
                         box-shadow: none !important;
-                        height: 100% !important;
                         display: flex !important;
                         flex-direction: column !important;
                         background-color: white !important;
                     }
                     .print-card-box .h-48 {
-                        height: 3.5rem !important;
+                        height: 4.5rem !important;
                     }
                     .print-card-box .p-4 {
-                        padding: 0.25rem 0.35rem !important;
+                        padding: 0.3rem 0.4rem !important;
                     }
                     .print-card-box .space-y-3 > :not([hidden]) ~ :not([hidden]) {
                         margin-top: 0.15rem !important;
@@ -102,20 +98,20 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                         margin-top: 0.1rem !important;
                     }
                     .print-card-box .text-\[15px\] {
-                        font-size: 10px !important;
+                        font-size: 10.5px !important;
                         line-height: 12px !important;
                     }
                     .print-card-box .text-xs {
-                        font-size: 8.5px !important;
-                        line-height: 10px !important;
-                    }
-                    .print-card-box .text-sm {
                         font-size: 9px !important;
                         line-height: 11px !important;
                     }
+                    .print-card-box .text-sm {
+                        font-size: 9.5px !important;
+                        line-height: 11.5px !important;
+                    }
                     .print-card-box .text-\[10px\] {
-                        font-size: 7.5px !important;
-                        line-height: 9px !important;
+                        font-size: 8px !important;
+                        line-height: 9.5px !important;
                     }
                     .print-card-box span {
                         line-height: 1.1 !important;

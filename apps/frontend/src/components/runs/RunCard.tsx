@@ -167,7 +167,7 @@ export default function RunCard({ run, active = true, onClick, context, onTransi
                     <span className="truncate max-w-[80px]">{statusConfig.label}</span>
                 </span>
                 {priority && (
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider shadow-sm ${getPriorityColor(priority)}`}>
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider shadow-sm no-print-area print:hidden ${getPriorityColor(priority)}`}>
                         {priority}
                     </span>
                 )}
