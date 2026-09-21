@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { useImagePaste } from '@/hooks/useImagePaste';
+import { useImagePaste, extractImagesFromClipboard } from '@/hooks/useImagePaste';
 
 import { apiRequest } from "@/services/api.service";
 import { configureRun } from '@/services/run.service';
@@ -589,7 +589,21 @@ export default function RunConfigForm({
                 </div>
 
                 {/* Images */}
-                <div className="mt-6">
+                <div
+                    tabIndex={0}
+                    className="mt-6 border border-gray-200 rounded-lg p-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all cursor-pointer"
+                    onClick={(e) => {
+                        (e.currentTarget as HTMLDivElement).focus();
+                    }}
+                    onPaste={(e) => {
+                        const files = extractImagesFromClipboard(e);
+                        if (files.length > 0) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            processImages(files);
+                        }
+                    }}
+                >
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                             <label className="text-sm font-medium text-gray-700">Reference Images (Max 2)</label>

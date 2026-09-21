@@ -16,9 +16,9 @@ import {
     X,
     ClipboardPaste
 } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { useImagePaste } from '@/hooks/useImagePaste';
+import { useImagePaste, extractImagesFromClipboard } from '@/hooks/useImagePaste';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import SearchableManagerSelect from '../common/SearchableManagerSelect';
 import RunCommentEditor from './RunCommentEditor';
@@ -250,13 +250,25 @@ export default function SpangleConfig({
         }
     };
 
+    const activeRunForPaste = useMemo(() => {
+        if (!openRunId) return null;
+        const run = (localOrder.processes || [])
+            .flatMap((p) => p.runs || [])
+            .find((r) => r.id === openRunId);
+        if (!run) return null;
+        const isConfigured = run.configStatus === 'COMPLETE';
+        const isEditing = editingRunId === run.id;
+        const isEditable = !isConfigured || isEditing;
+        return isEditable ? run.id : null;
+    }, [openRunId, editingRunId, localOrder]);
+
     useImagePaste({
         onFilesPasted: (files) => {
-            if (editingRunId) {
-                addImagesToRun(editingRunId, files);
+            if (activeRunForPaste) {
+                addImagesToRun(activeRunForPaste, files);
             }
         },
-        enabled: !!editingRunId,
+        enabled: !!activeRunForPaste,
     });
 
     const removeImage = (runId: string, index: number) => {
@@ -843,7 +855,21 @@ export default function SpangleConfig({
 
                     {/* Reference Images */}
                     {mode === 'edit' && (
-                        <div className="border border-gray-200 rounded p-3 bg-gray-50">
+                        <div
+                            tabIndex={0}
+                            className="border border-gray-200 rounded p-3 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all cursor-pointer"
+                            onClick={(e) => {
+                                (e.currentTarget as HTMLDivElement).focus();
+                            }}
+                            onPaste={(e) => {
+                                const files = extractImagesFromClipboard(e);
+                                if (files.length > 0) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    addImagesToRun(run.id, files);
+                                }
+                            }}
+                        >
                             <div className="flex justify-between mb-2">
                                 <label className="text-xs font-bold text-gray-700">Reference Images</label>
                                 <span className="text-xs text-gray-500">

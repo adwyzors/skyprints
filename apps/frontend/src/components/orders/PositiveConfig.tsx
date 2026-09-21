@@ -10,9 +10,9 @@ import {
     X,
     ClipboardPaste
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { useImagePaste } from '@/hooks/useImagePaste';
+import { useImagePaste, extractImagesFromClipboard } from '@/hooks/useImagePaste';
 import SearchableLocationSelect from '../common/SearchableLocationSelect';
 import RunCommentEditor from './RunCommentEditor';
 import CreditLimitErrorDialog from '@/components/common/CreditLimitErrorDialog';
@@ -179,13 +179,25 @@ export default function PositiveConfig({
         await processImagesForRun(runId, Array.from(files));
     };
 
+    const activeRunForPaste = useMemo(() => {
+        if (!openRunId) return null;
+        const run = (localOrder.processes || [])
+            .flatMap((p) => p.runs || [])
+            .find((r) => r.id === openRunId);
+        if (!run) return null;
+        const isConfigured = run.configStatus === 'COMPLETE';
+        const isEditing = editingRunId === run.id;
+        const isEditable = !isConfigured || isEditing;
+        return isEditable ? run.id : null;
+    }, [openRunId, editingRunId, localOrder]);
+
     useImagePaste({
         onFilesPasted: (files) => {
-            if (editingRunId) {
-                processImagesForRun(editingRunId, files);
+            if (activeRunForPaste) {
+                processImagesForRun(activeRunForPaste, files);
             }
         },
-        enabled: !!editingRunId,
+        enabled: !!activeRunForPaste,
     });
 
     const removeImage = (runId: string, index: number) => {
@@ -656,7 +668,21 @@ export default function PositiveConfig({
 
                 {/* IMAGE UPLOAD SECTION */}
                 {mode === 'edit' && (
-                    <div className="mt-3 border border-gray-300 rounded overflow-hidden bg-white p-3">
+                    <div
+                        tabIndex={0}
+                        className="mt-3 border border-gray-300 rounded overflow-hidden bg-white p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all cursor-pointer"
+                        onClick={(e) => {
+                            (e.currentTarget as HTMLDivElement).focus();
+                        }}
+                        onPaste={(e) => {
+                            const files = extractImagesFromClipboard(e);
+                            if (files.length > 0) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                processImagesForRun(run.id, files);
+                            }
+                        }}
+                    >
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
                                 <Palette className="w-3.5 h-3.5" />
