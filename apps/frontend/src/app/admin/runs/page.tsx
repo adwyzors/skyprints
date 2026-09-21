@@ -81,6 +81,43 @@ interface Run {
 
 const DIGITAL_PROCESS_NAMES = ['Sublimation', 'Plotter', 'DTF', 'Laser', 'Allover Sublimation'];
 
+const STAGE_SORT_ORDER: Record<string, number> = {
+    // 1-13 stages from photo:
+    'DESIGN': 1,
+    'SIZE_COLOR': 2,
+    'SIZE/COLOR': 2,
+    'SIZE / COLOR': 2,
+    'TRACING': 3,
+    'EXPOSING': 4,
+    'SAMPLE': 5,
+    'RANGE': 6,
+    'PRODUCTION': 7,
+    'WAITING': 8,
+    'CUTTING_WEEDING': 9,
+    'CUTTING/WEEDING': 9,
+    'CUTTING': 9,
+    'WEEDING': 9,
+    'CURING': 10,
+    'FUSING': 11,
+    'QC_COUNTING': 12,
+    'QC & COUNTING': 12,
+    'QC': 12,
+    'QC & PACKING': 12,
+    'VAR_KATA_KG': 13,
+    'VAR KATA AND KG': 13,
+    'VAR KATA': 13,
+
+    // Then Completed stage:
+    'COMPLETE': 14,
+    'COMPLETED': 14,
+
+    // Initial pre-production statuses:
+    'CONFIGURE': 0,
+    'PENDING': 0,
+    'ORDERS': 0,
+    'PRODUCTION_READY': 0,
+};
+
 function RunsPageContent() {
     const { user, hasPermission } = useAuth();
     const searchParams = useSearchParams();
@@ -449,10 +486,18 @@ function RunsPageContent() {
                     aValue = a.fields?.['Estimated Amount'] || 0;
                     bValue = b.fields?.['Estimated Amount'] || 0;
                     break;
-                case 'status':
-                    aValue = a.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (a.lifeCycleStatusCode || a.statusCode);
-                    bValue = b.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (b.lifeCycleStatusCode || b.statusCode);
+                case 'status': {
+                    const getStageRank = (run: Run): number => {
+                        const rawStatus = (run.statusCode === 'CONFIGURE' ? 'CONFIGURE' : (run.lifeCycleStatusCode || run.statusCode || '')).toUpperCase();
+                        if (rawStatus in STAGE_SORT_ORDER) {
+                            return STAGE_SORT_ORDER[rawStatus];
+                        }
+                        return 99;
+                    };
+                    aValue = getStageRank(a);
+                    bValue = getStageRank(b);
                     break;
+                }
                 default:
                     return 0;
             }
