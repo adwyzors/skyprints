@@ -7,12 +7,12 @@ interface PrintRunCardsProps {
     runs: any[];
 }
 
-const CARDS_PER_PAGE = 16; // 4 columns x 4 rows in landscape mode
+const CARDS_PER_PAGE = 12; // 4 columns x 3 rows in landscape mode
 
 export default function PrintRunCards({ runs }: PrintRunCardsProps) {
     if (!runs || runs.length === 0) return null;
 
-    // Chunk runs into pages of 16 cards each
+    // Chunk runs into pages of 12 cards each
     const pages: any[][] = [];
     for (let i = 0; i < runs.length; i += CARDS_PER_PAGE) {
         pages.push(runs.slice(i, i + CARDS_PER_PAGE));
@@ -52,7 +52,7 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                     .print-page-grid {
                         display: grid !important;
                         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-                        grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
+                        grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
                         gap: 2px !important;
                         padding: 1px !important;
                         background: white !important;
@@ -88,42 +88,44 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                         background-color: white !important;
                         overflow: hidden !important;
                     }
+                    /* ENLARGED IMAGE AREA FOR 4x3 FULL-PAGE LAYOUT */
                     .print-card-box .h-48 {
-                        height: 3.4rem !important;
+                        height: 4.8rem !important;
+                        flex-grow: 1 !important;
                         flex-shrink: 0 !important;
                     }
                     .print-card-box .p-4 {
-                        padding: 0.2rem 0.3rem !important;
-                        flex: 1 !important;
+                        padding: 0.2rem 0.35rem !important;
+                        flex-shrink: 0 !important;
                         display: flex !important;
                         flex-direction: column !important;
-                        justify-content: space-between !important;
+                        justify-content: flex-end !important;
                     }
                     .print-card-box .space-y-3 > :not([hidden]) ~ :not([hidden]) {
-                        margin-top: 0.08rem !important;
+                        margin-top: 0.1rem !important;
                     }
                     .print-card-box .py-2 {
-                        padding-top: 0.05rem !important;
-                        padding-bottom: 0.05rem !important;
+                        padding-top: 0.08rem !important;
+                        padding-bottom: 0.08rem !important;
                     }
                     .print-card-box .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
                         margin-top: 0.05rem !important;
                     }
                     .print-card-box .text-\[15px\] {
-                        font-size: 9.5px !important;
-                        line-height: 11px !important;
+                        font-size: 10px !important;
+                        line-height: 12px !important;
                     }
                     .print-card-box .text-xs {
-                        font-size: 8px !important;
-                        line-height: 9.5px !important;
-                    }
-                    .print-card-box .text-sm {
                         font-size: 8.5px !important;
                         line-height: 10px !important;
                     }
+                    .print-card-box .text-sm {
+                        font-size: 9px !important;
+                        line-height: 11px !important;
+                    }
                     .print-card-box .text-\[10px\] {
-                        font-size: 7.5px !important;
-                        line-height: 9px !important;
+                        font-size: 8px !important;
+                        line-height: 9.5px !important;
                     }
                     .print-card-box span {
                         line-height: 1.05 !important;
