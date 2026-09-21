@@ -196,7 +196,7 @@ function RunsPageContent() {
 
     // Selection & Print State
     const [isSelectMode, setIsSelectMode] = useState(false);
-    const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set());
+    const [selectedRunsMap, setSelectedRunsMap] = useState<Map<string, any>>(new Map());
 
     const [processes, setProcesses] = useState<any[]>([]);
     const [locations, setLocations] = useState<any[]>([]);
@@ -528,36 +528,35 @@ function RunsPageContent() {
         setIsSelectMode((prev) => {
             const next = !prev;
             if (!next) {
-                setSelectedRunIds(new Set());
+                setSelectedRunsMap(new Map());
             }
             return next;
         });
     };
 
-    const toggleRunSelection = (runId: string) => {
-        setSelectedRunIds((prev) => {
-            const next = new Set(prev);
-            if (next.has(runId)) {
-                next.delete(runId);
+    const toggleRunSelection = (run: any) => {
+        setSelectedRunsMap((prev) => {
+            const next = new Map(prev);
+            if (next.has(run.id)) {
+                next.delete(run.id);
             } else {
-                next.add(runId);
+                next.set(run.id, run);
             }
             return next;
         });
     };
 
     const handleSelectAllOnPage = () => {
-        const allPageIds = sortedRuns.map((r) => r.id);
-        setSelectedRunIds((prev) => {
-            const next = new Set(prev);
-            allPageIds.forEach((id) => next.add(id));
+        setSelectedRunsMap((prev) => {
+            const next = new Map(prev);
+            sortedRuns.forEach((r) => next.set(r.id, r));
             return next;
         });
     };
 
     const handleDeselectAllOnPage = () => {
-        setSelectedRunIds((prev) => {
-            const next = new Set(prev);
+        setSelectedRunsMap((prev) => {
+            const next = new Map(prev);
             sortedRuns.forEach((r) => next.delete(r.id));
             return next;
         });
@@ -568,13 +567,13 @@ function RunsPageContent() {
     };
 
     const selectedRunsList = useMemo(() => {
-        if (selectedRunIds.size === 0) return [];
-        return runsData.runs.filter((r) => selectedRunIds.has(r.id));
-    }, [runsData.runs, selectedRunIds]);
+        return Array.from(selectedRunsMap.values());
+    }, [selectedRunsMap]);
 
     return (
-        <div className="flex bg-gray-50/50 min-h-full scrollbar-hide">
-            {/* LEFT SIDEBAR FILTERS */}
+        <>
+            <div className="flex bg-gray-50/50 min-h-full scrollbar-hide no-print-area print:hidden">
+                {/* LEFT SIDEBAR FILTERS */}
             <FilterDrawer open={isSidebarOpen} onClose={() => setIsSidebarOpen(false)}>
                 <div className="p-3">
                     <RunsFilter
@@ -662,11 +661,11 @@ function RunsPageContent() {
                                 </button>
                                 <button
                                     onClick={handlePrintSelected}
-                                    disabled={selectedRunIds.size === 0}
+                                    disabled={selectedRunsMap.size === 0}
                                     className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-bold rounded-lg transition-all shadow-xs text-xs whitespace-nowrap"
                                 >
                                     <Printer className="w-4 h-4" />
-                                    <span>Print ({selectedRunIds.size})</span>
+                                    <span>Print ({selectedRunsMap.size})</span>
                                 </button>
                                 <button
                                     onClick={toggleSelectMode}
@@ -844,9 +843,9 @@ function RunsPageContent() {
                                             run={run}
                                             active={viewMode === 'grid'}
                                             selectable={isSelectMode}
-                                            selected={selectedRunIds.has(run.id)}
-                                            onSelectToggle={() => toggleRunSelection(run.id)}
-                                            onClick={() => (isSelectMode ? toggleRunSelection(run.id) : handleRunSelection(run.id))}
+                                            selected={selectedRunsMap.has(run.id)}
+                                            onSelectToggle={() => toggleRunSelection(run)}
+                                            onClick={() => (isSelectMode ? toggleRunSelection(run) : handleRunSelection(run.id))}
                                         />
                                     ))}
                                 </div>
@@ -901,21 +900,21 @@ function RunsPageContent() {
                                                 if (processName && (processName.toLowerCase().includes('embellishment') || rawName.toLowerCase().includes('embellishment'))) {
                                                     displayName = processName;
                                                 }
-                                                const isSelected = selectedRunIds.has(run.id);
+                                                const isSelected = selectedRunsMap.has(run.id);
                                                 return (
                                                     <tr
                                                         key={run.id}
                                                         className={`group transition-colors cursor-pointer ${
                                                             isSelected ? 'bg-blue-50/70' : 'hover:bg-blue-50/30'
                                                         }`}
-                                                        onClick={() => (isSelectMode ? toggleRunSelection(run.id) : handleRunSelection(run.id))}
+                                                        onClick={() => (isSelectMode ? toggleRunSelection(run) : handleRunSelection(run.id))}
                                                     >
                                                         {isSelectMode && (
                                                             <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={isSelected}
-                                                                    onChange={() => toggleRunSelection(run.id)}
+                                                                    onChange={() => toggleRunSelection(run)}
                                                                     className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer"
                                                                 />
                                                             </td>
@@ -1095,9 +1094,10 @@ function RunsPageContent() {
                 />
             )}
             <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
-            <PrintRunCards runs={selectedRunsList} />
         </div>
-    );
+        <PrintRunCards runs={selectedRunsList} />
+    </>
+);
 }
 
 const ProtectedRunsPageContent = withAuth(RunsPageContent, { permission: Permission.RUNS_VIEW });

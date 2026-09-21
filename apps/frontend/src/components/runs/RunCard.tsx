@@ -196,13 +196,13 @@ export default function RunCard({ run, active = true, onClick, context, onTransi
                                     src={image}
                                     alt={`${displayName} - ${orderCode}`}
                                     className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`}
-                                    loading="lazy"
+                                    loading={active ? "lazy" : "eager"}
                                     decoding="async"
                                 />
                             ))}
 
                             {images.length > 1 && (
-                                <>
+                                <div className="no-print-area print:hidden">
                                     <button
                                         onClick={prevImage}
                                         className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-lg transition-all hover:scale-110 z-20"
@@ -220,7 +220,7 @@ export default function RunCard({ run, active = true, onClick, context, onTransi
                                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-2 py-0.5 rounded-full text-[10px] font-medium z-20">
                                         {currentImageIndex + 1} / {images.length}
                                     </div>
-                                </>
+                                </div>
                             )}
                         </>
                     ) : (
