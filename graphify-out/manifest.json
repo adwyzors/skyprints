@@ -1060,8 +1060,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/runs/page.tsx": {
-    "mtime": 1790003430.9028032,
-    "ast_hash": "41a3dc8ff49c98b41160de42742f365d",
+    "mtime": 1790004626.589387,
+    "ast_hash": "59d691afda52097b5d702f140d4c4662",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/settings/page.tsx": {
@@ -1410,8 +1410,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/RunCard.tsx": {
-    "mtime": 1790003020.9356742,
-    "ast_hash": "9ac424809e1d715cddc194c6411636d5",
+    "mtime": 1790004705.812468,
+    "ast_hash": "1745cc68fed93155cc6e9b150bdaa326",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/RunConfigForm.tsx": {
@@ -2130,8 +2130,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/PrintRunCards.tsx": {
-    "mtime": 1790002895.6157317,
-    "ast_hash": "267b149eedcdd03a096979278f3a71ff",
+    "mtime": 1790004724.6340065,
+    "ast_hash": "76b7ca9755b9457a5a50f168b6c0daa9",
     "semantic_hash": ""
   }
 }

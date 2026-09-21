@@ -1060,8 +1060,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/runs/page.tsx": {
-    "mtime": 1789991492.2204626,
-    "ast_hash": "a7b5347ffb02c9c0b3b25fbdb9490bbe",
+    "mtime": 1790003430.9028032,
+    "ast_hash": "41a3dc8ff49c98b41160de42742f365d",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/settings/page.tsx": {
@@ -1410,8 +1410,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/RunCard.tsx": {
-    "mtime": 1783859505.02956,
-    "ast_hash": "92fc39f27bb42eda543fe84918fd4863",
+    "mtime": 1790003020.9356742,
+    "ast_hash": "9ac424809e1d715cddc194c6411636d5",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/RunConfigForm.tsx": {
@@ -1915,7 +1915,7 @@
     "semantic_hash": "f15aaa42d5d299d091b1171097ea56ad"
   },
   "apps/test-report/index.html": {
-    "mtime": 1790001660.4610405,
+    "mtime": 1790001674.885036,
     "ast_hash": "5929af530492acd2e3e4fcfb96b7a0a3",
     "semantic_hash": "5929af530492acd2e3e4fcfb96b7a0a3"
   },
@@ -2020,13 +2020,13 @@
     "semantic_hash": ""
   },
   "apps/test-report/jest-html-reporters-attach/index/index.js": {
-    "mtime": 1789921921.0274782,
+    "mtime": 1790001674.909196,
     "ast_hash": "31598c169dccea2095224ef0c3070d39",
     "semantic_hash": ""
   },
   "apps/test-report/jest-html-reporters-attach/index/result.js": {
-    "mtime": 1789921920.9820144,
-    "ast_hash": "d52eba32a8cce5ed2f39988ddb333b0b",
+    "mtime": 1790001674.881824,
+    "ast_hash": "175c325edd86d656782445614ee116a4",
     "semantic_hash": ""
   },
   "apps/frontend/src/hooks/useImagePaste.ts": {
@@ -2127,6 +2127,11 @@
   "apps/frontend/src/components/side-tasks/SideTaskTableRow.tsx": {
     "mtime": 1790000413.816879,
     "ast_hash": "a6e1b24a891a0261eec6ac8cb7d6bee7",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/components/runs/PrintRunCards.tsx": {
+    "mtime": 1790002895.6157317,
+    "ast_hash": "267b149eedcdd03a096979278f3a71ff",
     "semantic_hash": ""
   }
 }
