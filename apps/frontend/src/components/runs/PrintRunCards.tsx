@@ -7,12 +7,12 @@ interface PrintRunCardsProps {
     runs: any[];
 }
 
-const CARDS_PER_PAGE = 8; // 4 columns x 2 rows of portrait cards in landscape mode
+const CARDS_PER_PAGE = 12; // 4 columns x 3 rows in landscape mode
 
 export default function PrintRunCards({ runs }: PrintRunCardsProps) {
     if (!runs || runs.length === 0) return null;
 
-    // Chunk runs into pages of 8 cards each
+    // Chunk runs into pages of 12 cards each
     const pages: any[][] = [];
     for (let i = 0; i < runs.length; i += CARDS_PER_PAGE) {
         pages.push(runs.slice(i, i + CARDS_PER_PAGE));
@@ -52,52 +52,42 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                     .print-page-grid {
                         display: grid !important;
                         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-                        grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
-                        gap: 3px !important;
+                        grid-template-rows: auto !important;
+                        gap: 4px !important;
                         padding: 1.5px !important;
                         background: white !important;
                         box-sizing: border-box !important;
                         width: 100% !important;
-                        height: 200mm !important;
-                        max-height: 200mm !important;
+                        align-content: start !important;
                         page-break-after: always !important;
                         break-after: page !important;
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
-                        overflow: hidden !important;
                     }
                     .print-page-grid.print-last-page {
                         page-break-after: auto !important;
                         break-after: auto !important;
-                        height: auto !important;
-                        max-height: 200mm !important;
                     }
                     .print-card-box {
                         break-inside: avoid !important;
                         page-break-inside: avoid !important;
-                        height: 100% !important;
                         box-sizing: border-box !important;
                     }
                     .print-card-box .group {
                         border-radius: 0.375rem !important;
                         border: 1px solid #d1d5db !important;
                         box-shadow: none !important;
-                        height: 100% !important;
                         display: flex !important;
                         flex-direction: column !important;
                         background-color: white !important;
                         overflow: hidden !important;
                     }
-                    /* MASSIVE PORTRAIT IMAGE AREA (Takes ~73% of card height) */
+                    /* CARD IMAGE AREA: Matching original card size */
                     .print-card-box .h-48 {
-                        height: 7.2rem !important;
-                        min-height: 6.5rem !important;
-                        flex-grow: 1 !important;
-                        flex-shrink: 0 !important;
+                        height: 4.5rem !important;
                     }
                     .print-card-box .p-4 {
                         padding: 0.3rem 0.45rem !important;
-                        flex-shrink: 0 !important;
                     }
                     .print-card-box .space-y-3 > :not([hidden]) ~ :not([hidden]) {
                         margin-top: 0.12rem !important;
