@@ -75,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <RoleGuard allowedRoles={['SUPER_ADMIN', 'ADMIN']}>
             <div className="h-screen bg-gray-50 flex flex-col overflow-hidden relative">
                 {/* GLOBAL TOP HEADER */}
-                <div className="flex-shrink-0 bg-white">
+                <div className="flex-shrink-0 bg-white no-print-area print:hidden">
                     <AppHeader />
                 </div>
 
@@ -84,7 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     {isHydrated ? (
                         <aside
                             className={`
-                                hidden md:flex bg-white border-r border-gray-200 flex-col transition-all duration-300 ease-in-out z-40
+                                hidden md:flex bg-white border-r border-gray-200 flex-col transition-all duration-300 ease-in-out z-40 no-print-area print:hidden
                                 ${isSidebarCollapsed ? 'w-[72px]' : 'w-56'}
                             `}
                         >
@@ -161,7 +161,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </aside>
                     ) : (
                         /* Skeleton sidebar placeholder — same width as collapsed state so layout doesn't jump */
-                        <div className="hidden md:block w-[72px] flex-shrink-0 bg-white border-r border-gray-200" />
+                        <div className="hidden md:block w-[72px] flex-shrink-0 bg-white border-r border-gray-200 no-print-area print:hidden" />
                     )}
 
                     {/* MAIN CONTENT AREA */}
@@ -173,7 +173,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                     {/* BOTTOM NAVIGATION (Mobile) — only after hydration so localStorage is readable */}
                     {isHydrated && (
-                        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 overflow-x-auto scrollbar-hide">
+                        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 overflow-x-auto scrollbar-hide no-print-area print:hidden">
                             <div className="flex items-center justify-between px-2 py-1 min-w-max">
                                 {filteredTabs.map((tab) => {
                                     const active = pathname.startsWith(tab.path);

@@ -7,12 +7,12 @@ interface PrintRunCardsProps {
     runs: any[];
 }
 
-const CARDS_PER_PAGE = 8; // 4 columns x 2 rows in landscape mode
+const CARDS_PER_PAGE = 12; // 4 columns x 3 rows in landscape mode
 
 export default function PrintRunCards({ runs }: PrintRunCardsProps) {
     if (!runs || runs.length === 0) return null;
 
-    // Chunk runs into pages of 8 cards each
+    // Chunk runs into pages of 12 cards each
     const pages: any[][] = [];
     for (let i = 0; i < runs.length; i += CARDS_PER_PAGE) {
         pages.push(runs.slice(i, i + CARDS_PER_PAGE));
@@ -24,13 +24,13 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                 @media print {
                     @page {
                         size: landscape;
-                        margin: 4mm;
+                        margin: 3mm;
                     }
                     * {
                         -webkit-print-color-adjust: exact !important;
                         print-color-adjust: exact !important;
                     }
-                    html, body, #__next, root {
+                    html, body, #__next, root, div, main, article, section {
                         background: white !important;
                         color: black !important;
                         margin: 0 !important;
@@ -40,7 +40,7 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                         max-height: none !important;
                         overflow: visible !important;
                     }
-                    .no-print-area {
+                    header, nav, aside, footer, .no-print-area {
                         display: none !important;
                     }
                     #print-runs-container {
@@ -52,9 +52,9 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                     .print-page-grid {
                         display: grid !important;
                         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-                        grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
-                        gap: 0.5rem !important;
-                        padding: 0.25rem !important;
+                        grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
+                        gap: 0.35rem !important;
+                        padding: 0.15rem !important;
                         background: white !important;
                         box-sizing: border-box !important;
                         width: 100% !important;
@@ -77,45 +77,48 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                         box-sizing: border-box !important;
                     }
                     .print-card-box .group {
-                        border-radius: 0.75rem !important;
+                        border-radius: 0.5rem !important;
                         border: 1px solid #e5e7eb !important;
-                        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+                        box-shadow: none !important;
                         height: 100% !important;
                         display: flex !important;
                         flex-direction: column !important;
                         background-color: white !important;
                     }
                     .print-card-box .h-48 {
-                        height: 6rem !important;
+                        height: 3.5rem !important;
                     }
                     .print-card-box .p-4 {
-                        padding: 0.4rem 0.5rem !important;
+                        padding: 0.25rem 0.35rem !important;
                     }
                     .print-card-box .space-y-3 > :not([hidden]) ~ :not([hidden]) {
-                        margin-top: 0.25rem !important;
-                    }
-                    .print-card-box .py-2 {
-                        padding-top: 0.2rem !important;
-                        padding-bottom: 0.2rem !important;
-                    }
-                    .print-card-box .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
                         margin-top: 0.15rem !important;
                     }
-                    .print-card-box .text-\[15px\] {
-                        font-size: 11px !important;
-                        line-height: 13px !important;
+                    .print-card-box .py-2 {
+                        padding-top: 0.1rem !important;
+                        padding-bottom: 0.1rem !important;
                     }
-                    .print-card-box .text-xs {
-                        font-size: 9.5px !important;
+                    .print-card-box .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
+                        margin-top: 0.1rem !important;
+                    }
+                    .print-card-box .text-\[15px\] {
+                        font-size: 10px !important;
                         line-height: 12px !important;
                     }
+                    .print-card-box .text-xs {
+                        font-size: 8.5px !important;
+                        line-height: 10px !important;
+                    }
                     .print-card-box .text-sm {
-                        font-size: 10.5px !important;
-                        line-height: 13px !important;
+                        font-size: 9px !important;
+                        line-height: 11px !important;
                     }
                     .print-card-box .text-\[10px\] {
-                        font-size: 8.5px !important;
-                        line-height: 11px !important;
+                        font-size: 7.5px !important;
+                        line-height: 9px !important;
+                    }
+                    .print-card-box span {
+                        line-height: 1.1 !important;
                     }
                 }
             `}</style>
@@ -124,7 +127,7 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                 {pages.map((pageRuns, pageIdx) => (
                     <div
                         key={pageIdx}
-                        className={`print-page-grid grid grid-cols-4 gap-2 p-1 bg-white w-full ${
+                        className={`print-page-grid grid grid-cols-4 gap-1.5 p-1 bg-white w-full ${
                             pageIdx === pages.length - 1 ? 'print-last-page' : ''
                         }`}
                         style={{
