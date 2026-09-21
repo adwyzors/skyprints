@@ -24,7 +24,7 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                 @media print {
                     @page {
                         size: landscape;
-                        margin: 2.5mm;
+                        margin: 3mm;
                     }
                     * {
                         -webkit-print-color-adjust: exact !important;
@@ -52,42 +52,53 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                     .print-page-grid {
                         display: grid !important;
                         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-                        grid-template-rows: auto !important;
+                        grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
                         gap: 4px !important;
-                        padding: 1.5px !important;
+                        padding: 2px !important;
                         background: white !important;
                         box-sizing: border-box !important;
                         width: 100% !important;
-                        align-content: start !important;
+                        height: 198mm !important;
+                        max-height: 198mm !important;
                         page-break-after: always !important;
                         break-after: page !important;
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
+                        overflow: hidden !important;
                     }
                     .print-page-grid.print-last-page {
                         page-break-after: auto !important;
                         break-after: auto !important;
+                        height: auto !important;
+                        max-height: 198mm !important;
                     }
                     .print-card-box {
                         break-inside: avoid !important;
                         page-break-inside: avoid !important;
+                        height: 100% !important;
                         box-sizing: border-box !important;
+                        overflow: hidden !important;
                     }
                     .print-card-box .group {
                         border-radius: 0.375rem !important;
                         border: 1px solid #d1d5db !important;
                         box-shadow: none !important;
+                        height: 100% !important;
                         display: flex !important;
                         flex-direction: column !important;
                         background-color: white !important;
                         overflow: hidden !important;
                     }
-                    /* CARD IMAGE AREA: Matching original card size */
+                    /* ENLARGED IMAGE AREA: Fills row height */
                     .print-card-box .h-48 {
-                        height: 4.5rem !important;
+                        height: 6.8rem !important;
+                        min-height: 5.5rem !important;
+                        flex-grow: 1 !important;
+                        flex-shrink: 0 !important;
                     }
                     .print-card-box .p-4 {
                         padding: 0.3rem 0.45rem !important;
+                        flex-shrink: 0 !important;
                     }
                     .print-card-box .space-y-3 > :not([hidden]) ~ :not([hidden]) {
                         margin-top: 0.12rem !important;
