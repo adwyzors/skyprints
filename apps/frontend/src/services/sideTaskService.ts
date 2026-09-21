@@ -166,3 +166,9 @@ export async function uploadSideTaskImages(files: File[]): Promise<string[]> {
   });
   return Promise.all(uploadPromises);
 }
+
+export async function deleteSideTask(id: string): Promise<{ message: string; id: string }> {
+  return apiRequest<{ message: string; id: string }>(`/side-tasks/${id}`, {
+    method: 'DELETE',
+  });
+}

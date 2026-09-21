@@ -67,4 +67,5 @@ export enum Permission {
     SIDE_TASKS_REVIEW = "side_tasks:review",
     SIDE_TASKS_ABANDON = "side_tasks:abandon",
     SIDE_TASKS_MANAGE_HISTORY = "side_tasks:manage_history",
+    SIDE_TASKS_DELETE = "side_tasks:delete",
 }

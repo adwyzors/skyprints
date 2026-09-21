@@ -11,10 +11,11 @@ import { Order } from "@/domain/model/order.model";
 import { GetOrdersParams, getOrders } from "@/services/orders.service";
 import debounce from 'lodash/debounce';
 import FilterDrawer from '@/components/layout/FilterDrawer';
-import { Calendar, CheckSquare, ChevronLeft, FileText, Filter, Loader2, Search, Users, Layers, Clock, CheckCircle2, XCircle, User as UserIcon } from "lucide-react";
+import { toast } from 'sonner';
+import { Calendar, CheckSquare, ChevronLeft, FileText, Filter, Loader2, Search, Users, Layers, Clock, CheckCircle2, XCircle, User as UserIcon, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { getCompletedSideTasks } from '@/services/sideTaskService';
+import { deleteSideTask, getCompletedSideTasks } from '@/services/sideTaskService';
 import { SideTaskHistoryModal } from '@/components/side-tasks/SideTaskHistoryModal';
 import { SideTask } from '@/types/sideTask';
 
@@ -471,12 +472,30 @@ function CompletedContent() {
                                                         <Clock className="w-3.5 h-3.5 text-indigo-500" />
                                                         <span>Time: <strong className="text-gray-800">{Math.floor(((t.totalTimeSeconds ?? t.stageHistories?.reduce((sum, h) => sum + (h.totalTimeSeconds || 0), 0)) || 0) / 60)} mins</strong></span>
                                                     </div>
-                                                    <button
-                                                        onClick={() => setHistoryTaskTarget(t)}
-                                                        className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold rounded-lg border border-gray-200 text-xs transition"
-                                                    >
-                                                        History
-                                                    </button>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button
+                                                            onClick={() => setHistoryTaskTarget(t)}
+                                                            className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-semibold rounded-lg border border-gray-200 text-xs transition"
+                                                        >
+                                                            History
+                                                        </button>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (!confirm(`Are you sure you want to delete side task "${t.code}"? This will permanently remove it from the database and remove its images from Cloudflare.`)) return;
+                                                                try {
+                                                                    await deleteSideTask(t.id);
+                                                                    toast.success('Task and images deleted successfully');
+                                                                    fetchCompletedSideTasks();
+                                                                } catch (err) {
+                                                                    toast.error(err instanceof Error ? err.message : 'Failed to delete task');
+                                                                }
+                                                            }}
+                                                            title="Delete Task"
+                                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}

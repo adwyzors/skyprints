@@ -13,6 +13,7 @@ import {
   Pause,
   Play,
   Send,
+  Trash2,
   User,
   UserCheck,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ import { SideTask } from '@/types/sideTask';
 import { SideTaskTimer } from './SideTaskTimer';
 import {
   abandonSideTask,
+  deleteSideTask,
   pauseSideTaskStage,
   resumeSideTaskStage,
   startSideTaskStage,
@@ -140,6 +142,26 @@ export function SideTaskCard({
       onRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to abandon task');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (
+      !confirm(
+        `Are you sure you want to delete side task "${task.code}"? This will permanently delete it from the database and remove its images from Cloudflare.`,
+      )
+    )
+      return;
+    setActionLoading(true);
+    try {
+      await deleteSideTask(task.id);
+      toast.success('Task and images deleted successfully');
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete task');
     } finally {
       setActionLoading(false);
     }
@@ -375,6 +397,16 @@ export function SideTaskCard({
               <UserCheck className="w-4 h-4" />
             </button>
           )}
+
+          {/* Delete button */}
+          <button
+            onClick={handleDelete}
+            disabled={actionLoading}
+            title="Delete Side Task"
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>

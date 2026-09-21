@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -196,5 +197,11 @@ export class SideTasksController {
     @Body() dto: AbandonSideTaskDto,
   ) {
     return this.sideTasksService.abandonTask(id, user.id, dto);
+  }
+
+  @Delete(':id')
+  @Permissions('side_tasks:abandon', 'side_tasks:edit', 'side_tasks:delete')
+  deleteTask(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.sideTasksService.delete(id);
   }
 }

@@ -26,11 +26,16 @@ import {
   UpdateSideTaskStageTypeDto,
 } from './dto/side-tasks.dto';
 
+import { CloudflareService } from '../common/cloudflare.service';
+
 @Injectable()
 export class SideTasksService {
   private readonly logger = new ContextLogger(SideTasksService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cloudflare: CloudflareService,
+  ) {}
 
   /* ========================================================================
    * AUTHORITATIVE TIMING & VALIDATION HELPERS
@@ -769,5 +774,38 @@ export class SideTasksService {
         include: this.sideTaskInclude,
       });
     });
+  }
+
+  /**
+   * Delete a side task by ID and remove its images from Cloudflare R2
+   */
+  async delete(id: string) {
+    const task = await this.prisma.sideTask.findUnique({
+      where: { id },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Side task not found');
+    }
+
+    if (task.images && task.images.length > 0) {
+      try {
+        await this.cloudflare.deleteFiles(task.images);
+        this.logger.log(
+          `Deleted ${task.images.length} image(s) from Cloudflare for task ${id}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to delete images from Cloudflare for task ${id}`,
+          error,
+        );
+      }
+    }
+
+    await this.prisma.sideTask.delete({
+      where: { id },
+    });
+
+    return { message: 'Side task deleted successfully', id };
   }
 }

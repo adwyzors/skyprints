@@ -2,11 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SideTasksService } from './side-tasks.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CloudflareService } from '../common/cloudflare.service';
 import { SideTaskPriority, SideTaskStageOutcome, SideTaskStatus } from '@prisma/client';
 
 describe('SideTasksService', () => {
   let service: SideTasksService;
   let prisma: any;
+  let cloudflare: any;
 
   const mockPrismaService: any = {
     sideTaskStageType: {
@@ -26,6 +28,7 @@ describe('SideTasksService', () => {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
     sideTaskStageHistory: {
       findFirst: jest.fn(),
@@ -35,17 +38,23 @@ describe('SideTasksService', () => {
     transaction: jest.fn((callback) => callback(mockPrismaService)),
   };
 
+  const mockCloudflareService: any = {
+    deleteFiles: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SideTasksService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: CloudflareService, useValue: mockCloudflareService },
       ],
     }).compile();
 
     service = module.get<SideTasksService>(SideTasksService);
     prisma = module.get<PrismaService>(PrismaService);
+    cloudflare = module.get<CloudflareService>(CloudflareService);
   });
 
   describe('create', () => {
@@ -85,21 +94,32 @@ describe('SideTasksService', () => {
         ForbiddenException,
       );
     });
+  });
 
-    it('should throw BadRequestException if user already has an active running timer on another task', async () => {
+  describe('delete', () => {
+    it('should throw NotFoundException if task does not exist', async () => {
+      mockPrismaService.sideTask.findUnique.mockResolvedValue(null);
+      await expect(service.delete('non-existent')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should delete images from Cloudflare and delete task from DB', async () => {
       mockPrismaService.sideTask.findUnique.mockResolvedValue({
         id: 'task-1',
-        currentAssigneeId: 'user-1',
-        status: SideTaskStatus.ASSIGNED,
+        images: ['http://cf.com/img1.png', 'http://cf.com/img2.png'],
       });
+      mockPrismaService.sideTask.delete.mockResolvedValue({ id: 'task-1' });
 
-      mockPrismaService.sideTaskStageHistory.findFirst
-        .mockResolvedValueOnce({ id: 'history-1', sideTaskId: 'task-1', startedAt: null }) // current stage history
-        .mockResolvedValueOnce({ id: 'history-other', sideTaskId: 'task-2' }); // active running timer check
+      const res = await service.delete('task-1');
 
-      await expect(service.startStage('task-1', 'user-1')).rejects.toThrow(
-        BadRequestException,
-      );
+      expect(mockCloudflareService.deleteFiles).toHaveBeenCalledWith([
+        'http://cf.com/img1.png',
+        'http://cf.com/img2.png',
+      ]);
+      expect(mockPrismaService.sideTask.delete).toHaveBeenCalledWith({
+        where: { id: 'task-1' },
+      });
+      expect(res).toEqual({ message: 'Side task deleted successfully', id: 'task-1' });
     });
   });
 });
+

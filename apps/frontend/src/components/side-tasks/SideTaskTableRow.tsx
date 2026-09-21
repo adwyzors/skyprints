@@ -10,12 +10,14 @@ import {
   Pause,
   Play,
   Send,
+  Trash2,
   UserCheck,
 } from 'lucide-react';
 import { SideTask } from '@/types/sideTask';
 import { SideTaskTimer } from './SideTaskTimer';
 import {
   abandonSideTask,
+  deleteSideTask,
   pauseSideTaskStage,
   resumeSideTaskStage,
   startSideTaskStage,
@@ -94,6 +96,25 @@ export function SideTaskTableRow({
       onRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to resume timer');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (
+      !confirm(
+        `Are you sure you want to delete side task "${task.code}"? This will permanently delete it from the database and remove its images from Cloudflare.`,
+      )
+    )
+      return;
+    setActionLoading(true);
+    try {
+      await deleteSideTask(task.id);
+      toast.success('Task and images deleted successfully');
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete task');
     } finally {
       setActionLoading(false);
     }
@@ -310,6 +331,16 @@ export function SideTaskTableRow({
             className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition"
           >
             <History className="w-4 h-4 text-gray-500" />
+          </button>
+
+          {/* Delete button */}
+          <button
+            onClick={handleDelete}
+            disabled={actionLoading}
+            title="Delete Task"
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition"
+          >
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </td>
