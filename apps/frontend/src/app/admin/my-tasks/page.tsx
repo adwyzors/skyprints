@@ -43,6 +43,9 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 import { SideTaskCard } from '@/components/side-tasks/SideTaskCard';
+import { SideTaskTableRow } from '@/components/side-tasks/SideTaskTableRow';
+import OrdersViewToggle from '@/components/orders/OrdersViewToggle';
+import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import { CreateSideTaskModal } from '@/components/side-tasks/CreateSideTaskModal';
 import { PassSideTaskModal } from '@/components/side-tasks/PassSideTaskModal';
 import { ReassignSideTaskModal } from '@/components/side-tasks/ReassignSideTaskModal';
@@ -452,6 +455,8 @@ function AdminMyTasksPage() {
     // Side Tasks state
     const [sideTasks, setSideTasks] = useState<SideTask[]>([]);
     const [sideTaskFilter, setSideTaskFilter] = useState<'MY' | 'ALL'>('MY');
+    const [sideTaskViewMode, setSideTaskViewMode] = useState<'grid' | 'table'>('grid');
+    const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     const [sideTaskSearch, setSideTaskSearch] = useState('');
     const [isCreateSideTaskOpen, setIsCreateSideTaskOpen] = useState(false);
     const [passTaskTarget, setPassTaskTarget] = useState<SideTask | null>(null);
@@ -459,6 +464,15 @@ function AdminMyTasksPage() {
     const [reviewTaskTarget, setReviewTaskTarget] = useState<SideTask | null>(null);
     const [reviewMode, setReviewMode] = useState<'submit' | 'review'>('submit');
     const [historyTaskTarget, setHistoryTaskTarget] = useState<SideTask | null>(null);
+
+    const handleSideTaskFilterChange = (filter: 'MY' | 'ALL') => {
+        setSideTaskFilter(filter);
+        if (filter === 'ALL') {
+            setSideTaskViewMode('table');
+        } else {
+            setSideTaskViewMode('grid');
+        }
+    };
 
     const fetchAll = async (showLoading = false) => {
         if (showLoading) setLoading(true);
@@ -637,11 +651,11 @@ function AdminMyTasksPage() {
             {/* MAIN TAB CONTENT: SIDE TASKS */}
             {mainTab === 'SIDE_TASKS' ? (
                 <div className="space-y-6">
-                    {/* Filters & Search */}
+                    {/* Filters & Search & View Mode Switcher */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => setSideTaskFilter('MY')}
+                                onClick={() => handleSideTaskFilterChange('MY')}
                                 className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
                                     sideTaskFilter === 'MY'
                                         ? 'bg-indigo-600 text-white shadow-sm'
@@ -652,7 +666,7 @@ function AdminMyTasksPage() {
                             </button>
                             {isAdmin && (
                                 <button
-                                    onClick={() => setSideTaskFilter('ALL')}
+                                    onClick={() => handleSideTaskFilterChange('ALL')}
                                     className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
                                         sideTaskFilter === 'ALL'
                                             ? 'bg-indigo-600 text-white shadow-sm'
@@ -664,19 +678,22 @@ function AdminMyTasksPage() {
                             )}
                         </div>
 
-                        <div className="relative w-full md:w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search side tasks..."
-                                value={sideTaskSearch}
-                                onChange={(e) => setSideTaskSearch(e.target.value)}
-                                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full bg-white shadow-xs"
-                            />
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                            <div className="relative flex-1 md:w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search side tasks..."
+                                    value={sideTaskSearch}
+                                    onChange={(e) => setSideTaskSearch(e.target.value)}
+                                    className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full bg-white shadow-xs"
+                                />
+                            </div>
+                            <OrdersViewToggle view={sideTaskViewMode} onViewChange={setSideTaskViewMode} />
                         </div>
                     </div>
 
-                    {/* Side Tasks Cards Grid */}
+                    {/* Side Tasks Cards Grid or Table View */}
                     {sideTasks.length === 0 ? (
                         <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
                             <Layers className="w-10 h-10 text-gray-300 mx-auto mb-2" />
@@ -684,6 +701,51 @@ function AdminMyTasksPage() {
                             <p className="text-xs text-gray-400 mt-1">
                                 Click "Create Side Task" to create a new task.
                             </p>
+                        </div>
+                    ) : sideTaskViewMode === 'table' ? (
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                                            <th className="px-4 py-3 text-center">#</th>
+                                            <th className="px-4 py-3">Code</th>
+                                            <th className="px-4 py-3">Image</th>
+                                            <th className="px-4 py-3">Task Details</th>
+                                            <th className="px-4 py-3">Customer</th>
+                                            <th className="px-4 py-3">Current Stage</th>
+                                            <th className="px-4 py-3">Assignee</th>
+                                            <th className="px-4 py-3">Priority</th>
+                                            <th className="px-4 py-3">Status</th>
+                                            <th className="px-4 py-3">Timer</th>
+                                            <th className="px-4 py-3">Required By</th>
+                                            <th className="px-4 py-3 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 bg-white">
+                                        {sideTasks.map((t, idx) => (
+                                            <SideTaskTableRow
+                                                key={t.id}
+                                                task={t}
+                                                index={idx}
+                                                onRefresh={fetchSideTasks}
+                                                onPass={(task) => setPassTaskTarget(task)}
+                                                onReassign={(task) => setReassignTaskTarget(task)}
+                                                onSubmitReview={(task) => {
+                                                    setReviewTaskTarget(task);
+                                                    setReviewMode('submit');
+                                                }}
+                                                onReview={(task) => {
+                                                    setReviewTaskTarget(task);
+                                                    setReviewMode('review');
+                                                }}
+                                                onOpenHistory={(task) => setHistoryTaskTarget(task)}
+                                                onPreviewImage={(url) => setPreviewImageUrl(url)}
+                                            />
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -918,6 +980,11 @@ function AdminMyTasksPage() {
                 task={historyTaskTarget}
                 isOpen={Boolean(historyTaskTarget)}
                 onClose={() => setHistoryTaskTarget(null)}
+            />
+
+            <ImagePreviewModal
+                imageUrl={previewImageUrl}
+                onClose={() => setPreviewImageUrl(null)}
             />
         </div>
     );
