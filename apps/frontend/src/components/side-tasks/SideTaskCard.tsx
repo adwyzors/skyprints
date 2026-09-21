@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ChevronRight,
   Clock,
   History,
   Image as ImageIcon,
@@ -46,6 +47,34 @@ export function SideTaskCard({
 }: SideTaskCardProps) {
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
+
+  const images = task.images || [];
+  const hasImages = images.length > 0;
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
+
+  const nextImage = useCallback(
+    (e?: React.MouseEvent) => {
+      if (e) e.stopPropagation();
+      setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    },
+    [images.length],
+  );
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  useEffect(() => {
+    if (!hasImages || images.length <= 1 || isCarouselPaused) return;
+
+    const interval = setInterval(() => {
+      nextImage();
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [hasImages, images.length, isCarouselPaused, nextImage]);
 
   const isAssignedToMe = user?.id === task.currentAssigneeId;
   const currentHistory = task.stageHistories?.[task.stageHistories.length - 1];
@@ -133,8 +162,60 @@ export function SideTaskCard({
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col justify-between">
+      {/* Top Image Banner / Carousel (Just like OrderCard) */}
+      <div
+        className="relative w-full h-44 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden"
+        onMouseEnter={() => setIsCarouselPaused(true)}
+        onMouseLeave={() => setIsCarouselPaused(false)}
+      >
+        {hasImages ? (
+          <>
+            {images.map((img, index) => (
+              <img
+                key={index}
+                src={img}
+                alt={`Task ${task.code}`}
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+                  index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                }`}
+                loading="lazy"
+              />
+            ))}
+
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={prevImage}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-md transition-all hover:scale-110 z-10"
+                  aria-label="Previous image"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-800 rotate-180" />
+                </button>
+                <button
+                  type="button"
+                  onClick={nextImage}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-md transition-all hover:scale-110 z-10"
+                  aria-label="Next image"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-800" />
+                </button>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-2 py-0.5 rounded-full text-[10px] font-medium z-10">
+                  {currentImageIndex + 1} / {images.length}
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50/50">
+            <ImageIcon className="w-10 h-10 mb-1 opacity-30" />
+            <span className="text-xs font-medium text-gray-400">No images uploaded</span>
+          </div>
+        )}
+      </div>
+
       {/* Card Header & Content */}
-      <div className="p-4 space-y-3">
+      <div className="p-4 space-y-3 flex-1">
         {/* Top Row: Code, Badges, Timer */}
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -202,23 +283,6 @@ export function SideTaskCard({
             </span>
           </div>
         </div>
-
-        {/* Images thumbnails */}
-        {task.images && task.images.length > 0 && (
-          <div className="flex gap-2 pt-1">
-            {task.images.map((img, i) => (
-              <a
-                key={i}
-                href={img}
-                target="_blank"
-                rel="noreferrer"
-                className="w-10 h-10 rounded border border-gray-200 overflow-hidden hover:opacity-80 transition"
-              >
-                <img src={img} alt="" className="w-full h-full object-cover" />
-              </a>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Action Footer */}

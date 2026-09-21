@@ -148,3 +148,21 @@ export async function abandonSideTask(
     body: JSON.stringify(payload ?? {}),
   });
 }
+
+export async function uploadSideTaskImages(files: File[]): Promise<string[]> {
+  if (!files || files.length === 0) return [];
+  const uploadPromises = files.map(async (file) => {
+    const { uploadUrl, publicUrl } = await apiRequest<{ uploadUrl: string; publicUrl: string }>(
+      `/orders/upload-url?filename=${encodeURIComponent(file.name)}&folder=side-tasks`
+    );
+    await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type || 'image/jpeg',
+      },
+    });
+    return publicUrl;
+  });
+  return Promise.all(uploadPromises);
+}
