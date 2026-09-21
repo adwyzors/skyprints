@@ -69,29 +69,15 @@ export class SideTasksService {
 
   /**
    * Enforces the single-active-timer restriction for Side Tasks.
-   * Rejects if the user already has an active running timer on another Side Task.
+   * Currently updated to allow multiple side tasks to run simultaneously per user request.
    */
   private async validateSingleActiveTimer(
     tx: Prisma.TransactionClient,
     userId: string,
     excludeStageHistoryId?: string,
   ): Promise<void> {
-    const activeTimer = await tx.sideTaskStageHistory.findFirst({
-      where: {
-        assignedUserId: userId,
-        completedAt: null,
-        startedAt: { not: null },
-        pausedAt: null,
-        id: excludeStageHistoryId ? { not: excludeStageHistoryId } : undefined,
-      },
-      select: { id: true, sideTaskId: true },
-    });
-
-    if (activeTimer) {
-      throw new BadRequestException(
-        'You already have an active task timer. Please pause or complete your current task before starting another task.',
-      );
-    }
+    // Disabled single active timer check to allow users to start multiple side tasks simultaneously.
+    return;
   }
 
   /**
