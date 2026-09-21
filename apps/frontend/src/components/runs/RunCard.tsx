@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, CheckCircle, ChevronRight, Clock, FileText, IndianRupee, Loader2, MapPin, Package, User, Users } from 'lucide-react';
+import { Activity, Check, CheckCircle, ChevronRight, Clock, FileText, IndianRupee, Loader2, MapPin, Package, User, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { getRunById, transitionLifeCycle } from '@/services/run.service';
@@ -11,9 +11,12 @@ interface RunCardProps {
     onClick?: () => void;
     context?: 'admin' | 'manager';
     onTransitionComplete?: () => void;
+    selectable?: boolean;
+    selected?: boolean;
+    onSelectToggle?: () => void;
 }
 
-export default function RunCard({ run, active = true, onClick, context, onTransitionComplete }: RunCardProps) {
+export default function RunCard({ run, active = true, onClick, context, onTransitionComplete, selectable = false, selected = false, onSelectToggle }: RunCardProps) {
     const router = useRouter();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isPaused, setIsPaused] = useState(false);
@@ -134,6 +137,27 @@ export default function RunCard({ run, active = true, onClick, context, onTransi
 
     return (
         <div className="relative">
+            {/* SELECTION CHECKBOX OVERLAY */}
+            {selectable && (
+                <div
+                    className="absolute top-3 left-3 z-30 cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectToggle?.();
+                    }}
+                >
+                    <div
+                        className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shadow-md ${
+                            selected
+                                ? 'bg-blue-600 border-blue-600 text-white scale-105'
+                                : 'bg-white/90 backdrop-blur-sm border-gray-300 hover:border-blue-500 text-transparent'
+                        }`}
+                    >
+                        <Check className="w-4 h-4 stroke-[3]" />
+                    </div>
+                </div>
+            )}
+
             {/* STATUS & PRIORITY BADGES */}
             <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
                 <span
@@ -152,7 +176,11 @@ export default function RunCard({ run, active = true, onClick, context, onTransi
             {/* CARD CONTENT */}
             <div
                 onClick={onClick || (() => router.push(`/admin/orders/${run.orderProcess?.order?.id}`))}
-                className="group bg-white rounded-2xl border border-gray-200 cursor-pointer hover:shadow-xl hover:border-blue-300 transition-all duration-300 hover:-translate-y-1 flex flex-col isolate overflow-hidden h-full"
+                className={`group bg-white rounded-2xl border transition-all duration-300 flex flex-col isolate overflow-hidden h-full cursor-pointer ${
+                    selected
+                        ? 'border-blue-500 ring-2 ring-blue-500/30 shadow-lg'
+                        : 'border-gray-200 hover:shadow-xl hover:border-blue-300 hover:-translate-y-1'
+                }`}
             >
                 {/* IMAGE CAROUSEL */}
                 <div

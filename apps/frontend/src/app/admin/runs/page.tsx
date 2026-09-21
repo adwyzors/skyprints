@@ -9,6 +9,7 @@ import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import ViewRunModal from '@/components/modals/ViewRunModal';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import RunCard from '@/components/runs/RunCard';
+import PrintRunCards from '@/components/runs/PrintRunCards';
 import RunsFilter from '@/components/runs/RunsFilter';
 import RunsViewToggle from '@/components/runs/RunsViewToggle';
 import { STATIC_PROCESSES } from '@/constants/processes';
@@ -21,6 +22,7 @@ import {
     ArrowUp,
     ArrowUpDown,
     Box,
+    CheckSquare,
     CheckCircle,
     ChevronDown,
     ChevronLeft,
@@ -29,8 +31,10 @@ import {
     Filter,
     Loader2,
     MapPin,
+    Printer,
     Search,
-    User
+    User,
+    XSquare
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -189,6 +193,10 @@ function RunsPageContent() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+    // Selection & Print State
+    const [isSelectMode, setIsSelectMode] = useState(false);
+    const [selectedRunIds, setSelectedRunIds] = useState<Set<string>>(new Set());
 
     const [processes, setProcesses] = useState<any[]>([]);
     const [locations, setLocations] = useState<any[]>([]);
@@ -516,6 +524,54 @@ function RunsPageContent() {
         updateParams({ [key]: value });
     };
 
+    const toggleSelectMode = () => {
+        setIsSelectMode((prev) => {
+            const next = !prev;
+            if (!next) {
+                setSelectedRunIds(new Set());
+            }
+            return next;
+        });
+    };
+
+    const toggleRunSelection = (runId: string) => {
+        setSelectedRunIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(runId)) {
+                next.delete(runId);
+            } else {
+                next.add(runId);
+            }
+            return next;
+        });
+    };
+
+    const handleSelectAllOnPage = () => {
+        const allPageIds = sortedRuns.map((r) => r.id);
+        setSelectedRunIds((prev) => {
+            const next = new Set(prev);
+            allPageIds.forEach((id) => next.add(id));
+            return next;
+        });
+    };
+
+    const handleDeselectAllOnPage = () => {
+        setSelectedRunIds((prev) => {
+            const next = new Set(prev);
+            sortedRuns.forEach((r) => next.delete(r.id));
+            return next;
+        });
+    };
+
+    const handlePrintSelected = () => {
+        window.print();
+    };
+
+    const selectedRunsList = useMemo(() => {
+        if (selectedRunIds.size === 0) return [];
+        return runsData.runs.filter((r) => selectedRunIds.has(r.id));
+    }, [runsData.runs, selectedRunIds]);
+
     return (
         <div className="flex bg-gray-50/50 min-h-full scrollbar-hide">
             {/* LEFT SIDEBAR FILTERS */}
@@ -581,6 +637,47 @@ function RunsPageContent() {
                                 onChange={(e) => updateParams({ search: e.target.value })}
                             />
                         </div>
+                        {/* SELECT & PRINT CONTROLS */}
+                        {!isSelectMode ? (
+                            <button
+                                onClick={toggleSelectMode}
+                                className="flex items-center gap-1.5 px-3 py-2 border border-blue-200 text-blue-700 hover:bg-blue-50 font-bold rounded-lg transition-all shadow-xs text-xs whitespace-nowrap"
+                            >
+                                <CheckSquare className="w-4 h-4" />
+                                <span>Select</span>
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <button
+                                    onClick={handleSelectAllOnPage}
+                                    className="flex items-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all shadow-xs text-xs whitespace-nowrap"
+                                >
+                                    Select All ({sortedRuns.length})
+                                </button>
+                                <button
+                                    onClick={handleDeselectAllOnPage}
+                                    className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg transition-all text-xs whitespace-nowrap"
+                                >
+                                    Deselect Page
+                                </button>
+                                <button
+                                    onClick={handlePrintSelected}
+                                    disabled={selectedRunIds.size === 0}
+                                    className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-bold rounded-lg transition-all shadow-xs text-xs whitespace-nowrap"
+                                >
+                                    <Printer className="w-4 h-4" />
+                                    <span>Print ({selectedRunIds.size})</span>
+                                </button>
+                                <button
+                                    onClick={toggleSelectMode}
+                                    className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                                    title="Exit Select Mode"
+                                >
+                                    <XSquare className="w-5 h-5" />
+                                </button>
+                            </div>
+                        )}
+
                         <RunsViewToggle
                             view={viewMode}
                             onViewChange={(v) => {
@@ -746,7 +843,10 @@ function RunsPageContent() {
                                             key={run.id}
                                             run={run}
                                             active={viewMode === 'grid'}
-                                            onClick={() => handleRunSelection(run.id)}
+                                            selectable={isSelectMode}
+                                            selected={selectedRunIds.has(run.id)}
+                                            onSelectToggle={() => toggleRunSelection(run.id)}
+                                            onClick={() => (isSelectMode ? toggleRunSelection(run.id) : handleRunSelection(run.id))}
                                         />
                                     ))}
                                 </div>
@@ -758,6 +858,9 @@ function RunsPageContent() {
                                     <table className="w-full text-sm text-left">
                                         <thead>
                                             <tr className="bg-gray-50/50 border-b border-gray-100 text-[10px] uppercase tracking-widest text-gray-400 font-bold">
+                                                {isSelectMode && (
+                                                    <th className="px-4 py-4 w-10 text-center">Select</th>
+                                                )}
                                                 <th className="px-6 py-4 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('orderCode')}>
                                                     <div className="flex items-center gap-1">Order Code {sortKey === 'orderCode' ? (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30 group-hover:opacity-100" />}</div>
                                                 </th>
@@ -798,12 +901,25 @@ function RunsPageContent() {
                                                 if (processName && (processName.toLowerCase().includes('embellishment') || rawName.toLowerCase().includes('embellishment'))) {
                                                     displayName = processName;
                                                 }
+                                                const isSelected = selectedRunIds.has(run.id);
                                                 return (
                                                     <tr
                                                         key={run.id}
-                                                        className="group hover:bg-blue-50/30 transition-colors cursor-pointer"
-                                                        onClick={() => handleRunSelection(run.id)}
+                                                        className={`group transition-colors cursor-pointer ${
+                                                            isSelected ? 'bg-blue-50/70' : 'hover:bg-blue-50/30'
+                                                        }`}
+                                                        onClick={() => (isSelectMode ? toggleRunSelection(run.id) : handleRunSelection(run.id))}
                                                     >
+                                                        {isSelectMode && (
+                                                            <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isSelected}
+                                                                    onChange={() => toggleRunSelection(run.id)}
+                                                                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer"
+                                                                />
+                                                            </td>
+                                                        )}
                                                         <td className="px-6 py-4 font-medium text-gray-900">
                                                             <div className="flex items-center gap-2">
                                                                 <Link
@@ -979,6 +1095,7 @@ function RunsPageContent() {
                 />
             )}
             <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
+            <PrintRunCards runs={selectedRunsList} />
         </div>
     );
 }
