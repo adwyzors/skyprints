@@ -136,7 +136,7 @@ export default function RunCard({ run, active = true, onClick, context, onTransi
     }, [hasImages, images.length, isPaused, nextImage]);
 
     return (
-        <div className="relative">
+        <div className="relative h-full flex flex-col">
             {/* SELECTION CHECKBOX OVERLAY */}
             {selectable && (
                 <div
@@ -176,7 +176,7 @@ export default function RunCard({ run, active = true, onClick, context, onTransi
             {/* CARD CONTENT */}
             <div
                 onClick={onClick || (() => router.push(`/admin/orders/${run.orderProcess?.order?.id}`))}
-                className={`group bg-white rounded-2xl border transition-all duration-300 flex flex-col isolate overflow-hidden h-full cursor-pointer ${
+                className={`group bg-white rounded-2xl border transition-all duration-300 flex flex-col flex-1 isolate overflow-hidden h-full cursor-pointer ${
                     selected
                         ? 'border-blue-500 ring-2 ring-blue-500/30 shadow-lg'
                         : 'border-gray-200 hover:shadow-xl hover:border-blue-300 hover:-translate-y-1'

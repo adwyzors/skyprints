@@ -7,12 +7,12 @@ interface PrintRunCardsProps {
     runs: any[];
 }
 
-const CARDS_PER_PAGE = 12; // 4 columns x 3 rows in landscape mode
+const CARDS_PER_PAGE = 8; // 4 columns x 2 rows of portrait cards in landscape mode
 
 export default function PrintRunCards({ runs }: PrintRunCardsProps) {
     if (!runs || runs.length === 0) return null;
 
-    // Chunk runs into pages of 12 cards each
+    // Chunk runs into pages of 8 cards each
     const pages: any[][] = [];
     for (let i = 0; i < runs.length; i += CARDS_PER_PAGE) {
         pages.push(runs.slice(i, i + CARDS_PER_PAGE));
@@ -24,7 +24,7 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                 @media print {
                     @page {
                         size: landscape;
-                        margin: 2mm;
+                        margin: 2.5mm;
                     }
                     * {
                         -webkit-print-color-adjust: exact !important;
@@ -52,14 +52,14 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                     .print-page-grid {
                         display: grid !important;
                         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-                        grid-template-rows: repeat(3, minmax(0, 1fr)) !important;
-                        gap: 2px !important;
-                        padding: 1px !important;
+                        grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+                        gap: 3px !important;
+                        padding: 1.5px !important;
                         background: white !important;
                         box-sizing: border-box !important;
                         width: 100% !important;
-                        height: 202mm !important;
-                        max-height: 202mm !important;
+                        height: 200mm !important;
+                        max-height: 200mm !important;
                         page-break-after: always !important;
                         break-after: page !important;
                         page-break-inside: avoid !important;
@@ -70,7 +70,7 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                         page-break-after: auto !important;
                         break-after: auto !important;
                         height: auto !important;
-                        max-height: 202mm !important;
+                        max-height: 200mm !important;
                     }
                     .print-card-box {
                         break-inside: avoid !important;
@@ -79,7 +79,7 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                         box-sizing: border-box !important;
                     }
                     .print-card-box .group {
-                        border-radius: 0.25rem !important;
+                        border-radius: 0.375rem !important;
                         border: 1px solid #d1d5db !important;
                         box-shadow: none !important;
                         height: 100% !important;
@@ -88,47 +88,45 @@ export default function PrintRunCards({ runs }: PrintRunCardsProps) {
                         background-color: white !important;
                         overflow: hidden !important;
                     }
-                    /* ENLARGED IMAGE AREA FOR 4x3 FULL-PAGE LAYOUT */
+                    /* MASSIVE PORTRAIT IMAGE AREA (Takes ~73% of card height) */
                     .print-card-box .h-48 {
-                        height: 4.8rem !important;
+                        height: 7.2rem !important;
+                        min-height: 6.5rem !important;
                         flex-grow: 1 !important;
                         flex-shrink: 0 !important;
                     }
                     .print-card-box .p-4 {
-                        padding: 0.2rem 0.35rem !important;
+                        padding: 0.3rem 0.45rem !important;
                         flex-shrink: 0 !important;
-                        display: flex !important;
-                        flex-direction: column !important;
-                        justify-content: flex-end !important;
                     }
                     .print-card-box .space-y-3 > :not([hidden]) ~ :not([hidden]) {
-                        margin-top: 0.1rem !important;
+                        margin-top: 0.12rem !important;
                     }
                     .print-card-box .py-2 {
-                        padding-top: 0.08rem !important;
-                        padding-bottom: 0.08rem !important;
+                        padding-top: 0.1rem !important;
+                        padding-bottom: 0.1rem !important;
                     }
                     .print-card-box .space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
-                        margin-top: 0.05rem !important;
+                        margin-top: 0.08rem !important;
                     }
                     .print-card-box .text-\[15px\] {
-                        font-size: 10px !important;
-                        line-height: 12px !important;
+                        font-size: 10.5px !important;
+                        line-height: 13px !important;
                     }
                     .print-card-box .text-xs {
-                        font-size: 8.5px !important;
-                        line-height: 10px !important;
-                    }
-                    .print-card-box .text-sm {
                         font-size: 9px !important;
                         line-height: 11px !important;
                     }
+                    .print-card-box .text-sm {
+                        font-size: 9.5px !important;
+                        line-height: 11.5px !important;
+                    }
                     .print-card-box .text-\[10px\] {
                         font-size: 8px !important;
-                        line-height: 9.5px !important;
+                        line-height: 10px !important;
                     }
                     .print-card-box span {
-                        line-height: 1.05 !important;
+                        line-height: 1.1 !important;
                     }
                 }
             `}</style>
