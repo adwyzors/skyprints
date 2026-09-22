@@ -17,10 +17,21 @@ export function useNavigationShortcuts() {
   const router = useRouter();
   const { user } = useAuth();
 
-  // Ctrl+O -> Create Order modal/page
-  useKeyboardShortcut('ctrl+o', () => {
-    router.push('/admin/orders?create=true');
-  });
+  // Ctrl+O or Cmd+O -> Create Order modal/page
+  useKeyboardShortcut(
+    'ctrl+o',
+    () => {
+      router.push('/admin/orders?create=true');
+    },
+    { ignoreInputFields: false }
+  );
+  useKeyboardShortcut(
+    'mod+o',
+    () => {
+      router.push('/admin/orders?create=true');
+    },
+    { ignoreInputFields: false }
+  );
 
   // Ctrl+/ or Cmd+/ -> Create Side Task Modal
   useKeyboardShortcut(
