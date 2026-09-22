@@ -4,7 +4,7 @@ import { ROLE_PERMISSIONS } from '../../src/auth/permissions.map';
 async function main() {
   const prisma = new PrismaClient();
 
-  console.log('Stripping side_tasks permissions from DB for non-SuperAdmin accounts...');
+  console.log('Adding all side_tasks permissions to all user accounts in DB...');
 
   const logins = await prisma.login.findMany({
     include: {
@@ -14,6 +14,10 @@ async function main() {
     },
   });
 
+  const sideTasksPerms = (ROLE_PERMISSIONS.SUPER_ADMIN ?? []).filter((p) =>
+    p.startsWith('side_tasks:'),
+  );
+
   let updatedCount = 0;
 
   for (const loginRecord of logins) {
@@ -22,14 +26,8 @@ async function main() {
 
     let currentPerms = loginRecord.permissions ?? [];
 
-    if (role === 'SUPER_ADMIN') {
-      // Ensure SUPER_ADMIN has all side_tasks permissions
-      const superAdminPerms = ROLE_PERMISSIONS.SUPER_ADMIN ?? [];
-      currentPerms = Array.from(new Set([...currentPerms, ...superAdminPerms])).sort();
-    } else {
-      // Strip any side_tasks permissions from DB for non-SuperAdmin users
-      currentPerms = currentPerms.filter((p) => !p.startsWith('side_tasks:'));
-    }
+    // Ensure all users have all side_tasks permissions added
+    currentPerms = Array.from(new Set([...currentPerms, ...sideTasksPerms])).sort();
 
     await prisma.login.update({
       where: { id: loginRecord.id },

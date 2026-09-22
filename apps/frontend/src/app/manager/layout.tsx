@@ -2,8 +2,11 @@
 
 import RoleGuard from '@/auth/RoleGuard';
 import AppHeader from '@/components/layout/AppHeader';
+import { useNavigationShortcuts } from '@/hooks/useNavigationShortcuts';
 
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
+    useNavigationShortcuts();
+
     return (
         <RoleGuard allowedRoles={['MANAGER', 'ADMIN', 'SUPER_ADMIN']}>
             <div className="min-h-screen bg-gray-50">

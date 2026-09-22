@@ -126,10 +126,13 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     'locations:view',
     'users:view:basic',
     'side_tasks:view',
+    'side_tasks:view_all',
     'side_tasks:create',
     'side_tasks:assign',
     'side_tasks:edit',
     'side_tasks:review',
+    'side_tasks:abandon',
+    'side_tasks:manage_history',
     'side_tasks:delete',
   ],
 };

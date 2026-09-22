@@ -11,7 +11,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ADMIN_TABS } from '@/config/navigation';
-import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
+import { useNavigationShortcuts } from '@/hooks/useNavigationShortcuts';
 import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 import { getActiveCount } from '@/services/managerQueueService';
 
@@ -23,9 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [activeCount, setActiveCount] = useState<number | null>(null);
 
-    useKeyboardShortcut('ctrl+o', () => {
-        router.push('/admin/orders?create=true');
-    });
+    useNavigationShortcuts();
 
     const fetchActiveCount = useCallback(async () => {
         if (!user) return;
@@ -105,7 +103,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                                                 }
                                             `}
-                                            title={isSidebarCollapsed ? tab.label : ''}
+                                            title={isSidebarCollapsed ? (tab.shortcut ? `${tab.label} (${tab.shortcut})` : tab.label) : ''}
                                         >
                                             <div className={`flex items-center justify-center min-w-[48px] ${active ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
                                                 {tab.icon}
@@ -120,6 +118,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                                 {tab.label}
                                             </span>
 
+                                            {/* KEYBOARD SHORTCUT BADGE */}
+                                            {tab.shortcut && !isSidebarCollapsed && (
+                                                <span className={`ml-auto ${hasBadge ? 'mr-1' : 'mr-2'} px-1.5 py-0.5 text-[10px] font-mono font-semibold rounded ${active ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200 group-hover:text-gray-600'} border border-gray-200/50 shadow-2xs`}>
+                                                    {tab.shortcut}
+                                                </span>
+                                            )}
+
                                             {/* ACTIVE INDICATOR (VERTICAL) */}
                                             {active && (
                                                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-600 rounded-l-full" />
@@ -127,7 +132,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                                             {/* BADGE */}
                                             {hasBadge && !isSidebarCollapsed && (
-                                                <span className="ml-auto mr-2 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
+                                                <span className={`${tab.shortcut ? 'mr-2' : 'ml-auto mr-2'} w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold`}>
                                                     {tab.badge}
                                                 </span>
                                             )}
