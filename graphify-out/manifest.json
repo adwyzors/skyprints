@@ -1020,8 +1020,8 @@
     "semantic_hash": "c88ee660d5dc71c84070a9a110ba4931"
   },
   "apps/frontend/src/app/admin/layout.tsx": {
-    "mtime": 1790006097.4927442,
-    "ast_hash": "86d55fa31a791ca1f9bbe27e29285198",
+    "mtime": 1790049806.6146383,
+    "ast_hash": "e9c210322862b87378e6cc4a9e5913d2",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/locations/LocationClient.tsx": {
@@ -1060,8 +1060,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/runs/page.tsx": {
-    "mtime": 1790004626.589387,
-    "ast_hash": "59d691afda52097b5d702f140d4c4662",
+    "mtime": 1790072586.9723248,
+    "ast_hash": "ed442fc27ea053aaa787a1f8cf5693d1",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/settings/page.tsx": {
@@ -1085,8 +1085,8 @@
     "semantic_hash": "b6ce3963249b590c70321eaecfa5825d"
   },
   "apps/frontend/src/app/manager/layout.tsx": {
-    "mtime": 1784356610.3429353,
-    "ast_hash": "f4f2d010d7fe53ea10c411c2d833bf10",
+    "mtime": 1790049823.9605618,
+    "ast_hash": "32d6e85ef5783664ee4479e8876c0e83",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/manager/runs/[runId]/page.tsx": {
@@ -1220,9 +1220,9 @@
     "semantic_hash": "8c40403ac607d8e70877cd09e257b4f9"
   },
   "apps/frontend/src/components/layout/AppHeader.tsx": {
-    "mtime": 1783859504.971142,
-    "ast_hash": "632b8ba55891751a62a9e50209c1f32c",
-    "semantic_hash": "632b8ba55891751a62a9e50209c1f32c"
+    "mtime": 1790056710.457086,
+    "ast_hash": "d622bd4543ceb8deff4b1143df6d70d4",
+    "semantic_hash": ""
   },
   "apps/frontend/src/components/layout/FilterDrawer.tsx": {
     "mtime": 1783859504.972147,
@@ -1440,8 +1440,8 @@
     "semantic_hash": "aa9b57ac3204bfe069995ea39eb4fc0f"
   },
   "apps/frontend/src/config/navigation.tsx": {
-    "mtime": 1784231717.5534527,
-    "ast_hash": "d2184d4890a1aee420fe15fb0a39474d",
+    "mtime": 1790049750.6869643,
+    "ast_hash": "d812046a8d1270dbef1abc273b4cfd80",
     "semantic_hash": ""
   },
   "apps/frontend/src/constants/processes.ts": {
@@ -1985,8 +1985,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/hooks/useKeyboardShortcut.ts": {
-    "mtime": 1783859505.0504596,
-    "ast_hash": "61e8b67571eb8f4216eba86741da6c59",
+    "mtime": 1790050351.319597,
+    "ast_hash": "75fccd7fb74d77a8f174aa6f82e1fefb",
     "semantic_hash": ""
   },
   "apps/backend/ecosystem.config.js": {
@@ -1995,8 +1995,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/my-tasks/page.tsx": {
-    "mtime": 1789987950.5739882,
-    "ast_hash": "2e153fdcfb6719b83d1d08e2935ac2e0",
+    "mtime": 1790056533.377948,
+    "ast_hash": "1cb3dcc5ebe0f42e74a9f2e62dbbcf04",
     "semantic_hash": ""
   },
   "deploy/finish-deploy.sh": {
@@ -2132,6 +2132,16 @@
   "apps/frontend/src/components/runs/PrintRunCards.tsx": {
     "mtime": 1790015355.4270046,
     "ast_hash": "79d412cc159a1318bbf8eb0a65a08070",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/components/modals/BulkTransitionModal.tsx": {
+    "mtime": 1790072394.669239,
+    "ast_hash": "b3d972e5f821fc48e5c4dc1f455661f7",
+    "semantic_hash": ""
+  },
+  "apps/frontend/src/hooks/useNavigationShortcuts.ts": {
+    "mtime": 1790056416.9926145,
+    "ast_hash": "6c28a2a1a0b700250c1755ca48b0b222",
     "semantic_hash": ""
   }
 }

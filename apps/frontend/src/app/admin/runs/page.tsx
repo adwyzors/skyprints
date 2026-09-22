@@ -7,6 +7,7 @@ import Pagination from '@/components/common/Pagination';
 import FilterDrawer from '@/components/layout/FilterDrawer';
 import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import ViewRunModal from '@/components/modals/ViewRunModal';
+import BulkTransitionModal from '@/components/modals/BulkTransitionModal';
 import PageSizeSelector from '@/components/orders/PageSizeSelector';
 import RunCard from '@/components/runs/RunCard';
 import PrintRunCards from '@/components/runs/PrintRunCards';
@@ -27,6 +28,7 @@ import {
     ChevronDown,
     ChevronLeft,
     Clock,
+    FastForward,
     FileText,
     Filter,
     Loader2,
@@ -566,9 +568,21 @@ function RunsPageContent() {
         window.print();
     };
 
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+
     const selectedRunsList = useMemo(() => {
         return Array.from(selectedRunsMap.values());
     }, [selectedRunsMap]);
+
+    const selectedStageInfo = useMemo(() => {
+        if (selectedRunsList.length === 0) return { isSameStage: false, stageCode: null };
+        const firstStage = selectedRunsList[0].lifeCycleStatusCode || selectedRunsList[0].statusCode;
+        const isSame = selectedRunsList.every(r => (r.lifeCycleStatusCode || r.statusCode) === firstStage);
+        return {
+            isSameStage: isSame,
+            stageCode: isSame ? firstStage : null
+        };
+    }, [selectedRunsList]);
 
     return (
         <>
@@ -659,6 +673,24 @@ function RunsPageContent() {
                                 >
                                     Deselect Page
                                 </button>
+                                {selectedRunsList.length > 0 && (
+                                    selectedStageInfo.isSameStage ? (
+                                        <button
+                                            onClick={() => setIsBulkModalOpen(true)}
+                                            className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-lg transition-all shadow-md text-xs whitespace-nowrap animate-in fade-in"
+                                        >
+                                            <FastForward className="w-4 h-4" />
+                                            <span>Advance Stage ({selectedRunsList.length})</span>
+                                        </button>
+                                    ) : (
+                                        <div
+                                            className="flex items-center gap-1 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-700 font-semibold rounded-lg text-xs whitespace-nowrap cursor-help"
+                                            title="All selected cards must be in the same lifecycle stage to batch advance"
+                                        >
+                                            Select same stage to advance
+                                        </div>
+                                    )
+                                )}
                                 <button
                                     onClick={handlePrintSelected}
                                     disabled={selectedRunsMap.size === 0}
@@ -1094,6 +1126,15 @@ function RunsPageContent() {
                 />
             )}
             <ImagePreviewModal imageUrl={previewImage} onClose={() => setPreviewImage(null)} />
+            <BulkTransitionModal
+                isOpen={isBulkModalOpen}
+                onClose={() => setIsBulkModalOpen(false)}
+                selectedRuns={selectedRunsList}
+                onSuccess={() => {
+                    setSelectedRunsMap(new Map());
+                    setRefreshTrigger((prev) => prev + 1);
+                }}
+            />
         </div>
         <PrintRunCards runs={selectedRunsList} />
     </>

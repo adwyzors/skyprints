@@ -295,8 +295,8 @@
     "semantic_hash": ""
   },
   "apps/backend/src/auth/permissions.map.ts": {
-    "mtime": 1789995342.820284,
-    "ast_hash": "3383ae9100f128c6d3551811ddd420ac",
+    "mtime": 1790049159.8905795,
+    "ast_hash": "47a4552488f61ef6f3fc983b457fe5ca",
     "semantic_hash": ""
   },
   "apps/backend/src/auth/utils/cookie-domain.util.ts": {
@@ -1020,8 +1020,8 @@
     "semantic_hash": "c88ee660d5dc71c84070a9a110ba4931"
   },
   "apps/frontend/src/app/admin/layout.tsx": {
-    "mtime": 1789830482.0832865,
-    "ast_hash": "18fcada4870c6167da87f3da3e609754",
+    "mtime": 1790006097.4927442,
+    "ast_hash": "86d55fa31a791ca1f9bbe27e29285198",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/locations/LocationClient.tsx": {
@@ -1410,8 +1410,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/RunCard.tsx": {
-    "mtime": 1790004705.812468,
-    "ast_hash": "1745cc68fed93155cc6e9b150bdaa326",
+    "mtime": 1790014308.250769,
+    "ast_hash": "50655d76bf9d15d112a1a14ce8c9477a",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/RunConfigForm.tsx": {
@@ -2120,8 +2120,8 @@
     "semantic_hash": ""
   },
   "apps/backend/prisma/scripts/sync-user-permissions.ts": {
-    "mtime": 1789930143.977921,
-    "ast_hash": "9a66ca4737b1426fe6f5a2748e9e4bf7",
+    "mtime": 1790049180.4017425,
+    "ast_hash": "26ada0de2463797241cafe19cf18c8da",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskTableRow.tsx": {
@@ -2130,8 +2130,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/PrintRunCards.tsx": {
-    "mtime": 1790004724.6340065,
-    "ast_hash": "76b7ca9755b9457a5a50f168b6c0daa9",
+    "mtime": 1790015355.4270046,
+    "ast_hash": "79d412cc159a1318bbf8eb0a65a08070",
     "semantic_hash": ""
   }
 }
