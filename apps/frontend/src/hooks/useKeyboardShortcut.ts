@@ -44,7 +44,7 @@ export function useKeyboardShortcut(
       const targetKey = parts[parts.length - 1];
 
       // Match modifier keys
-      const requiresCtrl = parts.includes('ctrl') || parts.includes('control');
+      const requiresCtrl = parts.includes('ctrl') || parts.includes('control') || parts.includes('cntrl');
       const requiresShift = parts.includes('shift');
       const requiresAlt = parts.includes('alt');
       

@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
  * F8 -> Bills
  * F9 -> Reports
  * Ctrl+O -> Create Order
+ * Ctrl+/ -> Create Task Modal
  */
 export function useNavigationShortcuts() {
   const router = useRouter();
@@ -20,6 +21,23 @@ export function useNavigationShortcuts() {
   useKeyboardShortcut('ctrl+o', () => {
     router.push('/admin/orders?create=true');
   });
+
+  // Ctrl+/ or Cmd+/ -> Create Side Task Modal
+  useKeyboardShortcut(
+    'ctrl+/',
+    () => {
+      router.push('/admin/my-tasks?createTask=true');
+    },
+    { ignoreInputFields: false }
+  );
+
+  useKeyboardShortcut(
+    'mod+/',
+    () => {
+      router.push('/admin/my-tasks?createTask=true');
+    },
+    { ignoreInputFields: false }
+  );
 
   // F2 -> Open My Tasks
   useKeyboardShortcut(

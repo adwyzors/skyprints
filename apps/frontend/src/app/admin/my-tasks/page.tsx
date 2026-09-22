@@ -40,6 +40,7 @@ import {
     RefreshCw,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 import { SideTaskCard } from '@/components/side-tasks/SideTaskCard';
@@ -456,9 +457,23 @@ function AdminMyTasksPage() {
     const [sideTasks, setSideTasks] = useState<SideTask[]>([]);
     const [sideTaskFilter, setSideTaskFilter] = useState<'MY' | 'ALL'>('MY');
     const [sideTaskViewMode, setSideTaskViewMode] = useState<'grid' | 'table'>('grid');
-    const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
     const [sideTaskSearch, setSideTaskSearch] = useState('');
     const [isCreateSideTaskOpen, setIsCreateSideTaskOpen] = useState(false);
+    const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const createTaskParam = searchParams.get('createTask');
+
+    useEffect(() => {
+        if (createTaskParam === 'true') {
+            setMainTab('SIDE_TASKS');
+            setIsCreateSideTaskOpen(true);
+            const next = new URLSearchParams(searchParams.toString());
+            next.delete('createTask');
+            router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+        }
+    }, [createTaskParam, searchParams, pathname, router]);
     const [passTaskTarget, setPassTaskTarget] = useState<SideTask | null>(null);
     const [reassignTaskTarget, setReassignTaskTarget] = useState<SideTask | null>(null);
     const [reviewTaskTarget, setReviewTaskTarget] = useState<SideTask | null>(null);
