@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, LogOut, Menu, Settings, User, X, UserPlus, Plus
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import NotificationBell from '@/components/layout/NotificationBell';
+import { CreateSideTaskModal } from '@/components/side-tasks/CreateSideTaskModal';
 
 export default function AppHeader() {
     const { 
@@ -20,6 +21,7 @@ export default function AppHeader() {
     } = useAuth();
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
     const router = useRouter();
     const [isMounted, setIsMounted] = useState(false);
     const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -30,6 +32,12 @@ export default function AppHeader() {
     const user = authUser?.user
         ? { name: authUser.user.name, role: authUser.user.role, email: authUser.user.email }
         : null;
+
+    useEffect(() => {
+        const handleOpenModal = () => setIsCreateTaskModalOpen(true);
+        window.addEventListener('open-create-side-task', handleOpenModal);
+        return () => window.removeEventListener('open-create-side-task', handleOpenModal);
+    }, []);
 
     // Set mounted state after hydration and read localStorage
     useEffect(() => {
@@ -348,6 +356,15 @@ export default function AppHeader() {
                     </div>
                 </div>
             </div>
+
+            {/* GLOBAL CREATE SIDE TASK MODAL */}
+            <CreateSideTaskModal
+                isOpen={isCreateTaskModalOpen}
+                onClose={() => setIsCreateTaskModalOpen(false)}
+                onSuccess={() => {
+                    window.dispatchEvent(new CustomEvent('side-task-created'));
+                }}
+            />
         </header>
     );
 }

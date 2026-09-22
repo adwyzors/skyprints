@@ -33,11 +33,13 @@ export function useNavigationShortcuts() {
     { ignoreInputFields: false }
   );
 
-  // Ctrl+/ or Cmd+/ -> Create Side Task Modal
+  // Ctrl+/ or Cmd+/ -> Open Create Side Task Modal globally from any screen
   useKeyboardShortcut(
     'ctrl+/',
     () => {
-      router.push('/admin/my-tasks?createTask=true');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('open-create-side-task'));
+      }
     },
     { ignoreInputFields: false }
   );
@@ -45,7 +47,9 @@ export function useNavigationShortcuts() {
   useKeyboardShortcut(
     'mod+/',
     () => {
-      router.push('/admin/my-tasks?createTask=true');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('open-create-side-task'));
+      }
     },
     { ignoreInputFields: false }
   );

@@ -466,14 +466,12 @@ function AdminMyTasksPage() {
     const createTaskParam = searchParams.get('createTask');
 
     useEffect(() => {
-        if (createTaskParam === 'true') {
-            setMainTab('SIDE_TASKS');
-            setIsCreateSideTaskOpen(true);
-            const next = new URLSearchParams(searchParams.toString());
-            next.delete('createTask');
-            router.replace(`${pathname}?${next.toString()}`, { scroll: false });
-        }
-    }, [createTaskParam, searchParams, pathname, router]);
+        const handleCreated = () => {
+            fetchSideTasks();
+        };
+        window.addEventListener('side-task-created', handleCreated);
+        return () => window.removeEventListener('side-task-created', handleCreated);
+    }, [sideTaskFilter, sideTaskSearch]);
     const [passTaskTarget, setPassTaskTarget] = useState<SideTask | null>(null);
     const [reassignTaskTarget, setReassignTaskTarget] = useState<SideTask | null>(null);
     const [reviewTaskTarget, setReviewTaskTarget] = useState<SideTask | null>(null);
@@ -609,11 +607,12 @@ function AdminMyTasksPage() {
                 <div className="flex items-center gap-3">
                     {mainTab === 'SIDE_TASKS' && (
                         <button
-                            onClick={() => setIsCreateSideTaskOpen(true)}
+                            onClick={() => window.dispatchEvent(new CustomEvent('open-create-side-task'))}
                             className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm h-10 shrink-0"
                         >
                             <Plus className="w-4 h-4" />
                             <span>Create Side Task</span>
+                            <span className="ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-indigo-700/80 rounded text-indigo-100 border border-indigo-500/50">Ctrl+/</span>
                         </button>
                     )}
                     <button
