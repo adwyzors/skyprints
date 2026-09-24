@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation';
 /**
  * Global navigation keyboard shortcuts hook
  * F2 -> My Tasks
- * F3 -> Run Activity
- * F4 -> Rate Confirmation
- * F6 -> Billing Ready
- * F8 -> Bills
- * F9 -> Reports
- * Ctrl+O -> Create Order
+ * F3 -> Orders Tab
+ * F4 -> Run Activity
+ * (F5 left untouched - native browser refresh)
+ * F6 -> Rate Confirmation
+ * (F7 left untouched)
+ * F8 -> Billing Ready
+ * F9 -> Bills
+ * F10 -> Reports
+ * Ctrl+O -> Create Order Modal
  * Ctrl+/ -> Create Task Modal
  */
 export function useNavigationShortcuts() {
@@ -68,9 +71,18 @@ export function useNavigationShortcuts() {
     { ignoreInputFields: false }
   );
 
-  // F3 -> Open Run Activity
+  // F3 -> Open Orders Tab
   useKeyboardShortcut(
     'f3',
+    () => {
+      router.push('/admin/orders');
+    },
+    { ignoreInputFields: false }
+  );
+
+  // F4 -> Open Run Activity
+  useKeyboardShortcut(
+    'f4',
     () => {
       if (user?.user?.role === 'MANAGER') {
         router.push('/manager/runs');
@@ -81,36 +93,36 @@ export function useNavigationShortcuts() {
     { ignoreInputFields: false }
   );
 
-  // F4 -> Rate Confirmation
+  // F6 -> Rate Confirmation
   useKeyboardShortcut(
-    'f4',
+    'f6',
     () => {
       router.push('/admin/billing');
     },
     { ignoreInputFields: false }
   );
 
-  // F6 -> Billing Ready
+  // F8 -> Billing Ready
   useKeyboardShortcut(
-    'f6',
+    'f8',
     () => {
       router.push('/admin/completed');
     },
     { ignoreInputFields: false }
   );
 
-  // F8 -> Bills
+  // F9 -> Bills
   useKeyboardShortcut(
-    'f8',
+    'f9',
     () => {
       router.push('/admin/bills');
     },
     { ignoreInputFields: false }
   );
 
-  // F9 -> Reports
+  // F10 -> Reports
   useKeyboardShortcut(
-    'f9',
+    'f10',
     () => {
       router.push('/admin/reports');
     },

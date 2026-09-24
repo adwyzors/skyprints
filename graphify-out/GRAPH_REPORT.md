@@ -1,7 +1,7 @@
 # Graph Report - skyprints  (2026-09-24)
 
 ## Corpus Check
-- 420 files · ~317,235 words
+- 420 files · ~317,267 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `82c61544`
+- Built from commit: `1294b038`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -263,7 +263,7 @@ Nodes (9): OrdersController, AnyPermissions, Body, Controller, Delete, Param, Pa
 
 ### Community 15 - "useAuth"
 Cohesion: 0.02
-Nodes (129): aB(), aD(), bD(), bM(), Bn(), Bu(), BW(), bz() (+121 more)
+Nodes (119): aB(), aD(), bM(), Bn(), Bu(), BW(), bX(), CB() (+111 more)
 
 ### Community 16 - "RequestContextStore"
 Cohesion: 0.10
@@ -303,7 +303,7 @@ Nodes (47): CustomerClient(), CustomerClientProps, CustomerClientWrapper(), DIGI
 
 ### Community 25 - "OrdersController"
 Cohesion: 0.04
-Nodes (123): ak(), al(), am(), az(), Ba(), Bi(), bk(), bl() (+115 more)
+Nodes (120): ak(), am(), az(), Ba(), bD(), Bi(), bk(), bl() (+112 more)
 
 ### Community 26 - "ImageRetentionService"
 Cohesion: 0.14
@@ -314,12 +314,12 @@ Cohesion: 0.17
 Nodes (10): BillingContextController, Body, Controller, Delete, Get, Param, Permissions, Post (+2 more)
 
 ### Community 28 - "OH"
-Cohesion: 0.22
-Nodes (9): ah(), FF(), He(), HF(), kH(), OF(), OH(), pH() (+1 more)
+Cohesion: 0.14
+Nodes (17): ah(), CF(), EF(), fc(), hc(), He(), Ia(), kH() (+9 more)
 
 ### Community 29 - "customer.service.ts"
 Cohesion: 0.16
-Nodes (80): b(), bb(), bc(), Bv(), C(), CF(), cX(), d() (+72 more)
+Nodes (79): al(), b(), bb(), bc(), Bv(), C(), cX(), d() (+71 more)
 
 ### Community 30 - "AnalyticsService"
 Cohesion: 0.11
@@ -342,8 +342,8 @@ Cohesion: 0.07
 Nodes (31): PrismaModule, Module, AnalyticsModule, Module, BillingModule, Module, CloudflareService, Injectable (+23 more)
 
 ### Community 35 - "AuthService"
-Cohesion: 0.18
-Nodes (5): LoginBody, AuthService, Injectable, cookieOptions(), getCookieName()
+Cohesion: 0.23
+Nodes (4): AuthService, Injectable, cookieOptions(), getCookieName()
 
 ### Community 36 - "InternalJwtService"
 Cohesion: 0.05
@@ -382,8 +382,8 @@ Cohesion: 0.12
 Nodes (16): compilerOptions, declaration, emitDecoratorMetadata, esModuleInterop, experimentalDecorators, module, moduleResolution, outDir (+8 more)
 
 ### Community 45 - "process.service.ts"
-Cohesion: 0.07
-Nodes (67): ac(), as(), at(), bs(), bt(), cs(), ct(), Dl() (+59 more)
+Cohesion: 0.08
+Nodes (63): ac(), as(), at(), bs(), bt(), cR(), cs(), ct() (+55 more)
 
 ### Community 46 - "AppModule"
 Cohesion: 0.19
@@ -414,8 +414,8 @@ Cohesion: 0.14
 Nodes (13): compilerOptions, declaration, declarationMap, esModuleInterop, module, moduleResolution, outDir, rootDir (+5 more)
 
 ### Community 54 - "t"
-Cohesion: 0.05
-Nodes (69): ae(), aj(), aP(), av(), be(), bq(), cl(), Cn() (+61 more)
+Cohesion: 0.06
+Nodes (55): ae(), aj(), av(), be(), bq(), cl(), db(), Dn() (+47 more)
 
 ### Community 55 - "ReportsFilter.tsx"
 Cohesion: 0.37
@@ -442,8 +442,8 @@ Cohesion: 0.33
 Nodes (6): InvoiceData, InvoiceItem, InvoicePDF(), InvoicePDFProps, numberToWords(), styles
 
 ### Community 61 - "CreateOrderModal.tsx"
-Cohesion: 0.50
-Nodes (4): cR(), dr(), fr(), hr()
+Cohesion: 0.08
+Nodes (35): aP(), Cn(), cp(), e(), Ei(), ep(), hq(), jc() (+27 more)
 
 ### Community 62 - "order.read.contract.ts"
 Cohesion: 0.22
@@ -506,8 +506,8 @@ Cohesion: 0.40
 Nodes (4): ManagerActiveJobDto, ManagerActiveJobSchema, ManagerQueueItemDto, ManagerQueueItemSchema
 
 ### Community 77 - "order.contract.ts"
-Cohesion: 0.21
-Nodes (7): Public(), HealthController, Controller, Get, Public, HealthModule, Module
+Cohesion: 0.14
+Nodes (8): LoginBody, Public(), HealthController, Controller, Get, Public, HealthModule, Module
 
 ### Community 78 - "Phase 1 — Internal auth behind flag"
 Cohesion: 0.10
@@ -538,8 +538,8 @@ Cohesion: 0.40
 Nodes (4): CreateRunTemplateDto, CreateRunTemplateSchema, RunTemplateField, RunTemplateFieldSchema
 
 ### Community 87 - "run-template.read.contract.ts"
-Cohesion: 0.07
-Nodes (59): a(), ai(), Ao(), bO(), Br(), ca(), ce(), ci() (+51 more)
+Cohesion: 0.08
+Nodes (52): a(), ai(), Ao(), bO(), Br(), ce(), ci(), da() (+44 more)
 
 ### Community 88 - "compilerOptions"
 Cohesion: 0.40
@@ -733,7 +733,7 @@ Nodes (9): OrdersQueryDto, IsInt, IsOptional, IsString, Min, Transform, Type, Ge
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `PrismaService` connect `PrismaService` to `page.tsx`, `CustomersRepository`, `LocationsRepository`, `prisma.service.ts`, `workflow.engine.ts`, `.calculateForOrder`, `RequestContextStore`, `run-templates.service.ts`, `ManagerQueueService`, `OrdersService`, `ImageRetentionService`, `AnalyticsService`, `ReportsQueryDto`, `r`, `DashboardClient.tsx`, `app.module.ts`, `AuthService`, `runs.service.ts`, `UserService`, `JwtAuthGuard`, `UsersService`, `current-user.decorator.ts`, `users.service.spec.ts`?**
+- **Why does `PrismaService` connect `PrismaService` to `page.tsx`, `CustomersRepository`, `LocationsRepository`, `prisma.service.ts`, `workflow.engine.ts`, `.calculateForOrder`, `RequestContextStore`, `run-templates.service.ts`, `ManagerQueueService`, `OrdersService`, `ImageRetentionService`, `AnalyticsService`, `ReportsQueryDto`, `r`, `DashboardClient.tsx`, `app.module.ts`, `runs.service.ts`, `UserService`, `JwtAuthGuard`, `order.contract.ts`, `UsersService`, `current-user.decorator.ts`, `users.service.spec.ts`?**
   _High betweenness centrality (0.103) - this node is a cross-community bridge._
 - **Why does `r()` connect `OrdersController` to `r`, `apiRequest`, `process.service.ts`, `useAuth`, `AdminProcessService`, `CreateOrderModal.tsx`, `ManagerQueueService`, `run-template.read.contract.ts`, `OrdersService`, `t`, `OH`, `customer.service.ts`?**
   _High betweenness centrality (0.081) - this node is a cross-community bridge._

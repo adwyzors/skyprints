@@ -45,7 +45,7 @@ export const ADMIN_TABS: NavTab[] = [
         icon: <Package className="w-4 h-4" />,
         badge: null,
         permission: Permission.ORDERS_VIEW,
-        shortcut: 'Ctrl+O',
+        shortcut: 'F3',
     },
     {
         label: 'Run Activity',
@@ -53,7 +53,7 @@ export const ADMIN_TABS: NavTab[] = [
         icon: <Activity className="w-4 h-4" />,
         badge: null,
         permission: Permission.RUNS_VIEW,
-        shortcut: 'F3',
+        shortcut: 'F4',
     },
     {
         label: 'Rate Confirmation',
@@ -61,7 +61,7 @@ export const ADMIN_TABS: NavTab[] = [
         icon: <CreditCard className="w-4 h-4" />,
         badge: null,
         permission: Permission.RATES_VIEW,
-        shortcut: 'F4',
+        shortcut: 'F6',
     },
     {
         label: 'Billing Ready',
@@ -69,7 +69,7 @@ export const ADMIN_TABS: NavTab[] = [
         icon: <CheckCircle className="w-4 h-4" />,
         badge: null,
         permission: Permission.BILLINGS_VIEW,
-        shortcut: 'F6',
+        shortcut: 'F8',
     },
     {
         label: 'Bills',
@@ -77,7 +77,7 @@ export const ADMIN_TABS: NavTab[] = [
         icon: <FileText className="w-4 h-4" />,
         badge: null,
         permission: Permission.BILLINGS_VIEW,
-        shortcut: 'F8',
+        shortcut: 'F9',
     },
     {
         label: 'Reports',
@@ -85,7 +85,7 @@ export const ADMIN_TABS: NavTab[] = [
         icon: <BarChart3 className="w-4 h-4" />,
         badge: null,
         permission: Permission.ANALYTICS_VIEW,
-        shortcut: 'F9',
+        shortcut: 'F10',
     },
     {
         label: 'Customers',
