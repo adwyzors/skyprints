@@ -50,12 +50,157 @@ import {
     Filter,
     Plus,
     RefreshCw,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 
 const POLL_INTERVAL_MS = 45000;
+
+type SideTaskSortField =
+    | 'code'
+    | 'title'
+    | 'customer'
+    | 'stage'
+    | 'assignee'
+    | 'priority'
+    | 'status'
+    | 'timer'
+    | 'requiredDate';
+
+type SortDirection = 'asc' | 'desc';
+
+const PRIORITY_WEIGHT: Record<string, number> = {
+    URGENT: 4,
+    HIGH: 3,
+    MEDIUM: 2,
+    LOW: 1,
+};
+
+function getTaskTimerSeconds(task: SideTask): number {
+    const currentHistory = task.stageHistories?.[task.stageHistories.length - 1];
+    if (!currentHistory) return 0;
+    let total = currentHistory.totalTimeSeconds || 0;
+    if (
+        currentHistory.lastStartedAt &&
+        !currentHistory.pausedAt &&
+        (task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS')
+    ) {
+        total += Math.max(
+            0,
+            Math.floor((Date.now() - new Date(currentHistory.lastStartedAt).getTime()) / 1000)
+        );
+    }
+    return total;
+}
+
+function matchesSideTaskSearch(task: SideTask, query: string): boolean {
+    if (!query || !query.trim()) return true;
+    const q = query.toLowerCase().trim();
+
+    const currentHistory = task.stageHistories?.[task.stageHistories.length - 1];
+    const stageName = currentHistory?.stageType?.name?.toLowerCase() || '';
+    const assigneeName = task.currentAssignee?.name?.toLowerCase() || '';
+    const assigneeEmail = task.currentAssignee?.email?.toLowerCase() || '';
+    const customerName = (task.customer?.name || (task.isInternal ? 'internal task' : '')).toLowerCase();
+    const customerCode = task.customer?.code?.toLowerCase() || '';
+    const code = task.code?.toLowerCase() || '';
+    const title = task.title?.toLowerCase() || '';
+    const desc = task.description?.toLowerCase() || '';
+    const priority = task.priority?.toLowerCase() || '';
+    const status = task.status?.toLowerCase() || '';
+
+    const anyHistoryMatch = task.stageHistories?.some(
+        (h) =>
+            h.assignedUser?.name?.toLowerCase().includes(q) ||
+            h.assignedUser?.email?.toLowerCase().includes(q) ||
+            h.stageType?.name?.toLowerCase().includes(q)
+    );
+
+    return (
+        code.includes(q) ||
+        title.includes(q) ||
+        desc.includes(q) ||
+        assigneeName.includes(q) ||
+        assigneeEmail.includes(q) ||
+        customerName.includes(q) ||
+        customerCode.includes(q) ||
+        stageName.includes(q) ||
+        priority.includes(q) ||
+        status.includes(q) ||
+        Boolean(anyHistoryMatch)
+    );
+}
+
+function sortSideTasks(
+    tasks: SideTask[],
+    field: SideTaskSortField | null,
+    direction: SortDirection
+): SideTask[] {
+    if (!field) return tasks;
+
+    return [...tasks].sort((a, b) => {
+        let aVal: any = null;
+        let bVal: any = null;
+
+        switch (field) {
+            case 'code':
+                aVal = a.code?.toLowerCase() || '';
+                bVal = b.code?.toLowerCase() || '';
+                break;
+            case 'title':
+                aVal = a.title?.toLowerCase() || '';
+                bVal = b.title?.toLowerCase() || '';
+                break;
+            case 'customer':
+                aVal = (a.customer?.name || (a.isInternal ? 'Internal Task' : '')).toLowerCase();
+                bVal = (b.customer?.name || (b.isInternal ? 'Internal Task' : '')).toLowerCase();
+                break;
+            case 'stage': {
+                const aStage = a.stageHistories?.[a.stageHistories.length - 1]?.stageType?.name || '';
+                const bStage = b.stageHistories?.[b.stageHistories.length - 1]?.stageType?.name || '';
+                aVal = aStage.toLowerCase();
+                bVal = bStage.toLowerCase();
+                break;
+            }
+            case 'assignee':
+                aVal = (a.currentAssignee?.name || '').toLowerCase();
+                bVal = (b.currentAssignee?.name || '').toLowerCase();
+                break;
+            case 'priority':
+                aVal = PRIORITY_WEIGHT[a.priority] || 0;
+                bVal = PRIORITY_WEIGHT[b.priority] || 0;
+                break;
+            case 'status':
+                aVal = (a.status || '').toLowerCase();
+                bVal = (b.status || '').toLowerCase();
+                break;
+            case 'timer':
+                aVal = getTaskTimerSeconds(a);
+                bVal = getTaskTimerSeconds(b);
+                break;
+            case 'requiredDate':
+                aVal = a.requiredDate ? new Date(a.requiredDate).getTime() : 0;
+                bVal = b.requiredDate ? new Date(b.requiredDate).getTime() : 0;
+                break;
+            default:
+                return 0;
+        }
+
+        if (aVal === bVal) return 0;
+        if (aVal === null || aVal === undefined || aVal === 0 || aVal === '') return 1;
+        if (bVal === null || bVal === undefined || bVal === 0 || bVal === '') return -1;
+
+        if (direction === 'asc') {
+            return aVal > bVal ? 1 : -1;
+        } else {
+            return aVal < bVal ? 1 : -1;
+        }
+    });
+}
 
 function formatActiveElapsed(claimedAt: string, pausedAt?: string | null, pausedDurationSeconds = 0): string {
     const startMs = new Date(claimedAt).getTime();
@@ -459,6 +604,9 @@ function ManagerRunsPage() {
     const [sideTaskFilter, setSideTaskFilter] = useState<'MY' | 'ALL'>('MY');
     const [sideTaskViewMode, setSideTaskViewMode] = useState<'grid' | 'table'>('grid');
     const [sideTaskSearch, setSideTaskSearch] = useState('');
+    const [sortField, setSortField] = useState<SideTaskSortField | null>(null);
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
     const [isCreateSideTaskOpen, setIsCreateSideTaskOpen] = useState(false);
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
@@ -474,6 +622,20 @@ function ManagerRunsPage() {
             setSideTaskViewMode('table');
         } else {
             setSideTaskViewMode('grid');
+        }
+    };
+
+    const handleSort = (field: SideTaskSortField) => {
+        if (sortField === field) {
+            if (sortDirection === 'asc') {
+                setSortDirection('desc');
+            } else {
+                setSortField(null);
+                setSortDirection('asc');
+            }
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
         }
     };
 
@@ -494,7 +656,7 @@ function ManagerRunsPage() {
         try {
             const data = sideTaskFilter === 'ALL'
                 ? await getAllSideTasks({ search: sideTaskSearch })
-                : await getMySideTasks();
+                : await getMySideTasks({ search: sideTaskSearch });
             setSideTasks(data);
         } catch (err) {
             console.error('Failed to fetch side tasks', err);
@@ -599,6 +761,38 @@ function ManagerRunsPage() {
     const stageActiveItems = active.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
     const stageQueuedItems = queue.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
 
+    // Filter and Sort Side Tasks
+    const displayedSideTasks = useMemo(() => {
+        const filtered = sideTasks.filter((task) => matchesSideTaskSearch(task, sideTaskSearch));
+        return sortSideTasks(filtered, sortField, sortDirection);
+    }, [sideTasks, sideTaskSearch, sortField, sortDirection]);
+
+    const renderSortHeader = (label: string, field: SideTaskSortField, align: 'left' | 'center' | 'right' = 'left') => {
+        const isSorted = sortField === field;
+        return (
+            <th
+                onClick={() => handleSort(field)}
+                className={`px-4 py-3 cursor-pointer select-none transition-colors hover:bg-gray-100/90 group ${
+                    align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
+                } ${isSorted ? 'text-blue-600 font-bold bg-blue-50/50' : 'text-gray-500'}`}
+                title={`Sort by ${label}`}
+            >
+                <div className={`inline-flex items-center gap-1.5 ${align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'}`}>
+                    <span>{label}</span>
+                    {isSorted ? (
+                        sortDirection === 'asc' ? (
+                            <ArrowUp className="w-3.5 h-3.5 text-blue-600" />
+                        ) : (
+                            <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                        )
+                    ) : (
+                        <ArrowUpDown className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                </div>
+            </th>
+        );
+    };
+
     return (
         <div className="py-6">
             {/* TOP HEADER WITH ACTIONS */}
@@ -694,11 +888,11 @@ function ManagerRunsPage() {
                         </div>
 
                         <div className="flex items-center gap-3 w-full md:w-auto">
-                            <div className="relative flex-1 md:w-64">
+                            <div className="relative flex-1 md:w-72">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
                                     type="text"
-                                    placeholder="Search side tasks..."
+                                    placeholder="Search by assignee, code, title, customer..."
                                     value={sideTaskSearch}
                                     onChange={(e) => setSideTaskSearch(e.target.value)}
                                     className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full bg-white shadow-xs"
@@ -709,10 +903,12 @@ function ManagerRunsPage() {
                     </div>
 
                     {/* Side Tasks Cards Grid or Table View */}
-                    {sideTasks.length === 0 ? (
+                    {displayedSideTasks.length === 0 ? (
                         <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
                             <Layers className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                            <p className="text-gray-500 font-medium text-sm">No active side tasks found.</p>
+                            <p className="text-gray-500 font-medium text-sm">
+                                {sideTaskSearch ? `No side tasks matching "${sideTaskSearch}"` : 'No active side tasks found.'}
+                            </p>
                             <p className="text-xs text-gray-400 mt-1">
                                 Click "Create Side Task" (Ctrl+/) to create a new task.
                             </p>
@@ -724,21 +920,21 @@ function ManagerRunsPage() {
                                     <thead>
                                         <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                                             <th className="px-4 py-3 text-center">#</th>
-                                            <th className="px-4 py-3">Code</th>
+                                            {renderSortHeader('Code', 'code')}
                                             <th className="px-4 py-3">Image</th>
-                                            <th className="px-4 py-3">Task Details</th>
-                                            <th className="px-4 py-3">Customer</th>
-                                            <th className="px-4 py-3">Current Stage</th>
-                                            <th className="px-4 py-3">Assignee</th>
-                                            <th className="px-4 py-3">Priority</th>
-                                            <th className="px-4 py-3">Status</th>
-                                            <th className="px-4 py-3">Timer</th>
-                                            <th className="px-4 py-3">Required By</th>
+                                            {renderSortHeader('Task Details', 'title')}
+                                            {renderSortHeader('Customer', 'customer')}
+                                            {renderSortHeader('Current Stage', 'stage')}
+                                            {renderSortHeader('Assignee', 'assignee')}
+                                            {renderSortHeader('Priority', 'priority')}
+                                            {renderSortHeader('Status', 'status')}
+                                            {renderSortHeader('Timer', 'timer')}
+                                            {renderSortHeader('Required By', 'requiredDate')}
                                             <th className="px-4 py-3 text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 bg-white">
-                                        {sideTasks.map((t, idx) => (
+                                        {displayedSideTasks.map((t, idx) => (
                                             <SideTaskTableRow
                                                 key={t.id}
                                                 task={t}
@@ -764,7 +960,7 @@ function ManagerRunsPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {sideTasks.map((t) => (
+                            {displayedSideTasks.map((t) => (
                                 <SideTaskCard
                                     key={t.id}
                                     task={t}

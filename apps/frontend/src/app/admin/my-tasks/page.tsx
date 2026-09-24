@@ -38,8 +38,12 @@ import {
     Search,
     Filter,
     RefreshCw,
+    Plus,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useVisibleInterval } from '@/hooks/useVisibleInterval';
@@ -54,23 +58,149 @@ import { ReviewSideTaskModal } from '@/components/side-tasks/ReviewSideTaskModal
 import { SideTaskHistoryModal } from '@/components/side-tasks/SideTaskHistoryModal';
 import { getAllSideTasks, getMySideTasks } from '@/services/sideTaskService';
 import { SideTask } from '@/types/sideTask';
-import { Plus } from 'lucide-react';
 
 const POLL_INTERVAL_MS = 45000;
 
-function formatActiveElapsed(claimedAt: string, pausedAt?: string | null, pausedDurationSeconds = 0): string {
-    const startMs = new Date(claimedAt).getTime();
-    let currentMs = Date.now();
-    if (pausedAt) {
-        currentMs = new Date(pausedAt).getTime();
+type SideTaskSortField =
+    | 'code'
+    | 'title'
+    | 'customer'
+    | 'stage'
+    | 'assignee'
+    | 'priority'
+    | 'status'
+    | 'timer'
+    | 'requiredDate';
+
+type SortDirection = 'asc' | 'desc';
+
+const PRIORITY_WEIGHT: Record<string, number> = {
+    URGENT: 4,
+    HIGH: 3,
+    MEDIUM: 2,
+    LOW: 1,
+};
+
+function getTaskTimerSeconds(task: SideTask): number {
+    const currentHistory = task.stageHistories?.[task.stageHistories.length - 1];
+    if (!currentHistory) return 0;
+    let total = currentHistory.totalTimeSeconds || 0;
+    if (
+        currentHistory.lastStartedAt &&
+        !currentHistory.pausedAt &&
+        (task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS')
+    ) {
+        total += Math.max(
+            0,
+            Math.floor((Date.now() - new Date(currentHistory.lastStartedAt).getTime()) / 1000)
+        );
     }
-    const ms = currentMs - startMs;
-    const totalSeconds = Math.max(0, Math.floor(ms / 1000) - pausedDurationSeconds);
-    const totalMinutes = Math.floor(totalSeconds / 60);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    const secs = totalSeconds % 60;
-    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${secs}s`;
+    return total;
+}
+
+function matchesSideTaskSearch(task: SideTask, query: string): boolean {
+    if (!query || !query.trim()) return true;
+    const q = query.toLowerCase().trim();
+
+    const currentHistory = task.stageHistories?.[task.stageHistories.length - 1];
+    const stageName = currentHistory?.stageType?.name?.toLowerCase() || '';
+    const assigneeName = task.currentAssignee?.name?.toLowerCase() || '';
+    const assigneeEmail = task.currentAssignee?.email?.toLowerCase() || '';
+    const customerName = (task.customer?.name || (task.isInternal ? 'internal task' : '')).toLowerCase();
+    const customerCode = task.customer?.code?.toLowerCase() || '';
+    const code = task.code?.toLowerCase() || '';
+    const title = task.title?.toLowerCase() || '';
+    const desc = task.description?.toLowerCase() || '';
+    const priority = task.priority?.toLowerCase() || '';
+    const status = task.status?.toLowerCase() || '';
+
+    const anyHistoryMatch = task.stageHistories?.some(
+        (h) =>
+            h.assignedUser?.name?.toLowerCase().includes(q) ||
+            h.assignedUser?.email?.toLowerCase().includes(q) ||
+            h.stageType?.name?.toLowerCase().includes(q)
+    );
+
+    return (
+        code.includes(q) ||
+        title.includes(q) ||
+        desc.includes(q) ||
+        assigneeName.includes(q) ||
+        assigneeEmail.includes(q) ||
+        customerName.includes(q) ||
+        customerCode.includes(q) ||
+        stageName.includes(q) ||
+        priority.includes(q) ||
+        status.includes(q) ||
+        Boolean(anyHistoryMatch)
+    );
+}
+
+function sortSideTasks(
+    tasks: SideTask[],
+    field: SideTaskSortField | null,
+    direction: SortDirection
+): SideTask[] {
+    if (!field) return tasks;
+
+    return [...tasks].sort((a, b) => {
+        let aVal: any = null;
+        let bVal: any = null;
+
+        switch (field) {
+            case 'code':
+                aVal = a.code?.toLowerCase() || '';
+                bVal = b.code?.toLowerCase() || '';
+                break;
+            case 'title':
+                aVal = a.title?.toLowerCase() || '';
+                bVal = b.title?.toLowerCase() || '';
+                break;
+            case 'customer':
+                aVal = (a.customer?.name || (a.isInternal ? 'Internal Task' : '')).toLowerCase();
+                bVal = (b.customer?.name || (b.isInternal ? 'Internal Task' : '')).toLowerCase();
+                break;
+            case 'stage': {
+                const aStage = a.stageHistories?.[a.stageHistories.length - 1]?.stageType?.name || '';
+                const bStage = b.stageHistories?.[b.stageHistories.length - 1]?.stageType?.name || '';
+                aVal = aStage.toLowerCase();
+                bVal = bStage.toLowerCase();
+                break;
+            }
+            case 'assignee':
+                aVal = (a.currentAssignee?.name || '').toLowerCase();
+                bVal = (b.currentAssignee?.name || '').toLowerCase();
+                break;
+            case 'priority':
+                aVal = PRIORITY_WEIGHT[a.priority] || 0;
+                bVal = PRIORITY_WEIGHT[b.priority] || 0;
+                break;
+            case 'status':
+                aVal = (a.status || '').toLowerCase();
+                bVal = (b.status || '').toLowerCase();
+                break;
+            case 'timer':
+                aVal = getTaskTimerSeconds(a);
+                bVal = getTaskTimerSeconds(b);
+                break;
+            case 'requiredDate':
+                aVal = a.requiredDate ? new Date(a.requiredDate).getTime() : 0;
+                bVal = b.requiredDate ? new Date(b.requiredDate).getTime() : 0;
+                break;
+            default:
+                return 0;
+        }
+
+        if (aVal === bVal) return 0;
+        if (aVal === null || aVal === undefined || aVal === 0 || aVal === '') return 1;
+        if (bVal === null || bVal === undefined || bVal === 0 || bVal === '') return -1;
+
+        if (direction === 'asc') {
+            return aVal > bVal ? 1 : -1;
+        } else {
+            return aVal < bVal ? 1 : -1;
+        }
+    });
 }
 
 function QueueCard({ item, onClick, onClaimed }: {
@@ -111,7 +241,7 @@ function QueueCard({ item, onClick, onClaimed }: {
             )}
             <div className="p-4 flex-1 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                    <span className="font-bold text-gray-800">Run #{item.runNumber}</span>
+                    <span className="font-bold text-gray-800">Run #${item.runNumber}</span>
                     <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                         {item.processName}
                     </span>
@@ -220,7 +350,7 @@ function ActiveCard({ item, onClick, onChanged }: {
             )}
             <div className="p-4 flex-1 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                    <span className="font-bold text-gray-800">Run #{item.runNumber}</span>
+                    <span className="font-bold text-gray-800">Run #${item.runNumber}</span>
                     <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                         {item.processName}
                     </span>
@@ -443,6 +573,10 @@ function getProcessIcon(processName: string) {
 
 function AdminMyTasksPage() {
     const { user } = useAuth();
+    const currentUserId = user?.user?.id || user?.id;
+    const role = user?.user?.role || (user as any)?.role;
+    const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+
     const [mainTab, setMainTab] = useState<'PROCESS_RUNS' | 'SIDE_TASKS'>('PROCESS_RUNS');
     const [queue, setQueue] = useState<ManagerQueueItem[]>([]);
     const [active, setActive] = useState<ManagerActiveJob[]>([]);
@@ -458,20 +592,12 @@ function AdminMyTasksPage() {
     const [sideTaskFilter, setSideTaskFilter] = useState<'MY' | 'ALL'>('MY');
     const [sideTaskViewMode, setSideTaskViewMode] = useState<'grid' | 'table'>('grid');
     const [sideTaskSearch, setSideTaskSearch] = useState('');
+    const [sortField, setSortField] = useState<SideTaskSortField | null>(null);
+    const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
     const [isCreateSideTaskOpen, setIsCreateSideTaskOpen] = useState(false);
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-    const router = useRouter();
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
-    const createTaskParam = searchParams.get('createTask');
 
-    useEffect(() => {
-        const handleCreated = () => {
-            fetchSideTasks();
-        };
-        window.addEventListener('side-task-created', handleCreated);
-        return () => window.removeEventListener('side-task-created', handleCreated);
-    }, [sideTaskFilter, sideTaskSearch]);
     const [passTaskTarget, setPassTaskTarget] = useState<SideTask | null>(null);
     const [reassignTaskTarget, setReassignTaskTarget] = useState<SideTask | null>(null);
     const [reviewTaskTarget, setReviewTaskTarget] = useState<SideTask | null>(null);
@@ -484,6 +610,20 @@ function AdminMyTasksPage() {
             setSideTaskViewMode('table');
         } else {
             setSideTaskViewMode('grid');
+        }
+    };
+
+    const handleSort = (field: SideTaskSortField) => {
+        if (sortField === field) {
+            if (sortDirection === 'asc') {
+                setSortDirection('desc');
+            } else {
+                setSortField(null);
+                setSortDirection('asc');
+            }
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
         }
     };
 
@@ -504,7 +644,7 @@ function AdminMyTasksPage() {
         try {
             const data = sideTaskFilter === 'ALL'
                 ? await getAllSideTasks({ search: sideTaskSearch })
-                : await getMySideTasks();
+                : await getMySideTasks({ search: sideTaskSearch });
             setSideTasks(data);
         } catch (err) {
             console.error('Failed to fetch side tasks', err);
@@ -525,14 +665,22 @@ function AdminMyTasksPage() {
     };
 
     useEffect(() => {
-        if (!user?.user?.id) return;
+        const handleCreated = () => {
+            fetchSideTasks();
+        };
+        window.addEventListener('side-task-created', handleCreated);
+        return () => window.removeEventListener('side-task-created', handleCreated);
+    }, [sideTaskFilter, sideTaskSearch]);
+
+    useEffect(() => {
+        if (!currentUserId) return;
         fetchAll(true);
         fetchSideTasks();
 
-        getStagePermissions(user.user.id)
+        getStagePermissions(currentUserId)
             .then(setStagePermissions)
             .catch(err => console.error('Failed to fetch stage permissions', err));
-    }, [user?.user?.id]);
+    }, [currentUserId]);
 
     useEffect(() => {
         if (mainTab === 'SIDE_TASKS') {
@@ -540,14 +688,12 @@ function AdminMyTasksPage() {
         }
     }, [mainTab, sideTaskFilter, sideTaskSearch]);
 
-    const role = user?.user?.role;
-    const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
     const intervalMs = isAdmin ? 15 * 60 * 1000 : 20000;
 
     useVisibleInterval(() => {
         if (mainTab === 'PROCESS_RUNS') fetchAll(false);
         else fetchSideTasks();
-    }, intervalMs, { enabled: Boolean(user?.user?.id) });
+    }, intervalMs, { enabled: Boolean(currentUserId) });
 
     const allItems = [...active, ...queue];
 
@@ -594,6 +740,38 @@ function AdminMyTasksPage() {
 
     const stageActiveItems = active.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
     const stageQueuedItems = queue.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
+
+    // Filter and Sort Side Tasks
+    const displayedSideTasks = useMemo(() => {
+        const filtered = sideTasks.filter((task) => matchesSideTaskSearch(task, sideTaskSearch));
+        return sortSideTasks(filtered, sortField, sortDirection);
+    }, [sideTasks, sideTaskSearch, sortField, sortDirection]);
+
+    const renderSortHeader = (label: string, field: SideTaskSortField, align: 'left' | 'center' | 'right' = 'left') => {
+        const isSorted = sortField === field;
+        return (
+            <th
+                onClick={() => handleSort(field)}
+                className={`px-4 py-3 cursor-pointer select-none transition-colors hover:bg-gray-100/90 group ${
+                    align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
+                } ${isSorted ? 'text-blue-600 font-bold bg-blue-50/50' : 'text-gray-500'}`}
+                title={`Sort by ${label}`}
+            >
+                <div className={`inline-flex items-center gap-1.5 ${align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'}`}>
+                    <span>{label}</span>
+                    {isSorted ? (
+                        sortDirection === 'asc' ? (
+                            <ArrowUp className="w-3.5 h-3.5 text-blue-600" />
+                        ) : (
+                            <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                        )
+                    ) : (
+                        <ArrowUpDown className="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                </div>
+            </th>
+        );
+    };
 
     return (
         <div className="py-6 px-4 sm:px-6 lg:px-8">
@@ -676,7 +854,7 @@ function AdminMyTasksPage() {
                                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                             >
-                                Assigned to Me ({sideTasks.filter((t) => t.currentAssigneeId === user?.id).length})
+                                Assigned to Me ({sideTasks.filter((t) => t.currentAssigneeId === currentUserId).length})
                             </button>
                             {isAdmin && (
                                 <button
@@ -693,11 +871,11 @@ function AdminMyTasksPage() {
                         </div>
 
                         <div className="flex items-center gap-3 w-full md:w-auto">
-                            <div className="relative flex-1 md:w-64">
+                            <div className="relative flex-1 md:w-72">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
                                     type="text"
-                                    placeholder="Search side tasks..."
+                                    placeholder="Search by assignee, code, title, customer..."
                                     value={sideTaskSearch}
                                     onChange={(e) => setSideTaskSearch(e.target.value)}
                                     className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full bg-white shadow-xs"
@@ -708,12 +886,14 @@ function AdminMyTasksPage() {
                     </div>
 
                     {/* Side Tasks Cards Grid or Table View */}
-                    {sideTasks.length === 0 ? (
+                    {displayedSideTasks.length === 0 ? (
                         <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
                             <Layers className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                            <p className="text-gray-500 font-medium text-sm">No active side tasks found.</p>
+                            <p className="text-gray-500 font-medium text-sm">
+                                {sideTaskSearch ? `No side tasks matching "${sideTaskSearch}"` : 'No active side tasks found.'}
+                            </p>
                             <p className="text-xs text-gray-400 mt-1">
-                                Click "Create Side Task" to create a new task.
+                                Click "Create Side Task" (Ctrl+/) to create a new task.
                             </p>
                         </div>
                     ) : sideTaskViewMode === 'table' ? (
@@ -723,21 +903,21 @@ function AdminMyTasksPage() {
                                     <thead>
                                         <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                                             <th className="px-4 py-3 text-center">#</th>
-                                            <th className="px-4 py-3">Code</th>
+                                            {renderSortHeader('Code', 'code')}
                                             <th className="px-4 py-3">Image</th>
-                                            <th className="px-4 py-3">Task Details</th>
-                                            <th className="px-4 py-3">Customer</th>
-                                            <th className="px-4 py-3">Current Stage</th>
-                                            <th className="px-4 py-3">Assignee</th>
-                                            <th className="px-4 py-3">Priority</th>
-                                            <th className="px-4 py-3">Status</th>
-                                            <th className="px-4 py-3">Timer</th>
-                                            <th className="px-4 py-3">Required By</th>
+                                            {renderSortHeader('Task Details', 'title')}
+                                            {renderSortHeader('Customer', 'customer')}
+                                            {renderSortHeader('Current Stage', 'stage')}
+                                            {renderSortHeader('Assignee', 'assignee')}
+                                            {renderSortHeader('Priority', 'priority')}
+                                            {renderSortHeader('Status', 'status')}
+                                            {renderSortHeader('Timer', 'timer')}
+                                            {renderSortHeader('Required By', 'requiredDate')}
                                             <th className="px-4 py-3 text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 bg-white">
-                                        {sideTasks.map((t, idx) => (
+                                        {displayedSideTasks.map((t, idx) => (
                                             <SideTaskTableRow
                                                 key={t.id}
                                                 task={t}
@@ -763,7 +943,7 @@ function AdminMyTasksPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {sideTasks.map((t) => (
+                            {displayedSideTasks.map((t) => (
                                 <SideTaskCard
                                     key={t.id}
                                     task={t}
@@ -784,8 +964,8 @@ function AdminMyTasksPage() {
                         </div>
                     )}
                 </div>
-            ) :
-                /* MAIN TAB CONTENT: PROCESS RUNS (ORIGINAL CODE) */
+            ) : (
+                /* MAIN TAB CONTENT: PROCESS RUNS */
                 loading && allItems.length === 0 ? (
                     <div className="text-center py-20 text-gray-400">Loading…</div>
                 ) : allStagesSet.size === 0 ? (
@@ -793,158 +973,159 @@ function AdminMyTasksPage() {
                         <p className="text-gray-500">No runs waiting in your queue.</p>
                     </div>
                 ) : (
-                <>
-                    {/* LIFECYCLE STAGE TABS */}
-                    <div className="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide gap-2 bg-white px-4 py-1.5 rounded-xl border border-gray-100">
-                        {sortedStages.map((stage) => {
-                            const config = getStageConfig(stage);
-                            const Icon = config.icon;
-                            const isActive = stage === activeStage;
-                            const count = allItems.filter(item => item.lifeCycleStatusCode === stage).length;
-
-                            return (
-                                <button
-                                    key={stage}
-                                    onClick={() => setSelectedStage(stage)}
-                                    className={`flex items-center gap-2.5 px-4 py-3 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
-                                        isActive
-                                            ? 'border-blue-600 text-blue-600'
-                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                    }`}
-                                >
-                                    <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
-                                    <span>{config.label}</span>
-                                    {count > 0 && (
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                            isActive
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-gray-100 text-gray-600'
-                                        }`}>
-                                            {count}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* STAGE HEADER & SEARCH BAR */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                        <div>
-                            <h1 className="text-xl font-bold uppercase tracking-tight text-gray-800">
-                                {activeStage ? (STAGE_DISPLAY_NAMES[activeStage.toUpperCase()] || activeStage) : 'Production'}
-                            </h1>
-                            <p className="text-xs text-gray-500 mt-1">
-                                Track all jobs across {activeStage ? (STAGE_DISPLAY_NAMES[activeStage.toUpperCase()] || activeStage).toLowerCase() : 'production'} processes
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-3 w-full md:w-auto">
-                            <div className="relative flex-1 md:flex-none">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Search job, order or customer..."
-                                    className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full md:w-64 bg-white shadow-xs transition-all"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                            <button className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 bg-white shadow-xs" title="Filter list">
-                                <Filter className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* KANBAN BOARD */}
-                    <div className="overflow-x-auto pb-6 scrollbar-hide">
-                        <div className="flex gap-6 pb-2 min-w-max">
-                            {stageProcesses.map((processName) => {
-                                const activeForProcess = stageActiveItems.filter(item => item.processName === processName);
-                                const queuedForProcess = stageQueuedItems.filter(item => item.processName === processName);
-
-                                const totalPendingJobs = activeForProcess.length + queuedForProcess.length;
-                                const totalQty = [...activeForProcess, ...queuedForProcess].reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-                                const colorScheme = getProcessColorScheme(processName);
-                                const Icon = getProcessIcon(processName);
+                    <>
+                        {/* LIFECYCLE STAGE TABS */}
+                        <div className="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide gap-2 bg-white px-4 py-1.5 rounded-xl border border-gray-100">
+                            {sortedStages.map((stage) => {
+                                const config = getStageConfig(stage);
+                                const Icon = config.icon;
+                                const isActive = stage === activeStage;
+                                const count = allItems.filter(item => item.lifeCycleStatusCode === stage).length;
 
                                 return (
-                                    <div
-                                        key={processName}
-                                        className="w-80 shrink-0 bg-gray-50/50 rounded-2xl border border-gray-200/60 flex flex-col gap-4 p-4"
+                                    <button
+                                        key={stage}
+                                        onClick={() => setSelectedStage(stage)}
+                                        className={`flex items-center gap-2.5 px-4 py-3 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
+                                            isActive
+                                                ? 'border-blue-600 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        }`}
                                     >
-                                        {/* Column Header */}
-                                        <div className="flex flex-col gap-2 pb-3 border-b border-gray-200/80">
-                                            <div className={`h-1 w-full rounded-full ${colorScheme.indicator}`} />
-                                            <div className="flex items-center justify-between mt-1">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`p-1.5 rounded-lg border ${colorScheme.badge}`}>
-                                                        <Icon className="w-4 h-4" />
-                                                    </div>
-                                                    <span className="font-extrabold text-xs tracking-wider text-gray-800 uppercase">
-                                                        {processName}
-                                                    </span>
-                                                </div>
-                                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${colorScheme.badge}`}>
-                                                    {totalPendingJobs}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex flex-col mt-1">
-                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Pending</span>
-                                                <span className={`text-xl font-black mt-0.5 ${colorScheme.text}`}>
-                                                    {totalQty.toLocaleString()} <span className="text-xs font-bold text-gray-500">pcs</span>
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Column Content */}
-                                        <div className="flex flex-col gap-4 pr-1 min-h-[150px]">
-                                            {totalPendingJobs > 0 ? (
-                                                <>
-                                                    {/* Active items first */}
-                                                    {activeForProcess.map((item) => (
-                                                        <ActiveCard
-                                                            key={item.id}
-                                                            item={item}
-                                                            onClick={() => setSelectedRunId(item.id)}
-                                                            onChanged={() => fetchAll(false)}
-                                                        />
-                                                    ))}
-
-                                                    {/* Queued items with 70% opacity, placed below active items */}
-                                                    {queuedForProcess.map((item) => (
-                                                        <div
-                                                            key={item.id}
-                                                            className="opacity-70 hover:opacity-100 transition-opacity"
-                                                        >
-                                                            <QueueCard
-                                                                item={item}
-                                                                onClick={() => setSelectedRunId(item.id)}
-                                                                onClaimed={() => fetchAll(false)}
-                                                            />
-                                                        </div>
-                                                    ))}
-                                                </>
-                                            ) : (
-                                                /* Empty state matching the reference UI */
-                                                <div className="border border-dashed border-gray-200/80 rounded-2xl p-8 text-center text-gray-400 text-xs flex flex-col items-center justify-center bg-white/40 min-h-[220px] gap-3">
-                                                    <div className="w-12 h-12 rounded-full border border-dashed border-gray-200 flex items-center justify-center text-blue-500 bg-white shadow-xs">
-                                                        <Package className="w-5 h-5 text-gray-400" />
-                                                    </div>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-bold text-gray-700">No jobs yet</span>
-                                                        <span className="text-[10px] text-gray-400 max-w-[150px] mx-auto">Jobs will appear here once started</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                        <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                                        <span>{config.label}</span>
+                                        {count > 0 && (
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                isActive
+                                                    ? 'bg-blue-100 text-blue-800'
+                                                    : 'bg-gray-100 text-gray-600'
+                                            }`}>
+                                                {count}
+                                            </span>
+                                        )}
+                                    </button>
                                 );
                             })}
                         </div>
-                    </div>
-                </>
+
+                        {/* STAGE HEADER & SEARCH BAR */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                            <div>
+                                <h1 className="text-xl font-bold uppercase tracking-tight text-gray-800">
+                                    {activeStage ? (STAGE_DISPLAY_NAMES[activeStage.toUpperCase()] || activeStage) : 'Production'}
+                                </h1>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Track all jobs across {activeStage ? (STAGE_DISPLAY_NAMES[activeStage.toUpperCase()] || activeStage).toLowerCase() : 'production'} processes
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <div className="relative flex-1 md:flex-none">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search job, order or customer..."
+                                        className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full md:w-64 bg-white shadow-xs transition-all"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <button className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 bg-white shadow-xs" title="Filter list">
+                                    <Filter className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* KANBAN BOARD */}
+                        <div className="overflow-x-auto pb-6 scrollbar-hide">
+                            <div className="flex gap-6 pb-2 min-w-max">
+                                {stageProcesses.map((processName) => {
+                                    const activeForProcess = stageActiveItems.filter(item => item.processName === processName);
+                                    const queuedForProcess = stageQueuedItems.filter(item => item.processName === processName);
+
+                                    const totalPendingJobs = activeForProcess.length + queuedForProcess.length;
+                                    const totalQty = [...activeForProcess, ...queuedForProcess].reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+                                    const colorScheme = getProcessColorScheme(processName);
+                                    const Icon = getProcessIcon(processName);
+
+                                    return (
+                                        <div
+                                            key={processName}
+                                            className="w-80 shrink-0 bg-gray-50/50 rounded-2xl border border-gray-200/60 flex flex-col gap-4 p-4"
+                                        >
+                                            {/* Column Header */}
+                                            <div className="flex flex-col gap-2 pb-3 border-b border-gray-200/80">
+                                                <div className={`h-1 w-full rounded-full ${colorScheme.indicator}`} />
+                                                <div className="flex items-center justify-between mt-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`p-1.5 rounded-lg border ${colorScheme.badge}`}>
+                                                            <Icon className="w-4 h-4" />
+                                                        </div>
+                                                        <span className="font-extrabold text-xs tracking-wider text-gray-800 uppercase">
+                                                            {processName}
+                                                        </span>
+                                                    </div>
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${colorScheme.badge}`}>
+                                                        {totalPendingJobs}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex flex-col mt-1">
+                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Pending</span>
+                                                    <span className={`text-xl font-black mt-0.5 ${colorScheme.text}`}>
+                                                        {totalQty.toLocaleString()} <span className="text-xs font-bold text-gray-500">pcs</span>
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Column Content */}
+                                            <div className="flex flex-col gap-4 pr-1 min-h-[150px]">
+                                                {totalPendingJobs > 0 ? (
+                                                    <>
+                                                        {/* Active items first */}
+                                                        {activeForProcess.map((item) => (
+                                                            <ActiveCard
+                                                                key={item.id}
+                                                                item={item}
+                                                                onClick={() => setSelectedRunId(item.id)}
+                                                                onChanged={() => fetchAll(false)}
+                                                            />
+                                                        ))}
+
+                                                        {/* Queued items with 70% opacity, placed below active items */}
+                                                        {queuedForProcess.map((item) => (
+                                                            <div
+                                                                key={item.id}
+                                                                className="opacity-70 hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <QueueCard
+                                                                    item={item}
+                                                                    onClick={() => setSelectedRunId(item.id)}
+                                                                    onClaimed={() => fetchAll(false)}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </>
+                                                ) : (
+                                                    /* Empty state matching the reference UI */
+                                                    <div className="border border-dashed border-gray-200/80 rounded-2xl p-8 text-center text-gray-400 text-xs flex flex-col items-center justify-center bg-white/40 min-h-[220px] gap-3">
+                                                        <div className="w-12 h-12 rounded-full border border-dashed border-gray-200 flex items-center justify-center text-blue-500 bg-white shadow-xs">
+                                                            <Package className="w-5 h-5 text-gray-400" />
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="font-bold text-gray-700">No jobs yet</span>
+                                                            <span className="text-[10px] text-gray-400 max-w-[150px] mx-auto">Jobs will appear here once started</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>
+                )
             )}
 
             {selectedRunId && (

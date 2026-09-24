@@ -66,8 +66,11 @@ export class SideTasksController {
 
   @Get('my')
   @Permissions('side_tasks:view')
-  getMine(@CurrentUser() user: AuthUser) {
-    return this.sideTasksService.getMine(user.id);
+  getMine(
+    @CurrentUser() user: AuthUser,
+    @Query('search') search?: string,
+  ) {
+    return this.sideTasksService.getMine(user.id, search);
   }
 
   @Get('all')

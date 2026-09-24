@@ -34,8 +34,12 @@ export async function createSideTask(
   });
 }
 
-export async function getMySideTasks(): Promise<SideTask[]> {
-  return apiRequest<SideTask[]>('/side-tasks/my');
+export async function getMySideTasks(query?: { search?: string }): Promise<SideTask[]> {
+  const params = new URLSearchParams();
+  if (query?.search) params.append('search', query.search);
+  const queryString = params.toString();
+  const url = `/side-tasks/my${queryString ? `?${queryString}` : ''}`;
+  return apiRequest<SideTask[]>(url);
 }
 
 export async function getAllSideTasks(query?: {

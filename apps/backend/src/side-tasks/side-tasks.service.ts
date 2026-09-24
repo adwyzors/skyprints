@@ -221,12 +221,28 @@ export class SideTasksService {
   /**
    * Returns tasks assigned to the current user that are active.
    */
-  async getMine(userId: string) {
+  async getMine(userId: string, search?: string) {
+    const where: Prisma.SideTaskWhereInput = {
+      currentAssigneeId: userId,
+      status: { notIn: [SideTaskStatus.COMPLETED, SideTaskStatus.ABANDONED] },
+    };
+
+    if (search && search.trim() !== '') {
+      const s = search.trim();
+      where.OR = [
+        { code: { contains: s, mode: 'insensitive' } },
+        { title: { contains: s, mode: 'insensitive' } },
+        { description: { contains: s, mode: 'insensitive' } },
+        { currentAssignee: { name: { contains: s, mode: 'insensitive' } } },
+        { currentAssignee: { email: { contains: s, mode: 'insensitive' } } },
+        { customer: { name: { contains: s, mode: 'insensitive' } } },
+        { customer: { code: { contains: s, mode: 'insensitive' } } },
+        { stageHistories: { some: { stageType: { name: { contains: s, mode: 'insensitive' } } } } },
+      ];
+    }
+
     return this.prisma.sideTask.findMany({
-      where: {
-        currentAssigneeId: userId,
-        status: { notIn: [SideTaskStatus.COMPLETED, SideTaskStatus.ABANDONED] },
-      },
+      where,
       include: this.sideTaskInclude,
       orderBy: { createdAt: 'desc' },
     });
@@ -257,6 +273,12 @@ export class SideTasksService {
         { code: { contains: search, mode: 'insensitive' } },
         { title: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
+        { currentAssignee: { name: { contains: search, mode: 'insensitive' } } },
+        { currentAssignee: { email: { contains: search, mode: 'insensitive' } } },
+        { customer: { name: { contains: search, mode: 'insensitive' } } },
+        { customer: { code: { contains: search, mode: 'insensitive' } } },
+        { stageHistories: { some: { stageType: { name: { contains: search, mode: 'insensitive' } } } } },
+        { stageHistories: { some: { assignedUser: { name: { contains: search, mode: 'insensitive' } } } } },
       ];
     }
 
