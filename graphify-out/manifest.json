@@ -2135,8 +2135,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/modals/BulkTransitionModal.tsx": {
-    "mtime": 1790072394.669239,
-    "ast_hash": "b3d972e5f821fc48e5c4dc1f455661f7",
+    "mtime": 1790254115.634002,
+    "ast_hash": "129e2af02e2a894c9d7ec602190300d0",
     "semantic_hash": ""
   },
   "apps/frontend/src/hooks/useNavigationShortcuts.ts": {
