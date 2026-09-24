@@ -58,7 +58,12 @@ export function useNavigationShortcuts() {
   useKeyboardShortcut(
     'f2',
     () => {
-      router.push('/admin/my-tasks');
+      const role = user?.user?.role || (user as any)?.role;
+      if (role === 'MANAGER') {
+        router.push('/manager/runs');
+      } else {
+        router.push('/admin/my-tasks');
+      }
     },
     { ignoreInputFields: false }
   );

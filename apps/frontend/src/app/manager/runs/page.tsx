@@ -4,6 +4,15 @@ import { useAuth } from '@/auth/AuthProvider';
 import { Permission } from '@/auth/permissions';
 import { withAuth } from '@/auth/withAuth';
 import ManagerRunModal from '@/components/modals/ManagerRunModal';
+import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
+import OrdersViewToggle from '@/components/orders/OrdersViewToggle';
+import { SideTaskCard } from '@/components/side-tasks/SideTaskCard';
+import { SideTaskTableRow } from '@/components/side-tasks/SideTaskTableRow';
+import { CreateSideTaskModal } from '@/components/side-tasks/CreateSideTaskModal';
+import { PassSideTaskModal } from '@/components/side-tasks/PassSideTaskModal';
+import { ReassignSideTaskModal } from '@/components/side-tasks/ReassignSideTaskModal';
+import { ReviewSideTaskModal } from '@/components/side-tasks/ReviewSideTaskModal';
+import { SideTaskHistoryModal } from '@/components/side-tasks/SideTaskHistoryModal';
 import {
     ManagerActiveJob,
     ManagerQueueItem,
@@ -15,7 +24,9 @@ import {
     pauseRun,
     resumeRun,
 } from '@/services/managerQueueService';
+import { getAllSideTasks, getMySideTasks } from '@/services/sideTaskService';
 import { getStagePermissions } from '@/services/usersService';
+import { SideTask } from '@/types/sideTask';
 import {
     CheckCircle,
     Clock,
@@ -24,8 +35,6 @@ import {
     PlayCircle,
     Pause,
     Play,
-    ChevronDown,
-    ChevronRight,
     ClipboardList,
     Edit,
     ShieldCheck,
@@ -39,20 +48,14 @@ import {
     Palette,
     Search,
     Filter,
+    Plus,
+    RefreshCw,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 
 const POLL_INTERVAL_MS = 45000;
-
-function formatElapsed(claimedAt: string): string {
-    const ms = Date.now() - new Date(claimedAt).getTime();
-    const totalMinutes = Math.max(0, Math.floor(ms / 60000));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
-}
 
 function formatActiveElapsed(claimedAt: string, pausedAt?: string | null, pausedDurationSeconds = 0): string {
     const startMs = new Date(claimedAt).getTime();
@@ -107,7 +110,7 @@ function QueueCard({ item, onClick, onClaimed }: {
             )}
             <div className="p-4 flex-1 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                    <span className="font-bold text-gray-800">Run #{item.runNumber}</span>
+                    <span className="font-bold text-gray-800">Run #${item.runNumber}</span>
                     <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                         {item.processName}
                     </span>
@@ -216,7 +219,7 @@ function ActiveCard({ item, onClick, onChanged }: {
             )}
             <div className="p-4 flex-1 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                    <span className="font-bold text-gray-800">Run #{item.runNumber}</span>
+                    <span className="font-bold text-gray-800">Run #${item.runNumber}</span>
                     <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                         {item.processName}
                     </span>
@@ -439,14 +442,40 @@ function getProcessIcon(processName: string) {
 
 function ManagerRunsPage() {
     const { user } = useAuth();
+    const currentUserId = user?.user?.id || user?.id;
+
+    const [mainTab, setMainTab] = useState<'PROCESS_RUNS' | 'SIDE_TASKS'>('PROCESS_RUNS');
     const [queue, setQueue] = useState<ManagerQueueItem[]>([]);
     const [active, setActive] = useState<ManagerActiveJob[]>([]);
     const [stagePermissions, setStagePermissions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
     const [selectedStage, setSelectedStage] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // Side Tasks state
+    const [sideTasks, setSideTasks] = useState<SideTask[]>([]);
+    const [sideTaskFilter, setSideTaskFilter] = useState<'MY' | 'ALL'>('MY');
+    const [sideTaskViewMode, setSideTaskViewMode] = useState<'grid' | 'table'>('grid');
+    const [sideTaskSearch, setSideTaskSearch] = useState('');
+    const [isCreateSideTaskOpen, setIsCreateSideTaskOpen] = useState(false);
+    const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
+    const [passTaskTarget, setPassTaskTarget] = useState<SideTask | null>(null);
+    const [reassignTaskTarget, setReassignTaskTarget] = useState<SideTask | null>(null);
+    const [reviewTaskTarget, setReviewTaskTarget] = useState<SideTask | null>(null);
+    const [reviewMode, setReviewMode] = useState<'submit' | 'review'>('submit');
+    const [historyTaskTarget, setHistoryTaskTarget] = useState<SideTask | null>(null);
+
+    const handleSideTaskFilterChange = (filter: 'MY' | 'ALL') => {
+        setSideTaskFilter(filter);
+        if (filter === 'ALL') {
+            setSideTaskViewMode('table');
+        } else {
+            setSideTaskViewMode('grid');
+        }
+    };
 
     const fetchAll = async (showLoading = false) => {
         if (showLoading) setLoading(true);
@@ -461,18 +490,61 @@ function ManagerRunsPage() {
         }
     };
 
-    useEffect(() => {
-        if (!user?.id) return;
-        fetchAll(true);
+    const fetchSideTasks = async () => {
+        try {
+            const data = sideTaskFilter === 'ALL'
+                ? await getAllSideTasks({ search: sideTaskSearch })
+                : await getMySideTasks();
+            setSideTasks(data);
+        } catch (err) {
+            console.error('Failed to fetch side tasks', err);
+        }
+    };
 
-        // Fetch stage permissions to know all assigned lifecycle stages
-        getStagePermissions(user.id)
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        try {
+            if (mainTab === 'PROCESS_RUNS') {
+                await fetchAll(true);
+            } else {
+                await fetchSideTasks();
+            }
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        const handleCreated = () => {
+            fetchSideTasks();
+        };
+        window.addEventListener('side-task-created', handleCreated);
+        return () => window.removeEventListener('side-task-created', handleCreated);
+    }, [sideTaskFilter, sideTaskSearch]);
+
+    useEffect(() => {
+        if (!currentUserId) return;
+        fetchAll(true);
+        fetchSideTasks();
+
+        getStagePermissions(currentUserId)
             .then(setStagePermissions)
             .catch(err => console.error('Failed to fetch stage permissions', err));
-    }, [user?.id]);
+    }, [currentUserId]);
 
-    // Poll every 20s only when the browser tab is focused and active
-    useVisibleInterval(() => fetchAll(false), POLL_INTERVAL_MS, { enabled: Boolean(user?.id) });
+    useEffect(() => {
+        if (mainTab === 'SIDE_TASKS') {
+            fetchSideTasks();
+        }
+    }, [mainTab, sideTaskFilter, sideTaskSearch]);
+
+    useVisibleInterval(() => {
+        if (mainTab === 'PROCESS_RUNS') {
+            fetchAll(false);
+        } else {
+            fetchSideTasks();
+        }
+    }, POLL_INTERVAL_MS, { enabled: Boolean(currentUserId) });
 
     const allItems = [...active, ...queue];
 
@@ -529,165 +601,352 @@ function ManagerRunsPage() {
 
     return (
         <div className="py-6">
-            {loading && allItems.length === 0 ? (
-                <div className="text-center py-20 text-gray-400">Loading…</div>
-            ) : allStagesSet.size === 0 ? (
-                <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
-                    <p className="text-gray-500">No runs waiting in your queue.</p>
+            {/* TOP HEADER WITH ACTIONS */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-gray-900">My Tasks & Runs</h1>
+                    <p className="text-sm text-gray-500 mt-1">
+                        Manage production runs and dynamic side tasks assigned to you.
+                    </p>
                 </div>
-            ) : (
-                <>
-                    {/* LIFECYCLE STAGE TABS */}
-                    <div className="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide gap-2 bg-white px-4 py-1.5 rounded-xl border border-gray-100">
-                        {sortedStages.map((stage) => {
-                            const config = getStageConfig(stage);
-                            const Icon = config.icon;
-                            const isActive = stage === activeStage;
-                            const count = allItems.filter(item => item.lifeCycleStatusCode === stage).length;
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsCreateSideTaskOpen(true)}
+                        className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm h-10 shrink-0"
+                    >
+                        <Plus className="w-4 h-4" />
+                        <span>Create Side Task</span>
+                        <span className="ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-indigo-700/80 rounded text-indigo-100 border border-indigo-500/50">Ctrl+/</span>
+                    </button>
+                    <button
+                        onClick={handleRefresh}
+                        disabled={refreshing || loading}
+                        className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-xs h-10 shrink-0"
+                    >
+                        <RefreshCw className={`w-4 h-4 text-gray-500 ${(refreshing || loading) ? 'animate-spin' : ''}`} />
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
 
-                            return (
-                                <button
-                                    key={stage}
-                                    onClick={() => setSelectedStage(stage)}
-                                    className={`flex items-center gap-2.5 px-4 py-3 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
-                                        isActive
-                                            ? 'border-blue-600 text-blue-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                    }`}
-                                >
-                                    <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
-                                    <span>{config.label}</span>
-                                    {count > 0 && (
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                            isActive
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-gray-100 text-gray-600'
-                                        }`}>
-                                            {count}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
+            {/* TOP LEVEL TAB SWITCHER: PROCESS RUNS VS SIDE TASKS */}
+            <div className="flex border-b border-gray-200 mb-6">
+                <button
+                    onClick={() => setMainTab('PROCESS_RUNS')}
+                    className={`px-6 py-3 font-bold text-sm border-b-2 transition-all flex items-center gap-2 ${
+                        mainTab === 'PROCESS_RUNS'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                >
+                    <Package className="w-4 h-4" />
+                    <span>Order Production Runs</span>
+                    {allItems.length > 0 && (
+                        <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                            {allItems.length}
+                        </span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setMainTab('SIDE_TASKS')}
+                    className={`px-6 py-3 font-bold text-sm border-b-2 transition-all flex items-center gap-2 ${
+                        mainTab === 'SIDE_TASKS'
+                            ? 'border-indigo-600 text-indigo-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                >
+                    <Layers className="w-4 h-4" />
+                    <span>Side Tasks</span>
+                    {sideTasks.length > 0 && (
+                        <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-800">
+                            {sideTasks.length}
+                        </span>
+                    )}
+                </button>
+            </div>
 
-                    {/* STAGE HEADER & SEARCH BAR */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                        <div>
-                            <h1 className="text-2xl font-bold uppercase tracking-tight text-gray-900">
-                                {activeStage ? (STAGE_DISPLAY_NAMES[activeStage.toUpperCase()] || activeStage) : 'Production'}
-                            </h1>
-                            <p className="text-sm text-gray-500 mt-1">
-                                Track all jobs across {activeStage ? (STAGE_DISPLAY_NAMES[activeStage.toUpperCase()] || activeStage).toLowerCase() : 'production'} processes
-                            </p>
+            {/* MAIN TAB CONTENT: SIDE TASKS */}
+            {mainTab === 'SIDE_TASKS' ? (
+                <div className="space-y-6">
+                    {/* Filters & Search & View Mode Switcher */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handleSideTaskFilterChange('MY')}
+                                className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
+                                    sideTaskFilter === 'MY'
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                Assigned to Me ({sideTasks.filter((t) => t.currentAssigneeId === currentUserId).length})
+                            </button>
+                            <button
+                                onClick={() => handleSideTaskFilterChange('ALL')}
+                                className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
+                                    sideTaskFilter === 'ALL'
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                All Active Side Tasks
+                            </button>
                         </div>
+
                         <div className="flex items-center gap-3 w-full md:w-auto">
-                            <div className="relative flex-1 md:flex-none">
+                            <div className="relative flex-1 md:w-64">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
                                     type="text"
-                                    placeholder="Search job, order or customer..."
-                                    className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full md:w-64 bg-white shadow-xs transition-all"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search side tasks..."
+                                    value={sideTaskSearch}
+                                    onChange={(e) => setSideTaskSearch(e.target.value)}
+                                    className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-full bg-white shadow-xs"
                                 />
                             </div>
-                            <button className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 bg-white shadow-xs" title="Filter list">
-                                <Filter className="w-4 h-4" />
-                            </button>
+                            <OrdersViewToggle view={sideTaskViewMode} onViewChange={setSideTaskViewMode} />
                         </div>
                     </div>
 
-                    {/* KANBAN BOARD */}
-                    <div className="overflow-x-auto pb-6 scrollbar-hide">
-                        <div className="flex gap-6 pb-2 min-w-max">
-                            {stageProcesses.map((processName) => {
-                                const activeForProcess = stageActiveItems.filter(item => item.processName === processName);
-                                const queuedForProcess = stageQueuedItems.filter(item => item.processName === processName);
-
-                                const totalPendingJobs = activeForProcess.length + queuedForProcess.length;
-                                const totalQty = [...activeForProcess, ...queuedForProcess].reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-                                const colorScheme = getProcessColorScheme(processName);
-                                const Icon = getProcessIcon(processName);
+                    {/* Side Tasks Cards Grid or Table View */}
+                    {sideTasks.length === 0 ? (
+                        <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+                            <Layers className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                            <p className="text-gray-500 font-medium text-sm">No active side tasks found.</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                                Click "Create Side Task" (Ctrl+/) to create a new task.
+                            </p>
+                        </div>
+                    ) : sideTaskViewMode === 'table' ? (
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                                            <th className="px-4 py-3 text-center">#</th>
+                                            <th className="px-4 py-3">Code</th>
+                                            <th className="px-4 py-3">Image</th>
+                                            <th className="px-4 py-3">Task Details</th>
+                                            <th className="px-4 py-3">Customer</th>
+                                            <th className="px-4 py-3">Current Stage</th>
+                                            <th className="px-4 py-3">Assignee</th>
+                                            <th className="px-4 py-3">Priority</th>
+                                            <th className="px-4 py-3">Status</th>
+                                            <th className="px-4 py-3">Timer</th>
+                                            <th className="px-4 py-3">Required By</th>
+                                            <th className="px-4 py-3 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 bg-white">
+                                        {sideTasks.map((t, idx) => (
+                                            <SideTaskTableRow
+                                                key={t.id}
+                                                task={t}
+                                                index={idx}
+                                                onRefresh={fetchSideTasks}
+                                                onPass={(task) => setPassTaskTarget(task)}
+                                                onReassign={(task) => setReassignTaskTarget(task)}
+                                                onSubmitReview={(task) => {
+                                                    setReviewTaskTarget(task);
+                                                    setReviewMode('submit');
+                                                }}
+                                                onReview={(task) => {
+                                                    setReviewTaskTarget(task);
+                                                    setReviewMode('review');
+                                                }}
+                                                onOpenHistory={(task) => setHistoryTaskTarget(task)}
+                                                onPreviewImage={(url) => setPreviewImageUrl(url)}
+                                            />
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {sideTasks.map((t) => (
+                                <SideTaskCard
+                                    key={t.id}
+                                    task={t}
+                                    onRefresh={fetchSideTasks}
+                                    onPass={(task) => setPassTaskTarget(task)}
+                                    onReassign={(task) => setReassignTaskTarget(task)}
+                                    onSubmitReview={(task) => {
+                                        setReviewTaskTarget(task);
+                                        setReviewMode('submit');
+                                    }}
+                                    onReview={(task) => {
+                                        setReviewTaskTarget(task);
+                                        setReviewMode('review');
+                                    }}
+                                    onOpenHistory={(task) => setHistoryTaskTarget(task)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : (
+                /* MAIN TAB CONTENT: PROCESS RUNS */
+                loading && allItems.length === 0 ? (
+                    <div className="text-center py-20 text-gray-400">Loading…</div>
+                ) : allStagesSet.size === 0 ? (
+                    <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
+                        <p className="text-gray-500">No runs waiting in your queue.</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* LIFECYCLE STAGE TABS */}
+                        <div className="flex border-b border-gray-200 mb-6 overflow-x-auto scrollbar-hide gap-2 bg-white px-4 py-1.5 rounded-xl border border-gray-100">
+                            {sortedStages.map((stage) => {
+                                const config = getStageConfig(stage);
+                                const Icon = config.icon;
+                                const isActive = stage === activeStage;
+                                const count = allItems.filter(item => item.lifeCycleStatusCode === stage).length;
 
                                 return (
-                                    <div
-                                        key={processName}
-                                        className="w-80 shrink-0 bg-gray-50/50 rounded-2xl border border-gray-200/60 flex flex-col gap-4 p-4"
+                                    <button
+                                        key={stage}
+                                        onClick={() => setSelectedStage(stage)}
+                                        className={`flex items-center gap-2.5 px-4 py-3 border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
+                                            isActive
+                                                ? 'border-blue-600 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        }`}
                                     >
-                                        {/* Column Header */}
-                                        <div className="flex flex-col gap-2 pb-3 border-b border-gray-200/80">
-                                            <div className={`h-1 w-full rounded-full ${colorScheme.indicator}`} />
-                                            <div className="flex items-center justify-between mt-1">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`p-1.5 rounded-lg border ${colorScheme.badge}`}>
-                                                        <Icon className="w-4 h-4" />
-                                                    </div>
-                                                    <span className="font-extrabold text-xs tracking-wider text-gray-800 uppercase">
-                                                        {processName}
-                                                    </span>
-                                                </div>
-                                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${colorScheme.badge}`}>
-                                                    {totalPendingJobs}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex flex-col mt-1">
-                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Pending</span>
-                                                <span className={`text-xl font-black mt-0.5 ${colorScheme.text}`}>
-                                                    {totalQty.toLocaleString()} <span className="text-xs font-bold text-gray-500">pcs</span>
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Column Content */}
-                                        <div className="flex flex-col gap-4 pr-1 min-h-[150px]">
-                                            {totalPendingJobs > 0 ? (
-                                                <>
-                                                    {/* Active items first */}
-                                                    {activeForProcess.map((item) => (
-                                                        <ActiveCard
-                                                            key={item.id}
-                                                            item={item}
-                                                            onClick={() => setSelectedRunId(item.id)}
-                                                            onChanged={() => fetchAll(false)}
-                                                        />
-                                                    ))}
-
-                                                    {/* Queued items with 70% opacity, placed below active items */}
-                                                    {queuedForProcess.map((item) => (
-                                                        <div
-                                                            key={item.id}
-                                                            className="opacity-70 hover:opacity-100 transition-opacity"
-                                                        >
-                                                            <QueueCard
-                                                                item={item}
-                                                                onClick={() => setSelectedRunId(item.id)}
-                                                                onClaimed={() => fetchAll(false)}
-                                                            />
-                                                        </div>
-                                                    ))}
-                                                </>
-                                            ) : (
-                                                /* Empty state matching the reference UI */
-                                                <div className="border border-dashed border-gray-200/80 rounded-2xl p-8 text-center text-gray-400 text-xs flex flex-col items-center justify-center bg-white/40 min-h-[220px] gap-3">
-                                                    <div className="w-12 h-12 rounded-full border border-dashed border-gray-200 flex items-center justify-center text-blue-500 bg-white shadow-xs">
-                                                        <Package className="w-5 h-5 text-gray-400" />
-                                                    </div>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-bold text-gray-700">No jobs yet</span>
-                                                        <span className="text-[10px] text-gray-400 max-w-[150px] mx-auto">Jobs will appear here once started</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                        <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                                        <span>{config.label}</span>
+                                        {count > 0 && (
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                                isActive
+                                                    ? 'bg-blue-100 text-blue-800'
+                                                    : 'bg-gray-100 text-gray-600'
+                                            }`}>
+                                                {count}
+                                            </span>
+                                        )}
+                                    </button>
                                 );
                             })}
                         </div>
-                    </div>
-                </>
+
+                        {/* STAGE HEADER & SEARCH BAR */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                            <div>
+                                <h1 className="text-2xl font-bold uppercase tracking-tight text-gray-900">
+                                    {activeStage ? (STAGE_DISPLAY_NAMES[activeStage.toUpperCase()] || activeStage) : 'Production'}
+                                </h1>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Track all jobs across {activeStage ? (STAGE_DISPLAY_NAMES[activeStage.toUpperCase()] || activeStage).toLowerCase() : 'production'} processes
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <div className="relative flex-1 md:flex-none">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search job, order or customer..."
+                                        className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 w-full md:w-64 bg-white shadow-xs transition-all"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                <button className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 bg-white shadow-xs" title="Filter list">
+                                    <Filter className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* KANBAN BOARD */}
+                        <div className="overflow-x-auto pb-6 scrollbar-hide">
+                            <div className="flex gap-6 pb-2 min-w-max">
+                                {stageProcesses.map((processName) => {
+                                    const activeForProcess = stageActiveItems.filter(item => item.processName === processName);
+                                    const queuedForProcess = stageQueuedItems.filter(item => item.processName === processName);
+
+                                    const totalPendingJobs = activeForProcess.length + queuedForProcess.length;
+                                    const totalQty = [...activeForProcess, ...queuedForProcess].reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+                                    const colorScheme = getProcessColorScheme(processName);
+                                    const Icon = getProcessIcon(processName);
+
+                                    return (
+                                        <div
+                                            key={processName}
+                                            className="w-80 shrink-0 bg-gray-50/50 rounded-2xl border border-gray-200/60 flex flex-col gap-4 p-4"
+                                        >
+                                            {/* Column Header */}
+                                            <div className="flex flex-col gap-2 pb-3 border-b border-gray-200/80">
+                                                <div className={`h-1 w-full rounded-full ${colorScheme.indicator}`} />
+                                                <div className="flex items-center justify-between mt-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`p-1.5 rounded-lg border ${colorScheme.badge}`}>
+                                                            <Icon className="w-4 h-4" />
+                                                        </div>
+                                                        <span className="font-extrabold text-xs tracking-wider text-gray-800 uppercase">
+                                                            {processName}
+                                                        </span>
+                                                    </div>
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${colorScheme.badge}`}>
+                                                        {totalPendingJobs}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex flex-col mt-1">
+                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Pending</span>
+                                                    <span className={`text-xl font-black mt-0.5 ${colorScheme.text}`}>
+                                                        {totalQty.toLocaleString()} <span className="text-xs font-bold text-gray-500">pcs</span>
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Column Content */}
+                                            <div className="flex flex-col gap-4 pr-1 min-h-[150px]">
+                                                {totalPendingJobs > 0 ? (
+                                                    <>
+                                                        {/* Active items first */}
+                                                        {activeForProcess.map((item) => (
+                                                            <ActiveCard
+                                                                key={item.id}
+                                                                item={item}
+                                                                onClick={() => setSelectedRunId(item.id)}
+                                                                onChanged={() => fetchAll(false)}
+                                                            />
+                                                        ))}
+
+                                                        {/* Queued items with 70% opacity, placed below active items */}
+                                                        {queuedForProcess.map((item) => (
+                                                            <div
+                                                                key={item.id}
+                                                                className="opacity-70 hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <QueueCard
+                                                                    item={item}
+                                                                    onClick={() => setSelectedRunId(item.id)}
+                                                                    onClaimed={() => fetchAll(false)}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </>
+                                                ) : (
+                                                    /* Empty state matching the reference UI */
+                                                    <div className="border border-dashed border-gray-200/80 rounded-2xl p-8 text-center text-gray-400 text-xs flex flex-col items-center justify-center bg-white/40 min-h-[220px] gap-3">
+                                                        <div className="w-12 h-12 rounded-full border border-dashed border-gray-200 flex items-center justify-center text-blue-500 bg-white shadow-xs">
+                                                            <Package className="w-5 h-5 text-gray-400" />
+                                                        </div>
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="font-bold text-gray-700">No jobs yet</span>
+                                                            <span className="text-[10px] text-gray-400 max-w-[150px] mx-auto">Jobs will appear here once started</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>
+                )
             )}
 
             {selectedRunId && (
@@ -703,6 +962,46 @@ function ManagerRunsPage() {
                     }}
                 />
             )}
+
+            {/* SIDE TASKS MODALS */}
+            <CreateSideTaskModal
+                isOpen={isCreateSideTaskOpen}
+                onClose={() => setIsCreateSideTaskOpen(false)}
+                onSuccess={fetchSideTasks}
+            />
+
+            <PassSideTaskModal
+                task={passTaskTarget}
+                isOpen={Boolean(passTaskTarget)}
+                onClose={() => setPassTaskTarget(null)}
+                onSuccess={fetchSideTasks}
+            />
+
+            <ReassignSideTaskModal
+                task={reassignTaskTarget}
+                isOpen={Boolean(reassignTaskTarget)}
+                onClose={() => setReassignTaskTarget(null)}
+                onSuccess={fetchSideTasks}
+            />
+
+            <ReviewSideTaskModal
+                task={reviewTaskTarget}
+                mode={reviewMode}
+                isOpen={Boolean(reviewTaskTarget)}
+                onClose={() => setReviewTaskTarget(null)}
+                onSuccess={fetchSideTasks}
+            />
+
+            <SideTaskHistoryModal
+                task={historyTaskTarget}
+                isOpen={Boolean(historyTaskTarget)}
+                onClose={() => setHistoryTaskTarget(null)}
+            />
+
+            <ImagePreviewModal
+                imageUrl={previewImageUrl}
+                onClose={() => setPreviewImageUrl(null)}
+            />
         </div>
     );
 }
