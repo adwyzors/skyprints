@@ -295,7 +295,7 @@
     "semantic_hash": ""
   },
   "apps/backend/src/auth/permissions.map.ts": {
-    "mtime": 1790049159.8905795,
+    "mtime": 1790245826.6666856,
     "ast_hash": "47a4552488f61ef6f3fc983b457fe5ca",
     "semantic_hash": ""
   },
@@ -1060,8 +1060,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/runs/page.tsx": {
-    "mtime": 1790072586.9723248,
-    "ast_hash": "ed442fc27ea053aaa787a1f8cf5693d1",
+    "mtime": 1790247863.0603611,
+    "ast_hash": "0499abf14ddb3d14b39d18aa183759b6",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/settings/page.tsx": {
@@ -1070,7 +1070,7 @@
     "semantic_hash": "a5903433daa3277310b7e6a8f683b5d3"
   },
   "apps/frontend/src/app/admin/users/page.tsx": {
-    "mtime": 1789930124.1032817,
+    "mtime": 1790245826.6719632,
     "ast_hash": "c811bb17e10171ce1ec4c7a643522125",
     "semantic_hash": ""
   },
@@ -1095,8 +1095,8 @@
     "semantic_hash": "11b46eeb15209558ce0e84a574fa1f31"
   },
   "apps/frontend/src/app/manager/runs/page.tsx": {
-    "mtime": 1790240560.0255353,
-    "ast_hash": "71ffde21a8e85d8267faacfc34a4d1b6",
+    "mtime": 1790245826.6737652,
+    "ast_hash": "ce79660873f09fdee7f3622ea2e798ab",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/not-found.tsx": {
@@ -1995,8 +1995,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/my-tasks/page.tsx": {
-    "mtime": 1790240921.4699652,
-    "ast_hash": "bc00d63c998833b57e866ec9e6e77939",
+    "mtime": 1790245826.671006,
+    "ast_hash": "c623f64eec37c6366774eab7fecc2e2d",
     "semantic_hash": ""
   },
   "deploy/finish-deploy.sh": {
@@ -2050,8 +2050,8 @@
     "semantic_hash": ""
   },
   "apps/backend/src/side-tasks/side-tasks.controller.ts": {
-    "mtime": 1790238131.2614808,
-    "ast_hash": "e89d629d4dc3ecc7295f987abf3b792a",
+    "mtime": 1790245826.6666856,
+    "ast_hash": "001d417ac862795ffc84fa28d203ddcf",
     "semantic_hash": ""
   },
   "apps/backend/src/side-tasks/side-tasks.module.ts": {
@@ -2120,8 +2120,8 @@
     "semantic_hash": ""
   },
   "apps/backend/prisma/scripts/sync-user-permissions.ts": {
-    "mtime": 1790049180.4017425,
-    "ast_hash": "26ada0de2463797241cafe19cf18c8da",
+    "mtime": 1790245826.6639895,
+    "ast_hash": "4b0a1b6246d6408fdd8471f537491a05",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskTableRow.tsx": {
@@ -2140,8 +2140,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/hooks/useNavigationShortcuts.ts": {
-    "mtime": 1790242033.852192,
-    "ast_hash": "73d23f395951b4a53e59486d892ec538",
+    "mtime": 1790246190.7396014,
+    "ast_hash": "c3cdb27d087fe65138ca278112e98bbb",
     "semantic_hash": ""
   }
 }
