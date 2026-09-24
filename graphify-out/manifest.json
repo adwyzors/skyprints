@@ -1440,8 +1440,8 @@
     "semantic_hash": "aa9b57ac3204bfe069995ea39eb4fc0f"
   },
   "apps/frontend/src/config/navigation.tsx": {
-    "mtime": 1790241778.807972,
-    "ast_hash": "245b0af4f875d9a8842c4afb95997cea",
+    "mtime": 1790241968.886981,
+    "ast_hash": "3d99c5e5c0a9817889b3d8fef5564a8b",
     "semantic_hash": ""
   },
   "apps/frontend/src/constants/processes.ts": {
@@ -2140,8 +2140,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/hooks/useNavigationShortcuts.ts": {
-    "mtime": 1790241793.3563442,
-    "ast_hash": "2c0a4bac69636a90036b6f9233d8d4d5",
+    "mtime": 1790242033.852192,
+    "ast_hash": "73d23f395951b4a53e59486d892ec538",
     "semantic_hash": ""
   }
 }
