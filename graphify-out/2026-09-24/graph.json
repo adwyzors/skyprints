@@ -1880,7 +1880,7 @@
       "source_location": "L779",
       "_origin": "ast",
       "id": "apps_backend_src_analytics_analytics_service_analyticsservice_syncexistingdata",
-      "community": 32,
+      "community": 30,
       "norm_label": ".syncexistingdata()"
     },
     {
@@ -3680,7 +3680,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "apps_backend_src_billing_services_billing_calculator_service_billingcalculatorservice_calculatefororder",
-      "community": 13,
+      "community": 30,
       "norm_label": ".calculatefororder()"
     },
     {
@@ -3690,7 +3690,7 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "apps_backend_src_billing_services_billing_calculator_service_billingcalculatorservice_calculateforgroupfromsnapshots",
-      "community": 13,
+      "community": 30,
       "norm_label": ".calculateforgroupfromsnapshots()"
     },
     {
@@ -3780,7 +3780,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "apps_backend_src_billing_services_billing_context_service_billingcontextservice",
-      "community": 32,
+      "community": 30,
       "norm_label": "billingcontextservice"
     },
     {
@@ -3790,7 +3790,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "apps_backend_src_billing_services_billing_context_service_ts_injectable",
-      "community": 32,
+      "community": 30,
       "norm_label": "injectable"
     },
     {
@@ -3800,7 +3800,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "apps_backend_src_billing_services_billing_context_service_billingcontextservice_constructor",
-      "community": 32,
+      "community": 30,
       "norm_label": ".constructor()"
     },
     {
@@ -3830,7 +3830,7 @@
       "source_location": "L303",
       "_origin": "ast",
       "id": "apps_backend_src_billing_services_billing_context_service_billingcontextservice_getcontextbyid",
-      "community": 13,
+      "community": 30,
       "norm_label": ".getcontextbyid()"
     },
     {
@@ -3870,7 +3870,7 @@
       "source_location": "L696",
       "_origin": "ast",
       "id": "apps_backend_src_billing_services_billing_context_service_billingcontextservice_deletecontextsinrange",
-      "community": 32,
+      "community": 30,
       "norm_label": ".deletecontextsinrange()"
     },
     {
@@ -3880,7 +3880,7 @@
       "source_location": "L854",
       "_origin": "ast",
       "id": "apps_backend_src_billing_services_billing_context_service_billingcontextservice_cleanupimagesbackground",
-      "community": 32,
+      "community": 30,
       "norm_label": ".cleanupimagesbackground()"
     },
     {
@@ -3890,7 +3890,7 @@
       "source_location": "L930",
       "_origin": "ast",
       "id": "apps_backend_src_billing_services_billing_context_service_billingcontextservice_exportexcelforcontexts",
-      "community": 13,
+      "community": 30,
       "norm_label": ".exportexcelforcontexts()"
     },
     {
@@ -4190,7 +4190,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_backend_src_billing_utils_formula_checksum_spec",
-      "community": 13,
+      "community": 30,
       "norm_label": "formula-checksum.spec.ts"
     },
     {
@@ -4200,7 +4200,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_backend_src_billing_utils_formula_checksum",
-      "community": 13,
+      "community": 30,
       "norm_label": "formula-checksum.ts"
     },
     {
@@ -4210,7 +4210,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "apps_backend_src_billing_utils_formula_checksum_checksumformula",
-      "community": 13,
+      "community": 30,
       "norm_label": "checksumformula()"
     },
     {
@@ -9300,7 +9300,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_backend_src_runs_runs_service_spec",
-      "community": 69,
+      "community": 32,
       "norm_label": "runs.service.spec.ts"
     },
     {
@@ -9320,7 +9320,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "apps_backend_src_runs_runs_service_post_prod_stages",
-      "community": 69,
+      "community": 32,
       "norm_label": "post_prod_stages"
     },
     {
@@ -9330,7 +9330,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "apps_backend_src_runs_runs_service_geteffectivelocationid",
-      "community": 69,
+      "community": 32,
       "norm_label": "geteffectivelocationid()"
     },
     {
@@ -17277,7 +17277,7 @@
       "label": "useNavigationShortcuts()",
       "file_type": "code",
       "source_file": "apps/frontend/src/hooks/useNavigationShortcuts.ts",
-      "source_location": "L18",
+      "source_location": "L19",
       "_origin": "ast",
       "id": "apps_frontend_src_hooks_usenavigationshortcuts_usenavigationshortcuts",
       "community": 0,
@@ -21200,7 +21200,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_e",
-      "community": 61,
+      "community": 54,
       "norm_label": "e()"
     },
     {
@@ -21740,7 +21740,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_cn",
-      "community": 61,
+      "community": 54,
       "norm_label": "cn()"
     },
     {
@@ -22170,7 +22170,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_zo",
-      "community": 61,
+      "community": 87,
       "norm_label": "zo()"
     },
     {
@@ -22220,7 +22220,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ca",
-      "community": 25,
+      "community": 87,
       "norm_label": "ca()"
     },
     {
@@ -22250,7 +22250,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ua",
-      "community": 25,
+      "community": 87,
       "norm_label": "ua()"
     },
     {
@@ -22300,7 +22300,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ma",
-      "community": 28,
+      "community": 45,
       "norm_label": "ma()"
     },
     {
@@ -22320,7 +22320,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ka",
-      "community": 61,
+      "community": 54,
       "norm_label": "ka()"
     },
     {
@@ -22330,7 +22330,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_oa",
-      "community": 61,
+      "community": 87,
       "norm_label": "oa()"
     },
     {
@@ -22350,7 +22350,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ia",
-      "community": 28,
+      "community": 45,
       "norm_label": "ia()"
     },
     {
@@ -22370,7 +22370,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_za",
-      "community": 25,
+      "community": 15,
       "norm_label": "za()"
     },
     {
@@ -22400,7 +22400,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_qa",
-      "community": 61,
+      "community": 87,
       "norm_label": "qa()"
     },
     {
@@ -22500,7 +22500,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ei",
-      "community": 61,
+      "community": 15,
       "norm_label": "ei()"
     },
     {
@@ -22510,7 +22510,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ki",
-      "community": 61,
+      "community": 15,
       "norm_label": "ki()"
     },
     {
@@ -22520,7 +22520,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ji",
-      "community": 61,
+      "community": 54,
       "norm_label": "ji()"
     },
     {
@@ -22530,7 +22530,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_pi",
-      "community": 61,
+      "community": 54,
       "norm_label": "pi()"
     },
     {
@@ -22540,7 +22540,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ti",
-      "community": 61,
+      "community": 54,
       "norm_label": "ti()"
     },
     {
@@ -22550,7 +22550,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_mi",
-      "community": 61,
+      "community": 54,
       "norm_label": "mi()"
     },
     {
@@ -22580,7 +22580,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_li",
-      "community": 61,
+      "community": 54,
       "norm_label": "li()"
     },
     {
@@ -22620,7 +22620,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_vi",
-      "community": 61,
+      "community": 15,
       "norm_label": "vi()"
     },
     {
@@ -22640,7 +22640,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ui",
-      "community": 61,
+      "community": 15,
       "norm_label": "ui()"
     },
     {
@@ -22650,7 +22650,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_qi",
-      "community": 61,
+      "community": 15,
       "norm_label": "qi()"
     },
     {
@@ -22680,7 +22680,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_yi",
-      "community": 61,
+      "community": 15,
       "norm_label": "yi()"
     },
     {
@@ -22770,7 +22770,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_fc",
-      "community": 28,
+      "community": 45,
       "norm_label": "fc()"
     },
     {
@@ -22780,7 +22780,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_hc",
-      "community": 28,
+      "community": 45,
       "norm_label": "hc()"
     },
     {
@@ -22790,7 +22790,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_mc",
-      "community": 28,
+      "community": 45,
       "norm_label": "mc()"
     },
     {
@@ -22830,7 +22830,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_wc",
-      "community": 61,
+      "community": 45,
       "norm_label": "wc()"
     },
     {
@@ -22840,7 +22840,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_sc",
-      "community": 61,
+      "community": 54,
       "norm_label": "sc()"
     },
     {
@@ -22860,7 +22860,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_kc",
-      "community": 61,
+      "community": 45,
       "norm_label": "kc()"
     },
     {
@@ -22870,7 +22870,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_jc",
-      "community": 61,
+      "community": 87,
       "norm_label": "jc()"
     },
     {
@@ -22880,7 +22880,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_pc",
-      "community": 61,
+      "community": 45,
       "norm_label": "pc()"
     },
     {
@@ -22930,7 +22930,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_el",
-      "community": 54,
+      "community": 25,
       "norm_label": "el()"
     },
     {
@@ -22940,7 +22940,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_nl",
-      "community": 54,
+      "community": 25,
       "norm_label": "nl()"
     },
     {
@@ -22970,7 +22970,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_al",
-      "community": 29,
+      "community": 25,
       "norm_label": "al()"
     },
     {
@@ -23210,7 +23210,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ss",
-      "community": 29,
+      "community": 25,
       "norm_label": "ss()"
     },
     {
@@ -23890,7 +23890,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_md",
-      "community": 25,
+      "community": 15,
       "norm_label": "md()"
     },
     {
@@ -24020,7 +24020,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_kf",
-      "community": 61,
+      "community": 54,
       "norm_label": "kf()"
     },
     {
@@ -24030,7 +24030,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_qf",
-      "community": 61,
+      "community": 54,
       "norm_label": "qf()"
     },
     {
@@ -24050,7 +24050,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_yf",
-      "community": 61,
+      "community": 54,
       "norm_label": "yf()"
     },
     {
@@ -24070,7 +24070,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ep",
-      "community": 61,
+      "community": 54,
       "norm_label": "ep()"
     },
     {
@@ -24080,7 +24080,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_cp",
-      "community": 61,
+      "community": 54,
       "norm_label": "cp()"
     },
     {
@@ -24290,7 +24290,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_vv",
-      "community": 15,
+      "community": 25,
       "norm_label": "vv()"
     },
     {
@@ -24300,7 +24300,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_gv",
-      "community": 15,
+      "community": 25,
       "norm_label": "gv()"
     },
     {
@@ -24410,7 +24410,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_gg",
-      "community": 15,
+      "community": 25,
       "norm_label": "gg()"
     },
     {
@@ -24560,7 +24560,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ty",
-      "community": 61,
+      "community": 54,
       "norm_label": "ty()"
     },
     {
@@ -25030,7 +25030,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_jo",
-      "community": 61,
+      "community": 87,
       "norm_label": "jo()"
     },
     {
@@ -25080,7 +25080,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_rj",
-      "community": 25,
+      "community": 15,
       "norm_label": "rj()"
     },
     {
@@ -25190,7 +25190,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_vj",
-      "community": 61,
+      "community": 54,
       "norm_label": "vj()"
     },
     {
@@ -25330,7 +25330,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ap",
-      "community": 61,
+      "community": 54,
       "norm_label": "ap()"
     },
     {
@@ -25390,7 +25390,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_mp",
-      "community": 61,
+      "community": 54,
       "norm_label": "mp()"
     },
     {
@@ -25440,7 +25440,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_wp",
-      "community": 61,
+      "community": 54,
       "norm_label": "wp()"
     },
     {
@@ -25450,7 +25450,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_kp",
-      "community": 61,
+      "community": 54,
       "norm_label": "kp()"
     },
     {
@@ -25790,7 +25790,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_pd",
-      "community": 25,
+      "community": 15,
       "norm_label": "pd()"
     },
     {
@@ -25800,7 +25800,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_bd",
-      "community": 25,
+      "community": 15,
       "norm_label": "bd()"
     },
     {
@@ -25940,7 +25940,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_oz",
-      "community": 25,
+      "community": 15,
       "norm_label": "oz()"
     },
     {
@@ -25960,7 +25960,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_iz",
-      "community": 25,
+      "community": 15,
       "norm_label": "iz()"
     },
     {
@@ -25970,7 +25970,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_cz",
-      "community": 25,
+      "community": 15,
       "norm_label": "cz()"
     },
     {
@@ -25980,7 +25980,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_lz",
-      "community": 25,
+      "community": 15,
       "norm_label": "lz()"
     },
     {
@@ -26020,7 +26020,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_bz",
-      "community": 25,
+      "community": 15,
       "norm_label": "bz()"
     },
     {
@@ -26060,7 +26060,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_kz",
-      "community": 25,
+      "community": 15,
       "norm_label": "kz()"
     },
     {
@@ -26210,7 +26210,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_xb",
-      "community": 25,
+      "community": 15,
       "norm_label": "xb()"
     },
     {
@@ -26230,7 +26230,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_sb",
-      "community": 25,
+      "community": 15,
       "norm_label": "sb()"
     },
     {
@@ -26260,7 +26260,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_sf",
-      "community": 28,
+      "community": 29,
       "norm_label": "sf()"
     },
     {
@@ -26270,7 +26270,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ef",
-      "community": 28,
+      "community": 29,
       "norm_label": "ef()"
     },
     {
@@ -26280,7 +26280,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_cf",
-      "community": 28,
+      "community": 29,
       "norm_label": "cf()"
     },
     {
@@ -26310,7 +26310,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_ff",
-      "community": 15,
+      "community": 28,
       "norm_label": "ff()"
     },
     {
@@ -26320,7 +26320,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_hf",
-      "community": 15,
+      "community": 28,
       "norm_label": "hf()"
     },
     {
@@ -26350,7 +26350,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_lh",
-      "community": 54,
+      "community": 25,
       "norm_label": "lh()"
     },
     {
@@ -26540,7 +26540,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_yu",
-      "community": 54,
+      "community": 25,
       "norm_label": "yu()"
     },
     {
@@ -26550,7 +26550,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_wu",
-      "community": 15,
+      "community": 25,
       "norm_label": "wu()"
     },
     {
@@ -26560,7 +26560,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_su",
-      "community": 15,
+      "community": 25,
       "norm_label": "su()"
     },
     {
@@ -26660,7 +26660,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_hq",
-      "community": 61,
+      "community": 54,
       "norm_label": "hq()"
     },
     {
@@ -26800,7 +26800,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_qg",
-      "community": 54,
+      "community": 25,
       "norm_label": "qg()"
     },
     {
@@ -26830,7 +26830,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_vx",
-      "community": 15,
+      "community": 25,
       "norm_label": "vx()"
     },
     {
@@ -26850,7 +26850,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_bx",
-      "community": 15,
+      "community": 25,
       "norm_label": "bx()"
     },
     {
@@ -26870,7 +26870,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_xx",
-      "community": 54,
+      "community": 25,
       "norm_label": "xx()"
     },
     {
@@ -26880,7 +26880,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "apps_test_report_jest_html_reporters_attach_index_index_wx",
-      "community": 54,
+      "community": 25,
       "norm_label": "wx()"
     },
     {
@@ -72235,7 +72235,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/frontend/src/hooks/useNavigationShortcuts.ts",
-      "source_location": "L20",
+      "source_location": "L21",
       "weight": 1.0,
       "source": "apps_frontend_src_hooks_usenavigationshortcuts_usenavigationshortcuts",
       "target": "apps_frontend_src_auth_authprovider_useauth"
@@ -85339,7 +85339,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/frontend/src/hooks/useNavigationShortcuts.ts",
-      "source_location": "L23",
+      "source_location": "L24",
       "weight": 1.0,
       "source": "apps_frontend_src_hooks_usenavigationshortcuts_usenavigationshortcuts",
       "target": "apps_frontend_src_hooks_usekeyboardshortcut_usekeyboardshortcut"
@@ -85348,7 +85348,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "apps/frontend/src/hooks/useNavigationShortcuts.ts",
-      "source_location": "L18",
+      "source_location": "L19",
       "weight": 1.0,
       "source": "apps_frontend_src_hooks_usenavigationshortcuts",
       "target": "apps_frontend_src_hooks_usenavigationshortcuts_usenavigationshortcuts",
@@ -126871,5 +126871,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "1294b0387603ac56cd234c75aebf937ded0e9539"
+  "built_at_commit": "95d5c526777718654f21748546b8a2e857dd40ee"
 }

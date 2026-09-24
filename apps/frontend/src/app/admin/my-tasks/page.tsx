@@ -713,9 +713,6 @@ function AdminMyTasksPage() {
     const allItems = [...active, ...queue];
 
     const allStagesSet = new Set<string>();
-    stagePermissions.forEach(p => {
-        if (p.stageCode) allStagesSet.add(p.stageCode);
-    });
     allItems.forEach(item => {
         if (item.lifeCycleStatusCode) allStagesSet.add(item.lifeCycleStatusCode);
     });
@@ -744,17 +741,15 @@ function AdminMyTasksPage() {
         );
     };
 
+    const stageActiveItems = active.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
+    const stageQueuedItems = queue.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
+
     const processesSet = new Set<string>();
-    stagePermissions.filter(p => p.stageCode === activeStage).forEach(p => {
-        if (p.processName) processesSet.add(p.processName);
-    });
-    stageItems.forEach(item => {
+    const visibleItems = searchQuery ? [...stageActiveItems, ...stageQueuedItems] : stageItems;
+    visibleItems.forEach(item => {
         if (item.processName) processesSet.add(item.processName);
     });
     const stageProcesses = Array.from(processesSet).sort();
-
-    const stageActiveItems = active.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
-    const stageQueuedItems = queue.filter(item => item.lifeCycleStatusCode === activeStage && matchesSearch(item));
 
     // Filter and Sort Side Tasks
     const displayedSideTasks = useMemo(() => {
@@ -1051,94 +1046,102 @@ function AdminMyTasksPage() {
                         </div>
 
                         {/* KANBAN BOARD */}
-                        <div className="overflow-x-auto pb-6 scrollbar-hide">
-                            <div className="flex gap-6 pb-2 min-w-max">
-                                {stageProcesses.map((processName) => {
-                                    const activeForProcess = stageActiveItems.filter(item => item.processName === processName);
-                                    const queuedForProcess = stageQueuedItems.filter(item => item.processName === processName);
+                        {stageProcesses.length === 0 ? (
+                            <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center text-gray-500 shadow-xs flex flex-col items-center justify-center min-h-[220px] gap-2">
+                                <Package className="w-10 h-10 text-gray-300" />
+                                <span className="font-bold text-gray-700">No jobs yet</span>
+                                <span className="text-xs text-gray-400">Jobs will appear here once started</span>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto pb-6 scrollbar-hide">
+                                <div className="flex gap-6 pb-2 min-w-max">
+                                    {stageProcesses.map((processName) => {
+                                        const activeForProcess = stageActiveItems.filter(item => item.processName === processName);
+                                        const queuedForProcess = stageQueuedItems.filter(item => item.processName === processName);
 
-                                    const totalPendingJobs = activeForProcess.length + queuedForProcess.length;
-                                    const totalQty = [...activeForProcess, ...queuedForProcess].reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                        const totalPendingJobs = activeForProcess.length + queuedForProcess.length;
+                                        const totalQty = [...activeForProcess, ...queuedForProcess].reduce((sum, item) => sum + (item.quantity || 0), 0);
 
-                                    const colorScheme = getProcessColorScheme(processName);
-                                    const Icon = getProcessIcon(processName);
+                                        const colorScheme = getProcessColorScheme(processName);
+                                        const Icon = getProcessIcon(processName);
 
-                                    return (
-                                        <div
-                                            key={processName}
-                                            className="w-80 shrink-0 bg-gray-50/50 rounded-2xl border border-gray-200/60 flex flex-col gap-4 p-4"
-                                        >
-                                            {/* Column Header */}
-                                            <div className="flex flex-col gap-2 pb-3 border-b border-gray-200/80">
-                                                <div className={`h-1 w-full rounded-full ${colorScheme.indicator}`} />
-                                                <div className="flex items-center justify-between mt-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`p-1.5 rounded-lg border ${colorScheme.badge}`}>
-                                                            <Icon className="w-4 h-4" />
+                                        return (
+                                            <div
+                                                key={processName}
+                                                className="w-80 shrink-0 bg-gray-50/50 rounded-2xl border border-gray-200/60 flex flex-col gap-4 p-4"
+                                            >
+                                                {/* Column Header */}
+                                                <div className="flex flex-col gap-2 pb-3 border-b border-gray-200/80">
+                                                    <div className={`h-1 w-full rounded-full ${colorScheme.indicator}`} />
+                                                    <div className="flex items-center justify-between mt-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`p-1.5 rounded-lg border ${colorScheme.badge}`}>
+                                                                <Icon className="w-4 h-4" />
+                                                            </div>
+                                                            <span className="font-extrabold text-xs tracking-wider text-gray-800 uppercase">
+                                                                {processName}
+                                                            </span>
                                                         </div>
-                                                        <span className="font-extrabold text-xs tracking-wider text-gray-800 uppercase">
-                                                            {processName}
+                                                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${colorScheme.badge}`}>
+                                                            {totalPendingJobs}
                                                         </span>
                                                     </div>
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${colorScheme.badge}`}>
-                                                        {totalPendingJobs}
-                                                    </span>
+
+                                                    <div className="flex flex-col mt-1">
+                                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Pending</span>
+                                                        <span className={`text-xl font-black mt-0.5 ${colorScheme.text}`}>
+                                                            {totalQty.toLocaleString()} <span className="text-xs font-bold text-gray-500">pcs</span>
+                                                        </span>
+                                                    </div>
                                                 </div>
 
-                                                <div className="flex flex-col mt-1">
-                                                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Pending</span>
-                                                    <span className={`text-xl font-black mt-0.5 ${colorScheme.text}`}>
-                                                        {totalQty.toLocaleString()} <span className="text-xs font-bold text-gray-500">pcs</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Column Content */}
-                                            <div className="flex flex-col gap-4 pr-1 min-h-[150px]">
-                                                {totalPendingJobs > 0 ? (
-                                                    <>
-                                                        {/* Active items first */}
-                                                        {activeForProcess.map((item) => (
-                                                            <ActiveCard
-                                                                key={item.id}
-                                                                item={item}
-                                                                onClick={() => setSelectedRunId(item.id)}
-                                                                onChanged={() => fetchAll(false)}
-                                                            />
-                                                        ))}
-
-                                                        {/* Queued items with 70% opacity, placed below active items */}
-                                                        {queuedForProcess.map((item) => (
-                                                            <div
-                                                                key={item.id}
-                                                                className="opacity-70 hover:opacity-100 transition-opacity"
-                                                            >
-                                                                <QueueCard
+                                                {/* Column Content */}
+                                                <div className="flex flex-col gap-4 pr-1 min-h-[150px]">
+                                                    {totalPendingJobs > 0 ? (
+                                                        <>
+                                                            {/* Active items first */}
+                                                            {activeForProcess.map((item) => (
+                                                                <ActiveCard
+                                                                    key={item.id}
                                                                     item={item}
                                                                     onClick={() => setSelectedRunId(item.id)}
-                                                                    onClaimed={() => fetchAll(false)}
+                                                                    onChanged={() => fetchAll(false)}
                                                                 />
+                                                            ))}
+
+                                                            {/* Queued items with 70% opacity, placed below active items */}
+                                                            {queuedForProcess.map((item) => (
+                                                                <div
+                                                                    key={item.id}
+                                                                    className="opacity-70 hover:opacity-100 transition-opacity"
+                                                                >
+                                                                    <QueueCard
+                                                                        item={item}
+                                                                        onClick={() => setSelectedRunId(item.id)}
+                                                                        onClaimed={() => fetchAll(false)}
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </>
+                                                    ) : (
+                                                        /* Empty state matching the reference UI */
+                                                        <div className="border border-dashed border-gray-200/80 rounded-2xl p-8 text-center text-gray-400 text-xs flex flex-col items-center justify-center bg-white/40 min-h-[220px] gap-3">
+                                                            <div className="w-12 h-12 rounded-full border border-dashed border-gray-200 flex items-center justify-center text-blue-500 bg-white shadow-xs">
+                                                                <Package className="w-5 h-5 text-gray-400" />
                                                             </div>
-                                                        ))}
-                                                    </>
-                                                ) : (
-                                                    /* Empty state matching the reference UI */
-                                                    <div className="border border-dashed border-gray-200/80 rounded-2xl p-8 text-center text-gray-400 text-xs flex flex-col items-center justify-center bg-white/40 min-h-[220px] gap-3">
-                                                        <div className="w-12 h-12 rounded-full border border-dashed border-gray-200 flex items-center justify-center text-blue-500 bg-white shadow-xs">
-                                                            <Package className="w-5 h-5 text-gray-400" />
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="font-bold text-gray-700">No jobs yet</span>
+                                                                <span className="text-[10px] text-gray-400 max-w-[150px] mx-auto">Jobs will appear here once started</span>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex flex-col gap-1">
-                                                            <span className="font-bold text-gray-700">No jobs yet</span>
-                                                            <span className="text-[10px] text-gray-400 max-w-[150px] mx-auto">Jobs will appear here once started</span>
-                                                        </div>
-                                                    </div>
-                                                )}
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </>
                 )
             )}

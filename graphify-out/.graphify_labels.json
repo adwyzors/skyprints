@@ -60,6 +60,7 @@
   "58": "billing-snapshot.contract.ts",
   "59": "AppService",
   "60": "InvoicePDF.tsx",
+  "61": "process.read.contract.ts",
   "62": "order.read.contract.ts",
   "63": "ProcessRunsQueryDto",
   "64": "Spec: Manager Stage-Based Production Queue",
@@ -83,7 +84,6 @@
   "82": "Spec: Mobile UI Consistency",
   "83": "domain.ts",
   "84": "PermissionsGuard",
-  "85": "process-run.configure.contract.ts",
   "86": "run-template.contract.ts",
   "87": "run-template.read.contract.ts",
   "88": "compilerOptions",
@@ -169,10 +169,8 @@
   "168": "Permissions system",
   "169": "NotificationBell.tsx",
   "170": "SKILL.md",
-  "171": "calculate-billing.read.contract.ts",
   "172": "manager-stage-permission.contract.ts",
   "176": "RunsController",
-  "177": "OrdersQueryDto",
   "179": "toOrderSummary",
   "183": "clear-side-tasks.ts"
 }
