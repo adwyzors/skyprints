@@ -70,7 +70,7 @@ type SideTaskSortField =
     | 'priority'
     | 'status'
     | 'timer'
-    | 'requiredDate';
+    | 'requiredBy';
 
 type SortDirection = 'asc' | 'desc';
 
@@ -106,7 +106,7 @@ function matchesSideTaskSearch(task: SideTask, query: string): boolean {
     const stageName = currentHistory?.stageType?.name?.toLowerCase() || '';
     const assigneeName = task.currentAssignee?.name?.toLowerCase() || '';
     const assigneeEmail = task.currentAssignee?.email?.toLowerCase() || '';
-    const customerName = (task.customer?.name || (task.isInternal ? 'internal task' : '')).toLowerCase();
+    const customerName = (task.customer?.name || 'internal task').toLowerCase();
     const customerCode = task.customer?.code?.toLowerCase() || '';
     const code = task.code?.toLowerCase() || '';
     const title = task.title?.toLowerCase() || '';
@@ -157,8 +157,8 @@ function sortSideTasks(
                 bVal = b.title?.toLowerCase() || '';
                 break;
             case 'customer':
-                aVal = (a.customer?.name || (a.isInternal ? 'Internal Task' : '')).toLowerCase();
-                bVal = (b.customer?.name || (b.isInternal ? 'Internal Task' : '')).toLowerCase();
+                aVal = (a.customer?.name || 'Internal Task').toLowerCase();
+                bVal = (b.customer?.name || 'Internal Task').toLowerCase();
                 break;
             case 'stage': {
                 const aStage = a.stageHistories?.[a.stageHistories.length - 1]?.stageType?.name || '';
@@ -183,9 +183,9 @@ function sortSideTasks(
                 aVal = getTaskTimerSeconds(a);
                 bVal = getTaskTimerSeconds(b);
                 break;
-            case 'requiredDate':
-                aVal = a.requiredDate ? new Date(a.requiredDate).getTime() : 0;
-                bVal = b.requiredDate ? new Date(b.requiredDate).getTime() : 0;
+            case 'requiredBy':
+                aVal = a.requiredBy ? new Date(a.requiredBy).getTime() : 0;
+                bVal = b.requiredBy ? new Date(b.requiredBy).getTime() : 0;
                 break;
             default:
                 return 0;
@@ -201,6 +201,21 @@ function sortSideTasks(
             return aVal < bVal ? 1 : -1;
         }
     });
+}
+
+function formatActiveElapsed(claimedAt: string, pausedAt?: string | null, pausedDurationSeconds = 0): string {
+    const startMs = new Date(claimedAt).getTime();
+    let currentMs = Date.now();
+    if (pausedAt) {
+        currentMs = new Date(pausedAt).getTime();
+    }
+    const ms = currentMs - startMs;
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000) - pausedDurationSeconds);
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const secs = totalSeconds % 60;
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${secs}s`;
 }
 
 function QueueCard({ item, onClick, onClaimed }: {
@@ -912,7 +927,7 @@ function AdminMyTasksPage() {
                                             {renderSortHeader('Priority', 'priority')}
                                             {renderSortHeader('Status', 'status')}
                                             {renderSortHeader('Timer', 'timer')}
-                                            {renderSortHeader('Required By', 'requiredDate')}
+                                            {renderSortHeader('Required By', 'requiredBy')}
                                             <th className="px-4 py-3 text-right">Actions</th>
                                         </tr>
                                     </thead>

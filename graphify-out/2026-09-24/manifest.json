@@ -1095,8 +1095,8 @@
     "semantic_hash": "11b46eeb15209558ce0e84a574fa1f31"
   },
   "apps/frontend/src/app/manager/runs/page.tsx": {
-    "mtime": 1789830482.0882945,
-    "ast_hash": "6e28119f56f335426ac6e59e4848b6ed",
+    "mtime": 1790237872.0679958,
+    "ast_hash": "4c849276daf1ae796c0353112602ba2d",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/not-found.tsx": {
@@ -2140,8 +2140,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/hooks/useNavigationShortcuts.ts": {
-    "mtime": 1790056416.9926145,
-    "ast_hash": "6c28a2a1a0b700250c1755ca48b0b222",
+    "mtime": 1790237885.0445664,
+    "ast_hash": "fce89af053955b973c1063532b061555",
     "semantic_hash": ""
   }
 }
