@@ -107,6 +107,7 @@ const STAGE_SORT_ORDER: Record<string, number> = {
     'FUSING': 11,
     'QC_COUNTING': 12,
     'QC & COUNTING': 12,
+    'QC&COUNTING': 12,
     'QC': 12,
     'QC & PACKING': 12,
     'VAR_KATA_KG': 13,
@@ -122,6 +123,25 @@ const STAGE_SORT_ORDER: Record<string, number> = {
     'PENDING': 0,
     'ORDERS': 0,
     'PRODUCTION_READY': 0,
+};
+
+const DEFAULT_LIFECYCLE_STATUSES = [
+    'PENDING',
+    'PRODUCTION',
+    'WAITING',
+    'CUTTING/WEEDING',
+    'CURING',
+    'FUSING',
+    'QC & COUNTING',
+    'COMPLETE',
+];
+
+const sortLifecycleStatuses = (list: string[]) => {
+    return [...new Set(list)].sort((a, b) => {
+        const orderA = STAGE_SORT_ORDER[a.toUpperCase()] ?? 99;
+        const orderB = STAGE_SORT_ORDER[b.toUpperCase()] ?? 99;
+        return orderA - orderB;
+    });
 };
 
 function RunsPageContent() {
@@ -202,7 +222,7 @@ function RunsPageContent() {
 
     const [processes, setProcesses] = useState<any[]>([]);
     const [locations, setLocations] = useState<any[]>([]);
-    const [lifecycleStatuses, setLifecycleStatuses] = useState<string[]>([]);
+    const [lifecycleStatuses, setLifecycleStatuses] = useState<string[]>(DEFAULT_LIFECYCLE_STATUSES);
 
     const hasInitializedRef = useRef(false);
     const isMountedRef = useRef(false);
@@ -308,15 +328,15 @@ function RunsPageContent() {
     useEffect(() => {
         const fetchStatuses = async () => {
             if (!filters.processId || filters.processId === 'all') {
-                setLifecycleStatuses(['FUSING', 'COMPLETE', 'PENDING', 'PRODUCTION', 'QC & COUNTING']);
+                setLifecycleStatuses(DEFAULT_LIFECYCLE_STATUSES);
                 return;
             }
             try {
                 const dynamicStatuses = await getProcessLifecycleStatuses(filters.processId);
-                const normalized = dynamicStatuses.length > 0 && typeof dynamicStatuses[0] === 'object'
+                const normalized: string[] = dynamicStatuses.length > 0 && typeof dynamicStatuses[0] === 'object'
                     ? dynamicStatuses.map((s: any) => s.code || s.name)
                     : dynamicStatuses;
-                setLifecycleStatuses(normalized);
+                setLifecycleStatuses(sortLifecycleStatuses(normalized));
             } catch (error) {
                 console.error("Failed to fetch dynamic statuses", error);
             }
