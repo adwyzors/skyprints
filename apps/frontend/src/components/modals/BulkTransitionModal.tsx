@@ -6,14 +6,12 @@ import {
     ArrowRight,
     Check,
     CheckCircle2,
-    Clock,
+    ChevronDown,
     FastForward,
     Loader2,
-    Package,
-    User,
     X
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface SelectedRunItem {
     id: string;
@@ -41,7 +39,7 @@ interface SelectedRunItem {
 interface RunTransitionTarget {
     run: SelectedRunItem;
     currentStage: string;
-    nextStage: string | null;
+    lifecycle: Array<{ code: string }>;
     orderProcessId: string;
     orderId: string;
     error?: string;
@@ -62,6 +60,7 @@ export default function BulkTransitionModal({
 }: BulkTransitionModalProps) {
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [targets, setTargets] = useState<RunTransitionTarget[]>([]);
+    const [selectedTargetStage, setSelectedTargetStage] = useState<string>('');
     const [expectedDate, setExpectedDate] = useState<string>(
         new Date().toISOString().split('T')[0]
     );
@@ -72,6 +71,7 @@ export default function BulkTransitionModal({
     useEffect(() => {
         if (!isOpen || selectedRuns.length === 0) {
             setTargets([]);
+            setSelectedTargetStage('');
             setExecutionErrors([]);
             setProgress(null);
             return;
@@ -94,17 +94,11 @@ export default function BulkTransitionModal({
                         try {
                             const detail = await getRunById(run.id);
                             const lifecycle: Array<{ code: string }> = detail.lifecycle ?? [];
-                            const currIdx = lifecycle.findIndex((s) => s.code === currentStage);
-
-                            let nextStage: string | null = null;
-                            if (currIdx !== -1 && currIdx < lifecycle.length - 1) {
-                                nextStage = lifecycle[currIdx + 1].code;
-                            }
 
                             return {
                                 run,
                                 currentStage,
-                                nextStage,
+                                lifecycle,
                                 orderProcessId: orderProcessId || detail.orderProcessId || detail.orderProcess?.id,
                                 orderId: orderId || detail.orderProcess?.order?.id
                             };
@@ -112,7 +106,7 @@ export default function BulkTransitionModal({
                             return {
                                 run,
                                 currentStage,
-                                nextStage: null,
+                                lifecycle: [],
                                 orderProcessId,
                                 orderId,
                                 error: 'Failed to fetch run details'
@@ -138,15 +132,88 @@ export default function BulkTransitionModal({
         };
     }, [isOpen, selectedRuns]);
 
+    const commonCurrentStage = targets.length > 0 ? targets[0].currentStage : '';
+
+    // Calculate stage options grouped by Next Stages, Previous Stages, and Other Stages
+    const { nextStageOptions, previousStageOptions, otherStageOptions, allAvailableStages } = useMemo(() => {
+        if (targets.length === 0) {
+            return { nextStageOptions: [], previousStageOptions: [], otherStageOptions: [], allAvailableStages: [] };
+        }
+
+        const refTarget = targets.find((t) => t.lifecycle && t.lifecycle.length > 0) || targets[0];
+        const lifecycleCodes = (refTarget.lifecycle || []).map((s) => s.code);
+
+        const allUniqueCodes: string[] = [];
+        lifecycleCodes.forEach((code) => {
+            if (!allUniqueCodes.includes(code)) allUniqueCodes.push(code);
+        });
+        targets.forEach((t) => {
+            (t.lifecycle || []).forEach((s) => {
+                if (!allUniqueCodes.includes(s.code)) allUniqueCodes.push(s.code);
+            });
+        });
+
+        const currIdx = lifecycleCodes.indexOf(commonCurrentStage);
+
+        const next: string[] = [];
+        const prev: string[] = [];
+        const other: string[] = [];
+
+        allUniqueCodes.forEach((code) => {
+            if (code === commonCurrentStage) return; // Exclude current stage
+
+            const idx = lifecycleCodes.indexOf(code);
+            if (idx !== -1 && currIdx !== -1) {
+                if (idx > currIdx) {
+                    next.push(code);
+                } else {
+                    prev.push(code);
+                }
+            } else {
+                other.push(code);
+            }
+        });
+
+        return {
+            nextStageOptions: next,
+            previousStageOptions: prev,
+            otherStageOptions: other,
+            allAvailableStages: [...next, ...prev, ...other]
+        };
+    }, [targets, commonCurrentStage]);
+
+    // Automatically default to the immediate next stage when stages are available
+    useEffect(() => {
+        if (allAvailableStages.length > 0 && (!selectedTargetStage || !allAvailableStages.includes(selectedTargetStage))) {
+            setSelectedTargetStage(nextStageOptions[0] || allAvailableStages[0] || '');
+        }
+    }, [allAvailableStages, selectedTargetStage, nextStageOptions]);
+
+    const evaluatedTargets = useMemo(() => {
+        return targets.map((t) => {
+            if (t.error) {
+                return { ...t, isValid: false, reason: t.error };
+            }
+            if (!selectedTargetStage) {
+                return { ...t, isValid: false, reason: 'No stage selected' };
+            }
+            if (t.currentStage === selectedTargetStage) {
+                return { ...t, isValid: false, reason: 'Already in this stage' };
+            }
+            const hasStage = t.lifecycle.length === 0 || t.lifecycle.some((s) => s.code === selectedTargetStage);
+            if (!hasStage) {
+                return { ...t, isValid: false, reason: 'Stage not in lifecycle' };
+            }
+            return { ...t, isValid: true, reason: undefined };
+        });
+    }, [targets, selectedTargetStage]);
+
+    const validTargets = evaluatedTargets.filter((t) => t.isValid);
+
     if (!isOpen) return null;
 
-    const commonCurrentStage = targets.length > 0 ? targets[0].currentStage : '';
-    const commonNextStage = targets.length > 0 ? targets[0].nextStage : null;
-    const validTargets = targets.filter((t) => t.nextStage && !t.error);
-    const invalidTargets = targets.filter((t) => !t.nextStage || t.error);
-
     const handleExecuteBulkTransition = async () => {
-        if (validTargets.length === 0) return;
+        if (validTargets.length === 0 || !selectedTargetStage) return;
 
         setIsAdvancing(true);
         setExecutionErrors([]);
@@ -165,7 +232,7 @@ export default function BulkTransitionModal({
                     item.orderProcessId,
                     item.run.id,
                     {
-                        statusCode: item.nextStage!,
+                        statusCode: selectedTargetStage,
                         expectedDate
                     }
                 );
@@ -211,7 +278,7 @@ export default function BulkTransitionModal({
                         <div>
                             <h2 className="text-lg font-bold text-gray-900">Batch Advance Stage</h2>
                             <p className="text-xs text-gray-500">
-                                Advance {selectedRuns.length} selected process run{selectedRuns.length > 1 ? 's' : ''} to next lifecycle stage
+                                Advance {selectedRuns.length} selected process run{selectedRuns.length > 1 ? 's' : ''} to selected lifecycle stage
                             </p>
                         </div>
                     </div>
@@ -234,18 +301,65 @@ export default function BulkTransitionModal({
                     ) : (
                         <>
                             {/* Stage Transition Banner */}
-                            <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 rounded-xl p-4 border border-blue-100/80 flex items-center justify-around text-center shadow-xs">
+                            <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 rounded-xl p-4 border border-blue-100/80 flex items-center justify-around text-center shadow-xs gap-3">
                                 <div>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Current Stage</span>
-                                    <div className="text-sm font-bold text-gray-800 mt-0.5 px-3 py-1 bg-white/80 rounded-lg border border-blue-100 shadow-xs">
-                                        {commonCurrentStage.replace(/_/g, ' ')}
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 block mb-1">
+                                        Current Stage
+                                    </span>
+                                    <div className="text-sm font-bold text-gray-800 px-3 py-1.5 bg-white/90 rounded-lg border border-blue-100 shadow-xs inline-block">
+                                        {commonCurrentStage ? commonCurrentStage.replace(/_/g, ' ') : '—'}
                                     </div>
                                 </div>
-                                <ArrowRight className="w-5 h-5 text-indigo-400 animate-pulse" />
-                                <div>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Target Stage</span>
-                                    <div className="text-sm font-bold text-emerald-700 mt-0.5 px-3 py-1 bg-emerald-100/90 rounded-lg border border-emerald-200 shadow-xs">
-                                        {commonNextStage ? commonNextStage.replace(/_/g, ' ') : 'None / Completed'}
+
+                                <ArrowRight className="w-5 h-5 text-indigo-400 animate-pulse flex-shrink-0" />
+
+                                <div className="text-left">
+                                    <label htmlFor="target-stage-select" className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 block mb-1 text-center">
+                                        Target Stage
+                                    </label>
+                                    <div className="relative inline-block">
+                                        <select
+                                            id="target-stage-select"
+                                            value={selectedTargetStage}
+                                            onChange={(e) => setSelectedTargetStage(e.target.value)}
+                                            disabled={isAdvancing || allAvailableStages.length === 0}
+                                            className="text-sm font-bold text-emerald-800 bg-white border border-emerald-300 hover:border-emerald-400 focus:border-emerald-500 rounded-lg pl-3 pr-8 py-1.5 shadow-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed appearance-none transition-all"
+                                        >
+                                            {allAvailableStages.length === 0 ? (
+                                                <option value="">No Stages Available</option>
+                                            ) : (
+                                                <>
+                                                    {nextStageOptions.length > 0 && (
+                                                        <optgroup label="Next Stages">
+                                                            {nextStageOptions.map((stage, idx) => (
+                                                                <option key={stage} value={stage}>
+                                                                    {stage.replace(/_/g, ' ')}{idx === 0 ? ' (Next)' : ''}
+                                                                </option>
+                                                            ))}
+                                                        </optgroup>
+                                                    )}
+                                                    {previousStageOptions.length > 0 && (
+                                                        <optgroup label="Previous Stages (Rollback)">
+                                                            {previousStageOptions.map((stage) => (
+                                                                <option key={stage} value={stage}>
+                                                                    {stage.replace(/_/g, ' ')}
+                                                                </option>
+                                                            ))}
+                                                        </optgroup>
+                                                    )}
+                                                    {otherStageOptions.length > 0 && (
+                                                        <optgroup label="Other Stages">
+                                                            {otherStageOptions.map((stage) => (
+                                                                <option key={stage} value={stage}>
+                                                                    {stage.replace(/_/g, ' ')}
+                                                                </option>
+                                                            ))}
+                                                        </optgroup>
+                                                    )}
+                                                </>
+                                            )}
+                                        </select>
+                                        <ChevronDown className="w-4 h-4 text-emerald-600 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                                     </div>
                                 </div>
                             </div>
@@ -286,7 +400,7 @@ export default function BulkTransitionModal({
                                     Selected Runs ({targets.length})
                                 </h4>
                                 <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden max-h-56 overflow-y-auto">
-                                    {targets.map(({ run, nextStage, error }) => {
+                                    {evaluatedTargets.map(({ run, isValid, reason }) => {
                                         const rawCode = run.orderProcess?.order?.code;
                                         const orderCode = typeof rawCode === 'object' ? (rawCode as any).code : rawCode;
                                         const customerName = run.orderProcess?.order?.customer?.name;
@@ -312,7 +426,7 @@ export default function BulkTransitionModal({
                                                 </div>
 
                                                 <div className="flex items-center gap-2 flex-shrink-0">
-                                                    {nextStage ? (
+                                                    {isValid ? (
                                                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold rounded-md flex items-center gap-1">
                                                             <Check className="w-3 h-3 text-emerald-600" />
                                                             Ready
@@ -320,7 +434,7 @@ export default function BulkTransitionModal({
                                                     ) : (
                                                         <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold rounded-md flex items-center gap-1">
                                                             <AlertCircle className="w-3 h-3 text-amber-600" />
-                                                            {error || 'No Next Stage'}
+                                                            {reason || 'Invalid Stage'}
                                                         </span>
                                                     )}
                                                 </div>
@@ -345,7 +459,7 @@ export default function BulkTransitionModal({
 
                     <button
                         onClick={handleExecuteBulkTransition}
-                        disabled={loadingDetails || isAdvancing || validTargets.length === 0}
+                        disabled={loadingDetails || isAdvancing || validTargets.length === 0 || !selectedTargetStage}
                         className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center gap-2"
                     >
                         {isAdvancing ? (
