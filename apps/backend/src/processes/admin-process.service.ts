@@ -1306,7 +1306,13 @@ export class AdminProcessService {
 
       await executor.processRun.update({
         where: { id: processRun.id },
-        data: { lifeCycleStatusCode: target.code },
+        data: {
+          lifeCycleStatusCode: target.code,
+          claimedBy: null,
+          claimedAt: null,
+          pausedAt: null,
+          pausedDurationSeconds: 0,
+        },
       });
 
       // Create new stage histories or update existing ones for the specified stages completed by this transition

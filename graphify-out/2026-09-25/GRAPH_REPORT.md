@@ -1,7 +1,7 @@
-# Graph Report - skyprints  (2026-09-25)
+# Graph Report - skyprints  (2026-09-24)
 
 ## Corpus Check
-- 420 files · ~317,816 words
+- 420 files · ~317,746 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `792e9b36`
+- Built from commit: `353c5fcc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -328,7 +328,7 @@ Nodes (13): ReportsQueryDto, IsOptional, IsString, ReportsController, Controller
 
 ### Community 32 - "r"
 Cohesion: 0.40
-Nodes (4): ConfigureProcessRunDto, ConfigureProcessRunSchema, TransitionProcessRunDto, TransitionProcessRunSchema
+Nodes (4): AddOrdersToBillingContextDto, AddOrdersToBillingContextSchema, CreateBillingContextDto, CreateBillingContextSchema
 
 ### Community 33 - "DashboardClient.tsx"
 Cohesion: 0.07
@@ -420,7 +420,7 @@ Nodes (15): ReassignSideTaskModalProps, ReviewSideTaskModalProps, SideTaskCard()
 
 ### Community 56 - "index.ts"
 Cohesion: 0.08
-Nodes (20): AddOrdersToBillingContextDto, AddOrdersToBillingContextSchema, CreateBillingContextDto, CreateBillingContextSchema, CalculateBillingDto, CalculateBillingSchema, StrictNumber, CalculateBillingResponseDto (+12 more)
+Nodes (20): CalculateBillingDto, CalculateBillingSchema, StrictNumber, CalculateBillingResponseDto, CalculateBillingResponseSchema, StrictNumber, CustomerSummaryDto, DeleteRunImageDto (+12 more)
 
 ### Community 57 - "page.tsx"
 Cohesion: 0.33

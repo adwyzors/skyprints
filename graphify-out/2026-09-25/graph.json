@@ -8477,7 +8477,7 @@
       "label": ".validateAndNormalizeFields()",
       "file_type": "code",
       "source_file": "apps/backend/src/processes/admin-process.service.ts",
-      "source_location": "L1482",
+      "source_location": "L1476",
       "_origin": "ast",
       "id": "apps_backend_src_processes_admin_process_service_adminprocessservice_validateandnormalizefields",
       "community": 22,
@@ -8487,7 +8487,7 @@
       "label": ".updateStageHistoryManager()",
       "file_type": "code",
       "source_file": "apps/backend/src/processes/admin-process.service.ts",
-      "source_location": "L1585",
+      "source_location": "L1579",
       "_origin": "ast",
       "id": "apps_backend_src_processes_admin_process_service_adminprocessservice_updatestagehistorymanager",
       "community": 22,
@@ -19580,7 +19580,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_packages_contracts_src_billing_context_contract",
-      "community": 56,
+      "community": 32,
       "norm_label": "billing-context.contract.ts"
     },
     {
@@ -19590,7 +19590,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "apps_packages_contracts_src_billing_context_contract_createbillingcontextschema",
-      "community": 56,
+      "community": 32,
       "norm_label": "createbillingcontextschema"
     },
     {
@@ -19600,7 +19600,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "apps_packages_contracts_src_billing_context_contract_createbillingcontextdto",
-      "community": 56,
+      "community": 32,
       "norm_label": "createbillingcontextdto"
     },
     {
@@ -19610,7 +19610,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "apps_packages_contracts_src_billing_context_contract_addorderstobillingcontextschema",
-      "community": 56,
+      "community": 32,
       "norm_label": "addorderstobillingcontextschema"
     },
     {
@@ -19620,7 +19620,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "apps_packages_contracts_src_billing_context_contract_addorderstobillingcontextdto",
-      "community": 56,
+      "community": 32,
       "norm_label": "addorderstobillingcontextdto"
     },
     {
@@ -20450,7 +20450,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "apps_packages_contracts_src_process_run_configure_contract",
-      "community": 32,
+      "community": 56,
       "norm_label": "process-run.configure.contract.ts"
     },
     {
@@ -20460,7 +20460,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "apps_packages_contracts_src_process_run_configure_contract_configureprocessrunschema",
-      "community": 32,
+      "community": 56,
       "norm_label": "configureprocessrunschema"
     },
     {
@@ -20470,7 +20470,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "apps_packages_contracts_src_process_run_configure_contract_configureprocessrundto",
-      "community": 32,
+      "community": 56,
       "norm_label": "configureprocessrundto"
     },
     {
@@ -20480,7 +20480,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "apps_packages_contracts_src_process_run_configure_contract_transitionprocessrunschema",
-      "community": 32,
+      "community": 56,
       "norm_label": "transitionprocessrunschema"
     },
     {
@@ -20490,7 +20490,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "apps_packages_contracts_src_process_run_configure_contract_transitionprocessrundto",
-      "community": 32,
+      "community": 56,
       "norm_label": "transitionprocessrundto"
     },
     {
@@ -35244,7 +35244,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/backend/src/processes/admin-process.service.ts",
-      "source_location": "L1475",
+      "source_location": "L1469",
       "weight": 1.0,
       "source": "apps_backend_src_processes_admin_process_service_adminprocessservice_transition",
       "target": "apps_backend_prisma_prisma_service_prismaservice_transaction"
@@ -52351,7 +52351,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/backend/src/processes/admin-process.service.ts",
-      "source_location": "L1453",
+      "source_location": "L1447",
       "weight": 1.0,
       "source": "apps_backend_src_processes_admin_process_service_adminprocessservice_transition",
       "target": "apps_backend_src_notifications_notifications_service_notificationsservice_createnotification"
@@ -54754,7 +54754,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "apps/backend/src/processes/admin-process.service.ts",
-      "source_location": "L1463",
+      "source_location": "L1457",
       "weight": 1.0,
       "source": "apps_backend_src_processes_admin_process_service_adminprocessservice_transition",
       "target": "apps_backend_src_orders_utils_order_estimate_util_recomputeorderestimate"
@@ -55667,7 +55667,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "apps/backend/src/processes/admin-process.service.ts",
-      "source_location": "L1585",
+      "source_location": "L1579",
       "weight": 1.0,
       "source": "apps_backend_src_processes_admin_process_service_adminprocessservice",
       "target": "apps_backend_src_processes_admin_process_service_adminprocessservice_updatestagehistorymanager",
@@ -55687,7 +55687,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "apps/backend/src/processes/admin-process.service.ts",
-      "source_location": "L1482",
+      "source_location": "L1476",
       "weight": 1.0,
       "source": "apps_backend_src_processes_admin_process_service_adminprocessservice",
       "target": "apps_backend_src_processes_admin_process_service_adminprocessservice_validateandnormalizefields",
@@ -55720,7 +55720,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "apps/backend/src/processes/admin-process.service.ts",
-      "source_location": "L1368",
+      "source_location": "L1362",
       "weight": 1.0,
       "source": "apps_backend_src_processes_admin_process_service_adminprocessservice_transition",
       "target": "apps_backend_src_processes_admin_process_service_adminprocessservice_create",
@@ -55897,7 +55897,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "apps/backend/src/processes/admin-process.service.ts",
-      "source_location": "L1486",
+      "source_location": "L1480",
       "weight": 1.0,
       "source": "apps_backend_src_processes_admin_process_service_adminprocessservice_validateandnormalizefields",
       "target": "apps_test_report_jest_html_reporters_attach_index_index_f"
@@ -126922,5 +126922,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "792e9b36a0b54171d5f7d51d48cf254b242e417f"
+  "built_at_commit": "353c5fcc8734f3a258d0c5aa15204da3ab3dd875"
 }
