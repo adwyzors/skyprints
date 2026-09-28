@@ -318,7 +318,7 @@ export class SideTasksService {
   }
 
   /**
-   * Metadata update (title, description, customer, priority, requiredBy, images)
+   * Metadata update (title, description, customer, priority, requiredBy, images, stage, assignee)
    */
   async update(id: string, dto: UpdateSideTaskDto) {
     if (dto.images && dto.images.length > 2) {
@@ -330,18 +330,52 @@ export class SideTasksService {
       throw new NotFoundException('Side task not found');
     }
 
-    return this.prisma.sideTask.update({
-      where: { id },
-      data: {
+    return this.prisma.transaction(async (tx) => {
+      const updateData: Prisma.SideTaskUpdateInput = {
         title: dto.title,
         description: dto.description,
-        customerId: dto.customerId,
+        customer: dto.customerId !== undefined
+          ? (dto.customerId ? { connect: { id: dto.customerId } } : { disconnect: true })
+          : undefined,
         priority: dto.priority,
         taskType: dto.taskType,
-        requiredBy: dto.requiredBy ? new Date(dto.requiredBy) : undefined,
+        requiredBy: dto.requiredBy !== undefined ? (dto.requiredBy ? new Date(dto.requiredBy) : null) : undefined,
         images: dto.images,
-      },
-      include: this.sideTaskInclude,
+      };
+
+      if (dto.currentAssigneeId) {
+        updateData.currentAssignee = { connect: { id: dto.currentAssigneeId } };
+      }
+      if (dto.currentStageTypeId) {
+        updateData.currentStageTypeId = dto.currentStageTypeId;
+      }
+
+      // If assignee or stage type changed, also update the active stage history
+      if (dto.currentAssigneeId || dto.currentStageTypeId) {
+        const activeHistory = await tx.sideTaskStageHistory.findFirst({
+          where: { sideTaskId: id, completedAt: null },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (activeHistory) {
+          await tx.sideTaskStageHistory.update({
+            where: { id: activeHistory.id },
+            data: {
+              assignedUserId: dto.currentAssigneeId || activeHistory.assignedUserId,
+              stageTypeId: dto.currentStageTypeId || activeHistory.stageTypeId,
+            },
+          });
+        }
+      }
+
+      await tx.sideTask.update({
+        where: { id },
+        data: updateData,
+      });
+
+      return tx.sideTask.findUnique({
+        where: { id },
+        include: this.sideTaskInclude,
+      });
     });
   }
 
@@ -688,6 +722,55 @@ export class SideTasksService {
       }
 
       const now = new Date();
+      await tx.sideTask.update({
+        where: { id },
+        data: {
+          status: SideTaskStatus.COMPLETED,
+          completedAt: now,
+        },
+      });
+
+      return tx.sideTask.findUnique({
+        where: { id },
+        include: this.sideTaskInclude,
+      });
+    });
+  }
+
+  /**
+   * Directly mark a side task as completed (e.g. direct tick)
+   */
+  async completeDirectly(id: string, userId: string, note?: string) {
+    return this.prisma.transaction(async (tx) => {
+      const task = await tx.sideTask.findUnique({ where: { id } });
+      if (!task) throw new NotFoundException('Side task not found');
+      if (
+        task.status === SideTaskStatus.COMPLETED ||
+        task.status === SideTaskStatus.ABANDONED
+      ) {
+        throw new BadRequestException('Task is already closed');
+      }
+
+      const now = new Date();
+      const currentHistory = await tx.sideTaskStageHistory.findFirst({
+        where: { sideTaskId: id, completedAt: null },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (currentHistory) {
+        const timing = this.finalizeStageTiming(currentHistory, now);
+        await tx.sideTaskStageHistory.update({
+          where: { id: currentHistory.id },
+          data: {
+            totalTimeSeconds: timing.totalTimeSeconds,
+            pausedAt: timing.pausedAt,
+            completedAt: now,
+            completionNote: note ?? 'Marked complete directly',
+            outcome: SideTaskStageOutcome.COMPLETED,
+          },
+        });
+      }
+
       await tx.sideTask.update({
         where: { id },
         data: {

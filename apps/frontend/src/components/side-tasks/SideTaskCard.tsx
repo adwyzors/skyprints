@@ -13,6 +13,7 @@ import {
   Maximize2,
   MoreVertical,
   Pause,
+  Pencil,
   Play,
   RotateCcw,
   Send,
@@ -23,6 +24,7 @@ import {
 import { SideTask } from '@/types/sideTask';
 import {
   abandonSideTask,
+  completeSideTask,
   deleteSideTask,
   pauseSideTaskStage,
   resumeSideTaskStage,
@@ -40,6 +42,7 @@ interface SideTaskCardProps {
   onRefresh: () => void;
   onPass: (task: SideTask) => void;
   onReassign: (task: SideTask) => void;
+  onEdit?: (task: SideTask) => void;
   onSubmitReview: (task: SideTask) => void;
   onReview: (task: SideTask) => void;
   onOpenHistory: (task: SideTask) => void;
@@ -63,6 +66,7 @@ export function SideTaskCard({
   onRefresh,
   onPass,
   onReassign,
+  onEdit,
   onSubmitReview,
   onReview,
   onOpenHistory,
@@ -170,6 +174,20 @@ export function SideTaskCard({
       onRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to resume timer');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDirectComplete = async () => {
+    setMenuOpen(false);
+    setActionLoading(true);
+    try {
+      await completeSideTask(task.id);
+      toast.success(`Task ${task.code} marked complete`);
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to complete task');
     } finally {
       setActionLoading(false);
     }
@@ -426,6 +444,27 @@ export function SideTaskCard({
 
                 {menuOpen && (
                   <div className="absolute right-0 bottom-full mb-1 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                    {onEdit && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onEdit(task);
+                        }}
+                        className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 cursor-pointer font-medium"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-indigo-600" />
+                        Edit Task
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleDirectComplete}
+                      className="w-full px-3 py-1.5 text-left text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      Mark Complete
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -533,6 +572,17 @@ export function SideTaskCard({
                 </button>
               )}
 
+              {/* Direct Mark Complete tick */}
+              <button
+                type="button"
+                onClick={handleDirectComplete}
+                disabled={actionLoading}
+                className="p-1 text-emerald-600 hover:text-white bg-emerald-50 hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 rounded-md transition cursor-pointer shadow-2xs"
+                title="Mark complete directly"
+              >
+                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+              </button>
+
               {/* Menu button */}
               <div className="relative" ref={menuRef}>
                 <button
@@ -549,6 +599,27 @@ export function SideTaskCard({
 
                 {menuOpen && (
                   <div className="absolute right-0 bottom-full mb-1 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                    {onEdit && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onEdit(task);
+                        }}
+                        className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 cursor-pointer font-medium"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-indigo-600" />
+                        Edit Task
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleDirectComplete}
+                      className="w-full px-3 py-1.5 text-left text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      Mark Complete
+                    </button>
                     {isInReview && (
                       <button
                         type="button"

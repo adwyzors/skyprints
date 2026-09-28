@@ -143,6 +143,16 @@ export async function sendBackSideTaskReview(
   });
 }
 
+export async function completeSideTask(
+  id: string,
+  note?: string,
+): Promise<SideTask> {
+  return apiRequest<SideTask>(`/side-tasks/${id}/complete`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  });
+}
+
 export async function abandonSideTask(
   id: string,
   payload?: AbandonSideTaskPayload,

@@ -192,6 +192,16 @@ export class SideTasksController {
     return this.sideTasksService.sendBackReview(id, user.id, dto);
   }
 
+  @Post(':id/complete')
+  @Permissions('side_tasks:edit')
+  completeTask(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() body?: { note?: string },
+  ) {
+    return this.sideTasksService.completeDirectly(id, user.id, body?.note);
+  }
+
   @Post(':id/abandon')
   @Permissions('side_tasks:abandon')
   abandonTask(

@@ -112,6 +112,14 @@ export class UpdateSideTaskDto {
   @ArrayMaxSize(2, { message: 'Maximum 2 images allowed' })
   @IsString({ each: true })
   images?: string[];
+
+  @IsOptional()
+  @IsUUID()
+  currentStageTypeId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  currentAssigneeId?: string;
 }
 
 export class PassStageDto {

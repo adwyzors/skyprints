@@ -101,11 +101,13 @@ export interface CreateSideTaskPayload {
 export interface UpdateSideTaskPayload {
   title?: string;
   description?: string;
-  customerId?: string;
+  customerId?: string | null;
   priority?: SideTaskPriority;
   taskType?: SideTaskType;
-  requiredBy?: string;
+  requiredBy?: string | null;
   images?: string[];
+  currentStageTypeId?: string;
+  currentAssigneeId?: string;
 }
 
 export interface PassStagePayload {

@@ -58,6 +58,7 @@ import { CreateSideTaskModal } from '@/components/side-tasks/CreateSideTaskModal
 import { PassSideTaskModal } from '@/components/side-tasks/PassSideTaskModal';
 import { ReassignSideTaskModal } from '@/components/side-tasks/ReassignSideTaskModal';
 import { ReviewSideTaskModal } from '@/components/side-tasks/ReviewSideTaskModal';
+import { EditSideTaskModal } from '@/components/side-tasks/EditSideTaskModal';
 import { SideTaskHistoryModal } from '@/components/side-tasks/SideTaskHistoryModal';
 import { getAllSideTasks, getMySideTasks } from '@/services/sideTaskService';
 import { SideTask } from '@/types/sideTask';
@@ -648,6 +649,7 @@ function AdminMyTasksPage() {
 
     const [passTaskTarget, setPassTaskTarget] = useState<SideTask | null>(null);
     const [reassignTaskTarget, setReassignTaskTarget] = useState<SideTask | null>(null);
+    const [editTaskTarget, setEditTaskTarget] = useState<SideTask | null>(null);
     const [reviewTaskTarget, setReviewTaskTarget] = useState<SideTask | null>(null);
     const [reviewMode, setReviewMode] = useState<'submit' | 'review'>('submit');
     const [historyTaskTarget, setHistoryTaskTarget] = useState<SideTask | null>(null);
@@ -1221,6 +1223,7 @@ function AdminMyTasksPage() {
                                                                                             onRefresh={fetchSideTasks}
                                                                                             onPass={(task) => setPassTaskTarget(task)}
                                                                                             onReassign={(task) => setReassignTaskTarget(task)}
+                                                                                            onEdit={(task) => setEditTaskTarget(task)}
                                                                                             onSubmitReview={(task) => {
                                                                                                 setReviewTaskTarget(task);
                                                                                                 setReviewMode('submit');
@@ -1248,6 +1251,7 @@ function AdminMyTasksPage() {
                                                                             onRefresh={fetchSideTasks}
                                                                             onPass={(task) => setPassTaskTarget(task)}
                                                                             onReassign={(task) => setReassignTaskTarget(task)}
+                                                                            onEdit={(task) => setEditTaskTarget(task)}
                                                                             onSubmitReview={(task) => {
                                                                                 setReviewTaskTarget(task);
                                                                                 setReviewMode('submit');
@@ -1307,6 +1311,7 @@ function AdminMyTasksPage() {
                                                         onRefresh={fetchSideTasks}
                                                         onPass={(task) => setPassTaskTarget(task)}
                                                         onReassign={(task) => setReassignTaskTarget(task)}
+                                                        onEdit={(task) => setEditTaskTarget(task)}
                                                         onSubmitReview={(task) => {
                                                             setReviewTaskTarget(task);
                                                             setReviewMode('submit');
@@ -1524,6 +1529,13 @@ function AdminMyTasksPage() {
                 task={passTaskTarget}
                 isOpen={Boolean(passTaskTarget)}
                 onClose={() => setPassTaskTarget(null)}
+                onSuccess={fetchSideTasks}
+            />
+
+            <EditSideTaskModal
+                task={editTaskTarget}
+                isOpen={Boolean(editTaskTarget)}
+                onClose={() => setEditTaskTarget(null)}
                 onSuccess={fetchSideTasks}
             />
 
