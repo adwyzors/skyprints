@@ -617,8 +617,10 @@ function getAvatarColor(name: string): string {
 }
 
 function ManagerRunsPage() {
-    const { user } = useAuth();
+    const { user, hasPermission } = useAuth();
     const currentUserId = user?.user?.id || user?.id;
+    const role = user?.user?.role || (user as any)?.role;
+    const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
 
     const [mainTab, setMainTab] = useState<'PROCESS_RUNS' | 'SIDE_TASKS'>('PROCESS_RUNS');
     const [queue, setQueue] = useState<ManagerQueueItem[]>([]);
@@ -695,12 +697,18 @@ function ManagerRunsPage() {
 
     const fetchSideTasks = async () => {
         try {
-            const data = sideTaskFilter === 'ALL'
+            const canViewAll = isAdmin || hasPermission('side_tasks:view_all') || sideTaskFilter === 'ALL' || sideTaskFilter === 'REVIEW';
+            const data = canViewAll
                 ? await getAllSideTasks({ search: sideTaskSearch })
                 : await getMySideTasks({ search: sideTaskSearch });
             setSideTasks(data);
         } catch (err) {
-            console.error('Failed to fetch side tasks', err);
+            try {
+                const fallback = await getMySideTasks({ search: sideTaskSearch });
+                setSideTasks(fallback);
+            } catch (fallbackErr) {
+                console.error('Failed to fetch side tasks', fallbackErr);
+            }
         }
     };
 
@@ -834,6 +842,36 @@ function ManagerRunsPage() {
     }, [sideTasks, sideTaskSearch, sideTaskFilter, sortField, sortDirection, sortMode, currentUserId]);
 
     const groupedSideTaskSections = useMemo(() => {
+        const buildAssigneeGroups = (taskList: SideTask[]) => {
+            const map = new Map<string, { name: string; tasks: SideTask[] }>();
+            taskList.forEach((t) => {
+                const id = t.currentAssigneeId || 'unassigned';
+                const name = t.currentAssignee?.name || 'Unassigned';
+                if (!map.has(id)) {
+                    map.set(id, { name, tasks: [] });
+                }
+                map.get(id)!.tasks.push(t);
+            });
+            return Array.from(map.entries()).map(([id, val]) => ({
+                key: id,
+                name: val.name,
+                initials: getInitials(val.name),
+                tasks: val.tasks,
+            }));
+        };
+
+        if (sideTaskFilter === 'REVIEW') {
+            return [
+                {
+                    key: 'review',
+                    title: 'Tasks Awaiting Review',
+                    dot: true,
+                    tasks: displayedSideTasks,
+                    assigneeGroups: buildAssigneeGroups(displayedSideTasks),
+                },
+            ];
+        }
+
         const ongoing: SideTask[] = [];
         const today: SideTask[] = [];
         const tomorrow: SideTask[] = [];
@@ -871,31 +909,13 @@ function ManagerRunsPage() {
             }
         });
 
-        const buildAssigneeGroups = (taskList: SideTask[]) => {
-            const map = new Map<string, { name: string; tasks: SideTask[] }>();
-            taskList.forEach((t) => {
-                const id = t.currentAssigneeId || 'unassigned';
-                const name = t.currentAssignee?.name || 'Unassigned';
-                if (!map.has(id)) {
-                    map.set(id, { name, tasks: [] });
-                }
-                map.get(id)!.tasks.push(t);
-            });
-            return Array.from(map.entries()).map(([id, val]) => ({
-                key: id,
-                name: val.name,
-                initials: getInitials(val.name),
-                tasks: val.tasks,
-            }));
-        };
-
         return [
             { key: 'ongoing', title: 'Ongoing Tasks', dot: true, tasks: ongoing, assigneeGroups: buildAssigneeGroups(ongoing) },
             { key: 'today', title: 'Today', dot: false, tasks: today, assigneeGroups: buildAssigneeGroups(today) },
             { key: 'tomorrow', title: 'Tomorrow', dot: false, tasks: tomorrow, assigneeGroups: buildAssigneeGroups(tomorrow) },
             { key: 'nextWeek', title: 'Next Week', dot: false, tasks: nextWeek, assigneeGroups: buildAssigneeGroups(nextWeek) },
         ];
-    }, [displayedSideTasks]);
+    }, [displayedSideTasks, sideTaskFilter]);
 
     const renderSortHeader = (label: string, field: SideTaskSortField, align: 'left' | 'center' | 'right' = 'left') => {
         const isSorted = sortField === field;
@@ -1013,7 +1033,7 @@ function ManagerRunsPage() {
                                         : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
                                 }`}
                             >
-                                All Active Side Tasks
+                                All Active Side Tasks ({sideTasks.length})
                             </button>
                             <button
                                 onClick={() => handleSideTaskFilterChange('REVIEW')}
@@ -1023,7 +1043,7 @@ function ManagerRunsPage() {
                                         : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
                                 }`}
                             >
-                                Review Tasks
+                                Review Tasks ({sideTasks.filter((t) => t.status === 'IN_REVIEW').length})
                             </button>
                         </div>
 
@@ -1084,7 +1104,11 @@ function ManagerRunsPage() {
                         <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
                             <Layers className="w-10 h-10 text-gray-300 mx-auto mb-2" />
                             <p className="text-gray-500 font-medium text-sm">
-                                {sideTaskSearch ? `No side tasks matching "${sideTaskSearch}"` : 'No active side tasks found.'}
+                                {sideTaskSearch
+                                    ? `No side tasks matching "${sideTaskSearch}"`
+                                    : sideTaskFilter === 'REVIEW'
+                                    ? 'No tasks awaiting review.'
+                                    : 'No active side tasks found.'}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
                                 Click "Create Side Task" (Ctrl+/) to create a new task.

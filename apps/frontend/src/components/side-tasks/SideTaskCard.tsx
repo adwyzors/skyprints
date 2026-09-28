@@ -7,6 +7,7 @@ import {
   Check,
   ChevronRight,
   Clock,
+  Eye,
   History,
   Image as ImageIcon,
   Maximize2,
@@ -111,6 +112,7 @@ export function SideTaskCard({
   const isPaused = Boolean(isActiveStatus && pausedAt);
   const isUnstarted = Boolean(isActiveStatus && !lastStartedAt);
   const isOngoing = isRunning || task.status === 'IN_PROGRESS';
+  const isInReview = task.status === 'IN_REVIEW';
 
   const [nowMs, setNowMs] = useState<number>(Date.now());
 
@@ -497,9 +499,19 @@ export function SideTaskCard({
               ⏱ {formatDuration(currentSeconds)}
             </div>
 
-            {/* Actions: Start, More */}
+            {/* Actions: Review, Resume, Start, More */}
             <div className="flex items-center gap-1.5">
-              {isPaused ? (
+              {isInReview ? (
+                <button
+                  type="button"
+                  onClick={() => onReview(task)}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 active:bg-purple-800 rounded-lg shadow-2xs transition cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Review
+                </button>
+              ) : isPaused ? (
                 <button
                   type="button"
                   onClick={handleResume}
@@ -537,6 +549,19 @@ export function SideTaskCard({
 
                 {menuOpen && (
                   <div className="absolute right-0 bottom-full mb-1 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                    {isInReview && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onReview(task);
+                        }}
+                        className="w-full px-3 py-1.5 text-left text-xs text-purple-700 hover:bg-purple-50 flex items-center gap-2 cursor-pointer font-medium"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-purple-600" />
+                        Review Task
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {

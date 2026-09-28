@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Check,
   Clock,
+  Eye,
   History as HistoryIcon,
   Image as ImageIcon,
   MoreVertical,
@@ -90,6 +91,7 @@ export function SideTaskTableRow({
   const isRunning = Boolean(isActiveStatus && lastStartedAt && !pausedAt);
   const isPaused = Boolean(isActiveStatus && pausedAt);
   const isOngoing = isRunning || task.status === 'IN_PROGRESS';
+  const isInReview = task.status === 'IN_REVIEW';
 
   const [nowMs, setNowMs] = useState<number>(Date.now());
 
@@ -368,6 +370,27 @@ export function SideTaskTableRow({
                 <Check className="w-3.5 h-3.5 stroke-[2.5]" />
               </button>
             </>
+          ) : isInReview ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onReview(task)}
+                disabled={actionLoading}
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 active:bg-purple-800 rounded-lg shadow-2xs transition cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Review
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onOpenHistory(task)}
+                className="p-1.5 text-gray-500 hover:text-gray-800 bg-white hover:bg-gray-100 rounded-lg border border-gray-200 transition cursor-pointer shadow-2xs"
+                title="View History"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -420,6 +443,19 @@ export function SideTaskTableRow({
 
             {menuOpen && (
               <div className="absolute right-0 bottom-full mb-1 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100 text-left">
+                {isInReview && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onReview(task);
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-xs text-purple-700 hover:bg-purple-50 flex items-center gap-2 cursor-pointer font-medium"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-purple-600" />
+                    Review Task
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
