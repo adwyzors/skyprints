@@ -42,6 +42,7 @@ import {
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
+    ChevronDown,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -49,6 +50,7 @@ import { toast } from 'sonner';
 import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 import { SideTaskCard } from '@/components/side-tasks/SideTaskCard';
 import { SideTaskTableRow } from '@/components/side-tasks/SideTaskTableRow';
+import { SideTaskColorLegend } from '@/components/side-tasks/SideTaskColorLegend';
 import OrdersViewToggle from '@/components/orders/OrdersViewToggle';
 import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import { CreateSideTaskModal } from '@/components/side-tasks/CreateSideTaskModal';
@@ -618,6 +620,11 @@ function AdminMyTasksPage() {
     const [reviewTaskTarget, setReviewTaskTarget] = useState<SideTask | null>(null);
     const [reviewMode, setReviewMode] = useState<'submit' | 'review'>('submit');
     const [historyTaskTarget, setHistoryTaskTarget] = useState<SideTask | null>(null);
+    const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+    const toggleSection = (key: string) => {
+        setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+    };
 
     const handleSideTaskFilterChange = (filter: 'MY' | 'ALL') => {
         setSideTaskFilter(filter);
@@ -757,6 +764,52 @@ function AdminMyTasksPage() {
         return sortSideTasks(filtered, sortField, sortDirection);
     }, [sideTasks, sideTaskSearch, sortField, sortDirection]);
 
+    const groupedSideTaskSections = useMemo(() => {
+        const ongoing: SideTask[] = [];
+        const today: SideTask[] = [];
+        const tomorrow: SideTask[] = [];
+        const nextWeek: SideTask[] = [];
+
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tomorrowStart = new Date(todayStart);
+        tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+        const dayAfterTomorrowStart = new Date(todayStart);
+        dayAfterTomorrowStart.setDate(dayAfterTomorrowStart.getDate() + 2);
+
+        displayedSideTasks.forEach((t) => {
+            const isOngoing =
+                t.status === 'IN_PROGRESS' ||
+                t.stageHistories?.some((h) => h.lastStartedAt && !h.pausedAt && !h.completedAt);
+
+            if (isOngoing) {
+                ongoing.push(t);
+                return;
+            }
+
+            if (!t.requiredBy) {
+                nextWeek.push(t);
+                return;
+            }
+
+            const reqDate = new Date(t.requiredBy);
+            if (reqDate < tomorrowStart) {
+                today.push(t);
+            } else if (reqDate >= tomorrowStart && reqDate < dayAfterTomorrowStart) {
+                tomorrow.push(t);
+            } else {
+                nextWeek.push(t);
+            }
+        });
+
+        return [
+            { key: 'ongoing', title: 'Ongoing Tasks', dot: true, tasks: ongoing },
+            { key: 'today', title: 'Today', dot: false, tasks: today },
+            { key: 'tomorrow', title: 'Tomorrow', dot: false, tasks: tomorrow },
+            { key: 'nextWeek', title: 'Next Week', dot: false, tasks: nextWeek },
+        ];
+    }, [displayedSideTasks]);
+
     const renderSortHeader = (label: string, field: SideTaskSortField, align: 'left' | 'center' | 'right' = 'left') => {
         const isSorted = sortField === field;
         return (
@@ -854,7 +907,7 @@ function AdminMyTasksPage() {
             {mainTab === 'SIDE_TASKS' ? (
                 <div className="space-y-6">
                     {/* Filters & Search & View Mode Switcher */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
+                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-xs">
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => handleSideTaskFilterChange('MY')}
@@ -880,8 +933,13 @@ function AdminMyTasksPage() {
                             )}
                         </div>
 
-                        <div className="flex items-center gap-3 w-full md:w-auto">
-                            <div className="relative flex-1 md:w-72">
+                        {/* Color Code Legend */}
+                        <div className="hidden lg:flex items-center">
+                            <SideTaskColorLegend />
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full xl:w-auto">
+                            <div className="relative flex-1 xl:w-72">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <input
                                     type="text"
@@ -952,25 +1010,59 @@ function AdminMyTasksPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {displayedSideTasks.map((t) => (
-                                <SideTaskCard
-                                    key={t.id}
-                                    task={t}
-                                    onRefresh={fetchSideTasks}
-                                    onPass={(task) => setPassTaskTarget(task)}
-                                    onReassign={(task) => setReassignTaskTarget(task)}
-                                    onSubmitReview={(task) => {
-                                        setReviewTaskTarget(task);
-                                        setReviewMode('submit');
-                                    }}
-                                    onReview={(task) => {
-                                        setReviewTaskTarget(task);
-                                        setReviewMode('review');
-                                    }}
-                                    onOpenHistory={(task) => setHistoryTaskTarget(task)}
-                                />
-                            ))}
+                        <div className="space-y-6">
+                            {groupedSideTaskSections.map((section) => {
+                                if (section.tasks.length === 0) return null;
+                                const isCollapsed = Boolean(collapsedSections[section.key]);
+
+                                return (
+                                    <div key={section.key} className="space-y-3">
+                                        <div
+                                            onClick={() => toggleSection(section.key)}
+                                            className="flex items-center gap-2 cursor-pointer select-none py-1 group w-fit"
+                                        >
+                                            <ChevronDown
+                                                className={`w-4 h-4 text-gray-500 transition-transform ${
+                                                    isCollapsed ? '-rotate-90' : ''
+                                                }`}
+                                            />
+                                            <h3 className="font-bold text-sm text-gray-900 flex items-center gap-2">
+                                                <span>{section.title}</span>
+                                                {section.dot && (
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                                                )}
+                                                <span className="text-gray-400 font-normal text-xs">
+                                                    ({section.tasks.length} {section.tasks.length === 1 ? 'task' : 'tasks'})
+                                                </span>
+                                            </h3>
+                                        </div>
+
+                                        {!isCollapsed && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                                {section.tasks.map((t) => (
+                                                    <SideTaskCard
+                                                        key={t.id}
+                                                        task={t}
+                                                        onRefresh={fetchSideTasks}
+                                                        onPass={(task) => setPassTaskTarget(task)}
+                                                        onReassign={(task) => setReassignTaskTarget(task)}
+                                                        onSubmitReview={(task) => {
+                                                            setReviewTaskTarget(task);
+                                                            setReviewMode('submit');
+                                                        }}
+                                                        onReview={(task) => {
+                                                            setReviewTaskTarget(task);
+                                                            setReviewMode('review');
+                                                        }}
+                                                        onOpenHistory={(task) => setHistoryTaskTarget(task)}
+                                                        onPreviewImage={(url) => setPreviewImageUrl(url)}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

@@ -1,24 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  AlertTriangle,
   ArrowRight,
-  CheckCircle2,
+  Check,
   ChevronRight,
   Clock,
   History,
   Image as ImageIcon,
+  Maximize2,
+  MoreVertical,
   Pause,
   Play,
+  RotateCcw,
   Send,
   Trash2,
-  User,
   UserCheck,
+  XCircle,
 } from 'lucide-react';
 import { SideTask } from '@/types/sideTask';
-import { SideTaskTimer } from './SideTaskTimer';
 import {
   abandonSideTask,
   deleteSideTask,
@@ -27,6 +28,11 @@ import {
   startSideTaskStage,
 } from '@/services/sideTaskService';
 import { useAuth } from '@/auth/AuthProvider';
+import {
+  getTaskCardTheme,
+  PRIORITY_LABELS,
+  TASK_TYPE_LABELS,
+} from './sideTaskTheme';
 
 interface SideTaskCardProps {
   task: SideTask;
@@ -36,6 +42,19 @@ interface SideTaskCardProps {
   onSubmitReview: (task: SideTask) => void;
   onReview: (task: SideTask) => void;
   onOpenHistory: (task: SideTask) => void;
+  onPreviewImage?: (url: string) => void;
+}
+
+function formatDuration(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hrs > 0) {
+    return `${hrs}h ${mins}m ${secs}s`;
+  }
+  return `${mins < 10 ? '0' : ''}${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
 }
 
 export function SideTaskCard({
@@ -46,14 +65,16 @@ export function SideTaskCard({
   onSubmitReview,
   onReview,
   onOpenHistory,
+  onPreviewImage,
 }: SideTaskCardProps) {
   const { user } = useAuth();
   const [actionLoading, setActionLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const images = task.images || [];
   const hasImages = images.length > 0;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
   const nextImage = useCallback(
     (e?: React.MouseEvent) => {
@@ -69,18 +90,18 @@ export function SideTaskCard({
   };
 
   useEffect(() => {
-    if (!hasImages || images.length <= 1 || isCarouselPaused) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
 
-    const interval = setInterval(() => {
-      nextImage();
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [hasImages, images.length, isCarouselPaused, nextImage]);
-
-  const isAssignedToMe = user?.id === task.currentAssigneeId;
   const currentHistory = task.stageHistories?.[task.stageHistories.length - 1];
-
   const storedTotalTime = currentHistory?.totalTimeSeconds ?? 0;
   const lastStartedAt = currentHistory?.lastStartedAt ?? null;
   const pausedAt = currentHistory?.pausedAt ?? null;
@@ -89,6 +110,26 @@ export function SideTaskCard({
   const isRunning = Boolean(isActiveStatus && lastStartedAt && !pausedAt);
   const isPaused = Boolean(isActiveStatus && pausedAt);
   const isUnstarted = Boolean(isActiveStatus && !lastStartedAt);
+  const isOngoing = isRunning || task.status === 'IN_PROGRESS';
+
+  const [nowMs, setNowMs] = useState<number>(Date.now());
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
+  let currentSeconds = storedTotalTime;
+  if (isRunning && lastStartedAt) {
+    const elapsed = Math.max(
+      0,
+      Math.floor((nowMs - new Date(lastStartedAt).getTime()) / 1000),
+    );
+    currentSeconds += elapsed;
+  }
 
   const handleStart = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -132,8 +173,8 @@ export function SideTaskCard({
     }
   };
 
-  const handleAbandon = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleAbandon = async () => {
+    setMenuOpen(false);
     if (!confirm('Are you sure you want to abandon this task?')) return;
     setActionLoading(true);
     try {
@@ -147,18 +188,18 @@ export function SideTaskCard({
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDelete = async () => {
+    setMenuOpen(false);
     if (
       !confirm(
-        `Are you sure you want to delete side task "${task.code}"? This will permanently delete it from the database and remove its images from Cloudflare.`,
+        `Are you sure you want to delete side task "${task.code}"? This will permanently delete it and its images.`,
       )
     )
       return;
     setActionLoading(true);
     try {
       await deleteSideTask(task.id);
-      toast.success('Task and images deleted successfully');
+      toast.success('Task deleted successfully');
       onRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete task');
@@ -167,256 +208,380 @@ export function SideTaskCard({
     }
   };
 
-  const priorityColors = {
-    LOW: 'bg-gray-100 text-gray-700',
-    MEDIUM: 'bg-blue-50 text-blue-700 border-blue-200',
-    HIGH: 'bg-orange-50 text-orange-700 border-orange-200',
-    URGENT: 'bg-red-50 text-red-700 border-red-200 font-bold',
-  };
-
-  const statusColors = {
-    ASSIGNED: 'bg-slate-100 text-slate-700',
-    IN_PROGRESS: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    IN_REVIEW: 'bg-indigo-50 text-indigo-700 border-indigo-200 font-semibold',
-    COMPLETED: 'bg-teal-50 text-teal-700 border-teal-200',
-    ABANDONED: 'bg-rose-50 text-rose-700 border-rose-200',
-  };
+  const theme = getTaskCardTheme(task.taskType, task.priority);
+  const taskTypeLabel = TASK_TYPE_LABELS[task.taskType || 'FIVE_MIN'];
+  const priorityLabel = PRIORITY_LABELS[task.priority || 'MEDIUM'];
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col justify-between">
-      {/* Top Image Banner / Carousel (Just like OrderCard) */}
-      <div
-        className="relative w-full h-44 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden"
-        onMouseEnter={() => setIsCarouselPaused(true)}
-        onMouseLeave={() => setIsCarouselPaused(false)}
-      >
+    <div className="bg-white rounded-xl border border-gray-200/90 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden relative group">
+      {/* Top Image Preview / Carousel */}
+      <div className="relative w-full h-40 bg-gray-100 overflow-hidden border-b border-black/5">
         {hasImages ? (
           <>
-            {images.map((img, index) => (
-              <img
-                key={index}
-                src={img}
-                alt={`Task ${task.code}`}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
-                  index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-                }`}
-                loading="lazy"
-              />
-            ))}
+            <img
+              src={images[currentImageIndex]}
+              alt={`Task ${task.code}`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
 
+            {/* Expand / Preview Button */}
+            <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
+              {images.length > 1 && (
+                <span className="bg-black/50 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-md backdrop-blur-xs">
+                  {currentImageIndex + 1}/{images.length}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onPreviewImage) {
+                    onPreviewImage(images[currentImageIndex]);
+                  } else {
+                    window.open(images[currentImageIndex], '_blank');
+                  }
+                }}
+                className="bg-black/40 hover:bg-black/70 text-white p-1 rounded-md backdrop-blur-xs transition"
+                title="Preview full image"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Carousel navigation arrows */}
             {images.length > 1 && (
               <>
                 <button
                   type="button"
                   onClick={prevImage}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-md transition-all hover:scale-110 z-10"
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-1 rounded-full transition opacity-0 group-hover:opacity-100 z-10"
                   aria-label="Previous image"
                 >
-                  <ChevronRight className="w-4 h-4 text-gray-800 rotate-180" />
+                  <ChevronRight className="w-3.5 h-3.5 rotate-180" />
                 </button>
                 <button
                   type="button"
                   onClick={nextImage}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-md transition-all hover:scale-110 z-10"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-1 rounded-full transition opacity-0 group-hover:opacity-100 z-10"
                   aria-label="Next image"
                 >
-                  <ChevronRight className="w-4 h-4 text-gray-800" />
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-2 py-0.5 rounded-full text-[10px] font-medium z-10">
-                  {currentImageIndex + 1} / {images.length}
-                </div>
               </>
             )}
           </>
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50/50">
-            <ImageIcon className="w-10 h-10 mb-1 opacity-30" />
-            <span className="text-xs font-medium text-gray-400">No images uploaded</span>
+          <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
+            <ImageIcon className="w-8 h-8 mb-1 opacity-30" />
+            <span className="text-[11px] font-medium text-gray-400">No image</span>
           </div>
         )}
       </div>
 
-      {/* Card Header & Content */}
-      <div className="p-4 space-y-3 flex-1">
-        {/* Top Row: Code, Badges, Timer */}
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs font-bold text-gray-500">{task.code}</span>
-              <span
-                className={`text-[10px] uppercase px-2 py-0.5 rounded border ${
-                  priorityColors[task.priority] || 'bg-gray-100'
-                }`}
-              >
-                {task.priority}
-              </span>
-              {task.taskType && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200">
-                  {task.taskType === 'FIVE_MIN'
-                    ? '5 min'
-                    : task.taskType === 'HALF_HOUR'
-                    ? 'Half an hr'
-                    : 'Long'}
-                </span>
-              )}
-              <span
-                className={`text-[10px] uppercase px-2 py-0.5 rounded border ${
-                  statusColors[task.status] || 'bg-gray-100'
-                }`}
-              >
-                {task.status.replace(/_/g, ' ')}
-              </span>
-            </div>
-            <h3 className="font-semibold text-gray-900 text-sm mt-1 line-clamp-1">
-              {task.title}
-            </h3>
-          </div>
+      {/* Card Body with Dynamic Background Theme */}
+      <div className={`${theme.bg} p-3.5 space-y-2 flex-1 transition-colors duration-200`}>
+        {/* Top Badges Row */}
+        <div className="flex items-center justify-between gap-1.5">
+          <span
+            className={`font-mono text-xs font-bold tracking-tight ${
+              theme.isDark ? 'text-white' : 'text-gray-900'
+            }`}
+          >
+            {task.code}
+          </span>
 
-          <SideTaskTimer
-            storedTotalTime={storedTotalTime}
-            lastStartedAt={lastStartedAt}
-            pausedAt={pausedAt}
-            status={task.status}
-          />
+          <div className="flex items-center gap-1.5">
+            {/* Task Type Badge */}
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                theme.typeBadge.bg
+              } ${theme.typeBadge.text} ${theme.typeBadge.border || ''}`}
+            >
+              <Clock className="w-2.5 h-2.5" />
+              {taskTypeLabel}
+            </span>
+
+            {/* Priority Badge */}
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                theme.priorityBadge.bg
+              } ${theme.priorityBadge.text}`}
+            >
+              {priorityLabel}
+            </span>
+          </div>
         </div>
 
-        {/* Task Description if present */}
-        {task.description && (
-          <p className="text-xs text-gray-600 line-clamp-2">{task.description}</p>
-        )}
+        {/* Task Title */}
+        <h4
+          className={`font-bold text-xs leading-snug line-clamp-2 ${
+            theme.isDark ? 'text-white' : 'text-gray-900'
+          }`}
+          title={task.title}
+        >
+          {task.title}
+        </h4>
 
-        {/* Customer & Dates & Stage info */}
-        <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-gray-100">
-          <div>
-            <span className="text-gray-400 block text-[10px]">Customer</span>
-            <span className="font-medium text-gray-800 line-clamp-1">
-              {task.customer ? task.customer.name : 'Internal Task'}
-            </span>
+        {/* Subtext info */}
+        <div className="space-y-0.5 pt-0.5">
+          <div
+            className={`text-[11px] truncate ${
+              theme.isDark ? 'text-white/80' : 'text-gray-600'
+            }`}
+          >
+            {task.customer ? task.customer.name : 'Internal Task'} ·{' '}
+            {currentHistory?.stageType?.name || 'Design'}
           </div>
-          <div>
-            <span className="text-gray-400 block text-[10px]">Current Stage</span>
-            <span className="font-medium text-indigo-700 line-clamp-1">
-              {currentHistory?.stageType?.name || 'Unassigned'}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400 block text-[10px]">Assignee</span>
-            <span className="font-medium text-gray-800 line-clamp-1">
-              {task.currentAssignee?.name || 'Unassigned'}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-400 block text-[10px]">Required By</span>
-            <span className="font-mono text-gray-700">
-              {task.requiredBy
-                ? new Date(task.requiredBy).toLocaleDateString()
-                : 'No date'}
+          <div
+            className={`text-[11px] truncate flex items-center gap-1 ${
+              theme.isDark ? 'text-white/80' : 'text-gray-600'
+            }`}
+          >
+            <span>{task.currentAssignee?.name || 'Unassigned'}</span>
+            <span>·</span>
+            <span
+              className={
+                isOngoing
+                  ? theme.isDark
+                    ? 'text-emerald-300 font-bold'
+                    : 'text-emerald-600 font-bold'
+                  : 'capitalize'
+              }
+            >
+              {task.status === 'IN_PROGRESS'
+                ? 'In progress'
+                : task.status === 'ASSIGNED'
+                ? 'Assigned'
+                : task.status === 'IN_REVIEW'
+                ? 'In review'
+                : task.status.toLowerCase().replace(/_/g, ' ')}
             </span>
           </div>
         </div>
       </div>
 
       {/* Action Footer */}
-      <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
-        <button
-          onClick={() => onOpenHistory(task)}
-          className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-gray-900 transition"
-        >
-          <History className="w-3.5 h-3.5 text-gray-400" />
-          History
-        </button>
+      <div className="px-3.5 py-2.5 bg-white border-t border-gray-100 flex items-center justify-between text-xs">
+        {isOngoing ? (
+          /* Ongoing Task Footer */
+          <>
+            {/* Live Timer */}
+            <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-gray-800">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>{formatDuration(currentSeconds)}</span>
+            </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Action: IN_REVIEW Mode */}
-          {task.status === 'IN_REVIEW' && (
-            <button
-              onClick={() => onReview(task)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-lg shadow-sm transition"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Review Task
-            </button>
-          )}
-
-          {/* Action: Assigned to me & IN_PROGRESS / ASSIGNED */}
-          {isAssignedToMe && task.status !== 'COMPLETED' && task.status !== 'ABANDONED' && (
-            <>
-              {isUnstarted && (
-                <button
-                  onClick={handleStart}
-                  disabled={actionLoading}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg shadow-sm transition"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  Start
-                </button>
-              )}
-
+            {/* Actions: Pause, Complete, More */}
+            <div className="flex items-center gap-1.5">
               {isRunning && (
                 <button
+                  type="button"
                   onClick={handlePause}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs rounded-lg shadow-sm transition"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition cursor-pointer"
                 >
-                  <Pause className="w-3.5 h-3.5 fill-current" />
+                  <Pause className="w-3 h-3 fill-current" />
                   Pause
                 </button>
               )}
 
               {isPaused && (
                 <button
+                  type="button"
                   onClick={handleResume}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg shadow-sm transition"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition cursor-pointer"
                 >
-                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <Play className="w-3 h-3 fill-current" />
                   Resume
                 </button>
               )}
 
-              {task.status === 'IN_PROGRESS' && (
-                <>
-                  <button
-                    onClick={() => onPass(task)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded-lg transition"
-                  >
-                    <ArrowRight className="w-3.5 h-3.5" />
-                    Pass
-                  </button>
+              <button
+                type="button"
+                onClick={() => onSubmitReview(task)}
+                disabled={actionLoading}
+                className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-2xs transition cursor-pointer"
+              >
+                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                Complete
+              </button>
 
-                  <button
-                    onClick={() => onSubmitReview(task)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-medium text-xs rounded-lg transition"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    Submit Review
-                  </button>
-                </>
-              )}
-            </>
-          )}
+              {/* Menu button */}
+              <div className="relative" ref={menuRef}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(!menuOpen);
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition cursor-pointer"
+                  title="More actions"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
 
-          {/* Reassign button for privileged users / assignees */}
-          {task.status !== 'COMPLETED' && task.status !== 'ABANDONED' && (
+                {menuOpen && (
+                  <div className="absolute right-0 bottom-full mb-1 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onPass(task);
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5 text-blue-500" />
+                      Pass Stage
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onReassign(task);
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <UserCheck className="w-3.5 h-3.5 text-purple-500" />
+                      Reassign
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onOpenHistory(task);
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <History className="w-3.5 h-3.5 text-gray-400" />
+                      View History
+                    </button>
+                    <div className="my-1 border-t border-gray-100"></div>
+                    <button
+                      type="button"
+                      onClick={handleAbandon}
+                      className="w-full px-3 py-1.5 text-left text-xs text-amber-600 hover:bg-amber-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Abandon Task
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Task
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Unstarted / Non-ongoing Task Footer */
+          <>
+            {/* History link */}
             <button
-              onClick={() => onReassign(task)}
-              title="Reassign Stage"
-              className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition"
+              type="button"
+              onClick={() => onOpenHistory(task)}
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-gray-900 transition cursor-pointer"
             >
-              <UserCheck className="w-4 h-4" />
+              <RotateCcw className="w-3 h-3" />
+              History
             </button>
-          )}
 
-          {/* Delete button */}
-          <button
-            onClick={handleDelete}
-            disabled={actionLoading}
-            title="Delete Side Task"
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+            {/* Timer placeholder or paused time */}
+            <div className="text-[11px] text-gray-400 font-mono">
+              ⏱ {formatDuration(currentSeconds)}
+            </div>
+
+            {/* Actions: Start, More */}
+            <div className="flex items-center gap-1.5">
+              {isPaused ? (
+                <button
+                  type="button"
+                  onClick={handleResume}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-2xs transition cursor-pointer"
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  Resume
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStart}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-1 px-3.5 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-2xs transition cursor-pointer"
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  Start
+                </button>
+              )}
+
+              {/* Menu button */}
+              <div className="relative" ref={menuRef}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(!menuOpen);
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition cursor-pointer"
+                  title="More actions"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+
+                {menuOpen && (
+                  <div className="absolute right-0 bottom-full mb-1 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onPass(task);
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5 text-blue-500" />
+                      Pass Stage
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onReassign(task);
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <UserCheck className="w-3.5 h-3.5 text-purple-500" />
+                      Reassign
+                    </button>
+                    <div className="my-1 border-t border-gray-100"></div>
+                    <button
+                      type="button"
+                      onClick={handleAbandon}
+                      className="w-full px-3 py-1.5 text-left text-xs text-amber-600 hover:bg-amber-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Abandon Task
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Task
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
