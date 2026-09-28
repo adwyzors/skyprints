@@ -8,7 +8,6 @@ import ImagePreviewModal from '@/components/modals/ImagePreviewModal';
 import OrdersViewToggle from '@/components/orders/OrdersViewToggle';
 import { SideTaskCard } from '@/components/side-tasks/SideTaskCard';
 import { SideTaskTableRow } from '@/components/side-tasks/SideTaskTableRow';
-import { CreateSideTaskModal } from '@/components/side-tasks/CreateSideTaskModal';
 import { PassSideTaskModal } from '@/components/side-tasks/PassSideTaskModal';
 import { ReassignSideTaskModal } from '@/components/side-tasks/ReassignSideTaskModal';
 import { ReviewSideTaskModal } from '@/components/side-tasks/ReviewSideTaskModal';
@@ -49,7 +48,6 @@ import {
     Palette,
     Search,
     Filter,
-    Plus,
     RefreshCw,
     ArrowUpDown,
     ArrowUp,
@@ -635,7 +633,7 @@ function ManagerRunsPage() {
 
     // Side Tasks state
     const [sideTasks, setSideTasks] = useState<SideTask[]>([]);
-    const [sideTaskFilter, setSideTaskFilter] = useState<'MY' | 'ALL' | 'REVIEW'>('MY');
+    const [sideTaskFilter, setSideTaskFilter] = useState<'MY' | 'ALL'>('MY');
     const [sideTaskViewMode, setSideTaskViewMode] = useState<'grid' | 'table'>('table');
     const [sideTaskSearch, setSideTaskSearch] = useState('');
     const [groupMode, setGroupMode] = useState<'SCHEDULE_ASSIGNEE' | 'SCHEDULE' | 'ASSIGNEE' | 'NONE'>('SCHEDULE_ASSIGNEE');
@@ -643,7 +641,6 @@ function ManagerRunsPage() {
     const [sortField, setSortField] = useState<SideTaskSortField | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-    const [isCreateSideTaskOpen, setIsCreateSideTaskOpen] = useState(false);
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
     const [passTaskTarget, setPassTaskTarget] = useState<SideTask | null>(null);
@@ -663,7 +660,7 @@ function ManagerRunsPage() {
         setCollapsedAssignees((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const handleSideTaskFilterChange = (filter: 'MY' | 'ALL' | 'REVIEW') => {
+    const handleSideTaskFilterChange = (filter: 'MY' | 'ALL') => {
         setSideTaskFilter(filter);
         if (filter === 'ALL') {
             setGroupMode('SCHEDULE_ASSIGNEE');
@@ -699,7 +696,7 @@ function ManagerRunsPage() {
 
     const fetchSideTasks = async () => {
         try {
-            const canViewAll = isAdmin || hasPermission('side_tasks:view_all') || sideTaskFilter === 'ALL' || sideTaskFilter === 'REVIEW';
+            const canViewAll = isAdmin || hasPermission('side_tasks:view_all') || sideTaskFilter === 'ALL';
             const data = canViewAll
                 ? await getAllSideTasks({ search: sideTaskSearch })
                 : await getMySideTasks({ search: sideTaskSearch });
@@ -810,8 +807,6 @@ function ManagerRunsPage() {
         let filtered = sideTasks.filter((task) => matchesSideTaskSearch(task, sideTaskSearch));
         if (sideTaskFilter === 'MY') {
             filtered = filtered.filter((task) => task.currentAssigneeId === currentUserId);
-        } else if (sideTaskFilter === 'REVIEW') {
-            filtered = filtered.filter((task) => task.status === 'IN_REVIEW');
         }
 
         // If sortField is manually clicked on a column header, use that
@@ -861,18 +856,6 @@ function ManagerRunsPage() {
                 tasks: val.tasks,
             }));
         };
-
-        if (sideTaskFilter === 'REVIEW') {
-            return [
-                {
-                    key: 'review',
-                    title: 'Tasks Awaiting Review',
-                    dot: true,
-                    tasks: displayedSideTasks,
-                    assigneeGroups: buildAssigneeGroups(displayedSideTasks),
-                },
-            ];
-        }
 
         const ongoing: SideTask[] = [];
         const today: SideTask[] = [];
@@ -957,14 +940,6 @@ function ManagerRunsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => setIsCreateSideTaskOpen(true)}
-                        className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm h-10 shrink-0"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>Create Side Task</span>
-                        <span className="ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-indigo-700/80 rounded text-indigo-100 border border-indigo-500/50">Ctrl+/</span>
-                    </button>
-                    <button
                         onClick={handleRefresh}
                         disabled={refreshing || loading}
                         className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-xs h-10 shrink-0"
@@ -1037,16 +1012,6 @@ function ManagerRunsPage() {
                             >
                                 All Active Side Tasks ({sideTasks.length})
                             </button>
-                            <button
-                                onClick={() => handleSideTaskFilterChange('REVIEW')}
-                                className={`px-4 py-2 text-xs font-bold rounded-lg transition cursor-pointer ${
-                                    sideTaskFilter === 'REVIEW'
-                                        ? 'bg-indigo-600 text-white shadow-sm'
-                                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-                                }`}
-                            >
-                                Review Tasks ({sideTasks.filter((t) => t.status === 'IN_REVIEW').length})
-                            </button>
                         </div>
 
                         {/* 2D Matrix Legend on right */}
@@ -1108,12 +1073,9 @@ function ManagerRunsPage() {
                             <p className="text-gray-500 font-medium text-sm">
                                 {sideTaskSearch
                                     ? `No side tasks matching "${sideTaskSearch}"`
-                                    : sideTaskFilter === 'REVIEW'
-                                    ? 'No tasks awaiting review.'
-                                    : 'No active side tasks found.'}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                                Click "Create Side Task" (Ctrl+/) to create a new task.
+                                    : sideTaskFilter === 'ALL'
+                                    ? 'No active side tasks found.'
+                                    : 'No side tasks assigned to you yet.'}
                             </p>
                         </div>
                     ) : sideTaskViewMode === 'table' ? (
@@ -1516,12 +1478,6 @@ function ManagerRunsPage() {
             )}
 
             {/* SIDE TASKS MODALS */}
-            <CreateSideTaskModal
-                isOpen={isCreateSideTaskOpen}
-                onClose={() => setIsCreateSideTaskOpen(false)}
-                onSuccess={fetchSideTasks}
-            />
-
             <PassSideTaskModal
                 task={passTaskTarget}
                 isOpen={Boolean(passTaskTarget)}
