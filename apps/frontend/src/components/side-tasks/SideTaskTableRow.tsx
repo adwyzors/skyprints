@@ -204,15 +204,26 @@ export function SideTaskTableRow({
         </span>
       </td>
 
-      {/* Priority */}
+      {/* Priority & Type */}
       <td className="px-4 py-3">
-        <span
-          className={`text-[10px] uppercase px-2 py-0.5 rounded border ${
-            priorityColors[task.priority] || 'bg-gray-100 text-gray-700'
-          }`}
-        >
-          {task.priority}
-        </span>
+        <div className="flex flex-col gap-1 items-start">
+          <span
+            className={`text-[10px] uppercase px-2 py-0.5 rounded border ${
+              priorityColors[task.priority] || 'bg-gray-100 text-gray-700'
+            }`}
+          >
+            {task.priority}
+          </span>
+          {task.taskType && (
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200 whitespace-nowrap">
+              {task.taskType === 'FIVE_MIN'
+                ? '5 min'
+                : task.taskType === 'HALF_HOUR'
+                ? 'Half an hr'
+                : 'Long'}
+            </span>
+          )}
+        </div>
       </td>
 
       {/* Status */}

@@ -1095,8 +1095,8 @@
     "semantic_hash": "11b46eeb15209558ce0e84a574fa1f31"
   },
   "apps/frontend/src/app/manager/runs/page.tsx": {
-    "mtime": 1790566081.7468233,
-    "ast_hash": "357f554155139fb562aaf6ab2be3d4cb",
+    "mtime": 1790249437.12922,
+    "ast_hash": "1d9c78bf3ea3d257db4d3f881afefbdf",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/not-found.tsx": {
@@ -1995,8 +1995,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/my-tasks/page.tsx": {
-    "mtime": 1790566069.7269638,
-    "ast_hash": "bb89bccf683931ea9c40ab08d3d9c944",
+    "mtime": 1790249302.0127316,
+    "ast_hash": "242d663f78e3e21ef0516bcf0d955540",
     "semantic_hash": ""
   },
   "deploy/finish-deploy.sh": {
@@ -2045,8 +2045,8 @@
     "semantic_hash": ""
   },
   "apps/backend/src/side-tasks/dto/side-tasks.dto.ts": {
-    "mtime": 1790565033.6100585,
-    "ast_hash": "bdac889edc179484c8662c30f0155181",
+    "mtime": 1789920486.3814268,
+    "ast_hash": "684a2354ce15aa6a197fb38096ae3651",
     "semantic_hash": ""
   },
   "apps/backend/src/side-tasks/side-tasks.controller.ts": {
@@ -2065,13 +2065,13 @@
     "semantic_hash": ""
   },
   "apps/backend/src/side-tasks/side-tasks.service.ts": {
-    "mtime": 1790565060.571483,
-    "ast_hash": "bc0094c68be0ae203556951043c1e07e",
+    "mtime": 1790238148.6990037,
+    "ast_hash": "c36944ebe16cd1b58b20c0638bd5a135",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/CreateSideTaskModal.tsx": {
-    "mtime": 1790565974.0963,
-    "ast_hash": "0cdc6301678daf3edac7086cc0914bf3",
+    "mtime": 1789977380.0845387,
+    "ast_hash": "d186de9bc2f45fc3e7e8a7fd9ff16656",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/PassSideTaskModal.tsx": {
@@ -2090,8 +2090,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskCard.tsx": {
-    "mtime": 1790566019.8312826,
-    "ast_hash": "a3e717460e0a1d71090dcd459dc70292",
+    "mtime": 1790000267.9168112,
+    "ast_hash": "a02b0ef5798921e64c6f9b50e37cfac2",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskHistoryModal.tsx": {
@@ -2110,8 +2110,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/types/sideTask.ts": {
-    "mtime": 1790565933.6218865,
-    "ast_hash": "25d4b8c638444d320031512babee4450",
+    "mtime": 1789921601.0389001,
+    "ast_hash": "b9c8b3965be9adc0b80ac119720ed5c3",
     "semantic_hash": ""
   },
   "apps/backend/prisma/scripts/clear-side-tasks.ts": {
@@ -2125,8 +2125,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskTableRow.tsx": {
-    "mtime": 1790566041.7420914,
-    "ast_hash": "394bb56f0955fb307b3c878cc3ed9751",
+    "mtime": 1790000413.816879,
+    "ast_hash": "a6e1b24a891a0261eec6ac8cb7d6bee7",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/PrintRunCards.tsx": {
@@ -2142,11 +2142,6 @@
   "apps/frontend/src/hooks/useNavigationShortcuts.ts": {
     "mtime": 1790246190.7396014,
     "ast_hash": "c3cdb27d087fe65138ca278112e98bbb",
-    "semantic_hash": ""
-  },
-  "apps/backend/prisma/migrations/20260928085500_add_task_type_to_side_task/migration.sql": {
-    "mtime": 1790565916.6768644,
-    "ast_hash": "d6adaba607b37496111522755584bf9d",
     "semantic_hash": ""
   }
 }

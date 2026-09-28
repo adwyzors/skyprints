@@ -7,6 +7,8 @@ export type SideTaskStatus =
 
 export type SideTaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
+export type SideTaskType = 'FIVE_MIN' | 'HALF_HOUR' | 'LONG';
+
 export type SideTaskStageOutcome =
   | 'COMPLETED'
   | 'REASSIGNED'
@@ -53,6 +55,7 @@ export interface SideTask {
   title: string;
   description: string | null;
   priority: SideTaskPriority;
+  taskType?: SideTaskType | null;
   status: SideTaskStatus;
   requiredBy: string | null;
   images: string[];
@@ -88,6 +91,7 @@ export interface CreateSideTaskPayload {
   description?: string;
   customerId?: string;
   priority?: SideTaskPriority;
+  taskType?: SideTaskType;
   requiredBy?: string;
   images?: string[];
   initialStageTypeId: string;
@@ -99,6 +103,7 @@ export interface UpdateSideTaskPayload {
   description?: string;
   customerId?: string;
   priority?: SideTaskPriority;
+  taskType?: SideTaskType;
   requiredBy?: string;
   images?: string[];
 }

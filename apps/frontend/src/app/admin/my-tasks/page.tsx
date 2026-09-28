@@ -919,7 +919,7 @@ function AdminMyTasksPage() {
                                             {renderSortHeader('Customer', 'customer')}
                                             {renderSortHeader('Current Stage', 'stage')}
                                             {renderSortHeader('Assignee', 'assignee')}
-                                            {renderSortHeader('Priority', 'priority')}
+                                            {renderSortHeader('Priority / Type', 'priority')}
                                             {renderSortHeader('Status', 'status')}
                                             {renderSortHeader('Timer', 'timer')}
                                             {renderSortHeader('Required By', 'requiredBy')}

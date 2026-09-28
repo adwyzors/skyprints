@@ -241,7 +241,7 @@ export function SideTaskCard({
         {/* Top Row: Code, Badges, Timer */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-xs font-bold text-gray-500">{task.code}</span>
               <span
                 className={`text-[10px] uppercase px-2 py-0.5 rounded border ${
@@ -250,6 +250,15 @@ export function SideTaskCard({
               >
                 {task.priority}
               </span>
+              {task.taskType && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200">
+                  {task.taskType === 'FIVE_MIN'
+                    ? '5 min'
+                    : task.taskType === 'HALF_HOUR'
+                    ? 'Half an hr'
+                    : 'Long'}
+                </span>
+              )}
               <span
                 className={`text-[10px] uppercase px-2 py-0.5 rounded border ${
                   statusColors[task.status] || 'bg-gray-100'

@@ -693,6 +693,12 @@ enum SideTaskPriority {
   URGENT
 }
 
+enum SideTaskType {
+  FIVE_MIN
+  HALF_HOUR
+  LONG
+}
+
 enum SideTaskStageOutcome {
   COMPLETED
   REASSIGNED
@@ -721,6 +727,7 @@ model SideTask {
   title       String
   description String?
   priority    SideTaskPriority @default(MEDIUM)
+  taskType    SideTaskType?    @default(FIVE_MIN)
   status      SideTaskStatus   @default(ASSIGNED)
   requiredBy  DateTime?
   images      String[]         @default([])

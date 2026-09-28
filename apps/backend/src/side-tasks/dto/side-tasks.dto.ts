@@ -1,4 +1,4 @@
-import { SideTaskPriority } from '@prisma/client';
+import { SideTaskPriority, SideTaskType } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -60,6 +60,10 @@ export class CreateSideTaskDto {
   priority?: SideTaskPriority;
 
   @IsOptional()
+  @IsEnum(SideTaskType)
+  taskType?: SideTaskType;
+
+  @IsOptional()
   @IsString()
   requiredBy?: string;
 
@@ -94,6 +98,10 @@ export class UpdateSideTaskDto {
   @IsOptional()
   @IsEnum(SideTaskPriority)
   priority?: SideTaskPriority;
+
+  @IsOptional()
+  @IsEnum(SideTaskType)
+  taskType?: SideTaskType;
 
   @IsOptional()
   @IsString()
