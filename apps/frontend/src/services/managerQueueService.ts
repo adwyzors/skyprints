@@ -13,6 +13,8 @@ export interface ManagerQueueItem {
   artworkUrl: string | null;
   createdAt: string;
   jobCode?: string | null;
+  configStatus?: string;
+  orderProcessId?: string;
 }
 
 export interface ManagerActiveJob extends ManagerQueueItem {

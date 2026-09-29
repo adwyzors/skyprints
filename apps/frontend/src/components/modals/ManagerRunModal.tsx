@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
 import { getRunById } from '@/services/run.service';
 import { claimRun, completeRun, releaseRun } from '@/services/managerQueueService';
-import { CheckCircle, Loader2, LogOut, PlayCircle, X } from 'lucide-react';
+import { CheckCircle, Loader2, LogOut, PlayCircle, Settings, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ConfigurationModal from './ConfigurationModal';
+import RunConfigForm from '../runs/RunConfigForm';
 
 interface ManagerRunModalProps {
     runId: string;
@@ -23,8 +24,12 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
     const hasFetchedRef = useRef(false);
 
     useEffect(() => {
-        setMobilePanelTab('progress');
-    }, [runId]);
+        if (run?.configStatus !== 'COMPLETE') {
+            setMobilePanelTab('config');
+        } else {
+            setMobilePanelTab('progress');
+        }
+    }, [runId, run?.configStatus]);
 
     const fetchRun = async () => {
         try {
@@ -227,18 +232,25 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
                                             </p>
 
                                             {isCurrent && isUnclaimed && (
-                                                <button
-                                                    onClick={handleStartWork}
-                                                    disabled={acting}
-                                                    className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs font-semibold transition-colors"
-                                                >
-                                                    {acting ? (
-                                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                                    ) : (
-                                                        <PlayCircle className="w-3 h-3" />
-                                                    )}
-                                                    {acting ? 'Claiming…' : 'Start Work'}
-                                                </button>
+                                                run.configStatus !== 'COMPLETE' && run.lifeCycleStatusCode === 'DESIGN' ? (
+                                                    <div className="mt-2 p-2 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold flex items-center justify-center gap-1.5">
+                                                        <Settings className="w-3.5 h-3.5" />
+                                                        Configuration Required
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={handleStartWork}
+                                                        disabled={acting}
+                                                        className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs font-semibold transition-colors"
+                                                    >
+                                                        {acting ? (
+                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                        ) : (
+                                                            <PlayCircle className="w-3 h-3" />
+                                                        )}
+                                                        {acting ? 'Claiming…' : 'Start Work'}
+                                                    </button>
+                                                )
                                             )}
 
                                             {isCurrent && isMine && (
@@ -275,19 +287,58 @@ export default function ManagerRunModal({ runId, onClose, onTransitionComplete }
 
                 {/* RIGHT PANEL — configuration content */}
                 <div className={`${mobilePanelTab === 'config' ? 'flex' : 'hidden sm:flex'} flex-1 overflow-hidden flex-col min-w-0`}>
-                    <ConfigurationModal
-                        inline
-                        run={{
-                            ...run,
-                            fields: run.templateFields,
-                            values: run.fields,
-                        }}
-                        processName={run.displayName}
-                        orderCode={run.orderProcess.order.code}
-                        customerName={run.orderProcess.order.customer.name}
-                        onClose={onClose}
-                        readOnly
-                    />
+                    {run.configStatus !== 'COMPLETE' ? (
+                        <div className="flex-1 p-6 overflow-y-auto bg-white">
+                            <div className="max-w-2xl mx-auto">
+                                <div className="mb-6 pb-4 border-b border-gray-100">
+                                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                        <Settings className="w-5 h-5 text-indigo-600" />
+                                        <span>Configure Design & Specifications</span>
+                                    </h3>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Save the configuration to finalize specs and automatically advance this run to the next production stage.
+                                    </p>
+                                </div>
+                                <RunConfigForm
+                                    runId={run.id}
+                                    runNumber={run.runNumber}
+                                    displayName={run.orderProcess?.name || run.displayName || run.runTemplate?.name || 'Run'}
+                                    processId={run.orderProcessId}
+                                    orderId={run.orderProcess.order.id}
+                                    orderQuantity={run.orderProcess.order.quantity}
+                                    initialValues={run.fields || {}}
+                                    initialComments={run.comments}
+                                    fieldDefinitions={run.templateFields || []}
+                                    initialExecutor={run.executor}
+                                    initialReviewer={run.reviewer}
+                                    orderImages={run.orderProcess.order.images || []}
+                                    useOrderImageForRuns={run.orderProcess.order.useOrderImageForRuns || false}
+                                    initialPreProductionLocationId={run.preProductionLocationId || ''}
+                                    initialPostProductionLocationId={run.postProductionLocationId || ''}
+                                    onSaveSuccess={() => {
+                                        toast.success('Configuration saved! Run advanced to next stage.');
+                                        onTransitionComplete?.();
+                                        onClose();
+                                    }}
+                                    onCancel={onClose}
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <ConfigurationModal
+                            inline
+                            run={{
+                                ...run,
+                                fields: run.templateFields,
+                                values: run.fields,
+                            }}
+                            processName={run.displayName}
+                            orderCode={run.orderProcess.order.code}
+                            customerName={run.orderProcess.order.customer.name}
+                            onClose={onClose}
+                            readOnly
+                        />
+                    )}
                 </div>
                 </div>{/* /PANELS */}
             </div>

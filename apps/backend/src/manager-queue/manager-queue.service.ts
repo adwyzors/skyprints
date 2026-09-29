@@ -168,6 +168,8 @@ export class ManagerQueueService {
   private toQueueItemDto(run: {
     id: string;
     runNumber: number;
+    statusCode?: string;
+    orderProcessId?: string;
     lifeCycleStatusCode: string;
     comments: string | null;
     fields: any;
@@ -197,6 +199,8 @@ export class ManagerQueueService {
       artworkUrl: this.resolveArtworkUrl(fields, run.orderProcess.order.images),
       createdAt: run.createdAt.toISOString(),
       jobCode: run.orderProcess.order.jobCode,
+      configStatus: run.statusCode,
+      orderProcessId: run.orderProcessId,
     };
   }
 
@@ -237,21 +241,57 @@ export class ManagerQueueService {
     const ctx = RequestContextStore.getStore();
     const scopedLocationId = resolveLocationFilter(ctx?.user);
 
-    const runs = await this.prisma.processRun.findMany({
-      where: {
-        claimedBy: null,
-        // statusCode is the config-workflow status (CONFIGURE -> COMPLETE);
-        // it's never set to IN_PROGRESS anywhere. COMPLETE means the run's
-        // fields are configured and it's ready for lifecycle work — the
-        // actual production stage is tracked separately by lifeCycleStatusCode.
+    const designProcessIds: string[] = [];
+    const otherGrouped = new Map<string, string[]>();
+
+    for (const [processId, codes] of grouped.entries()) {
+      const otherCodes = codes.filter((c) => c !== 'DESIGN');
+      if (codes.includes('DESIGN')) {
+        designProcessIds.push(processId);
+      }
+      if (otherCodes.length > 0) {
+        otherGrouped.set(processId, otherCodes);
+      }
+    }
+
+    const orConditions: Prisma.ProcessRunWhereInput[] = [];
+
+    // Standard lifecycle stages: requires configured run and order in IN_PRODUCTION
+    if (otherGrouped.size > 0) {
+      orConditions.push({
         statusCode: 'COMPLETE',
         orderProcess: {
           order: { statusCode: 'IN_PRODUCTION', deletedAt: null },
         },
-        OR: Array.from(grouped.entries()).map(([processId, codes]) => ({
+        OR: Array.from(otherGrouped.entries()).map(([processId, codes]) => ({
           orderProcess: { processId },
           lifeCycleStatusCode: { in: codes },
         })),
+      });
+    }
+
+    // Design phase: surfaces cards for configuration, including orders in CONFIGURE / PRODUCTION_READY
+    if (designProcessIds.length > 0) {
+      orConditions.push({
+        lifeCycleStatusCode: 'DESIGN',
+        orderProcess: {
+          processId: { in: designProcessIds },
+          order: {
+            deletedAt: null,
+            statusCode: {
+              in: ['CONFIGURE', 'PRODUCTION_READY', 'IN_PRODUCTION'],
+            },
+          },
+        },
+      });
+    }
+
+    if (orConditions.length === 0) return [];
+
+    const runs = await this.prisma.processRun.findMany({
+      where: {
+        claimedBy: null,
+        OR: orConditions,
       },
       include: this.queueItemInclude,
       orderBy: { createdAt: 'asc' },

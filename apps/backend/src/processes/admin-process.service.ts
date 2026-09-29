@@ -11,7 +11,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrderStatus, Prisma, ProcessRunStatus } from '@prisma/client';
+import { OrderProcessStatus, OrderStatus, Prisma, ProcessRunStatus } from '@prisma/client';
 import { PrismaExecutor, PrismaService } from '../../prisma/prisma.service';
 import { resolveLocationFilter } from '../auth/utils/location-scope.util';
 import { CloudflareService } from '../common/cloudflare.service';
@@ -725,6 +725,8 @@ export class AdminProcessService {
           fields: true,
           configuredAt: true,
           statusCode: true,
+          lifeCycleStatusCode: true,
+          runTemplateId: true,
           orderProcessId: true,
           orderProcess: {
             select: {
@@ -909,6 +911,94 @@ export class AdminProcessService {
 
         if (toDelete.length) {
           await this.cloudflare.deleteFiles(toDelete);
+        }
+      }
+
+      /* =====================================================
+       * AUTO-START PRODUCTION (SKIP MANUAL START BUTTON)
+       * ===================================================== */
+      if (orderId) {
+        const order = await tx.order.findUnique({
+          where: { id: orderId },
+          select: {
+            id: true,
+            statusCode: true,
+            customerId: true,
+            estimatedAmount: true,
+          },
+        });
+
+        if (order && order.statusCode === OrderStatus.CONFIGURE) {
+          const amount = new Prisma.Decimal(order.estimatedAmount.toString());
+          if (!amount.isZero()) {
+            await tx.customer.update({
+              where: { id: order.customerId },
+              data: { outstandingAmount: { increment: amount } },
+            });
+            this.logger.log(
+              `[OUTSTANDING] Added ${amount} to customer ${order.customerId} for order ${orderId} (Auto Production Start on Run Configuration)`,
+            );
+          }
+
+          await tx.orderProcess.updateMany({
+            where: { orderId },
+            data: { statusCode: OrderProcessStatus.COMPLETE },
+          });
+
+          await tx.order.update({
+            where: { id: orderId },
+            data: { statusCode: OrderStatus.IN_PRODUCTION },
+          });
+          this.logger.log(
+            `[ORDER] Auto-promoted order ${orderId} from CONFIGURE to IN_PRODUCTION`,
+          );
+        } else if (order && order.statusCode === OrderStatus.PRODUCTION_READY) {
+          await tx.order.update({
+            where: { id: orderId },
+            data: { statusCode: OrderStatus.IN_PRODUCTION },
+          });
+          this.logger.log(
+            `[ORDER] Auto-promoted order ${orderId} from PRODUCTION_READY to IN_PRODUCTION`,
+          );
+        }
+      }
+
+      /* =====================================================
+       * AUTO-ADVANCE FROM DESIGN TO NEXT LIFECYCLE STAGE
+       * ===================================================== */
+      if (run.lifeCycleStatusCode === 'DESIGN' && run.runTemplateId) {
+        const template = await tx.runTemplate.findUnique({
+          where: { id: run.runTemplateId },
+          select: { lifecycleWorkflowTypeId: true },
+        });
+
+        if (template?.lifecycleWorkflowTypeId) {
+          const statuses = await tx.workflowStatus.findMany({
+            where: { workflowTypeId: template.lifecycleWorkflowTypeId },
+            orderBy: { createdAt: 'asc' },
+            select: { id: true, code: true, isTerminal: true },
+          });
+
+          const currentIndex = statuses.findIndex((s) => s.code === 'DESIGN');
+          if (currentIndex !== -1 && currentIndex + 1 < statuses.length) {
+            const nextStage = statuses[currentIndex + 1];
+            if (nextStage && !nextStage.isTerminal) {
+              const ctx = RequestContextStore.getStore();
+              const managerId = ctx?.user?.id;
+              await this.transition(
+                run.orderProcessId,
+                run.id,
+                nextStage.code,
+                undefined,
+                managerId ? { DESIGN: managerId } : undefined,
+                tx,
+                true, // bypassClaimGuard = true
+              );
+              this.logger.log(
+                `[LIFECYCLE] Run ${run.id} auto-advanced from DESIGN to ${nextStage.code}`,
+              );
+            }
+          }
         }
       }
 
@@ -1197,6 +1287,7 @@ export class AdminProcessService {
     expectedDate?: string,
     managers?: Record<string, string>,
     tx?: PrismaExecutor,
+    bypassClaimGuard = false,
   ) {
     this.logger.log(
       `[LIFECYCLE][START] orderProcess=${orderProcessId} run=${processRunId} → ${targetStatusCode}`,
@@ -1236,7 +1327,7 @@ export class AdminProcessService {
           select: { role: true },
         });
 
-        if (caller?.role === 'MANAGER') {
+        if (!bypassClaimGuard && caller?.role === 'MANAGER') {
           const stageIsClaimManaged =
             await executor.managerStagePermission.findFirst({
               where: {

@@ -44,6 +44,7 @@ import {
     ArrowDown,
     Calendar,
     ChevronDown,
+    Settings,
 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -281,14 +282,24 @@ function QueueCard({ item, onClick, onClaimed }: {
                 {item.comments && (
                     <p className="text-xs text-gray-400 italic line-clamp-2">"{item.comments}"</p>
                 )}
-                <button
-                    onClick={handleStartWork}
-                    disabled={claiming}
-                    className="mt-auto w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold transition-colors"
-                >
-                    <PlayCircle className="w-4 h-4" />
-                    {claiming ? 'Claiming…' : 'Start Work'}
-                </button>
+                {item.lifeCycleStatusCode === 'DESIGN' && item.configStatus !== 'COMPLETE' ? (
+                    <button
+                        onClick={onClick}
+                        className="mt-auto w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors shadow-xs"
+                    >
+                        <Settings className="w-4 h-4" />
+                        Configure Run
+                    </button>
+                ) : (
+                    <button
+                        onClick={handleStartWork}
+                        disabled={claiming}
+                        className="mt-auto w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-semibold transition-colors"
+                    >
+                        <PlayCircle className="w-4 h-4" />
+                        {claiming ? 'Claiming…' : 'Start Work'}
+                    </button>
+                )}
             </div>
         </div>
     );

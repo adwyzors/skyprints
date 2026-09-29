@@ -13,6 +13,8 @@ export const ManagerQueueItemSchema = z.object({
   artworkUrl: z.string().nullable(),
   createdAt: z.string(),
   jobCode: z.string().nullable().optional(),
+  configStatus: z.string().optional(),
+  orderProcessId: z.string().uuid().optional(),
 });
 
 export type ManagerQueueItemDto = z.infer<typeof ManagerQueueItemSchema>;
