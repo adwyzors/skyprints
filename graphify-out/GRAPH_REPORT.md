@@ -1,16 +1,16 @@
 # Graph Report - skyprints  (2026-09-29)
 
 ## Corpus Check
-- 424 files · ~328,210 words
+- 424 files · ~328,229 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3217 nodes · 8959 edges · 176 communities (148 shown, 28 thin omitted)
+- 3217 nodes · 8959 edges · 174 communities (146 shown, 28 thin omitted)
 - Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 1278 edges (avg confidence: 0.54)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8cde7d6a`
+- Built from commit: `06cc790f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -87,7 +87,6 @@
 - [[_COMMUNITY_JwtAuthGuard|JwtAuthGuard]]
 - [[_COMMUNITY_Spec feature_title|Spec: <feature_title>]]
 - [[_COMMUNITY_compilerOptions|compilerOptions]]
-- [[_COMMUNITY_manager-stage-permission.contract.ts|manager-stage-permission.contract.ts]]
 - [[_COMMUNITY_nest-cli.json|nest-cli.json]]
 - [[_COMMUNITY_tsconfig.spec.json|tsconfig.spec.json]]
 - [[_COMMUNITY_vercel.json|vercel.json]]
@@ -171,7 +170,6 @@
 - [[_COMMUNITY_graphify|graphify.md]]
 - [[_COMMUNITY_Database migration strategy|Database migration strategy]]
 - [[_COMMUNITY_Permissions system|Permissions system]]
-- [[_COMMUNITY_NotificationBell.tsx|NotificationBell.tsx]]
 - [[_COMMUNITY_ss|ss]]
 - [[_COMMUNITY_manager-stage-permission.contract.ts|manager-stage-permission.contract.ts]]
 - [[_COMMUNITY_ConfigurationModal.tsx|ConfigurationModal.tsx]]
@@ -203,7 +201,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (176 total, 28 thin omitted)
+## Communities (174 total, 28 thin omitted)
 
 ### Community 0 - "AuthProvider.tsx"
 Cohesion: 0.12
@@ -242,8 +240,8 @@ Cohesion: 0.09
 Nodes (30): BillingContextDetailPage(), BillingContextCardProps, BillingContextTableProps, BillingGroupModal(), BillingGroupModalProps, OrderGroupItem(), CreateGroupModal(), CreateGroupModalProps (+22 more)
 
 ### Community 9 - "page.tsx"
-Cohesion: 0.15
-Nodes (18): LocationModal(), LocationModalProps, LocationClient(), LocationClientProps, LocationClientWrapper(), getFieldIcon(), prettyLabel(), RunConfigForm() (+10 more)
+Cohesion: 0.06
+Nodes (45): DashboardClientContent(), PERIODS, ProtectedDashboardContent, PulseCardProps, StatCardProps, metadata, LocationModal(), LocationModalProps (+37 more)
 
 ### Community 10 - "BillingSnapshotService"
 Cohesion: 0.16
@@ -303,7 +301,7 @@ Nodes (9): PrismaService, Injectable, mockAdminProcessService, mockPrisma, mockT
 
 ### Community 24 - "OrdersService"
 Cohesion: 0.06
-Nodes (55): CustomerClient(), CustomerClientProps, CustomerClientWrapper(), BillingFilter(), BillingFilterProps, CustomerLike, Props, SearchableCustomerSelect() (+47 more)
+Nodes (53): CustomerClient(), CustomerClientProps, CustomerClientWrapper(), BillingFilter(), BillingFilterProps, CustomerLike, Props, SearchableCustomerSelect() (+45 more)
 
 ### Community 25 - "OrdersController"
 Cohesion: 0.04
@@ -493,10 +491,6 @@ Nodes (21): Backend changes (`apps/backend`), Contract changes (`@app/contracts`
 Cohesion: 0.29
 Nodes (6): compilerOptions, declaration, outDir, rootDir, exclude, extends
 
-### Community 72 - "manager-stage-permission.contract.ts"
-Cohesion: 0.11
-Nodes (15): DashboardClientContent(), PERIODS, ProtectedDashboardContent, PulseCardProps, StatCardProps, metadata, CustomerAnalytics, DailyAnalytics (+7 more)
-
 ### Community 73 - "nest-cli.json"
 Cohesion: 0.33
 Nodes (5): collection, compilerOptions, deleteOutDir, $schema, sourceRoot
@@ -574,8 +568,8 @@ Cohesion: 0.12
 Nodes (16): Acceptance Criteria, Backward Compatibility, Calculation Change (getTotals), Data Model Change, `DTFRunValues` (run.model.ts), Edit-form initialisation (useEffect on openRunId), Fusing Cost display (bottom summary panel), Goal (+8 more)
 
 ### Community 96 - "order.mapper.ts"
-Cohesion: 0.10
-Nodes (35): OrderConfigPage(), BillingModal(), BillingRates, Props, CompletedOrderModal(), Props, EditOrderModal(), Props (+27 more)
+Cohesion: 0.09
+Nodes (30): OrderConfigPage(), AddProcessModal(), Props, BillingModal(), BillingRates, Props, CompletedOrderModal(), Props (+22 more)
 
 ### Community 97 - "create-user.contract.ts"
 Cohesion: 0.38
@@ -716,10 +710,6 @@ Nodes (3): Email uniqueness strategy, New: Login table, Prisma schema changes
 ### Community 164 - "New auth flow (internal) — same UX, no Keycloak"
 Cohesion: 0.67
 Nodes (3): JWT payload, New auth flow (internal) — same UX, no Keycloak, Password validation
-
-### Community 169 - "NotificationBell.tsx"
-Cohesion: 0.48
-Nodes (5): mapOrderProcessDto(), mapOrderSummaryDtoToOrder(), mapProcessRunDto(), mapRunField(), RunField
 
 ### Community 171 - "ss"
 Cohesion: 0.40

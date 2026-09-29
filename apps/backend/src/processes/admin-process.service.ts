@@ -726,6 +726,7 @@ export class AdminProcessService {
           configuredAt: true,
           statusCode: true,
           lifeCycleStatusCode: true,
+          executorId: true,
           runTemplateId: true,
           orderProcessId: true,
           orderProcess: {
@@ -848,6 +849,10 @@ export class AdminProcessService {
         images: finalImages,
       };
 
+      const ctx = RequestContextStore.getStore();
+      const currentUserId = ctx?.user?.id;
+      const designatedManagerId = dto.executorId || currentUserId;
+
       /* =====================================================
        * UPDATE RUN (SPLIT FIRST-TIME VS RECONFIG)
        * ===================================================== */
@@ -856,7 +861,11 @@ export class AdminProcessService {
         data: {
           fields: mergedFields,
           statusCode: ProcessRunStatus.COMPLETE,
-          ...(dto.executorId !== undefined && { executorId: dto.executorId }),
+          ...(dto.executorId !== undefined
+            ? { executorId: dto.executorId }
+            : !run.executorId && designatedManagerId
+              ? { executorId: designatedManagerId }
+              : {}),
           ...(dto.reviewerId !== undefined && { reviewerId: dto.reviewerId }),
           ...(dto.locationId !== undefined && { locationId: dto.locationId }),
           ...(dto.preProductionLocationId !== undefined && {
@@ -983,14 +992,12 @@ export class AdminProcessService {
           if (currentIndex !== -1 && currentIndex + 1 < statuses.length) {
             const nextStage = statuses[currentIndex + 1];
             if (nextStage && !nextStage.isTerminal) {
-              const ctx = RequestContextStore.getStore();
-              const managerId = ctx?.user?.id;
               await this.transition(
                 run.orderProcessId,
                 run.id,
                 nextStage.code,
                 undefined,
-                managerId ? { DESIGN: managerId } : undefined,
+                designatedManagerId ? { DESIGN: designatedManagerId } : undefined,
                 tx,
                 true, // bypassClaimGuard = true
               );
