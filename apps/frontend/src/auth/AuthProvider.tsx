@@ -183,7 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (targetProfile) {
                 const role = targetProfile.user.role;
                 if (['SUPER_ADMIN', 'ADMIN'].includes(role)) {
-                    window.location.href = '/admin/orders';
+                    window.location.href = '/admin/my-tasks';
                     return;
                 } else if (role === 'MANAGER') {
                     window.location.href = '/manager/runs';

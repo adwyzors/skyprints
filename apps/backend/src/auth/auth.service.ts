@@ -144,7 +144,7 @@ export class AuthService {
     req: Request,
     rememberMe = true,
     loginIndex: number | string = 0,
-  ): Promise<void> {
+  ): Promise<{ id: string; email: string; name: string; role: string }> {
     // 1. Look up login record by username first, then fall back to user email
     let loginRecord = await this.prisma.login.findFirst({
       where: {
@@ -240,6 +240,13 @@ export class AuthService {
     this.logger.log(
       `Internal login succeeded for userId=${user.id} (rememberMe=${rememberMe})`,
     );
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    };
   }
 
   async refreshInternal(

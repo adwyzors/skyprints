@@ -36,7 +36,7 @@ export default function Home() {
 
         {/* ACTION BUTTON */}
         <Link
-          href="/admin/orders"
+          href="/admin/my-tasks"
           className="group relative inline-flex items-center gap-3 px-10 py-4 bg-gray-900 text-white rounded-none border border-gray-900 transition-all duration-300 hover:bg-transparent hover:text-gray-900 hover:shadow-xl"
         >
           <span className={`${cinzel.className} text-lg font-semibold tracking-wider`}>Enter Atelier</span>

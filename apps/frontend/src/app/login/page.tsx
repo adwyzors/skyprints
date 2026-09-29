@@ -16,7 +16,7 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const redirectTo = searchParams.get('redirectTo') ?? '/admin';
+  const redirectTo = searchParams.get('redirectTo') ?? '/admin/my-tasks';
   const loginIndex = searchParams.get('loginIndex') ?? '0';
 
   async function handleSubmit(e: React.FormEvent) {
@@ -42,8 +42,24 @@ function LoginForm() {
         return;
       }
 
+      const data = await res.json().catch(() => ({}));
+      const role = data?.user?.role;
+
+      let target = redirectTo;
+      if (['SUPER_ADMIN', 'ADMIN'].includes(role)) {
+        if (!target || target === '/admin' || target === '/admin/orders' || target === '/') {
+          target = '/admin/my-tasks';
+        }
+      } else if (role === 'MANAGER') {
+        if (!target || target === '/admin' || target === '/admin/orders' || target === '/') {
+          target = '/manager/runs';
+        }
+      } else if (!target || target === '/admin' || target === '/admin/orders' || target === '/') {
+        target = '/admin/my-tasks';
+      }
+
       // Full page navigation so middleware sees the new ACCESS_TOKEN cookie
-      window.location.href = redirectTo;
+      window.location.href = target;
     } catch {
       setError('Unable to connect. Please try again.');
     } finally {

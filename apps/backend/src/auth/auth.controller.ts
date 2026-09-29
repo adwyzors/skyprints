@@ -53,8 +53,15 @@ export class AuthController {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    await this.auth.login(username, password, res, req, rememberMe, loginIndex);
-    return { ok: true };
+    const user = await this.auth.login(
+      username,
+      password,
+      res,
+      req,
+      rememberMe,
+      loginIndex,
+    );
+    return { ok: true, user };
   }
 
   @Post('refresh')
