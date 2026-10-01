@@ -155,17 +155,12 @@ export function SideTaskTableRow({
     }
   };
 
-  const handleDirectComplete = async () => {
+  const handleDirectComplete = () => {
     setMenuOpen(false);
-    setActionLoading(true);
-    try {
-      await completeSideTask(task.id);
-      toast.success(`Task ${task.code} marked complete`);
-      onRefresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to complete task');
-    } finally {
-      setActionLoading(false);
+    if (isInReview) {
+      onReview(task);
+    } else {
+      onSubmitReview(task);
     }
   };
 
@@ -383,7 +378,7 @@ export function SideTaskTableRow({
                 onClick={() => onSubmitReview(task)}
                 disabled={actionLoading}
                 className="p-1.5 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-2xs transition cursor-pointer"
-                title="Complete stage"
+                title="Complete stage & submit for review"
               >
                 <Check className="w-3.5 h-3.5 stroke-[2.5]" />
               </button>
@@ -410,16 +405,6 @@ export function SideTaskTableRow({
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
               )}
-
-              <button
-                type="button"
-                onClick={handleDirectComplete}
-                disabled={actionLoading}
-                className="p-1.5 text-emerald-600 hover:text-white bg-emerald-50 hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 rounded-lg shadow-2xs transition cursor-pointer"
-                title="Mark complete directly"
-              >
-                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-              </button>
 
               <button
                 type="button"
@@ -516,14 +501,16 @@ export function SideTaskTableRow({
                     Edit Task
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={handleDirectComplete}
-                  className="w-full px-3 py-1.5 text-left text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer font-medium"
-                >
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  Mark Complete
-                </button>
+                {!isInReview && (
+                  <button
+                    type="button"
+                    onClick={handleDirectComplete}
+                    className="w-full px-3 py-1.5 text-left text-xs text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer font-medium"
+                  >
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    Submit for Review
+                  </button>
+                )}
                 {isInReview && (
                   <button
                     type="button"

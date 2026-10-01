@@ -672,7 +672,14 @@ export class SideTasksService {
       const task = await tx.sideTask.findUnique({ where: { id } });
       if (!task) throw new NotFoundException('Side task not found');
       if (task.currentAssigneeId !== userId) {
-        throw new ForbiddenException('You are not assigned to this task');
+        const caller = await tx.user.findUnique({
+          where: { id: userId },
+          select: { role: true },
+        });
+        const isAdmin = caller?.role === 'ADMIN' || caller?.role === 'SUPER_ADMIN';
+        if (!isAdmin) {
+          throw new ForbiddenException('You are not assigned to this task');
+        }
       }
 
       const currentHistory = await tx.sideTaskStageHistory.findFirst({
@@ -738,7 +745,9 @@ export class SideTasksService {
   }
 
   /**
-   * Directly mark a side task as completed (e.g. direct tick)
+   * Complete a side task.
+   * Tasks must ALWAYS pass through IN_REVIEW before being COMPLETED.
+   * This routes the task to IN_REVIEW status.
    */
   async completeDirectly(id: string, userId: string, note?: string) {
     return this.prisma.transaction(async (tx) => {
@@ -749,6 +758,10 @@ export class SideTasksService {
         task.status === SideTaskStatus.ABANDONED
       ) {
         throw new BadRequestException('Task is already closed');
+      }
+
+      if (task.status === SideTaskStatus.IN_REVIEW) {
+        throw new BadRequestException('Task is already in review awaiting approval');
       }
 
       const now = new Date();
@@ -765,8 +778,8 @@ export class SideTasksService {
             totalTimeSeconds: timing.totalTimeSeconds,
             pausedAt: timing.pausedAt,
             completedAt: now,
-            completionNote: note ?? 'Marked complete directly',
-            outcome: SideTaskStageOutcome.COMPLETED,
+            completionNote: note ?? 'Submitted for review',
+            outcome: SideTaskStageOutcome.SUBMITTED_FOR_REVIEW,
           },
         });
       }
@@ -774,8 +787,7 @@ export class SideTasksService {
       await tx.sideTask.update({
         where: { id },
         data: {
-          status: SideTaskStatus.COMPLETED,
-          completedAt: now,
+          status: SideTaskStatus.IN_REVIEW,
         },
       });
 

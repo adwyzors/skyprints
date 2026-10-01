@@ -1095,8 +1095,8 @@
     "semantic_hash": "11b46eeb15209558ce0e84a574fa1f31"
   },
   "apps/frontend/src/app/manager/runs/page.tsx": {
-    "mtime": 1790828132.8771038,
-    "ast_hash": "9a8847bf754a51fd4175d000509d47dc",
+    "mtime": 1790689571.119791,
+    "ast_hash": "abc94c1d36002c62445740249ff0fc3e",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/not-found.tsx": {
@@ -2019,6 +2019,16 @@
     "ast_hash": "b94072e674481fdd70c8584dd06f66ec",
     "semantic_hash": ""
   },
+  "apps/test-report/jest-html-reporters-attach/index/index.js": {
+    "mtime": 1790699571.2002296,
+    "ast_hash": "31598c169dccea2095224ef0c3070d39",
+    "semantic_hash": ""
+  },
+  "apps/test-report/jest-html-reporters-attach/index/result.js": {
+    "mtime": 1790699571.1472282,
+    "ast_hash": "0ac51d71a74a334c2e16e9e6f4ac4e73",
+    "semantic_hash": ""
+  },
   "apps/frontend/src/hooks/useImagePaste.ts": {
     "mtime": 1789973299.3896108,
     "ast_hash": "f2c9c7375d00e8380f2cc26b09baa1d3",
@@ -2055,8 +2065,8 @@
     "semantic_hash": ""
   },
   "apps/backend/src/side-tasks/side-tasks.service.ts": {
-    "mtime": 1790828018.1229422,
-    "ast_hash": "0721b064aff2696cc44a7c8a3278a606",
+    "mtime": 1790571427.0609045,
+    "ast_hash": "17b6029f72d4e45c826ec3716a422c7c",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/CreateSideTaskModal.tsx": {
@@ -2080,8 +2090,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskCard.tsx": {
-    "mtime": 1790828049.0597126,
-    "ast_hash": "ec702ec268c4701e65deb63da1a53a60",
+    "mtime": 1790571892.4450185,
+    "ast_hash": "d59cd70eccb08a1a85e5fefd2a58422b",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskHistoryModal.tsx": {
@@ -2115,8 +2125,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskTableRow.tsx": {
-    "mtime": 1790828094.4940865,
-    "ast_hash": "0c934e2cbacdf095aa40fc1662900299",
+    "mtime": 1790571592.7210913,
+    "ast_hash": "9a0fc5c70506214d1b0ed5a27bed5e77",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/PrintRunCards.tsx": {
