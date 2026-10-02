@@ -965,9 +965,9 @@
     "semantic_hash": "8e4e5b14bee9d36fc2b823c847bf34bb"
   },
   "apps/frontend/package.json": {
-    "mtime": 1783859504.9006162,
-    "ast_hash": "bb25818094f3781de5f56e1c3031d3be",
-    "semantic_hash": "bb25818094f3781de5f56e1c3031d3be"
+    "mtime": 1790967280.7016418,
+    "ast_hash": "1188b77a824ebaf1fbedc053a28b2050",
+    "semantic_hash": ""
   },
   "apps/frontend/postcss.config.js": {
     "mtime": 1768936187.5396087,
@@ -1790,9 +1790,9 @@
     "semantic_hash": "1fedccdca1b6096cea6a35e3a1143f68"
   },
   "package.json": {
-    "mtime": 1783859505.3705654,
-    "ast_hash": "f42ba78e0f376efd6ad581d59bb236cd",
-    "semantic_hash": "f42ba78e0f376efd6ad581d59bb236cd"
+    "mtime": 1790967251.2077312,
+    "ast_hash": "55b8d7e80202dbb9be6ab042152efa7d",
+    "semantic_hash": ""
   },
   "skills-lock.json": {
     "mtime": 1783859505.383588,
@@ -1890,8 +1890,8 @@
     "semantic_hash": "b0e62f11e089439113af0aa513f38069"
   },
   "CLAUDE.md": {
-    "mtime": 1784356610.1578166,
-    "ast_hash": "2d501878b2acd0d079fbfeeded2785c9",
+    "mtime": 1790967301.096894,
+    "ast_hash": "4fcfd71048b6542adee1a359ffa2bdbb",
     "semantic_hash": ""
   },
   "apps/backend/CLAUDE.md": {

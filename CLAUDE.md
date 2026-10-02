@@ -83,7 +83,7 @@ Spec files live in `.claude/specs/`. Create them with `/create-spec` before impl
 
 ## Conventions
 
-- Node pinned to `20.11.1` (`.nvmrc`, `engines.node: ">=20 <21"`)
+- Node pinned to `24` (`.nvmrc`, `engines.node: "24.x"`)
 - Backend prettier: single quotes, trailing commas (see `apps/backend/.prettierrc`)
 - Root prettier: semi, single quote, printWidth 100 (applies to frontend + contracts)
 - `@typescript-eslint/no-explicit-any` is intentionally off on backend

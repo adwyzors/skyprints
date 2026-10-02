@@ -6,7 +6,7 @@
         "apps/packages/*"
     ],
     "engines": {
-        "node": ">=20 <21"
+        "node": "24.x"
     },
     "scripts": {
         "build:contracts": "npm --workspace apps/packages/contracts run build",
