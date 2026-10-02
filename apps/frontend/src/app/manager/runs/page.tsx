@@ -644,7 +644,7 @@ function ManagerRunsPage() {
 
     // Side Tasks state
     const [sideTasks, setSideTasks] = useState<SideTask[]>([]);
-    const [sideTaskFilter, setSideTaskFilter] = useState<'MY' | 'ALL' | 'REVIEW'>('MY');
+    const [sideTaskFilter, setSideTaskFilter] = useState<'MY' | 'ALL'>('MY');
     const [sideTaskViewMode, setSideTaskViewMode] = useState<'grid' | 'table'>('table');
     const [sideTaskSearch, setSideTaskSearch] = useState('');
     const [groupMode, setGroupMode] = useState<'SCHEDULE_ASSIGNEE' | 'SCHEDULE' | 'ASSIGNEE' | 'NONE'>('SCHEDULE_ASSIGNEE');
@@ -671,7 +671,7 @@ function ManagerRunsPage() {
         setCollapsedAssignees((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const handleSideTaskFilterChange = (filter: 'MY' | 'ALL' | 'REVIEW') => {
+    const handleSideTaskFilterChange = (filter: 'MY' | 'ALL') => {
         setSideTaskFilter(filter);
         if (filter === 'ALL') {
             setGroupMode('SCHEDULE_ASSIGNEE');
@@ -707,7 +707,7 @@ function ManagerRunsPage() {
 
     const fetchSideTasks = async () => {
         try {
-            const canViewAll = isAdmin || hasPermission('side_tasks:view_all') || sideTaskFilter === 'ALL' || sideTaskFilter === 'REVIEW';
+            const canViewAll = isAdmin || hasPermission('side_tasks:view_all') || sideTaskFilter === 'ALL';
             const data = canViewAll
                 ? await getAllSideTasks({ search: sideTaskSearch })
                 : await getMySideTasks({ search: sideTaskSearch });
@@ -818,8 +818,6 @@ function ManagerRunsPage() {
         let filtered = sideTasks.filter((task) => matchesSideTaskSearch(task, sideTaskSearch));
         if (sideTaskFilter === 'MY') {
             filtered = filtered.filter((task) => task.currentAssigneeId === currentUserId);
-        } else if (sideTaskFilter === 'REVIEW') {
-            filtered = filtered.filter((task) => task.status === 'IN_REVIEW');
         }
 
         // If sortField is manually clicked on a column header, use that
@@ -869,18 +867,6 @@ function ManagerRunsPage() {
                 tasks: val.tasks,
             }));
         };
-
-        if (sideTaskFilter === 'REVIEW') {
-            return [
-                {
-                    key: 'review',
-                    title: 'Tasks Awaiting Review',
-                    dot: true,
-                    tasks: displayedSideTasks,
-                    assigneeGroups: buildAssigneeGroups(displayedSideTasks),
-                },
-            ];
-        }
 
         const ongoing: SideTask[] = [];
         const today: SideTask[] = [];
@@ -1037,16 +1023,6 @@ function ManagerRunsPage() {
                             >
                                 All Active Side Tasks ({sideTasks.length})
                             </button>
-                            <button
-                                onClick={() => handleSideTaskFilterChange('REVIEW')}
-                                className={`px-4 py-2 text-xs font-bold rounded-lg transition cursor-pointer ${
-                                    sideTaskFilter === 'REVIEW'
-                                        ? 'bg-indigo-600 text-white shadow-sm'
-                                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-                                }`}
-                            >
-                                Review Tasks ({sideTasks.filter((t) => t.status === 'IN_REVIEW').length})
-                            </button>
                         </div>
 
                         {/* 2D Matrix Legend on right */}
@@ -1108,11 +1084,9 @@ function ManagerRunsPage() {
                             <p className="text-gray-500 font-medium text-sm">
                                 {sideTaskSearch
                                     ? `No side tasks matching "${sideTaskSearch}"`
-                                    : sideTaskFilter === 'MY'
-                                    ? 'No side tasks assigned to you right now.'
-                                    : sideTaskFilter === 'REVIEW'
-                                    ? 'No tasks awaiting review right now.'
-                                    : 'No active side tasks matching your search or filters.'}
+                                    : sideTaskFilter === 'ALL'
+                                    ? 'No active side tasks found.'
+                                    : 'No side tasks assigned to you yet.'}
                             </p>
                         </div>
                     ) : sideTaskViewMode === 'table' ? (

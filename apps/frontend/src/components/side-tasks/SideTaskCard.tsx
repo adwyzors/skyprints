@@ -72,7 +72,11 @@ export function SideTaskCard({
   onOpenHistory,
   onPreviewImage,
 }: SideTaskCardProps) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const role = user?.user?.role || (user as any)?.role;
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const canReview = isAdmin || Boolean(hasPermission?.('side_tasks:review'));
+
   const [actionLoading, setActionLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -536,15 +540,17 @@ export function SideTaskCard({
             {/* Actions: Review, Resume, Start, More */}
             <div className="flex items-center gap-1.5">
               {isInReview ? (
-                <button
-                  type="button"
-                  onClick={() => onReview(task)}
-                  disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 active:bg-purple-800 rounded-lg shadow-2xs transition cursor-pointer"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  Review
-                </button>
+                canReview ? (
+                  <button
+                    type="button"
+                    onClick={() => onReview(task)}
+                    disabled={actionLoading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 active:bg-purple-800 rounded-lg shadow-2xs transition cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Review
+                  </button>
+                ) : null
               ) : isPaused ? (
                 <button
                   type="button"
@@ -619,7 +625,7 @@ export function SideTaskCard({
                         Submit for Review
                       </button>
                     )}
-                    {isInReview && (
+                    {isInReview && canReview && (
                       <button
                         type="button"
                         onClick={() => {

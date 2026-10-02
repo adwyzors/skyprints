@@ -634,6 +634,7 @@ function AdminMyTasksPage() {
     const currentUserId = user?.user?.id || user?.id;
     const role = user?.user?.role || (user as any)?.role;
     const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+    const canReview = isAdmin || hasPermission(Permission.SIDE_TASKS_REVIEW) || hasPermission('side_tasks:review');
 
     const [mainTab, setMainTab] = useState<'PROCESS_RUNS' | 'SIDE_TASKS'>('PROCESS_RUNS');
     const [queue, setQueue] = useState<ManagerQueueItem[]>([]);
@@ -676,6 +677,7 @@ function AdminMyTasksPage() {
     };
 
     const handleSideTaskFilterChange = (filter: 'MY' | 'ALL' | 'REVIEW') => {
+        if (filter === 'REVIEW' && !canReview) return;
         setSideTaskFilter(filter);
         if (filter === 'ALL') {
             setGroupMode('SCHEDULE_ASSIGNEE');
@@ -1051,16 +1053,18 @@ function AdminMyTasksPage() {
                             >
                                 All Active Side Tasks ({sideTasks.length})
                             </button>
-                            <button
-                                onClick={() => handleSideTaskFilterChange('REVIEW')}
-                                className={`px-4 py-2 text-xs font-bold rounded-lg transition cursor-pointer ${
-                                    sideTaskFilter === 'REVIEW'
-                                        ? 'bg-indigo-600 text-white shadow-sm'
-                                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-                                }`}
-                            >
-                                Review Tasks ({sideTasks.filter((t) => t.status === 'IN_REVIEW').length})
-                            </button>
+                            {canReview && (
+                                <button
+                                    onClick={() => handleSideTaskFilterChange('REVIEW')}
+                                    className={`px-4 py-2 text-xs font-bold rounded-lg transition cursor-pointer ${
+                                        sideTaskFilter === 'REVIEW'
+                                            ? 'bg-indigo-600 text-white shadow-sm'
+                                            : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    Review Tasks ({sideTasks.filter((t) => t.status === 'IN_REVIEW').length})
+                                </button>
+                            )}
                         </div>
 
                         {/* 2D Matrix Legend on right */}

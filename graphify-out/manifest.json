@@ -295,8 +295,8 @@
     "semantic_hash": ""
   },
   "apps/backend/src/auth/permissions.map.ts": {
-    "mtime": 1790245826.6666856,
-    "ast_hash": "47a4552488f61ef6f3fc983b457fe5ca",
+    "mtime": 1790836979.4980757,
+    "ast_hash": "94d2ee4ed621bb8102b2ff1f81e661c4",
     "semantic_hash": ""
   },
   "apps/backend/src/auth/utils/cookie-domain.util.ts": {
@@ -1070,8 +1070,8 @@
     "semantic_hash": "a5903433daa3277310b7e6a8f683b5d3"
   },
   "apps/frontend/src/app/admin/users/page.tsx": {
-    "mtime": 1790245826.6719632,
-    "ast_hash": "c811bb17e10171ce1ec4c7a643522125",
+    "mtime": 1790836989.655811,
+    "ast_hash": "b091f2af58171a65a2f822f8071d5a1e",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/layout.tsx": {
@@ -1095,8 +1095,8 @@
     "semantic_hash": "11b46eeb15209558ce0e84a574fa1f31"
   },
   "apps/frontend/src/app/manager/runs/page.tsx": {
-    "mtime": 1790828132.8771038,
-    "ast_hash": "9a8847bf754a51fd4175d000509d47dc",
+    "mtime": 1790837042.2698908,
+    "ast_hash": "abc94c1d36002c62445740249ff0fc3e",
     "semantic_hash": ""
   },
   "apps/frontend/src/app/not-found.tsx": {
@@ -1995,8 +1995,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/app/admin/my-tasks/page.tsx": {
-    "mtime": 1790689611.7845757,
-    "ast_hash": "301619785c315fc2f6764d28ba9fe71f",
+    "mtime": 1790837091.224756,
+    "ast_hash": "bb6fba3f7946a95f0e3c46e2c44476b6",
     "semantic_hash": ""
   },
   "deploy/finish-deploy.sh": {
@@ -2080,8 +2080,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskCard.tsx": {
-    "mtime": 1790828049.0597126,
-    "ast_hash": "ec702ec268c4701e65deb63da1a53a60",
+    "mtime": 1790837149.769512,
+    "ast_hash": "a26aa787e6a1c74bd48c1b7a500ecd96",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskHistoryModal.tsx": {
@@ -2115,8 +2115,8 @@
     "semantic_hash": ""
   },
   "apps/frontend/src/components/side-tasks/SideTaskTableRow.tsx": {
-    "mtime": 1790828094.4940865,
-    "ast_hash": "0c934e2cbacdf095aa40fc1662900299",
+    "mtime": 1790837184.7518153,
+    "ast_hash": "c1ce8e4f6a4d6309a36b6f7789cc8731",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/runs/PrintRunCards.tsx": {

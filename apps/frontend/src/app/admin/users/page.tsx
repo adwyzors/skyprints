@@ -76,7 +76,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'rates:view', 'runs:create', 'runs:lifecycle:update', 'runs:transition:digital',
     'runs:transition:fusing', 'runs:update', 'runs:view',
     'side_tasks:assign', 'side_tasks:create', 'side_tasks:edit',
-    'side_tasks:review', 'side_tasks:view', 'users:view:basic',
+    'side_tasks:view', 'users:view:basic',
   ],
 };
 
